@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #060807; }
+  a { color: #6DA8A0; text-decoration: none; }
+  a:hover { color: #8FC4BC; }
+</style>
+</helmet>
+
+<div style="min-height: 100vh; background: #060807; padding: 72px 80px 96px; box-sizing: border-box; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; color: #E9EDEC;">
+
+  <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 56px; max-width: 620px;">
+    <div style="font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: #6DA8A0;">Pass 01 · palette + layout</div>
+    <div style="font-size: 34px; font-weight: 600; letter-spacing: -0.4px;">Personal health coach</div>
+    <div style="font-size: 15px; line-height: 1.55; color: #8A9391; text-wrap: pretty;">Dark-first, desaturated. Logging status runs on a single teal ladder — full, partial, skipped — so a missed day reads as quieter, never wrong.</div>
+  </div>
+
+  <div style="display: flex; gap: 24px; margin-bottom: 56px; flex-wrap: wrap;">
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; background: #121615; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <div style="width: 14px; height: 14px; border-radius: 4px; background: #6DA8A0;"></div>
+      <div style="font-size: 13px; color: #A9B2B0;">Coach &amp; primary</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; background: #121615; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <div style="width: 14px; height: 14px; border-radius: 4px; background: #C2A57B;"></div>
+      <div style="font-size: 13px; color: #A9B2B0;">Calories eaten</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; background: #121615; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <div style="width: 14px; height: 14px; border-radius: 4px; background: #A98FA8;"></div>
+      <div style="font-size: 13px; color: #A9B2B0;">Calories burned</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; background: #121615; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <div style="width: 14px; height: 14px; border-radius: 4px; background: #7F9AC2;"></div>
+      <div style="font-size: 13px; color: #A9B2B0;">Steps</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px; padding: 10px 16px 10px 12px; background: #121615; border: 1px solid rgba(255,255,255,0.06); border-radius: 12px;">
+      <div style="display: flex; gap: 4px;">
+        <div style="width: 14px; height: 14px; border-radius: 4px; background: #6DA8A0;"></div>
+        <div style="width: 14px; height: 14px; border-radius: 4px; background: #3E605C;"></div>
+        <div style="width: 14px; height: 14px; border-radius: 4px; background: #212827;"></div>
+      </div>
+      <div style="font-size: 13px; color: #A9B2B0;">Logging ladder</div>
+    </div>
+  </div>
+
+  <div style="display: flex; gap: 64px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div data-screen-label="01 Weekly" style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">01 · Weekly view</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="background: #0A0C0C; min-height: 874px; padding: 64px 20px 44px; box-sizing: border-box; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; display: flex; flex-direction: column; gap: 20px;">
+
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #6A7472;">Week window</div>
+            <div style="font-size: 27px; font-weight: 600; letter-spacing: -0.5px; color: #E9EDEC;">Fri 21 — Thu 27</div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px 14px 14px; display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; align-items: stretch; gap: 3px; height: 40px;">
+              <div style="flex: 1; border-radius: 5px; background: #191E1D;"></div>
+              <div style="flex: 1; border-radius: 5px; background: #191E1D;"></div>
+              <div style="display: flex; align-items: stretch; gap: 3px; flex: 7; background: rgba(109,168,160,0.10); border: 1px solid rgba(109,168,160,0.45); border-radius: 8px; padding: 3px; box-sizing: border-box; position: relative;">
+                <div style="position: absolute; left: -5px; top: 50%; transform: translateY(-50%); width: 5px; height: 22px; border-radius: 3px; background: #6DA8A0;"></div>
+                <div style="position: absolute; right: -5px; top: 50%; transform: translateY(-50%); width: 5px; height: 22px; border-radius: 3px; background: #6DA8A0;"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.30);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.30);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.30);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.18);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.18);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.18);"></div>
+                <div style="flex: 1; border-radius: 4px; background: rgba(109,168,160,0.18);"></div>
+              </div>
+              <div style="flex: 1; border-radius: 5px; background: #191E1D;"></div>
+              <div style="flex: 1; border-radius: 5px; background: #191E1D;"></div>
+            </div>
+            <div style="font-size: 12px; color: #6A7472;">Drag either handle to shift the window. Always 7 days.</div>
+          </div>
+
+          <div style="display: flex; gap: 12px;">
+            <div style="flex: 1; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">Avg eaten</div>
+              <div style="display: flex; align-items: baseline; gap: 4px;">
+                <div style="font-size: 24px; font-weight: 600; color: #C2A57B;">1,990</div>
+                <div style="font-size: 12px; color: #6A7472;">kcal</div>
+              </div>
+            </div>
+            <div style="flex: 1; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">Logged</div>
+              <div style="display: flex; gap: 4px;">
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #6DA8A0;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #3E605C;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #6DA8A0;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #212827;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #212827;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #212827;"></div>
+                <div style="flex: 1; height: 22px; border-radius: 4px; background: #212827;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="width: 44px; font-size: 15px; color: #E9EDEC;">Fri</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #1C2120; overflow: hidden;">
+                <div style="width: 86%; height: 100%; border-radius: 4px; background: #C2A57B;"></div>
+              </div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #A9B2B0; font-variant-numeric: tabular-nums;">2,140</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #6DA8A0;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="width: 44px; font-size: 15px; color: #E9EDEC;">Sat</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #1C2120; overflow: hidden;">
+                <div style="width: 64%; height: 100%; border-radius: 4px; background: rgba(194,165,123,0.55);"></div>
+              </div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #A9B2B0; font-variant-numeric: tabular-nums;">1,890</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #3E605C;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(109,168,160,0.05);">
+              <div style="width: 44px; font-size: 15px; font-weight: 600; color: #E9EDEC;">Sun</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #1C2120; overflow: hidden;">
+                <div style="width: 48%; height: 100%; border-radius: 4px; background: #C2A57B;"></div>
+              </div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #E9EDEC; font-variant-numeric: tabular-nums;">1,240</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #6DA8A0;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="width: 44px; font-size: 15px; color: #6A7472;">Mon</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #141817;"></div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #4E5756;">—</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #212827;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="width: 44px; font-size: 15px; color: #6A7472;">Tue</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #141817;"></div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #4E5756;">—</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #212827;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="width: 44px; font-size: 15px; color: #6A7472;">Wed</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #141817;"></div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #4E5756;">—</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #212827;"></div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; padding: 14px 16px;">
+              <div style="width: 44px; font-size: 15px; color: #6A7472;">Thu</div>
+              <div style="flex: 1; height: 8px; border-radius: 4px; background: #141817;"></div>
+              <div style="width: 52px; text-align: right; font-size: 14px; color: #4E5756;">—</div>
+              <div style="width: 8px; height: 8px; border-radius: 3px; background: #212827;"></div>
+            </div>
+          </div>
+
+          <sc-if value="{{ showLegend }}" hint-placeholder-val="{{ true }}">
+            <div style="display: flex; gap: 18px; padding: 0 4px;">
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <div style="width: 8px; height: 8px; border-radius: 3px; background: #6DA8A0;"></div>
+                <div style="font-size: 12px; color: #8A9391;">Logged</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <div style="width: 8px; height: 8px; border-radius: 3px; background: #3E605C;"></div>
+                <div style="font-size: 12px; color: #8A9391;">Partial</div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 7px;">
+                <div style="width: 8px; height: 8px; border-radius: 3px; background: #212827;"></div>
+                <div style="font-size: 12px; color: #8A9391;">Not logged</div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </x-import>
+    </div>
+
+    <div data-screen-label="02 Metrics" style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">02 · Metrics history</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="background: #0A0C0C; min-height: 874px; padding: 64px 20px 44px; box-sizing: border-box; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; display: flex; flex-direction: column; gap: 16px;">
+
+          <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+            <div style="font-size: 27px; font-weight: 600; letter-spacing: -0.5px; color: #E9EDEC;">History</div>
+            <div style="display: flex; gap: 2px; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 9px; padding: 2px;">
+              <div style="padding: 5px 11px; border-radius: 7px; background: #262C2B; font-size: 12px; color: #E9EDEC;">W</div>
+              <div style="padding: 5px 11px; border-radius: 7px; font-size: 12px; color: #6A7472;">M</div>
+              <div style="padding: 5px 11px; border-radius: 7px; font-size: 12px; color: #6A7472;">6M</div>
+            </div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="width: 8px; height: 8px; border-radius: 3px; background: #C2A57B;"></div>
+                  <div style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A9391;">Calories eaten</div>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                  <div style="font-size: 30px; font-weight: 600; letter-spacing: -0.6px; color: #E9EDEC; font-variant-numeric: tabular-nums;">1,990</div>
+                  <div style="font-size: 13px; color: #6A7472;">kcal avg</div>
+                </div>
+              </div>
+              <div style="font-size: 12px; color: #6A7472; padding-top: 4px;">Aug 17 — 23</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 5px; height: 82px;">
+              <sc-for list="{{ eaten }}" as="b" hint-placeholder-count="7">
+                <div style="flex: 1; height: {{ b.h }}%; border-radius: 4px; background: {{ b.c }};"></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4E5756;">
+              <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+            </div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="width: 8px; height: 8px; border-radius: 3px; background: #A98FA8;"></div>
+                  <div style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A9391;">Calories burned</div>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                  <div style="font-size: 30px; font-weight: 600; letter-spacing: -0.6px; color: #E9EDEC; font-variant-numeric: tabular-nums;">2,410</div>
+                  <div style="font-size: 13px; color: #6A7472;">kcal avg</div>
+                </div>
+              </div>
+              <div style="font-size: 12px; color: #6A7472; padding-top: 4px;">Aug 17 — 23</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 5px; height: 82px;">
+              <sc-for list="{{ burned }}" as="b" hint-placeholder-count="7">
+                <div style="flex: 1; height: {{ b.h }}%; border-radius: 4px; background: {{ b.c }};"></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4E5756;">
+              <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+            </div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 18px 18px 14px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="width: 8px; height: 8px; border-radius: 3px; background: #7F9AC2;"></div>
+                  <div style="font-size: 13px; letter-spacing: 0.06em; text-transform: uppercase; color: #8A9391;">Steps</div>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 5px;">
+                  <div style="font-size: 30px; font-weight: 600; letter-spacing: -0.6px; color: #E9EDEC; font-variant-numeric: tabular-nums;">8,340</div>
+                  <div style="font-size: 13px; color: #6A7472;">avg / day</div>
+                </div>
+              </div>
+              <div style="font-size: 12px; color: #6A7472; padding-top: 4px;">Aug 17 — 23</div>
+            </div>
+            <div style="display: flex; align-items: flex-end; gap: 5px; height: 82px;">
+              <sc-for list="{{ steps }}" as="b" hint-placeholder-count="7">
+                <div style="flex: 1; height: {{ b.h }}%; border-radius: 4px; background: {{ b.c }};"></div>
+              </sc-for>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #4E5756;">
+              <div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div data-screen-label="03 Check-in" style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">03 · Home &amp; end-of-day check-in</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="background: #0A0C0C; min-height: 874px; padding: 64px 20px 44px; box-sizing: border-box; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; display: flex; flex-direction: column; gap: 18px;">
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="font-size: 13px; color: #6A7472;">Sunday, August 23</div>
+            <div style="font-size: 27px; font-weight: 600; letter-spacing: -0.5px; color: #E9EDEC;">Evening</div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(109,168,160,0.28); border-radius: 20px; padding: 20px 18px; display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: #6DA8A0;">End of day</div>
+              <div style="font-size: 19px; font-weight: 500; color: #E9EDEC; letter-spacing: -0.2px;">How did logging go today?</div>
+              <div style="font-size: 13px; line-height: 1.5; color: #8A9391;">One tap. You can change it any time.</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+              <div onClick="{{ pickFull }}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; border-radius: 14px; background: rgba(109,168,160,0.14); border: 1px solid rgba(109,168,160,0.5); cursor: pointer;" style-hover="background: rgba(109,168,160,0.2);">
+                <div style="width: 10px; height: 10px; border-radius: 3px; background: #6DA8A0;"></div>
+                <div style="font-size: 16px; color: #E9EDEC;">Logged everything</div>
+              </div>
+              <div onClick="{{ pickPartial }}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; border-radius: 14px; background: #191E1D; border: 1px solid rgba(255,255,255,0.07); cursor: pointer;" style-hover="background: #1F2524;">
+                <div style="width: 10px; height: 10px; border-radius: 3px; background: #3E605C;"></div>
+                <div style="font-size: 16px; color: #E9EDEC;">Logged some of it</div>
+              </div>
+              <div onClick="{{ pickSkip }}" style="display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 0 16px; border-radius: 14px; background: #191E1D; border: 1px solid rgba(255,255,255,0.07); cursor: pointer;" style-hover="background: #1F2524;">
+                <div style="width: 10px; height: 10px; border-radius: 3px; background: #2C3332;"></div>
+                <div style="font-size: 16px; color: #E9EDEC;">Didn't log today</div>
+              </div>
+            </div>
+            <div style="font-size: 13px; color: #6DA8A0;">{{ checkinNote }}</div>
+          </div>
+
+          <div style="display: flex; gap: 12px;">
+            <div style="flex: 1; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">Eaten</div>
+              <div style="font-size: 21px; font-weight: 600; color: #C2A57B; font-variant-numeric: tabular-nums;">1,240</div>
+              <div style="height: 5px; border-radius: 3px; background: #1C2120; overflow: hidden;">
+                <div style="width: 52%; height: 100%; background: #C2A57B;"></div>
+              </div>
+            </div>
+            <div style="flex: 1; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">Burned</div>
+              <div style="font-size: 21px; font-weight: 600; color: #A98FA8; font-variant-numeric: tabular-nums;">2,180</div>
+              <div style="height: 5px; border-radius: 3px; background: #1C2120; overflow: hidden;">
+                <div style="width: 78%; height: 100%; background: #A98FA8;"></div>
+              </div>
+            </div>
+            <div style="flex: 1; background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 14px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">Steps</div>
+              <div style="font-size: 21px; font-weight: 600; color: #7F9AC2; font-variant-numeric: tabular-nums;">7,905</div>
+              <div style="height: 5px; border-radius: 3px; background: #1C2120; overflow: hidden;">
+                <div style="width: 66%; height: 100%; background: #7F9AC2;"></div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background: #141817; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="width: 30px; height: 30px; border-radius: 10px; background: rgba(109,168,160,0.16); border: 1px solid rgba(109,168,160,0.4); display: flex; align-items: center; justify-content: center;">
+                <div style="width: 8px; height: 8px; border-radius: 4px; background: #6DA8A0;"></div>
+              </div>
+              <div style="font-size: 15px; color: #E9EDEC;">Coach</div>
+              <div style="margin-left: auto; font-size: 12px; color: #6A7472;">Check-in Fri, 8:00 PM</div>
+            </div>
+            <div style="font-size: 15px; line-height: 1.55; color: #A9B2B0; text-wrap: pretty;">Three of the last five days had a gap after 4 PM. Want to talk about the afternoon stretch?</div>
+            <div style="display: flex; gap: 10px;">
+              <div style="flex: 1; min-height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 13px; background: rgba(109,168,160,0.14); border: 1px solid rgba(109,168,160,0.5); font-size: 15px; color: #BFD9D5; cursor: pointer;" style-hover="background: rgba(109,168,160,0.22);">Talk now</div>
+              <div style="flex: 1; min-height: 46px; display: flex; align-items: center; justify-content: center; border-radius: 13px; background: #191E1D; border: 1px solid rgba(255,255,255,0.07); font-size: 15px; color: #A9B2B0; cursor: pointer;" style-hover="background: #1F2524;">Not tonight</div>
+            </div>
+          </div>
+
+          <div style="margin-top: auto; display: flex; align-items: center; justify-content: space-around; padding: 14px 8px 0; border-top: 1px solid rgba(255,255,255,0.06);">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+              <div style="width: 20px; height: 20px; border-radius: 6px; background: #6DA8A0;"></div>
+              <div style="font-size: 11px; color: #6DA8A0;">Today</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+              <div style="width: 20px; height: 20px; border-radius: 6px; background: #2C3332;"></div>
+              <div style="font-size: 11px; color: #6A7472;">Week</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+              <div style="width: 20px; height: 20px; border-radius: 6px; background: #2C3332;"></div>
+              <div style="font-size: 11px; color: #6A7472;">History</div>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 5px;">
+              <div style="width: 20px; height: 20px; border-radius: 6px; background: #2C3332;"></div>
+              <div style="font-size: 11px; color: #6A7472;">Coach</div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <div data-screen-label="04 Coach" style="display: flex; flex-direction: column; gap: 18px;">
+      <div style="font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase; color: #6A7472;">04 · Coach session</div>
+      <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" dark="{{ true }}" hint-size="402px,874px">
+        <div style="background: #0A0C0C; min-height: 874px; box-sizing: border-box; font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif; display: flex; flex-direction: column;">
+
+          <div style="padding: 60px 20px 14px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 12px;">
+            <div style="width: 34px; height: 34px; border-radius: 11px; background: rgba(109,168,160,0.16); border: 1px solid rgba(109,168,160,0.4); display: flex; align-items: center; justify-content: center;">
+              <div style="width: 9px; height: 9px; border-radius: 5px; background: #6DA8A0;"></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="font-size: 16px; font-weight: 500; color: #E9EDEC;">Weekly check-in</div>
+              <div style="font-size: 12px; color: #6A7472;">On device · 15 min · 6:20 elapsed</div>
+            </div>
+            <div style="margin-left: auto; font-size: 14px; color: #6DA8A0; cursor: pointer;">End</div>
+          </div>
+
+          <div style="flex: 1; padding: 20px 20px 12px; display: flex; flex-direction: column; gap: 14px; overflow: hidden;">
+            <div style="align-self: center; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #4E5756;">Friday, 8:04 PM</div>
+
+            <div style="max-width: 82%; align-self: flex-start; background: #171C1B; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px 18px 18px 6px; padding: 14px 16px; font-size: 15px; line-height: 1.55; color: #DCE3E1; text-wrap: pretty;">You logged five of seven days this week, and both gaps were weekend evenings. Does that match how the week felt?</div>
+
+            <div style="max-width: 82%; align-self: flex-end; background: rgba(109,168,160,0.16); border: 1px solid rgba(109,168,160,0.32); border-radius: 18px 18px 6px 18px; padding: 14px 16px; font-size: 15px; line-height: 1.55; color: #E9EDEC;">Yeah. Saturday I ate out and just didn't bother after.</div>
+
+            <div style="max-width: 82%; align-self: flex-start; background: #171C1B; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px 18px 18px 6px; padding: 14px 16px; font-size: 15px; line-height: 1.55; color: #DCE3E1; text-wrap: pretty;">That's a common place to lose the thread — eating out makes logging feel like guesswork. Would a rough estimate entry be enough for those nights, or would you rather mark the day partial and move on?</div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <div style="padding: 10px 14px; border-radius: 12px; background: #191E1D; border: 1px solid rgba(255,255,255,0.08); font-size: 14px; color: #A9B2B0; cursor: pointer;" style-hover="background: #1F2524;">Rough estimate is fine</div>
+              <div style="padding: 10px 14px; border-radius: 12px; background: #191E1D; border: 1px solid rgba(255,255,255,0.08); font-size: 14px; color: #A9B2B0; cursor: pointer;" style-hover="background: #1F2524;">Mark it partial</div>
+            </div>
+
+            <sc-if value="{{ coachTyping }}" hint-placeholder-val="{{ true }}">
+              <div style="align-self: flex-start; display: flex; align-items: center; gap: 5px; padding: 14px 16px; background: #171C1B; border: 1px solid rgba(255,255,255,0.06); border-radius: 18px 18px 18px 6px;">
+                <div style="width: 6px; height: 6px; border-radius: 3px; background: #6DA8A0;"></div>
+                <div style="width: 6px; height: 6px; border-radius: 3px; background: rgba(109,168,160,0.6);"></div>
+                <div style="width: 6px; height: 6px; border-radius: 3px; background: rgba(109,168,160,0.3);"></div>
+              </div>
+            </sc-if>
+          </div>
+
+          <div style="padding: 12px 16px 44px; border-top: 1px solid rgba(255,255,255,0.06); display: flex; align-items: center; gap: 10px;">
+            <div style="flex: 1; min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 22px; background: #171C1B; border: 1px solid rgba(255,255,255,0.08); font-size: 15px; color: #5A6362;">Message</div>
+            <div style="width: 44px; height: 44px; border-radius: 22px; background: rgba(109,168,160,0.16); border: 1px solid rgba(109,168,160,0.5); display: flex; align-items: center; justify-content: center; cursor: pointer;" style-hover="background: rgba(109,168,160,0.26);">
+              <div style="width: 10px; height: 10px; border-radius: 3px; background: #6DA8A0;"></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showLegend&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Weekly view&quot;},&quot;coachTyping&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Coach&quot;}}">
+class Component extends DCLogic {
+  state = { picked: null };
+
+  bars(vals, color, dim) {
+    const max = Math.max.apply(null, vals);
+    return vals.map((v, i) => ({
+      h: Math.round((v / max) * 100),
+      c: dim.indexOf(i) >= 0 ? color.dim : color.full,
+    }));
+  }
+
+  renderVals() {
+    const notes = {
+      full: "Saved. Nice — that's four full days this week.",
+      partial: "Saved as partial. Partial still counts.",
+      skip: "Saved. Tomorrow's a fresh entry.",
+    };
+    return {
+      showLegend: this.props.showLegend ?? true,
+      coachTyping: this.props.coachTyping ?? true,
+      checkinNote: this.state.picked
+        ? notes[this.state.picked]
+        : "Logged so far: 1,240 kcal across 3 entries.",
+      pickFull: () => this.setState({ picked: "full" }),
+      pickPartial: () => this.setState({ picked: "partial" }),
+      pickSkip: () => this.setState({ picked: "skip" }),
+      eaten: this.bars([2210, 1980, 2060, 1740, 2140, 1890, 1240],
+        { full: "#C2A57B", dim: "rgba(194,165,123,0.35)" }, [6]),
+      burned: this.bars([2380, 2520, 2410, 2190, 2600, 2340, 2180],
+        { full: "#A98FA8", dim: "rgba(169,143,168,0.35)" }, [6]),
+      steps: this.bars([9120, 8460, 8890, 6740, 9600, 8100, 7905],
+        { full: "#7F9AC2", dim: "rgba(127,154,194,0.35)" }, [6]),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
