@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-
 import 'package:checkin_domain/checkin_domain.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('adds one to input values', () {

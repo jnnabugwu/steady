@@ -9,19 +9,19 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
-  flutter:
-    sdk: flutter
-  coach_domain:
-    path: ../coach_domain
-  metrics_domain:
-    path: ../../metrics/metrics_domain
   checkin_domain:
     path: ../../checkin/checkin_domain
+  coach_domain:
+    path: ../coach_domain
+  flutter:
+    sdk: flutter
+  metrics_domain:
+    path: ../../metrics/metrics_domain
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^6.0.0
+  very_good_analysis: ^10.2.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

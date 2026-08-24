@@ -1,7 +1,6 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:steady/bootstrap.dart';
 import 'package:ui_kit/ui_kit.dart';
-
-import 'bootstrap.dart';
 
 void main() {
   configureDependencies();
@@ -16,10 +15,10 @@ class SteadyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ShadcnApp(
+    return const ShadcnApp(
       title: 'Steady',
       theme: steadyTheme,
-      home: const _DesignSystemPreview(),
+      home: _DesignSystemPreview(),
     );
   }
 }
@@ -29,8 +28,8 @@ class _DesignSystemPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      headers: const [
+    return const Scaffold(
+      headers: [
         AppBar(title: Text('Steady')),
       ],
       child: Center(
@@ -40,8 +39,8 @@ class _DesignSystemPreview extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Today', style: SteadyType.headline),
-              const SizedBox(height: 16),
-              const Row(
+              SizedBox(height: 16),
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   MetricAccentChip(
@@ -57,8 +56,8 @@ class _DesignSystemPreview extends StatelessWidget {
                   MetricAccentChip(accent: MetricAccent.steps, label: 'Steps'),
                 ],
               ),
-              const SizedBox(height: 16),
-              const Row(
+              SizedBox(height: 16),
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   LoggingStatusIndicator(status: LoggingStatus.logged),

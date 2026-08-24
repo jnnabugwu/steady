@@ -1,6 +1,6 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../design_tokens.dart';
+import 'package:ui_kit/src/design_tokens.dart';
 
 /// Which of §10's three metric accent colors a [MetricAccentChip] uses.
 enum MetricAccent { caloriesEaten, caloriesBurned, steps }

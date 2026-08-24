@@ -14,9 +14,9 @@ import 'package:rag_kit/rag_kit.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('getPlatformVersion test', (WidgetTester tester) async {
-    final RagKit plugin = RagKit();
-    final String? version = await plugin.getPlatformVersion();
+  testWidgets('getPlatformVersion test', (tester) async {
+    final plugin = RagKit();
+    final version = await plugin.getPlatformVersion();
     // The version string depends on the host platform running the test, so
     // just assert that some non-empty string is returned.
     expect(version?.isNotEmpty, true);

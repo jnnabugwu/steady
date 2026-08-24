@@ -1,13 +1,13 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import 'design_tokens.dart';
+import 'package:ui_kit/src/design_tokens.dart';
 
 /// Steady's `shadcn_flutter` [ThemeData], built from the tokens in
 /// [SteadyColors]/[SteadyType]/[SteadyRadii] (design source:
 /// `docs/steady_product_overview.md` §10). Dark-mode only — the design
 /// handoff defines no light variant.
-final steadyTheme = ThemeData(
-  colorScheme: const ColorScheme(
+const steadyTheme = ThemeData(
+  colorScheme: ColorScheme(
     brightness: Brightness.dark,
     background: SteadyColors.bgScreen,
     foreground: SteadyColors.textPrimary,
@@ -45,6 +45,6 @@ final steadyTheme = ThemeData(
   // revisit per-component if a rendered radius looks off.
   radius: 1.125,
   typography: Typography.geist(
-    sans: const TextStyle(fontFamilyFallback: SteadyType.fontFamilyFallback),
+    sans: TextStyle(fontFamilyFallback: SteadyType.fontFamilyFallback),
   ),
 );

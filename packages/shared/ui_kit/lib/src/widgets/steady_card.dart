@@ -1,6 +1,6 @@
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
-import '../design_tokens.dart';
+import 'package:ui_kit/src/design_tokens.dart';
 
 /// Thin wrapper around shadcn_flutter's [Card], pinned to the §10 card
 /// corner-radius token and a sensible default content padding. Fill/border

@@ -1,6 +1,6 @@
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
-import 'rag_kit_method_channel.dart';
+import 'package:rag_kit/rag_kit_method_channel.dart';
 
 abstract class RagKitPlatform extends PlatformInterface {
   /// Constructs a RagKitPlatform.

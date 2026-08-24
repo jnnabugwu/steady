@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-import 'rag_kit_platform_interface.dart';
+import 'package:rag_kit/rag_kit_platform_interface.dart';
 
 /// An implementation of [RagKitPlatform] that uses method channels.
 class MethodChannelRagKit extends RagKitPlatform {

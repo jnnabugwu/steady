@@ -5,12 +5,12 @@ import 'package:rag_kit/rag_kit_method_channel.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MethodChannelRagKit platform = MethodChannelRagKit();
-  const MethodChannel channel = MethodChannel('rag_kit');
+  final platform = MethodChannelRagKit();
+  const channel = MethodChannel('rag_kit');
 
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-        .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        .setMockMethodCallHandler(channel, (methodCall) async {
           return '42';
         });
   });
