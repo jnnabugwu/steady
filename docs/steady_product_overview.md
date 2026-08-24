@@ -9,6 +9,7 @@ on-device coach.*
 *completely* on the days you do log — without guilt/shame mechanics.
 
 **Core features:**
+
 - Import weekly Cal AI PDF exports and parse them into structured daily food data.
 - View calories, steps, and calories burned in an **adjustable 7-day window** (defaults to
   Friday→Thursday, but the start date can be dragged anywhere — always locked to a 7-day span).
@@ -20,11 +21,13 @@ on-device coach.*
   check-in session, focused on tracking consistency and behavior — not calorie prescriptions.
 
 **Explicitly parked (not being built right now):**
+
 - The calorie-in vs. weight-trend "confidence" / adaptive-TDEE engine. Prototyped and proven
   workable in principle (see §4), but shelved because current food-logging isn't consistent
   enough to trust the inputs. Revisit once daily tracking is more reliable.
 
 **Explicit non-goals / design constraints:**
+
 - No streaks, red X's, or shame-coded visuals for missed days.
 - The coach never originates specific calorie targets or diet prescriptions — it reflects on
   the user's own logged data and asks questions, it doesn't hand down numbers.
@@ -33,7 +36,7 @@ on-device coach.*
 ## 2. Platform & Stack
 
 | Layer | Choice | Why |
-|---|---|---|
+| --- | --- | --- |
 | Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer for HealthKit (+ Foundation Models on macOS only) |
 | On-device LLM | Apple **Foundation Models** framework — **macOS only** (26 "Tahoe"+, Apple Silicon) | The coach is a deliberate, sit-down macOS experience, not a pocket-moment feature — see `CLAUDE.md` §11. iOS shows read-only session history (synced via CloudKit) but never runs inference. Decouples iOS's hardware floor from the A17 Pro+ requirement that on-device LLM support would otherwise impose. |
 | Sync | **CloudKit** (via SwiftData's CloudKit integration) | Single-user, Apple-only devices — CloudKit handles cross-device sync **and auth** (Apple ID) with no custom sync protocol, backend, or separate login system needed |
@@ -52,7 +55,7 @@ support Intel hardware at all).
 
 ## 3. High-Level Architecture
 
-```
+```text
 ┌───────────────────────────────┐        ┌───────────────────────────────┐
 │      Flutter App (iOS)         │        │      Flutter App (macOS)       │
 │                                  │        │                                  │
@@ -93,7 +96,7 @@ support Intel hardware at all).
 
 ## 4. Data Model (current)
 
-```
+```text
 daily_metrics(
   date,
   calories_eaten,           -- parsed from Cal AI PDF
@@ -160,6 +163,7 @@ always built from whatever daily readings exist rather than depending on one raw
 outside sources (e.g. techniques from a book) during sessions — not just app-generated data.
 
 **Two paths considered:**
+
 - **Native (Path A)** — Foundation Models' new Spotlight-powered RAG tool (announced WWDC26,
   ships with iOS/macOS 27 "Golden Gate", in public beta as of Aug 2026, GA expected ~Sept
   2026). "RAG in two lines of Swift" per Apple — no manual embeddings/vector store needed,
@@ -174,6 +178,7 @@ outside sources (e.g. techniques from a book) during sessions — not just app-g
   Migrating to Path A later is a retrieval-mechanism swap, not a rearchitecture.
 
 **Content handling:**
+
 - Personal journal notes: user's own writing, imported directly.
 - Book-derived content (e.g. techniques from a book): don't bulk-store verbatim book text.
   Distill techniques into short, actionable notes in the user's own words instead — better
@@ -182,7 +187,8 @@ outside sources (e.g. techniques from a book) during sessions — not just app-g
   notes together).
 
 **Code organization (planned, not yet built) — monorepo, kept separate from the Flutter app:**
-```
+
+```text
 tracker-monorepo/
 ├── app/                    # Flutter app (iOS + macOS)
 ├── packages/
@@ -193,6 +199,7 @@ tracker-monorepo/
 │                             # unit-testable on its own via `swift test`.
 └── docs/
 ```
+
 No backend — PDF import (`pdf_import_data`, using `pdfrx_engine`) is on-device, same as
 everything else. See `CLAUDE.md` §6 for that decision and its validation.
 
@@ -211,9 +218,10 @@ the real Flutter screens, recreate the visual output faithfully; don't port the 
 structure itself. Four screens were produced: Weekly view, Metrics history, Home/end-of-day
 check-in, Coach session chat — all validated against the product decisions in §6.
 
-**Backgrounds**
+### Backgrounds
+
 | Token | Value | Use |
-|---|---|---|
+| --- | --- | --- |
 | `bg.base` | `#060807` | Outer canvas background |
 | `bg.screen` | `#0A0C0C` | In-device screen background |
 | `bg.card` | `#141817` | Card/panel fill |
@@ -223,44 +231,54 @@ check-in, Coach session chat — all validated against the product decisions in 
 | `border.subtle` | `rgba(255,255,255,0.06)` | Default card border |
 | `border.subtleStrong` | `rgba(255,255,255,0.07–0.08)` | Button/input border |
 
-**Text**
+### Text
+
 | Token | Value | Use |
-|---|---|---|
+| --- | --- | --- |
 | `text.primary` | `#E9EDEC` | Headlines, primary values |
 | `text.secondary` | `#A9B2B0` | Body/secondary values |
 | `text.tertiary` | `#8A9391` | Descriptions, coach message text |
 | `text.muted` | `#6A7472` | Labels, uppercase eyebrows |
 | `text.disabled` | `#4E5756` | Unlogged/placeholder values |
 
-**Accent — primary (coach & key actions)**
+### Accent — primary (coach & key actions)
+
 | Token | Value |
-|---|---|
+| --- | --- |
 | `accent.teal` | `#6DA8A0` |
 | `accent.teal.hover` | `#8FC4BC` |
 | `accent.teal.tint` | `rgba(109,168,160, α)` — α ranges 0.14–0.6 depending on emphasis (selected states, borders, chat bubble fill) |
 
-**Accent — metrics** (each: full-saturation for "logged" data, ~35% alpha for dimmed/future days)
+### Accent — metrics
+
+Each: full-saturation for "logged" data, ~35% alpha for dimmed/future days.
+
 | Metric | Full | Dimmed |
-|---|---|---|
+| --- | --- | --- |
 | Calories eaten | `#C2A57B` (tan/gold) | `rgba(194,165,123,0.35)` |
 | Calories burned | `#A98FA8` (mauve) | `rgba(169,143,168,0.35)` |
 | Steps | `#7F9AC2` (blue) | `rgba(127,154,194,0.35)` |
 
-**Logging status ladder — single-hue, no red/yellow/green (deliberate, per §1 non-goals)**
+### Logging status ladder
+
+Single-hue, no red/yellow/green (deliberate, per §1 non-goals).
+
 | Status | Value |
-|---|---|
+| --- | --- |
 | Logged (full) | `#6DA8A0` |
 | Partial | `#3E605C` |
 | Skipped | `#212827` |
 
-**Typography**
+### Typography
+
 - Font stack: `-apple-system, 'SF Pro Text', system-ui, sans-serif` (native iOS/macOS feel)
 - Headline (screen title): 27–34px, weight 600, tracking -0.4 to -0.6px
 - Card title/value: 19–24px, weight 500–600
 - Body: 15px, line-height 1.55
 - Labels/eyebrows: 11–13px, uppercase, tracking 0.1–0.14em, `text.muted`
 
-**Shape**
+### Shape
+
 - Cards/screens: 16–20px corner radius
 - Buttons/chips/options: 12–14px
 - Chat bubbles: asymmetric radius (`18px 18px 18px 6px` incoming / mirrored outgoing) for a tail effect
@@ -270,7 +288,7 @@ check-in, Coach session chat — all validated against the product decisions in 
 
 ## 11. Open Design Decisions (not yet resolved)
 
-*(none currently)*
+None currently.
 
 **Resolved:** the W/M/6M period toggle on the Metrics history screen (added in Pass 01) is a
 kept scope addition, not scoped back to 7-day-only.
