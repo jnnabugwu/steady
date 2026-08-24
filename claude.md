@@ -285,6 +285,36 @@ full section on role-based rules because it has two roles (staff/admin) reading 
 collection. Steady has one user and CloudKit's private database is scoped to that user's
 iCloud account automatically — there's no equivalent trust boundary to write rules for.
 
+**Schema constraints, CloudKit-backed SwiftData models.** These apply to every `@Model` in
+every feature's `_data` package, and need to be designed in from the start rather than
+discovered mid-migration:
+
+- Every stored attribute must either be optional or have a default value — CloudKit has no
+  concept of a required field with no fallback.
+- No `@Attribute(.unique)` — CloudKit has no unique-constraint equivalent, so SwiftData
+  can't enforce one on a synced model.
+- Relationships must be optional, and to-many relationships need an inverse.
+
+These constraints apply uniformly, so there's no per-feature exception to design around.
+
+**Conflict resolution is plain last-writer-wins, everywhere, including coach transcripts.**
+CloudKit resolves concurrent record writes at the record level with LWW; Steady doesn't
+layer any custom merge logic on top, not even for append-style data like coach session
+transcripts. The accepted tradeoff: if iPhone and Mac somehow write a transcript record at
+the same moment, one write silently wins and the other's messages are lost, with no error
+surfaced. Given single-user, single-writer-at-a-time usage in practice, this edge case is
+accepted risk rather than a reason to model transcripts as an append-only child collection.
+
+**iCloud sign-in is a hard requirement — no local-only fallback mode.** Since CloudKit is
+the entire auth story (§1), a user who isn't signed into iCloud simply can't use the app.
+Building a signed-out/local-only degraded mode was considered and rejected: it would
+reintroduce exactly the session/auth complexity this architecture exists to avoid.
+
+**Account loss (locked/lost/deleted Apple ID) is accepted risk, no backup mitigation.**
+CloudKit's private database has no separate backend copy, so losing the Apple ID loses the
+data with it. Consistent with the "add the escape hatch only when a real requirement forces
+it" philosophy below — revisit only if this stops being a single personal-use install.
+
 **The one thing that would change this:** if Steady ever grows a feature that shares data
 *beyond* the single user (e.g., some future "share your week" export), that's the trigger
 to introduce a CloudKit shared/public database schema — same "add the escape hatch only
@@ -343,6 +373,7 @@ better iOS experience than removing the feature outright — the coach's presenc
 visible and useful on the phone, just not interactive there.
 
 **Consequences that follow from this, worth remembering while building:**
+
 - The coach nudge card on the check-in screen (Pass 01 design — "Talk now" / "Not
   tonight") needs a platform-specific CTA. On macOS, "Talk now" opens a live session as
   designed. On iOS, that button should read something like "Continue on Mac" — the card
