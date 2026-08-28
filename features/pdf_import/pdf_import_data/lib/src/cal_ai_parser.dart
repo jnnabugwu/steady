@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:meta/meta.dart';
 import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
@@ -58,64 +59,75 @@ class CalAIParser {
     final document = await PdfDocument.openData(pdfBytes);
     try {
       final days = <ParsedDay>[];
-
       for (final page in document.pages) {
         final rawText = await page.loadText();
-        final lines = (rawText?.fullText ?? '').split('\n');
-
-        DateTime? currentDate;
-        var pendingName = '';
-        var currentEntries = <ParsedFoodEntry>[];
-
-        for (final rawLine in lines) {
-          final line = rawLine.trim();
-          if (line.isEmpty || _isBoilerplate(line)) continue;
-
-          final dateMatch = _dateHeaderPattern.firstMatch(line);
-          if (dateMatch != null) {
-            final month = _monthNames[dateMatch.group(1)];
-            if (month != null) {
-              currentDate = DateTime(
-                int.parse(dateMatch.group(3)!),
-                month,
-                int.parse(dateMatch.group(2)!),
-              );
-              pendingName = '';
-            }
-            continue;
-          }
-
-          if (line.startsWith('TOTAL')) {
-            final totalMatch = _totalCaloriesPattern.firstMatch(line);
-            if (totalMatch != null && currentDate != null) {
-              days.add(
-                ParsedDay(
-                  date: currentDate,
-                  caloriesEaten: int.parse(totalMatch.group(1)!),
-                  foodEntries: List.of(currentEntries),
-                ),
-              );
-            }
-            currentEntries = [];
-            pendingName = '';
-            continue;
-          }
-
-          final tokens = line.split(RegExp(r'\s+'));
-          final entry = _tryParseFoodRow(tokens, pendingName);
-          if (entry != null) {
-            currentEntries.add(entry);
-            pendingName = '';
-          } else {
-            pendingName = pendingName.isEmpty ? line : '$pendingName $line';
-          }
-        }
+        days.addAll(parsePageLines((rawText?.fullText ?? '').split('\n')));
       }
-
       return days;
     } finally {
       await document.dispose();
     }
+  }
+
+  /// Parses the text [lines] of a single PDF page into that page's
+  /// `ParsedDay`s. This is the per-page seam of [parse], carrying all the
+  /// fragile text-shape logic — token lookahead, boilerplate skipping,
+  /// multi-line name reassembly, reading the `TOTAL` line — with no PDF I/O,
+  /// so it can be exercised in CI without the gitignored reference export.
+  /// `currentDate`/the pending-name buffer are page-scoped, matching the
+  /// ported algorithm (see the class doc).
+  @visibleForTesting
+  List<ParsedDay> parsePageLines(List<String> lines) {
+    final days = <ParsedDay>[];
+    DateTime? currentDate;
+    var pendingName = '';
+    var currentEntries = <ParsedFoodEntry>[];
+
+    for (final rawLine in lines) {
+      final line = rawLine.trim();
+      if (line.isEmpty || _isBoilerplate(line)) continue;
+
+      final dateMatch = _dateHeaderPattern.firstMatch(line);
+      if (dateMatch != null) {
+        final month = _monthNames[dateMatch.group(1)];
+        if (month != null) {
+          currentDate = DateTime(
+            int.parse(dateMatch.group(3)!),
+            month,
+            int.parse(dateMatch.group(2)!),
+          );
+          pendingName = '';
+        }
+        continue;
+      }
+
+      if (line.startsWith('TOTAL')) {
+        final totalMatch = _totalCaloriesPattern.firstMatch(line);
+        if (totalMatch != null && currentDate != null) {
+          days.add(
+            ParsedDay(
+              date: currentDate,
+              caloriesEaten: int.parse(totalMatch.group(1)!),
+              foodEntries: List.of(currentEntries),
+            ),
+          );
+        }
+        currentEntries = [];
+        pendingName = '';
+        continue;
+      }
+
+      final tokens = line.split(RegExp(r'\s+'));
+      final entry = _tryParseFoodRow(tokens, pendingName);
+      if (entry != null) {
+        currentEntries.add(entry);
+        pendingName = '';
+      } else {
+        pendingName = pendingName.isEmpty ? line : '$pendingName $line';
+      }
+    }
+
+    return days;
   }
 
   ParsedFoodEntry? _tryParseFoodRow(List<String> tokens, String pendingName) {

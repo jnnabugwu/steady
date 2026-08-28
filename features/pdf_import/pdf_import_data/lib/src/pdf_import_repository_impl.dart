@@ -32,6 +32,11 @@ class PdfImportRepositoryImpl implements PdfImportRepository {
     // Only caloriesEaten is passed to upsert -- this is what makes the
     // partial-field merge preserve any HealthKit-sourced fields (or vice
     // versa, if PDF import runs before HealthKit backfills a day).
+    //
+    // Non-atomic on purpose: a mid-loop failure leaves earlier days
+    // committed and returns the first Err. Each upsert is an idempotent
+    // merge, so the caller recovers by re-running the whole import. See
+    // PdfImportRepository.commitDailyTotals doc.
     for (final day in days) {
       final result = await _dailyMetrics.upsert(
         day.date,

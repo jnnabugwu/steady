@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('Failure subtypes', () {
-    test('NotFoundFailure equality is based on message and cause', () {
+    test('NotFoundFailure equality is based on message', () {
       expect(
         const NotFoundFailure('missing'),
         const NotFoundFailure('missing'),
@@ -12,6 +12,14 @@ void main() {
         const NotFoundFailure('missing'),
         isNot(const NotFoundFailure('other')),
       );
+    });
+
+    test('equality ignores the wrapped cause instance', () {
+      final a = UnknownFailure('boom', cause: Exception('one'));
+      final b = UnknownFailure('boom', cause: Exception('two'));
+
+      expect(a, b);
+      expect(a.hashCode, b.hashCode);
     });
 
     test('PlatformChannelFailure equality includes code', () {
@@ -25,7 +33,7 @@ void main() {
       );
     });
 
-    test('ValidationFailure equality is based on message and cause', () {
+    test('ValidationFailure equality is based on message', () {
       expect(
         const ValidationFailure('start must not be after end'),
         const ValidationFailure('start must not be after end'),

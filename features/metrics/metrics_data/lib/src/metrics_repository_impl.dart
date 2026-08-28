@@ -17,7 +17,7 @@ class MetricsRepositoryImpl implements MetricsRepository {
   ResultFuture<List<WeeklyBucket>> getWeeks(
     DateTime start,
     DateTime end, {
-    int anchorWeekday = DateTime.monday,
+    int anchorWeekday = DateTime.friday,
   }) async {
     final result = await _dailyMetrics.getRange(start, end);
     return result.fold(

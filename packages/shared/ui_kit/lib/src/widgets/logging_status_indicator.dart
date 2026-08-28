@@ -1,14 +1,18 @@
+import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'package:ui_kit/src/design_tokens.dart';
 
-/// The three-state check-in status ladder (CLAUDE.md §4:
-/// `CheckInLogged`/`CheckInPartial`/`CheckInSkipped`) — cross-feature
-/// vocabulary shared by `checkin` and `metrics`, kept here rather than in
-/// either feature's presentation package. Deliberately single-hue, no
-/// red/yellow/green (§1 non-goal: no shame visuals).
-enum LoggingStatus { logged, partial, skipped }
+// `LoggingStatus` is the single source of truth in `daily_metrics_domain`
+// (it types `DailyMetric.loggingStatus`); re-exported here so callers that
+// only depend on `ui_kit` can pass it straight to [LoggingStatusIndicator]
+// without a second, identically-named enum to alias and map.
+export 'package:daily_metrics_domain/daily_metrics_domain.dart'
+    show LoggingStatus;
 
+/// Renders the three-state check-in status ladder (CLAUDE.md §4:
+/// `CheckInLogged`/`CheckInPartial`/`CheckInSkipped`). Deliberately
+/// single-hue, no red/yellow/green (§1 non-goal: no shame visuals).
 extension on LoggingStatus {
   Color get color => switch (this) {
     LoggingStatus.logged => SteadyColors.statusLogged,

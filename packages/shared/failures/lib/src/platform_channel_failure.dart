@@ -9,5 +9,5 @@ class PlatformChannelFailure extends Failure {
   final String? code;
 
   @override
-  List<Object?> get props => [message, code, cause];
+  List<Object?> get props => [message, code];
 }

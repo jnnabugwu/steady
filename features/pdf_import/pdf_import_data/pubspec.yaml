@@ -15,6 +15,7 @@ dependencies:
     path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
+  meta: ^1.16.0
   pdf_import_domain:
     path: ../pdf_import_domain
   pdfrx_engine: ^0.4.5

@@ -4,10 +4,14 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 
-/// Regression bar for any change to `CalAIParser`: run against the real
-/// reference export (personal data, gitignored -- see
-/// test/fixtures/README or docs/technical_decisions.md). Skips itself if
-/// the fixture isn't present rather than failing CI for everyone else.
+/// End-to-end check of `CalAIParser` against the real reference export
+/// (personal data, gitignored -- see test/fixtures/README or
+/// docs/technical_decisions.md). Skips itself if the fixture isn't present,
+/// so it only runs when a developer restores the file locally.
+///
+/// The CI-visible regression bar for the parsing logic lives in
+/// `cal_ai_parser_lines_test.dart`, which drives the `parsePageLines` seam
+/// with synthetic lines and needs no fixture.
 void main() {
   final fixture = File('test/fixtures/jordanssummary.pdf');
   final fixtureExists = fixture.existsSync();

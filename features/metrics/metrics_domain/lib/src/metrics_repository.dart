@@ -8,10 +8,11 @@ abstract class MetricsRepository {
   ResultFuture<List<DailyMetric>> getRange(DateTime start, DateTime end);
 
   /// The `DailyMetric` rows between [start] and [end], bucketed into
-  /// `WeeklyBucket`s anchored on [anchorWeekday].
+  /// `WeeklyBucket`s anchored on [anchorWeekday] (`DateTime.friday` by
+  /// default — the product doc's Friday→Thursday window).
   ResultFuture<List<WeeklyBucket>> getWeeks(
     DateTime start,
     DateTime end, {
-    int anchorWeekday = DateTime.monday,
+    int anchorWeekday = DateTime.friday,
   });
 }

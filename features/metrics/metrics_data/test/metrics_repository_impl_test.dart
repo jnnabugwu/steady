@@ -22,6 +22,7 @@ void main() {
       final result = await repo.getWeeks(
         DateTime(2026, 8, 17),
         DateTime(2026, 8, 26),
+        anchorWeekday: DateTime.monday,
       );
 
       final weeks = (result as Ok<List<WeeklyBucket>>).value;
