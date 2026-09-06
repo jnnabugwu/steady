@@ -9,6 +9,8 @@ environment:
   flutter: ">=3.32.3"
 
 dependencies:
+  daily_metrics_domain:
+    path: ../daily_metrics_domain
   flutter:
     sdk: flutter
   shadcn_flutter: ^0.0.53

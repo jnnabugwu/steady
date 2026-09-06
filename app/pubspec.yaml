@@ -28,12 +28,39 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  checkin_data:
+    path: ../features/checkin/checkin_data
+  checkin_domain:
+    path: ../features/checkin/checkin_domain
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
 
+  daily_metrics_data:
+    path: ../packages/shared/daily_metrics_data
+  daily_metrics_domain:
+    path: ../packages/shared/daily_metrics_domain
+
   flutter:
     sdk: flutter
+
+  get_it: ^9.2.1
+
+  metrics_data:
+    path: ../features/metrics/metrics_data
+  metrics_domain:
+    path: ../features/metrics/metrics_domain
+
+  notifications_data:
+    path: ../features/notifications/notifications_data
+  notifications_domain:
+    path: ../features/notifications/notifications_domain
+
+  pdf_import_data:
+    path: ../features/pdf_import/pdf_import_data
+  pdf_import_domain:
+    path: ../features/pdf_import/pdf_import_domain
 
   shadcn_flutter: ^0.0.53
 
@@ -41,6 +68,8 @@ dependencies:
     path: ../packages/shared/ui_kit
 
 dev_dependencies:
+  failures:
+    path: ../packages/shared/failures
   flutter_test:
     sdk: flutter
 

@@ -9,12 +9,18 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  daily_metrics_domain:
+    path: ../../../packages/shared/daily_metrics_domain
+  failures:
+    path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
   metrics_domain:
     path: ../metrics_domain
 
 dev_dependencies:
+  daily_metrics_data:
+    path: ../../../packages/shared/daily_metrics_data
   flutter_test:
     sdk: flutter
   very_good_analysis: ^10.2.0

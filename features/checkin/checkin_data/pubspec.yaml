@@ -11,10 +11,16 @@ environment:
 dependencies:
   checkin_domain:
     path: ../checkin_domain
+  daily_metrics_domain:
+    path: ../../../packages/shared/daily_metrics_domain
+  failures:
+    path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
 
 dev_dependencies:
+  daily_metrics_data:
+    path: ../../../packages/shared/daily_metrics_data
   flutter_test:
     sdk: flutter
   very_good_analysis: ^10.2.0

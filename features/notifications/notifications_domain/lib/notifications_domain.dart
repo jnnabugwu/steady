@@ -1,5 +1,2 @@
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+export 'src/end_of_day_reminder_policy.dart';
+export 'src/notification_scheduler.dart';

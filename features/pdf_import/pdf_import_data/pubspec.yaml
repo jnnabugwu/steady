@@ -9,12 +9,20 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  daily_metrics_domain:
+    path: ../../../packages/shared/daily_metrics_domain
+  failures:
+    path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
+  meta: ^1.16.0
   pdf_import_domain:
     path: ../pdf_import_domain
+  pdfrx_engine: ^0.4.5
 
 dev_dependencies:
+  daily_metrics_data:
+    path: ../../../packages/shared/daily_metrics_data
   flutter_test:
     sdk: flutter
   very_good_analysis: ^10.2.0

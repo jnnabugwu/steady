@@ -1,3 +1,6 @@
+# Personal data -- never checked in
+features/pdf_import/pdf_import_data/test/fixtures/
+
 # Miscellaneous
 *.class
 *.log

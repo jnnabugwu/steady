@@ -1,5 +1,3 @@
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+export 'src/bucket_into_weeks.dart';
+export 'src/metrics_repository.dart';
+export 'src/weekly_bucket.dart';
