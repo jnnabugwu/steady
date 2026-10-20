@@ -246,8 +246,8 @@ needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in
 ## 5. Routing: typed go_router routes + callback injection, for deep linking
 
 Typed routes are required here (see §1), and the concrete reason is concrete, not
-theoretical: the **local notification safety net** (`notification_service.dart`, already
-built) needs to deep-link straight into a specific day's check-in screen from a cold
+theoretical: the **local notification safety net** (`NotificationScheduler` in
+`notifications_domain`; only an in-memory implementation exists so far) needs to deep-link straight into a specific day's check-in screen from a cold
 start when tapped — `CheckInRoute(date: DateTime)`, not a bare `/checkin` string a screen
 then has to figure out the date for separately.
 
