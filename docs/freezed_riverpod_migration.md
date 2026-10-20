@@ -4,7 +4,7 @@
 
 **Status: D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files).** Recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9 already describe the target conventions. Baseline recorded (§4). Next: step 1.
 
-**Why now:** the domain and data layers exist, but **no presentation layer has been written.** Every `*_presentation` package is a stub, and there are no Blocs to rewrite. Switching state management before the first screen costs the least it ever will. It's also the stack Layla uses (Riverpod with code generation, freezed for models), so this is deliberate practice.
+**Why now:** the domain and data layers exist, but **no presentation layer has been written.** Every `*_presentation` package is a stub, and there are no Blocs to rewrite. Switching state management before the first screen costs the least it ever will. It's also a common production stack (Riverpod with code generation, freezed for models), so this is deliberate practice.
 
 ---
 
@@ -248,7 +248,7 @@ Questions to answer in your own words:
 4. What do you lose from Bloc, and does a `ProviderObserver` get it back?
 5. When the SwiftData channel lands and the native side sends a value a freezed union doesn't know, what happens? (`@Freezed(unionKey: ..., fallbackUnion: ...)` on the DTO, plus a try/catch at the data boundary that returns `Err(PlatformChannelFailure)`.)
 
-These are the questions Luko asked on 2026-10-20 (keepAlive leaks, `.future`, freezed with unknown JSON), so this migration doubles as interview practice.
+These are common questions about this stack (keepAlive leaks, `.future`, freezed with unknown JSON), so this migration doubles as interview practice.
 
 ---
 
