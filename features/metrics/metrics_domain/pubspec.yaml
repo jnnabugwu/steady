@@ -11,7 +11,6 @@ environment:
 dependencies:
   daily_metrics_domain:
     path: ../../../packages/shared/daily_metrics_domain
-  equatable: ^3.0.0
   failures:
     path: ../../../packages/shared/failures
   flutter:
