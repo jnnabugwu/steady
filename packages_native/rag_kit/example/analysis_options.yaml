@@ -10,6 +10,8 @@
 analyzer:
   exclude:
     - build/**
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
     - ios/**
     - macos/**
 include: package:very_good_analysis/analysis_options.yaml
