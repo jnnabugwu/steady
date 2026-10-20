@@ -40,7 +40,7 @@ Write your answer to each in `docs/technical_decisions.md` before touching code.
 - **Later:** when the SwiftData/HealthKit channels arrive, add freezed + `json_serializable` **DTOs in the `*_data` packages** (map ↔ DTO ↔ entity). Domain entities don't get `fromJson`; the domain shouldn't know the wire format.
 
 ### D3. What replaces Bloc's "named, greppable events" argument (`CLAUDE.md` §4)?
-- That argument is real: `CheckInPartialSelected` is easy for a future agent session to find.
+- That argument is real: `CheckInPartial` is easy for a future agent session to find.
 - **Recommended:** Notifier methods named exactly after the domain events (`logCheckIn(CheckInStatus.partial)`), plus the rule "one public method per domain event." You lose Bloc's built-in event log (`onTransition`). If you want that back, a `ProviderObserver` can log every state change.
 - Keep the spirit of "Cubit is fine for pure local UI state": in Riverpod, that's a small `@riverpod` Notifier or plain `StatefulWidget` state.
 
