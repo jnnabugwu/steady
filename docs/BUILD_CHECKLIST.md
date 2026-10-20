@@ -44,7 +44,7 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] D1–D6 decided and recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9
       updated to the target conventions.
-- [ ] Baseline recorded (`analyze.sh --all` + every package's test counts).
+- [x] Baseline recorded: 56 tests passing, 0 errors/warnings, 63 infos (migration doc §4).
 - [ ] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
       `scripts/codegen.sh`).
 - [ ] Steps 2–3: `DailyMetric`, `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed,

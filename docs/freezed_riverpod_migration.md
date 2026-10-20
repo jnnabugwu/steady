@@ -2,7 +2,7 @@
 
 *Written 2026-10-20 from the current repo state (`955dd13`). This is a plan and a set of things to analyze, not a record of work done.*
 
-**Status: D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files).** Recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9 already describe the target conventions. Next: baseline, then step 1.
+**Status: D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files).** Recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9 already describe the target conventions. Baseline recorded (§4). Next: step 1.
 
 **Why now:** the domain and data layers exist, but **no presentation layer has been written.** Every `*_presentation` package is a stub, and there are no Blocs to rewrite. Switching state management before the first screen costs the least it ever will. It's also the stack Layla uses (Riverpod with code generation, freezed for models), so this is deliberate practice.
 
@@ -236,9 +236,12 @@ Tests:
 | Generated lines added (`*.freezed.dart`, `*.g.dart`) | — | |
 | `build_runner` time per package, and for the whole repo | — | |
 | Tests changed (should be 0 in steps 2–3) | | |
-| Analyzer issues (`analyze.sh --all`) | | |
+| Tests passing (all packages) | 56 | |
+| Analyzer issues (`analyze.sh --all`) | 0 errors, 0 warnings, 63 infos | |
 | Places that registered or constructed a repository | 1 (`bootstrap.dart`) | |
 | Did any equality behavior change? | | |
+
+**Baseline recorded 2026-10-20 at `a11c97d`** (after the dependency upgrade). Before that upgrade, `app` and `pdf_import_data` couldn't compile their tests at all: `pdfrx_engine` 0.4.5 is broken on Dart 3.13.4. So the baseline was taken on the upgraded tree, not on `955dd13`.
 
 Questions to answer in your own words:
 1. What does freezed give you here beyond less boilerplate? (`copyWith` with nulls, deep collection equality, unmodifiable collections, exhaustive `switch` on sealed unions)
