@@ -68,7 +68,7 @@ its `data` or `presentation`).
   platform/stack rationale, architecture diagram, data model, resolved design decisions,
   and the design token handoff.
 - [`CLAUDE.md`](CLAUDE.md) — architecture reference: monorepo conventions, state
-  management (Bloc), routing, PDF parsing, persistence/sync, and why the coach is
+  management (Riverpod), routing, PDF parsing, persistence/sync, and why the coach is
   macOS-only.
 - [`docs/cal_ai_parser_tradeoffs.md`](docs/cal_ai_parser_tradeoffs.md) — Cal AI PDF
   parsing algorithm tradeoffs.

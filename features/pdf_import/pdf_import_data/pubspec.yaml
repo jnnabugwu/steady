@@ -5,7 +5,7 @@ homepage:
 publish_to: 'none'
 
 environment:
-  sdk: ^3.11.5
+  sdk: ^3.13.0
   flutter: ">=1.17.0"
 
 dependencies:
@@ -18,14 +18,14 @@ dependencies:
   meta: ^1.16.0
   pdf_import_domain:
     path: ../pdf_import_domain
-  pdfrx_engine: ^0.4.5
+  pdfrx_engine: ^0.7.4
 
 dev_dependencies:
   daily_metrics_data:
     path: ../../../packages/shared/daily_metrics_data
   flutter_test:
     sdk: flutter
-  very_good_analysis: ^10.2.0
+  very_good_analysis: ^11.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

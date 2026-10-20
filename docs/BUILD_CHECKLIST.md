@@ -2,7 +2,7 @@
 
 Single source of truth for what's built vs. outstanding, since this app is built almost
 entirely by Claude Code across disconnected sessions (CLAUDE.md §3/§12). Every item below
-traces back to a section of `claude.md` or `docs/steady_product_overview.md` — nothing
+traces back to a section of `CLAUDE.md` or `docs/steady_product_overview.md` — nothing
 here is new scope, just the existing specs turned into a checklist. Update this file as
 items land; don't let it drift into a change log — keep it a current-state checklist.
 
@@ -29,7 +29,7 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] FFCA path-dependency graph wired: each `_data`/`_presentation` → its own `_domain`;
       `coach_presentation` → `metrics_domain` + `checkin_domain`; nothing crosses into
       another feature's `_data`/`_presentation` (CLAUDE.md §2/§3).
-- [ ] `app/lib/bootstrap.dart` / `app_router.dart` are empty stubs — see Routing/DI below.
+- [ ] `app/lib/app_router.dart` is an empty stub; `bootstrap.dart` holds legacy `get_it` wiring until migration step 5. See Routing/DI below.
 
 ## Routing (CLAUDE.md §5)
 
@@ -40,21 +40,37 @@ items land; don't let it drift into a change log — keep it a current-state che
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
 
+## freezed + Riverpod migration (`docs/freezed_riverpod_migration.md`, D1–D6 decided)
+
+- [x] D1–D6 decided and recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9
+      updated to the target conventions.
+- [x] Baseline recorded: 56 tests passing, 0 errors/warnings, 63 infos (migration doc §4).
+- [ ] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
+      `scripts/codegen.sh`).
+- [ ] Step 2: `DailyMetric` → freezed, zero test changes (any test change means
+      equality changed).
+- [ ] Step 3: `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed. Existing tests
+      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable.
+- [ ] Step 4: `Failure implements Exception`.
+- [ ] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
+      the real override list; `get_it` removed.
+
 ## Dependency injection (CLAUDE.md §9)
 
-- [ ] Add `get_it` to `app/pubspec.yaml`.
-- [ ] `configureDependencies()` in `bootstrap.dart` — one registration function across
-      both targets, platform-specific datasources (e.g. HealthKit) selected via
-      conditional imports/`Platform.isIOS`/`isMacOS` inside that same call.
+- [ ] Each `*_presentation` package declares its repository providers (throw unless
+      overridden), typed against its own `*_domain` interface.
+- [ ] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets,
+      platform-specific datasources (e.g. HealthKit) selected inside it via
+      `Platform.isIOS`/`isMacOS` or conditional imports.
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
 - [ ] Per-feature `@Model` schema design, respecting the CloudKit constraints already
-      decided in `claude.md`: every attribute optional or defaulted, no
+      decided in `CLAUDE.md`: every attribute optional or defaulted, no
       `@Attribute(.unique)`, optional relationships with inverses for to-many.
 - [ ] CloudKit container entitlement wired into `app/ios` and `app/macos`.
 - [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
-      transcripts — no custom merge logic, accepted tradeoff per `claude.md`.
+      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`.
 - [ ] No security-rules layer (single-user private database) — don't build one.
 
 ## Feature: checkin
@@ -62,9 +78,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] `checkin_domain`: `CheckInStatus` entity (logged/partial/skipped), repository
       interface.
 - [ ] `checkin_data`: SwiftData datasource, repo impl, `Failure` mapping at the boundary.
-- [ ] `checkin_presentation`: Bloc with named events per CLAUDE.md §4
-      (`CheckInLogged`/`CheckInPartial`/`CheckInSkipped`, not bare Cubit methods) — one
-      state class, `status` enum (`initial|loading|success|failure`) + `copyWith`.
+- [ ] `checkin_presentation`: `CheckInController` `AsyncNotifier` family keyed by
+      midnight-normalized date, one public method per domain event per CLAUDE.md §4
+      (`logCheckIn(status)` covers `CheckInLogged`/`CheckInPartial`/`CheckInSkipped`).
 - [ ] Home card (always-visible) + end-of-day check-in screen.
 - [ ] `CheckInModule` exposing `onCheckInCompleted` callback (see Routing above).
 
@@ -90,7 +106,7 @@ items land; don't let it drift into a change log — keep it a current-state che
       resets per PDF page — a day's food list spilling across a page boundary without a
       repeated date header would silently drop entries after the break.
 - [ ] `pdf_import_presentation`: upload flow UI, writes `DailyMetric` rows straight to
-      SwiftData (no backend, ever — see `claude.md` §12).
+      SwiftData (no backend, ever — see `CLAUDE.md` §12).
 
 ## Feature: coach (CLAUDE.md §11)
 
@@ -150,7 +166,7 @@ items land; don't let it drift into a change log — keep it a current-state che
       real identifier before any TestFlight/App Store step.
 - [ ] Entitlements: HealthKit, Foundation Models (macOS only), CloudKit container.
 - [ ] Real app icons (currently placeholder from scaffold).
-- [ ] Open, undecided per `claude.md` §11: whether to lower iOS's hardware/OS floor now
+- [ ] Open, undecided per `CLAUDE.md` §11: whether to lower iOS's hardware/OS floor now
       that Foundation Models no longer gates it there — HealthKit and SwiftData/CloudKit
       don't need A17 Pro+. Not resolved by that doc; revisit when there's a reason to
       care about broader iPhone compatibility.

@@ -140,8 +140,10 @@ is already in the app. A single local (on-device, no backend/APNs involved) noti
 daily nag. It's cancelled the instant a check-in is completed, so it can never fire on a day
 that's already logged. Kept deliberately separate from the coach persona — notifications are
 a neutral system mechanic, not "the coach checking in," so the coach stays something the user
-goes to, never something that chases them. Implemented: `notification_service.dart`
-(`scheduleTonightsCheckIfNeeded`, `cancelTonightsCheck`).
+goes to, never something that chases them. Interface: `NotificationScheduler` in
+`notifications_domain` (`scheduleEndOfDayReminder(date)`, `cancelReminder(date)`), with
+`EndOfDayReminderPolicy` deciding whether to schedule. Only an in-memory scheduler exists so
+far; the real local-notification implementation isn't built yet.
 
 **Friday coach session structure — separate talks.**
 Logging-consistency and step-goal-consistency get their own distinct conversational threads
