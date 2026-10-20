@@ -16,16 +16,16 @@
 | Errors | Hand-written `sealed class Result<T>` (`Ok`/`Err`) + `abstract class Failure extends Equatable` (`cause` deliberately excluded from equality) | `packages/shared/failures` |
 | DI | `get_it`, one `configureDependencies()` | `app/lib/bootstrap.dart` |
 | DI invariant | One shared `DailyMetricRepository` that checkin/metrics/pdf_import all write to, guarded by an integration test | `app/test/bootstrap_test.dart` |
-| State management | **Bloc mandated** but not written | `CLAUDE.md` §4 |
-| Routing | Typed go_router planned, not written; the doc example uses `context.read()` | `CLAUDE.md` §5, `app/lib/app_router.dart` |
+| State management | Bloc was mandated at plan time; superseded by Riverpod (D3). Neither written yet | `CLAUDE.md` §4 |
+| Routing | Typed go_router planned, not written | `CLAUDE.md` §5, `app/lib/app_router.dart` |
 | Packages | 22 `pubspec.yaml`s, path dependencies, no workspace root | `scripts/analyze.sh` loops them |
 | Lints | `very_good_analysis` (includes `only_throw_errors`) | each package |
 
 ---
 
-## 2. Decisions to make first (this is the analysis)
+## 2. Decisions (settled 2026-10-20)
 
-Write your answer to each in `docs/technical_decisions.md` before touching code. My recommendation follows each one, but these are your calls.
+All six are decided, each as recommended below (D1 = Option A, D5 = commit generated files). The record of truth is the D1–D6 entry in `docs/technical_decisions.md`, and CLAUDE.md §4/§5/§9 state the resulting rules. Follow those; the options below are kept only as context for why.
 
 ### D1. Where do providers live without breaking FFCA's "features never import data"?
 - **Option A (recommended): abstract providers in each `*_presentation` package, overridden at the app root.** The feature declares `checkInRepositoryProvider` as "must be overridden" (it throws by default). `app/` overrides it with `CheckInRepositoryImpl` in `ProviderScope(overrides: ...)`. Features still depend only on `*_domain`, and tests override the same provider with fakes.
@@ -214,11 +214,9 @@ Tests:
 ### Step 7. Routing with typed routes
 - `@Riverpod(keepAlive: true) GoRouter router(Ref ref)` builds the router, so redirects can read providers later.
 - `@TypedGoRoute<CheckInRoute>(path: '/checkin/:date')` builds the check-in screen with the `date` from the path. Keep the FFCA callback pattern: the route passes `onCheckInCompleted`, and the feature never imports the router.
-- Update the `CLAUDE.md` §5 example: `context.read()` is Provider/Bloc syntax and doesn't exist in Riverpod.
 
 ### Step 8. Update the docs agents read
-- `CLAUDE.md` §4 (state management), §5 (route example), §9 (DI: providers + overrides instead of get_it).
-- `docs/technical_decisions.md`: one entry with D1–D6 and why.
+- `CLAUDE.md` §4/§5/§9 and the D1–D6 entry in `docs/technical_decisions.md` were updated ahead of the code (2026-10-20). Re-check them against what was actually built and fix any drift (e.g. mention `scripts/codegen.sh` as existing once step 1 lands).
 - `docs/BUILD_CHECKLIST.md`: tick off and adjust.
 
 ### Step 9. Verify

@@ -271,7 +271,9 @@ class CheckInModule extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final checkIn = ref.watch(checkInControllerProvider(date));
+    // Family key normalized to midnight (§4): one provider per calendar day.
+    final day = DateTime(date.year, date.month, date.day);
+    final checkIn = ref.watch(checkInControllerProvider(day));
     // ...
   }
 }
@@ -288,9 +290,11 @@ class CheckInRoute extends GoRouteData with _$CheckInRoute {
   Widget build(BuildContext context, GoRouterState state) {
     return CheckInModule(
       date: date,
-      onCheckInCompleted: () => ProviderScope.containerOf(context)
-          .read(notificationSchedulerProvider)
-          .cancelTonightsCheck(),
+      onCheckInCompleted: () => unawaited(
+        ProviderScope.containerOf(context)
+            .read(notificationSchedulerProvider)
+            .cancelReminder(date),
+      ),
     );
   }
 }
@@ -440,7 +444,9 @@ the reasoning and what iOS shows instead.
   try/catch at the data boundary that returns `Err(...)`.
 - Generated files (`*.freezed.dart`, `*.g.dart`) are **committed**, so agent sessions
   and CI can analyze and test without running `build_runner` first. After changing an
-  annotated class, run `scripts/codegen.sh` and commit the output in the same commit.
+  annotated class, run `dart run build_runner build --delete-conflicting-outputs` in
+  that package (or `scripts/codegen.sh` for every package, once migration step 1 adds
+  it) and commit the output in the same commit.
   Generated files are excluded from analysis in each package's `analysis_options.yaml`.
 
 ### DI: providers declared in features, overridden at the app root

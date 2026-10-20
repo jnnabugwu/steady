@@ -47,8 +47,10 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] Baseline recorded: 56 tests passing, 0 errors/warnings, 63 infos (migration doc §4).
 - [ ] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
       `scripts/codegen.sh`).
-- [ ] Steps 2–3: `DailyMetric`, `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed,
-      zero test changes.
+- [ ] Step 2: `DailyMetric` → freezed, zero test changes (any test change means
+      equality changed).
+- [ ] Step 3: `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed. Existing tests
+      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable.
 - [ ] Step 4: `Failure implements Exception`.
 - [ ] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
       the real override list; `get_it` removed.
