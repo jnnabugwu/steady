@@ -44,7 +44,7 @@ else
       packages+=("$pkg")
     fi
   done < <(
-    find . -name pubspec.yaml -not -path "*/.dart_tool/*" -not -path "*/build/*" \
+    find . -name pubspec.yaml -not -path "*/.dart_tool/*" -not -path "*/build/*" -not -path "./.claude/*" \
       | xargs -n1 dirname | sed 's|^\./||' | sort
   )
 fi
