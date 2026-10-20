@@ -39,6 +39,13 @@
   get non-trivial" call. Reason: deep linking (see §5) needs typed route data to resolve
   correctly from a cold start, and Steady already has a concrete deep-link case (local
   notification → specific day's check-in) that needs this from day one.
+- **Riverpod (code generation)** — `flutter_riverpod` + `riverpod_annotation` /
+  `riverpod_generator`, for both DI and state management. Replaces the earlier
+  `get_it` + Bloc plan before any screen was written; see §4, §9 and
+  `docs/technical_decisions.md`.
+- **freezed** — immutable value classes for domain entities (`DailyMetric`,
+  `ParsedDay`, `ParsedFoodEntry`, `WeeklyBucket`). `Result` and `Failure` stay
+  hand-written (§9).
 
 ---
 
@@ -49,7 +56,7 @@ steady/
 ├── app/                          # The Flutter app — iOS + macOS targets, one codebase
 │   ├── lib/
 │   │   ├── app_router.dart        # Typed routes, wires feature callbacks (see §5)
-│   │   ├── bootstrap.dart          # configureDependencies() entrypoint
+│   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
 │   │   └── main.dart
 │   ├── ios/
 │   └── macos/
@@ -58,7 +65,7 @@ steady/
 │   ├── metrics/                    # Weekly view + metrics history (shared DailyMetric entity)
 │   │   ├── metrics_domain/          # Dart: entities, repository interfaces
 │   │   ├── metrics_data/            # Dart: SwiftData-channel datasource, repo impl
-│   │   └── metrics_presentation/    # Flutter: weekly view, history page, Blocs, Module
+│   │   └── metrics_presentation/    # Flutter: weekly view, history page, Notifiers, Module
 │   ├── checkin/                    # End-of-day logged/partial/skipped status
 │   │   ├── checkin_domain/
 │   │   ├── checkin_data/
@@ -154,32 +161,85 @@ whole repo first.
 
 ---
 
-## 4. State management: Bloc over Cubit
+## 4. State management: Riverpod Notifiers, named after domain events
 
-Default to **Bloc**, not Cubit, even for screens that feel simple. The reasoning is
-adapted from the generic starter's "two apps sharing an event vocabulary" argument, but
-the underlying case fits Steady even more directly:
+Use **Riverpod with code generation** (`@riverpod`). This replaced an earlier Bloc
+mandate before any screen existed, so no Blocs were ever written; don't add `bloc` or
+`flutter_bloc` to any package. The full decision record (D1–D6) is in
+`docs/technical_decisions.md`; the migration steps are in
+`docs/freezed_riverpod_migration.md`.
 
-- **Steady's core domain concepts already read as named events.** `CheckInLogged`,
-  `CheckInPartial`, `CheckInSkipped` aren't just Bloc boilerplate here — they're the exact
-  vocabulary the product doc uses to describe the check-in feature. Bloc just makes that
-  vocabulary explicit and greppable in code instead of implicit in a method name like
-  `cubit.markLogged()`.
-- **The "shared vocabulary across a boundary" argument still applies — the boundary is
-  time, not another app.** This codebase gets built incrementally by Claude Code across
-  many disconnected sessions. A named, greppable event (`CheckInPartialSelected`) is
-  something a future session can find and reason about without reading the whole feature;
-  a bare method call on a Cubit doesn't leave the same trail.
-- **Cubit is still fine for pure local UI state that never becomes a domain event** — the
-  coach chat input's typing-indicator state, a bottom sheet's open/closed flag. If it
-  never talks to a repository, it doesn't need to be a Bloc.
+**The rule Bloc used to enforce, kept: one public Notifier method per domain event.**
+The original Bloc argument still holds. `CheckInLogged` / `CheckInPartial` /
+`CheckInSkipped` are the product doc's own vocabulary, and this codebase is built across
+many disconnected Claude Code sessions, so a future session needs to find that
+vocabulary by grep. In Riverpod, the domain event is the method:
 
-Convention per Bloc (unchanged from the general default): one state class, an enum
-`status` (`initial | loading | success | failure`) plus `copyWith`, not a sealed class per
-status. Repository calls happen directly from the Bloc for simple passthrough — no
-usecase layer unless combining multiple repositories or there's real logic (e.g. "don't
-let the Friday coach session start if fewer than 4 of 7 days have any check-in status at
-all").
+- Name each public Notifier method after the domain event it represents
+  (`logCheckIn(CheckInStatus.partial)`), not after a UI gesture (`onPartialTapped`) or
+  a generic setter (`setStatus`).
+- Each method's doc comment names the event, e.g.
+  `/// Domain event: CheckInLogged / CheckInPartial / CheckInSkipped.`
+- Want Bloc's `onTransition` log back? Add a `ProviderObserver` at the app root. Don't
+  rebuild event classes.
+
+**Shape per screen:**
+
+- Async, repository-backed state: an `AsyncNotifier` (`@riverpod class ... extends
+  _$...` with `Future<T> build(...)`). `AsyncValue` covers loading/data/error, so there's
+  no hand-written `status` enum or `copyWith` state class.
+- Per-entity screens are **families**: `checkInControllerProvider(date)`. Normalize
+  `DateTime` arguments to midnight first, or the same day at two times becomes two
+  providers.
+- Pure local UI state that never becomes a domain event (a typing indicator, a sheet's
+  open/closed flag): a small `@riverpod` Notifier or plain `StatefulWidget` state. If it
+  never talks to a repository, it doesn't need ceremony.
+- Repository calls happen directly from the Notifier for simple passthrough. Add a
+  usecase layer only when combining multiple repositories or when there's real logic
+  (e.g. "don't let the Friday coach session start if fewer than 4 of 7 days have any
+  check-in status at all").
+
+**`Result` → `AsyncValue`:** repositories keep returning `Result<T>` (§9). The Notifier
+translates at the boundary: `Ok` becomes data, and `Err` throws or wraps its `Failure`,
+so `AsyncValue.error` always carries a typed `Failure` the UI can `switch` on:
+
+```dart
+@riverpod
+class CheckInController extends _$CheckInController {
+  @override
+  Future<CheckInStatus?> build(DateTime date) async {
+    final result = await ref.watch(checkInRepositoryProvider).getStatus(date);
+    return switch (result) {
+      Ok(:final value) => value,
+      Err(:final failure) => throw failure,
+    };
+  }
+
+  /// Domain event: CheckInLogged / CheckInPartial / CheckInSkipped.
+  Future<void> logCheckIn(CheckInStatus status) async {
+    state = const AsyncLoading();
+    final result =
+        await ref.read(checkInRepositoryProvider).logCheckIn(date, status);
+    state = switch (result) {
+      Ok() => AsyncData(status),
+      Err(:final failure) => AsyncError(failure, StackTrace.current),
+    };
+  }
+}
+```
+
+**Provider lifetimes are decided per provider, not by default:**
+
+| Provider | Lifetime | Why |
+| --- | --- | --- |
+| `dailyMetricRepositoryProvider` | `keepAlive: true` | The shared store. Disposing it loses in-memory data and breaks the shared-store invariant (§9). |
+| Repository providers (checkin, metrics, pdf_import, notifications) | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
+| Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
+| Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
+
+Never mark a **family** `keepAlive`. Every argument value would live forever. If a family
+needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in a
+`finally` or timer.
 
 ---
 
@@ -193,39 +253,51 @@ then has to figure out the date for separately.
 
 Following FFCA's routing pattern, **features never import the router or each other's
 routes.** A feature's `presentation` Module exposes typed callbacks; the app layer wires
-those callbacks to real routes:
+those callbacks to real routes. The repository isn't a constructor argument. The Module
+reads it from the feature's own provider, which the app root overrides (§9):
 
 ```dart
 // features/checkin/checkin_presentation — the feature knows a check-in was completed.
 // It does not know, or care, what happens next.
-class CheckInModule extends StatelessWidget {
+class CheckInModule extends ConsumerWidget {
   const CheckInModule({
-    required this.checkInRepository,
+    required this.date,
     required this.onCheckInCompleted,
     super.key,
   });
 
-  final ICheckInRepository checkInRepository;
+  final DateTime date;
   final void Function() onCheckInCompleted;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final checkIn = ref.watch(checkInControllerProvider(date));
+    // ...
+  }
 }
 ```
 
 ```dart
 // app/lib/app_router.dart — the app layer, where features are allowed to meet.
 @TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
-class CheckInRoute extends GoRouteData {
+class CheckInRoute extends GoRouteData with _$CheckInRoute {
+  const CheckInRoute({required this.date});
   final DateTime date;
-  CheckInRoute({required this.date});
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
     return CheckInModule(
-      checkInRepository: context.read(),
-      onCheckInCompleted: () => NotificationService.instance.cancelTonightsCheck(),
+      date: date,
+      onCheckInCompleted: () => ProviderScope.containerOf(context)
+          .read(notificationSchedulerProvider)
+          .cancelTonightsCheck(),
     );
   }
 }
 ```
+
+The `GoRouter` itself is a `@Riverpod(keepAlive: true)` provider in `app/`, so redirects
+can read providers later without a second DI path.
 
 The notification payload carries the date; the OS hands it to `app_router.dart` on tap;
 the typed route resolves it without any feature needing to know about deep linking at
@@ -345,17 +417,61 @@ the reasoning and what iOS shows instead.
 
 ## 9. Error handling & DI
 
-- `Result`/`Either<Failure, T>` returned from every `_data` repository implementation;
-  typed `Failure` classes live in `packages/shared/failures` if genuinely cross-feature,
-  or in the owning feature's `_domain` package if feature-specific. UI never sees a raw
-  platform-channel or `PlatformException` — it's mapped to a `Failure` at the `_data`
-  boundary.
-- `get_it`, one `configureDependencies()` entrypoint in `app/lib/bootstrap.dart`. Since
-  this is one app across two platform targets (not two apps), there's one registration
-  function, not one-per-app — platform-specific implementations (e.g. the HealthKit
-  datasource) are selected via conditional imports (`dart:io` platform check or
-  `Platform.isIOS`/`isMacOS`) inside the same registration call, not duplicated per
-  target.
+### Errors
+
+- Every `_data` repository implementation returns `Result<T>` (`Ok`/`Err`, error fixed
+  to `Failure`, written as `ResultFuture<T>` for async). Typed `Failure` classes live in
+  `packages/shared/failures` if genuinely cross-feature, or in the owning feature's
+  `_domain` package if feature-specific. UI never sees a raw platform-channel error or
+  `PlatformException`; it's mapped to a `Failure` at the `_data` boundary.
+- `Result` and `Failure` are **hand-written, never freezed.** `Result` is already an
+  idiomatic Dart 3 sealed class. `Failure` deliberately excludes `cause` from equality,
+  and freezed would compare every field. `Failure` `implements Exception`, so Notifiers
+  can throw it into `AsyncValue.error` without tripping `only_throw_errors` (§4).
+
+### Value classes
+
+- Domain entities are `@freezed` (`abstract class X with _$X`). Getters go through a
+  private `const X._();` constructor. Domain entities get **no** `fromJson`; the domain
+  doesn't know the wire format.
+- When the SwiftData/HealthKit channels land, wire formats get freezed +
+  `json_serializable` **DTOs inside the `*_data` package** (map ↔ DTO ↔ entity).
+  Unknown union values from native are handled with `fallbackUnion` on the DTO, plus a
+  try/catch at the data boundary that returns `Err(...)`.
+- Generated files (`*.freezed.dart`, `*.g.dart`) are **committed**, so agent sessions
+  and CI can analyze and test without running `build_runner` first. After changing an
+  annotated class, run `scripts/codegen.sh` and commit the output in the same commit.
+  Generated files are excluded from analysis in each package's `analysis_options.yaml`.
+
+### DI: providers declared in features, overridden at the app root
+
+- Each `*_presentation` package declares the repository providers it needs, typed
+  against its **domain** interface, and throws if not overridden:
+
+  ```dart
+  @Riverpod(keepAlive: true)
+  CheckInRepository checkInRepository(Ref ref) =>
+      throw UnimplementedError('Override checkInRepositoryProvider in app/');
+  ```
+
+  Features still depend only on `*_domain`, never `*_data`. FFCA's boundary (§3)
+  survives DI.
+- `app/lib/providers.dart` owns the one `appProviderOverrides` list that binds each
+  feature provider to its `*_data` implementation. `main.dart` passes it to
+  `ProviderScope(overrides: ...)`. Tests use the **same list** (or override single
+  providers with fakes), so the tests exercise the real wiring.
+- **Shared-store invariant:** `dailyMetricRepositoryProvider` is the single
+  `DailyMetricRepository`. Every override that needs it does
+  `ref.watch(dailyMetricRepositoryProvider)`, never constructs its own. If two features
+  each build their own instance, their writes stop being visible to each other while
+  every isolated unit test still passes. `app/test/bootstrap_test.dart` guards this
+  against the real override list.
+- One app, two platform targets, so there's one override list, not one per target.
+  Platform-specific implementations (e.g. the HealthKit datasource) are chosen inside
+  that list with `Platform.isIOS`/`isMacOS` or conditional imports.
+- No `get_it`. While the migration is in flight, `app/lib/bootstrap.dart` still holds
+  the old `get_it` registration. It's deleted in step 5 of
+  `docs/freezed_riverpod_migration.md`, so don't add to it.
 
 ---
 

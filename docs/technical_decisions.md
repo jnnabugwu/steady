@@ -7,6 +7,56 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## freezed + Riverpod replace Equatable + get_it + Bloc (D1–D6, 2026-10-20)
+
+**Decision:** domain entities move to `freezed`. DI and state management move to Riverpod with
+code generation. `get_it` and the Bloc mandate are dropped. Execution steps are in
+`docs/freezed_riverpod_migration.md`; the resulting conventions are in CLAUDE.md §4, §5 and §9.
+This supersedes the `get_it` references in the "Scope of this pass" entry below.
+
+**Why it came up:** the domain and data layers existed, but no presentation layer did. Every
+`*_presentation` package was a stub, so switching state management before the first screen cost
+the least it ever would. It's also deliberate practice on the freezed + Riverpod-codegen stack.
+
+**D1. Where providers live: abstract providers in `*_presentation`, overridden at the app root
+(Option A).** Each feature declares its repository providers against its domain interface, and they
+throw if not overridden. `app/lib/providers.dart` holds the one `appProviderOverrides` list that
+binds them to `*_data` implementations, and `main()` and tests share it. *Rejected:* providers in
+`*_data` with presentation importing data (breaks the CLAUDE.md §3 layer rule), and keeping `get_it`
+for repositories alongside Riverpod for UI (two DI systems).
+
+**D2. What gets freezed: the four entities (`DailyMetric`, `ParsedFoodEntry`, `ParsedDay`,
+`WeeklyBucket`); not `Result` or `Failure`.** `Result` is already an idiomatic Dart 3 sealed class.
+`Failure` deliberately excludes `cause` from equality, and freezed compares every field, so freezing
+it would silently change behavior `failure_test.dart` relies on. Wire formats later get freezed +
+`json_serializable` DTOs inside `*_data`. Domain entities never get `fromJson`.
+
+**D3. What replaces Bloc's named, greppable events: one public Notifier method per domain event,
+named after it** (`logCheckIn(CheckInStatus.partial)`), with the event named in the doc comment.
+Bloc's built-in transition log is lost. A `ProviderObserver` restores it if ever needed. Pure local
+UI state uses a small Notifier or `StatefulWidget` state, the same spirit as "Cubit is fine for
+local UI state."
+
+**D4. How `Result` and `AsyncValue` meet: repositories keep returning `Result<T>`.** Notifiers
+translate `Ok` into data, and `Err` into a thrown or wrapped `Failure`, so `AsyncValue.error` always
+carries a typed `Failure`. Requires `Failure implements Exception` for `only_throw_errors`.
+
+**D5. Generated files are committed.** Agent sessions and CI can analyze and test a fresh checkout
+without running `build_runner` first, and diffs show what codegen changed. Cost: noisier history.
+*Rejected:* gitignoring them, which makes every fresh clone and every agent session run codegen
+before anything passes.
+
+**D6. `keepAlive` vs auto-dispose is decided per provider.** `dailyMetricRepositoryProvider` and
+the other repository providers are `keepAlive: true` (shared store, stateless, cheap). Per-entity
+controller families (`checkInControllerProvider(date)`) and screen controllers auto-dispose. A
+family is never `keepAlive`, because every argument value would leak.
+
+**Alternative considered (as a whole):** keep Equatable + get_it + Bloc as originally written in
+CLAUDE.md. Nothing was wrong with it. It was rejected because no presentation code existed yet, so
+the switch was nearly free now and only gets more expensive later.
+
+---
+
 ## `ResultFuture<T>` typedef for `Future<Result<T>>`
 
 **Decision:** `typedef ResultFuture<T> = Future<Result<T>>;`, added to `packages/shared/failures`
