@@ -24,21 +24,24 @@ case "${1:-}" in
     ;;
 esac
 
-repo_root="$(git rev-parse --show-toplevel)"
-cd "$repo_root"
+repo_root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
 
 packages=()
 
-if [[ $# -gt 0 ]]; then
-  for pkg in "$@"; do
-    pkg="${pkg%/}"
-    if [[ ! -f "$pkg/pubspec.yaml" ]]; then
-      echo "error: '$pkg' is not a package (no pubspec.yaml)" >&2
-      exit 1
-    fi
-    packages+=("$pkg")
-  done
-else
+# Resolve package arguments from the caller's directory, before cd-ing to
+# the repo root, so `scripts/codegen.sh .` works from inside a package.
+for arg in "$@"; do
+  if [[ ! -f "$arg/pubspec.yaml" ]]; then
+    echo "error: '$arg' is not a package (no pubspec.yaml)" >&2
+    exit 1
+  fi
+  abs="$(cd "$arg" && pwd -P)"
+  packages+=("${abs#"$repo_root"/}")
+done
+
+cd "$repo_root"
+
+if [[ $# -eq 0 ]]; then
   while IFS= read -r pkg; do
     if grep -qE '^  build_runner:' "$pkg/pubspec.yaml"; then
       packages+=("$pkg")
@@ -69,8 +72,8 @@ for pkg in "${packages[@]}"; do
   fi
 
   start=$SECONDS
-  # No --delete-conflicting-outputs: build_runner 2.17 removed it (deleting
-  # stale outputs is now the default) and warns if it's passed.
+  # No --delete-conflicting-outputs: build_runner 2.16+ lists it as removed
+  # (deleting stale outputs is now the default) and warns if it's passed.
   if ! (cd "$pkg" && dart run build_runner build); then
     status=1
   fi
