@@ -143,6 +143,13 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  checkin_presentation:
+    dependency: "direct main"
+    description:
+      path: "../features/checkin/checkin_presentation"
+      relative: true
+    source: path
+    version: "0.0.1"
   clock:
     dependency: transitive
     description:
@@ -310,14 +317,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.1"
-  get_it:
-    dependency: "direct main"
-    description:
-      name: get_it
-      sha256: "2b5c6b077aad30bba9782178baff6076a2044141f1d5f2f15b43bca3fbe74874"
-      url: "https://pub.dev"
-    source: hosted
-    version: "9.3.0"
   glob:
     dependency: transitive
     description:
@@ -468,6 +467,13 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  metrics_presentation:
+    dependency: "direct main"
+    description:
+      path: "../features/metrics/metrics_presentation"
+      relative: true
+    source: path
+    version: "0.0.1"
   mime:
     dependency: transitive
     description:
@@ -533,6 +539,13 @@ packages:
     dependency: "direct main"
     description:
       path: "../features/pdf_import/pdf_import_domain"
+      relative: true
+    source: path
+    version: "0.0.1"
+  pdf_import_presentation:
+    dependency: "direct main"
+    description:
+      path: "../features/pdf_import/pdf_import_presentation"
       relative: true
     source: path
     version: "0.0.1"
