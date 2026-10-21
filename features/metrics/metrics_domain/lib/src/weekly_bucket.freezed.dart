@@ -15,7 +15,13 @@ T _$identity<T>(T value) => value;
 /// @nodoc
 mixin _$WeeklyBucket {
 
- DateTime get weekStart; List<DailyMetric> get days;
+/// The anchor day of this bucket.
+ DateTime get weekStart;/// The days in this bucket. 1-7 entries; may be fewer than 7 for a
+/// partial/edge week. Stored as an unmodifiable copy so the bucket
+/// keeps value semantics (it goes into equality) even if the caller
+/// mutates the list it passed in — and stays safe as a `Set` element
+/// or `Map` key.
+ List<DailyMetric> get days;
 
 
 
@@ -52,8 +58,19 @@ class _WeeklyBucket extends WeeklyBucket {
   const _WeeklyBucket({required this.weekStart, required  List<DailyMetric> days}): _days = days,super._();
   
 
+/// The anchor day of this bucket.
 @override final  DateTime weekStart;
+/// The days in this bucket. 1-7 entries; may be fewer than 7 for a
+/// partial/edge week. Stored as an unmodifiable copy so the bucket
+/// keeps value semantics (it goes into equality) even if the caller
+/// mutates the list it passed in — and stays safe as a `Set` element
+/// or `Map` key.
  final  List<DailyMetric> _days;
+/// The days in this bucket. 1-7 entries; may be fewer than 7 for a
+/// partial/edge week. Stored as an unmodifiable copy so the bucket
+/// keeps value semantics (it goes into equality) even if the caller
+/// mutates the list it passed in — and stays safe as a `Set` element
+/// or `Map` key.
 @override List<DailyMetric> get days {
   if (_days is EqualUnmodifiableListView) return _days;
   // ignore: implicit_dynamic_type

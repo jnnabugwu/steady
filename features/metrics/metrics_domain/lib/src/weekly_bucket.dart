@@ -17,12 +17,20 @@ part 'weekly_bucket.freezed.dart';
   when: FreezedWhenOptions.none,
 )
 abstract class WeeklyBucket with _$WeeklyBucket {
-  /// Copies [days] into an unmodifiable list; see the [days] field doc.
+  /// Copies [days] into an unmodifiable list; see the [days] getter doc.
   ///
   /// Not `const`: freezed alone only wraps the caller's list in an
   /// unmodifiable view, so mutating that list afterwards would still show
   /// through the bucket.
   factory WeeklyBucket({
+    required DateTime weekStart,
+    required List<DailyMetric> days,
+  }) =>
+      WeeklyBucket._create(weekStart: weekStart, days: List.unmodifiable(days));
+
+  // Field docs live here: freezed copies them onto the generated getters
+  // from the redirecting constructor.
+  const factory WeeklyBucket._create({
     /// The anchor day of this bucket.
     required DateTime weekStart,
 
@@ -31,12 +39,6 @@ abstract class WeeklyBucket with _$WeeklyBucket {
     /// keeps value semantics (it goes into equality) even if the caller
     /// mutates the list it passed in — and stays safe as a `Set` element
     /// or `Map` key.
-    required List<DailyMetric> days,
-  }) =>
-      WeeklyBucket._create(weekStart: weekStart, days: List.unmodifiable(days));
-
-  const factory WeeklyBucket._create({
-    required DateTime weekStart,
     required List<DailyMetric> days,
   }) = _WeeklyBucket;
 
