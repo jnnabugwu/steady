@@ -115,6 +115,7 @@ abstract class DailyMetric with _$DailyMetric {
 ```
 - Run codegen, then `daily_metric_test.dart` and the `daily_metric_repository_contract.dart` suite. **Change no tests in this step.** If a test changes, equality changed.
 - **Analyze:** freezed's `copyWith` can set a field *to* null (`m.copyWith(steps: null)`), which a hand-written `copyWith` usually can't. The repository's `upsert` deliberately treats `null` as "leave untouched," so it **can't clear a field.** Is that what you want? Write the answer down.
+  - **Decided 2026-10-20 (Checkpoint A):** yes, keep the split. `DailyMetric.copyWith(steps: null)` clears the field; `upsert(steps: null)` leaves the stored value untouched.
 - Remove `equatable` from `daily_metrics_domain` once nothing there uses it.
 
 ### Step 3. Convert `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket`
