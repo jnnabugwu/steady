@@ -91,7 +91,7 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
 ```
-Add `scripts/codegen.sh`, which runs `dart run build_runner build --delete-conflicting-outputs` in every package that depends on `build_runner`. Copy the package-finding loop from `analyze.sh`.
+Add `scripts/codegen.sh`, which runs `dart run build_runner build` in every package that depends on `build_runner` (or only in the packages passed as arguments). Copy the package-finding loop from `analyze.sh`. Don't pass `--delete-conflicting-outputs`: build_runner 2.16+ ignores it with a warning, since deleting stale outputs is now the default.
 
 ### Step 2. Convert one entity, `DailyMetric`, and prove nothing changed
 ```dart

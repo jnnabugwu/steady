@@ -444,9 +444,10 @@ the reasoning and what iOS shows instead.
   try/catch at the data boundary that returns `Err(...)`.
 - Generated files (`*.freezed.dart`, `*.g.dart`) are **committed**, so agent sessions
   and CI can analyze and test without running `build_runner` first. After changing an
-  annotated class, run `dart run build_runner build --delete-conflicting-outputs` in
-  that package (or `scripts/codegen.sh` for every package, once migration step 1 adds
-  it) and commit the output in the same commit.
+  annotated class, run `scripts/codegen.sh <package path>` (or `scripts/codegen.sh`
+  with no arguments for every codegen package) and commit the output in the same
+  commit. Don't pass `--delete-conflicting-outputs`: current `build_runner` ignores it
+  with a warning, since deleting stale outputs is now the default.
   Generated files are excluded from analysis in each package's `analysis_options.yaml`.
 
 ### DI: providers declared in features, overridden at the app root

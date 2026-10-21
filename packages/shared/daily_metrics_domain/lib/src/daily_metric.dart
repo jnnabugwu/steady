@@ -1,5 +1,7 @@
 import 'package:daily_metrics_domain/src/logging_status.dart';
-import 'package:equatable/equatable.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
+
+part 'daily_metric.freezed.dart';
 
 /// A single day's metrics row: calories, steps, and self-reported logging
 /// status. Shared across the checkin, metrics, and pdf_import features —
@@ -11,42 +13,26 @@ import 'package:equatable/equatable.dart';
 /// defaulted. Fields are nullable rather than defaulted to `0` deliberately:
 /// `caloriesEaten == 0` and `caloriesEaten == null` mean different things
 /// ("logged zero" vs. "nothing recorded yet").
-class DailyMetric extends Equatable {
-  const DailyMetric({
-    required this.date,
-    this.caloriesEaten,
-    this.caloriesBurnedActive,
-    this.caloriesBurnedBasal,
-    this.steps,
-    this.loggingStatus,
-  });
+@freezed
+abstract class DailyMetric with _$DailyMetric {
+  const factory DailyMetric({
+    /// Date-only granularity, normalized to local midnight — the row's
+    /// natural key.
+    required DateTime date,
 
-  /// Date-only granularity, normalized to local midnight — the row's
-  /// natural key.
-  final DateTime date;
+    /// Calories eaten, parsed from a Cal AI PDF import.
+    int? caloriesEaten,
 
-  /// Calories eaten, parsed from a Cal AI PDF import.
-  final int? caloriesEaten;
+    /// Active calories burned, from HealthKit's `activeEnergyBurned`.
+    int? caloriesBurnedActive,
 
-  /// Active calories burned, from HealthKit's `activeEnergyBurned`.
-  final int? caloriesBurnedActive;
+    /// Basal calories burned, from HealthKit's `basalEnergyBurned`.
+    int? caloriesBurnedBasal,
 
-  /// Basal calories burned, from HealthKit's `basalEnergyBurned`.
-  final int? caloriesBurnedBasal;
+    /// Step count, from HealthKit's `stepCount`.
+    int? steps,
 
-  /// Step count, from HealthKit's `stepCount`.
-  final int? steps;
-
-  /// Self-reported end-of-day logging status.
-  final LoggingStatus? loggingStatus;
-
-  @override
-  List<Object?> get props => [
-    date,
-    caloriesEaten,
-    caloriesBurnedActive,
-    caloriesBurnedBasal,
-    steps,
-    loggingStatus,
-  ];
+    /// Self-reported end-of-day logging status.
+    LoggingStatus? loggingStatus,
+  }) = _DailyMetric;
 }
