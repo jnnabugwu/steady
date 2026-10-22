@@ -218,10 +218,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short
       "not medical advice" note for the coach.
 - [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
-      `features/account/` + `SignInRoute` (#53). Caveat: until CloudKit is configured
-      (#43 adds the container and entitlement and sets `SteadyCloudKitEnabled` to `true`
-      in both `Runner/Info.plist`s), the status reads `notConfigured` and never blocks,
-      so the screen can't be reached on a real build yet.
+      Until CloudKit is configured (`SteadyCloudKitEnabled` is `true` in both
+      `Runner/Info.plist`s, with the container and entitlement), the status reads
+      `notConfigured` and never blocks, so the screen isn't reachable on a real build.
 - [ ] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.

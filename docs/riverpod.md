@@ -177,7 +177,7 @@ provider in the repo:
 | `pdfImportRepositoryProvider` | `features/pdf_import/pdf_import_presentation/lib/src/providers.dart` | `keepAlive` | Same reason (the impl holds the shared store and a stateless `CalAIParser`). |
 | `routerProvider` | `app/lib/app_router.dart` | `keepAlive` | Rebuilding the `GoRouter` would reset navigation. Its `ref.onDispose` disposes the router, then the account-status `ValueNotifier` it listens to. |
 | `accountStatusRepositoryProvider` | `features/account/account_presentation/lib/src/providers.dart` | `keepAlive` | Same reason as `checkInRepositoryProvider` (the impl wraps a `MethodChannel`). Overridden in `appProviderOverrides`. |
-| `accountStatusControllerProvider` | `features/account/account_presentation/lib/src/account_status_controller.dart` | `keepAlive` (not a family) | App-wide state, not screen state: the router's redirect reads it on every navigation and listens to it for the app's lifetime. One instance, so `keepAlive` can't pile up. Disposing it would drop the last known status and re-read the channel. |
+| `accountStatusControllerProvider` | `features/account/account_presentation/lib/src/account_status_controller.dart` | `keepAlive` (not a family) | App-wide state, not screen state: `routerProvider` listens to it and copies its values into the redirect's `ValueNotifier` for the app's lifetime. One instance, so `keepAlive` can't pile up. Disposing it would drop the last known status and re-read the channel. |
 | `checkInControllerProvider(date)` | `features/checkin/checkin_presentation/lib/src/check_in_controller.dart` | auto-dispose family | One instance per day. It's freed when the screen leaves the tree, so instances don't pile up per date visited. |
 
 The generated code records the choice: `isAutoDispose: false` in `providers.g.dart`,
@@ -417,7 +417,8 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   `fireImmediately: true`, copies each value into a `ValueNotifier`, and passes that
   notifier as `refreshListenable` and reads it in `redirect`. Test: `flipping to available
   on /sign-in goes home` asserts the router instance is the same afterwards; removing
-  `refreshListenable` fails ten tests in `app/test/account_redirect_test.dart`.
+  `refreshListenable` fails the status-dependent tests in
+  `app/test/account_redirect_test.dart`.
 
 ---
 
