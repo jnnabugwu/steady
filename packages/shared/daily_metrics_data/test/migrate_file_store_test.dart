@@ -213,6 +213,56 @@ void main() {
     expect(file.existsSync(), isTrue);
     expect(migrated.existsSync(), isFalse);
   });
+
+  test('a target that cannot be read is Err, writes nothing, and the file '
+      'stays for a retry', () async {
+    await FileDailyMetricRepository(file)
+        .upsert(DateTime(2026, 8, 24), caloriesEaten: 1850);
+    final target = _UnreadableRepository();
+
+    final result = await migrateFileStore(file, target);
+
+    expect(
+      (result as Err<int>).failure,
+      isA<PlatformChannelFailure>().having(
+        (f) => f.code,
+        'code',
+        'fetch_failed',
+      ),
+    );
+    // Fill-only needs the current row first, so nothing is written blind.
+    expect(target.upserts, 0);
+    expect(file.existsSync(), isTrue);
+    expect(migrated.existsSync(), isFalse);
+  });
+}
+
+class _UnreadableRepository extends InMemoryDailyMetricRepository {
+  int upserts = 0;
+
+  @override
+  ResultFuture<DailyMetric?> getByDate(DateTime date) async =>
+      const Err(PlatformChannelFailure('boom', code: 'fetch_failed'));
+
+  @override
+  ResultFuture<DailyMetric> upsert(
+    DateTime date, {
+    int? caloriesEaten,
+    int? caloriesBurnedActive,
+    int? caloriesBurnedBasal,
+    int? steps,
+    LoggingStatus? loggingStatus,
+  }) {
+    upserts++;
+    return super.upsert(
+      date,
+      caloriesEaten: caloriesEaten,
+      caloriesBurnedActive: caloriesBurnedActive,
+      caloriesBurnedBasal: caloriesBurnedBasal,
+      steps: steps,
+      loggingStatus: loggingStatus,
+    );
+  }
 }
 
 class _FailingRepository extends InMemoryDailyMetricRepository {
