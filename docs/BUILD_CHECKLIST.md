@@ -190,11 +190,15 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 
 ## Feature: share cards
 
-- [ ] Render a week card from a widget (`RepaintBoundary.toImage` → PNG) in the owning
-      feature's `_presentation` package — default content: the 7 check-in statuses.
+- [ ] Render a week card from a widget in the owning feature's `_presentation` package — wrap
+      it in a `RepaintBoundary` with a `GlobalKey`, then
+      `(key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage()` →
+      `toByteData(format: ImageByteFormat.png)`. Default content: the 7 check-in statuses.
 - [ ] Calories / steps are opt-in per share (off by default).
 - [ ] `share_plus`: `SharePlus.instance.share(ShareParams(files: [XFile.fromData(png,
-      mimeType: 'image/png')]))`, with `sharePositionOrigin` set for iPad.
+      mimeType: 'image/png')], fileNameOverrides: ['steady-week-2026-10-19.png']))` (week's
+      start date in the name; without the override the file gets a random UUID name), with
+      `sharePositionOrigin` set for iPad.
 - [ ] Card design follows the single-hue status ladder (product doc §10) — no red/green.
 - [ ] Not in v1: a direct Instagram Story button (needs a Meta App ID; see the decision
       record).

@@ -27,9 +27,11 @@ most of the cost below disappears.
 1. **Core Data + `NSPersistentCloudKitContainer`.** Supports the shared database since iOS 15 /
    macOS 12: a second persistent store whose `databaseScope` is `.shared`, `share(_:to:)` to
    create a `CKShare` from root objects, `acceptShareInvitations(from:into:)` on the
-   participant's side. Only the Swift side changes — Dart talks to persistence through the
-   platform channel (CLAUDE.md §7, §8), so `*_data` packages and everything above them don't
-   care which engine is underneath.
+   participant's side. Existing private-data calls can stay behind the platform channel
+   (CLAUDE.md §7, §8) unchanged, so the engine swap itself is invisible to Dart. Sharing is
+   still new surface on both sides: Dart needs repository methods and UI to create, accept, and
+   revoke shares and to read another person's records, and the Swift side has to migrate each
+   user's existing SwiftData store to Core Data (or bridge the two stacks onto one store).
 2. **SwiftData for private data + hand-written CloudKit for the shared slice.** Records copied
    into a custom zone (the default zone can't be shared), child records parented to a root
    record so they join the share, owner writes to `privateCloudDatabase`, participants read

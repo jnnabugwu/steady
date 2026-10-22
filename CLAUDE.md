@@ -388,13 +388,16 @@ reintroduce exactly the session/auth complexity this architecture exists to avoi
 
 **Multiple users = one copy per person.** Friends install via TestFlight, each with their own
 iCloud private database; nothing in this section changes per user. Since other people's data is
-now involved, account loss is mitigated with a user-triggered data export (CSV/JSON) rather than
-any backend copy — CloudKit's private database still has no separate backup.
+now involved, the planned account-loss mitigation is a user-triggered data export (CSV/JSON)
+rather than any backend copy. **Not built yet** (`docs/BUILD_CHECKLIST.md`); until it ships,
+losing the Apple ID still loses the data, because CloudKit's private database has no separate
+backup.
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
-(`share_plus`), built inside the owning feature's `_presentation` package — no schema, no
-CloudKit, no data layer involved. Decision record: `docs/technical_decisions.md`, "Sharing is
-share cards, not live data".
+(`share_plus`), built inside the owning feature's `_presentation` package. The card reads
+existing check-in and metric data through those features' domain repositories (§2, §9); no new
+schema, persistence layer, or CloudKit change is needed. Decision record:
+`docs/technical_decisions.md`, "Sharing is share cards, not live data".
 
 **The one thing that would change this:** a feature where one user's data appears inside
 another user's app. That needs CloudKit's shared database, which **SwiftData doesn't support**

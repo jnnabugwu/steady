@@ -12,7 +12,7 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 **Decision:** Steady opens to friends (US, Apple-only) as one copy per person: each installs it
 via TestFlight and keeps their data in their own iCloud private database, exactly as the
 single-user design already works. "Sharing" means **share cards**: Steady renders a card
-(`RepaintBoundary.toImage` → PNG) and hands it to the system share sheet via `share_plus`,
+(`RenderRepaintBoundary.toImage` → PNG) and hands it to the system share sheet via `share_plus`,
 which reaches Messages, Instagram, WhatsApp, Photos. The default card shows check-in statuses;
 calories and steps are opt-in per share. Live in-app sharing between users is deferred.
 
