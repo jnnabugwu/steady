@@ -29,8 +29,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] FFCA path-dependency graph wired: each `_data`/`_presentation` → its own `_domain`;
       `coach_presentation` → `metrics_domain` + `checkin_domain`; nothing crosses into
       another feature's `_data`/`_presentation` (CLAUDE.md §2/§3).
-- [x] `app/lib/app_router.dart` holds `routerProvider` and the typed routes (W7);
-      `app/lib/providers.dart` holds DI (`bootstrap.dart` and `get_it` were removed in W5).
+- [x] `app/lib/app_router.dart` holds `routerProvider` and the typed routes;
+      `app/lib/providers.dart` holds DI (`bootstrap.dart` and `get_it` are gone).
       See Routing/DI below.
 
 ## Routing (CLAUDE.md §5)
@@ -39,39 +39,44 @@ items land; don't let it drift into a change log — keep it a current-state che
       `go_router_builder` ^4.5.2).
 - [x] First typed route: `CheckInRoute(date: DateTime)` at `/checkin/:date` — the concrete
       deep-link case (local notification → specific day's check-in from cold start). Path
-      encoding is date-only `yyyy-MM-dd`; cold-start resolution is covered by
-      `app/test/app_router_test.dart`. The notification side (payload → route) isn't built;
-      see Feature: notifications.
+      encoding is date-only `yyyy-MM-dd`; decoding reads only the leading `yyyy-MM-dd`
+      (time/offset ignored, impossible dates rejected), and a malformed `/checkin/<x>`
+      redirects to `/`. Cold-start resolution is covered by `app/test/app_router_test.dart`.
+      The notification side (payload → route) isn't built; see Feature: notifications.
 - [x] `routerProvider`: `@Riverpod(keepAlive: true)` `GoRouter` in `app_router.dart`, passed
       to `ShadcnApp.router` in `main.dart`.
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
       Done for checkin (`CheckInModule`); not yet for metrics, pdf_import, coach.
-- [ ] Open: the app shell is `ShadcnApp.router`, which (shadcn_flutter 0.0.55) supplies no
-      Material `Theme`, so Material-widget feature screens such as `CheckInModule` don't get
-      Steady's tokens (CLAUDE.md §5, "App shell"). Undecided: move feature screens to
-      `shadcn_flutter`/`ui_kit` widgets, or add a Material theme built from the tokens.
+- [x] Feature screens use `shadcn_flutter`/`ui_kit` widgets only, never Material (decided
+      2026-10-22; CLAUDE.md §5, "App shell"). `CheckInModule` is converted and `main.dart`
+      has no Material localizations delegate.
 
 ## freezed + Riverpod migration (`docs/freezed_riverpod_migration.md`, D1–D6 decided)
 
 - [x] D1–D6 decided and recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9
       updated to the target conventions.
-- [x] Baseline recorded: 56 tests passing, 0 errors/warnings, 63 infos (migration doc §4).
+- [x] Baseline recorded at `a11c97d`: 52 passed + 1 skipped, 0 errors/warnings, 63 infos
+      (migration doc §4). Originally recorded as 56; corrected 2026-10-22 after W9 re-ran
+      `a11c97d`.
 - [x] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
-      `scripts/codegen.sh`). PR #20.
+      `scripts/codegen.sh`).
 - [x] Step 2: `DailyMetric` → freezed, zero test changes (any test change means
-      equality changed). PR #20.
+      equality changed).
 - [x] Step 3: `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed. Existing tests
-      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable. PR #20.
-- [x] Step 4: `Failure implements Exception`. PR #20.
+      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable.
+- [x] Step 4: `Failure implements Exception`.
 - [x] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
-      the real override list; `get_it` removed. PR #22.
-- [x] Step 6: check-in screen as an `AsyncNotifier` family (W6, #28).
-- [x] Step 7: typed routes + `routerProvider` (W7, #29).
-- [x] Step 8: docs reconciled with the code (W8, #30).
+      the real override list; `get_it` removed.
+- [x] Step 6: check-in screen as an `AsyncNotifier` family.
+- [x] Step 7: typed routes + `routerProvider`.
+- [x] Step 8: docs reconciled with the code.
 - [x] Step 9: verify (codegen no diff, analyzer = baseline, tests = baseline + new, iOS sim
-      + macOS builds). W9, verified at `72e2eed`: 82 passed + 1 skipped, 0/0/88 analyzer.
+      + macOS builds). Verified at `72e2eed`: 82 passed + 1 skipped, 0/0/88 analyzer.
+      Current, at `5824624`: 89 passed + 1 skipped across 21 packages (`app` 15,
+      `checkin_presentation` 17), 0/0/62 analyzer (the 26
+      `unnecessary_type_name_in_constructor` infos are gone).
 
 ## Dependency injection (CLAUDE.md §9)
 
@@ -104,10 +109,12 @@ items land; don't let it drift into a change log — keep it a current-state che
       midnight-normalized date, one public method per domain event per CLAUDE.md §4
       (`logCheckIn(status)` covers `CheckInLogged`/`CheckInPartial`/`CheckInSkipped`).
 - [ ] Home card (always-visible) + end-of-day check-in screen. (`CheckInModule` is a
-      functional check-in screen with Logged/Partial/Skipped buttons, built from default
-      Material widgets; no home card yet.)
+      functional check-in screen with Logged/Partial/Skipped buttons, built from
+      `shadcn_flutter`/`ui_kit` widgets; no home card yet.)
 - [x] `CheckInModule` exposing `onCheckInCompleted` callback (see Routing above); called
-      only after a successful log. `CheckInRoute` wires it to cancel that day's reminder.
+      only after a successful log. `CheckInRoute` wires it to cancel that day's reminder,
+      passing the midnight-normalized day (not the route's raw `date`) and reporting a
+      failed cancel via `FlutterError.reportError`.
 
 ## Feature: metrics
 
@@ -158,8 +165,9 @@ items land; don't let it drift into a change log — keep it a current-state che
       logged that day; cancelled the instant check-in completes.
 - [ ] Deep-link payload carries the date for `CheckInRoute` (see Routing above). The route
       side exists and takes the date in the path as `yyyy-MM-dd` (`/checkin/2026-10-19`;
-      a time component is also accepted). Nothing yet turns a tapped notification into that route, and
-      `NotificationScheduler` has only an in-memory implementation.
+      anything after the leading date, such as a time or UTC offset, is ignored). Nothing
+      yet turns a tapped notification into that route, and `NotificationScheduler` has
+      only an in-memory implementation.
 - [ ] Stays headless — no `notifications_presentation` package (CLAUDE.md §3).
 
 ## Feature: notes (RAG) — "designed, not yet built" (product doc §8)
