@@ -4,9 +4,9 @@ import 'package:failures/failures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_domain/notifications_domain.dart';
 import 'package:steady/app_router.dart';
-import 'package:steady/design_system_preview.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 
@@ -78,7 +78,7 @@ void main() {
     testWidgets('/ shows the home screen', (tester) async {
       await pumpApp(tester);
 
-      expect(find.byType(DesignSystemPreview), findsOneWidget);
+      expect(find.byType(MetricsHistoryModule), findsOneWidget);
       expect(find.byType(CheckInModule), findsNothing);
     });
 
@@ -154,7 +154,7 @@ void main() {
         await pumpApp(tester, coldStartLocation: location);
 
         expect(tester.takeException(), isNull);
-        expect(find.byType(DesignSystemPreview), findsOneWidget);
+        expect(find.byType(MetricsHistoryModule), findsOneWidget);
         expect(find.byType(CheckInModule), findsNothing);
       });
     }
