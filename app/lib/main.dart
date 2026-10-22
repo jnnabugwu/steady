@@ -31,14 +31,26 @@ Future<void> main() async {
 }
 
 /// Moves rows from the interim JSON file store into SwiftData, once (the
-/// file is renamed afterwards). A failure is logged, not fatal: the file is
-/// left in place, so the next launch retries.
+/// file is renamed afterwards). Any failure, including the support
+/// directory lookup throwing, is logged, not fatal: the app still starts,
+/// and the file is left in place, so the next launch retries.
 Future<void> _migrateInterimFileStore(ProviderContainer container) async {
-  final supportDir = await getApplicationSupportDirectory();
-  final result = await migrateFileStore(
-    File('${supportDir.path}/daily_metrics.json'),
-    container.read(dailyMetricRepositoryProvider),
-  );
+  final Result<int> result;
+  try {
+    final supportDir = await getApplicationSupportDirectory();
+    result = await migrateFileStore(
+      File('${supportDir.path}/daily_metrics.json'),
+      container.read(dailyMetricRepositoryProvider),
+    );
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Daily metrics migration failed',
+      name: 'steady',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return;
+  }
   switch (result) {
     case Ok(value: 0):
       break;

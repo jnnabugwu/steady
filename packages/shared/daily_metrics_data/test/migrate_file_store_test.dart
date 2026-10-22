@@ -92,6 +92,95 @@ void main() {
     );
   });
 
+  test(
+    'fill-only: a value the target already holds is never overwritten',
+    () async {
+      await FileDailyMetricRepository(file).upsert(
+        DateTime(2026, 8, 24),
+        caloriesEaten: 1850,
+        steps: 6000,
+        loggingStatus: LoggingStatus.partial,
+      );
+      final target = InMemoryDailyMetricRepository();
+      await target.upsert(
+        DateTime(2026, 8, 24),
+        caloriesEaten: 2000,
+        loggingStatus: LoggingStatus.logged,
+      );
+
+      final result = await migrateFileStore(file, target);
+
+      expect((result as Ok<int>).value, 1);
+      expect(
+        await read(target, DateTime(2026, 8, 24)),
+        DailyMetric(
+          date: DateTime(2026, 8, 24),
+          caloriesEaten: 2000,
+          steps: 6000,
+          loggingStatus: LoggingStatus.logged,
+        ),
+      );
+    },
+  );
+
+  group('a retry after a failed run', () {
+    late _FlakyRepository target;
+
+    setUp(() async {
+      final source = FileDailyMetricRepository(file);
+      await source.upsert(
+        DateTime(2026, 8, 24),
+        caloriesEaten: 1850,
+        loggingStatus: LoggingStatus.partial,
+      );
+      await source.upsert(DateTime(2026, 8, 25), steps: 6000);
+      // The first run writes 2026-08-24, then fails on 2026-08-25.
+      target = _FlakyRepository(failUpsertNumber: 2);
+      final first = await migrateFileStore(file, target);
+      expect(first, isA<Err<int>>());
+      expect(file.existsSync(), isTrue);
+    });
+
+    test('completes the rows the failed run missed', () async {
+      final retry = await migrateFileStore(file, target);
+
+      expect((retry as Ok<int>).value, 2);
+      expect(
+        await read(target, DateTime(2026, 8, 24)),
+        DailyMetric(
+          date: DateTime(2026, 8, 24),
+          caloriesEaten: 1850,
+          loggingStatus: LoggingStatus.partial,
+        ),
+      );
+      expect(
+        await read(target, DateTime(2026, 8, 25)),
+        DailyMetric(date: DateTime(2026, 8, 25), steps: 6000),
+      );
+      expect(file.existsSync(), isFalse);
+      expect(migrated.existsSync(), isTrue);
+    });
+
+    test("doesn't revert an edit made in between", () async {
+      await target.upsert(
+        DateTime(2026, 8, 24),
+        caloriesEaten: 1900,
+        loggingStatus: LoggingStatus.logged,
+      );
+
+      await migrateFileStore(file, target);
+
+      expect(
+        await read(target, DateTime(2026, 8, 24)),
+        DailyMetric(
+          date: DateTime(2026, 8, 24),
+          caloriesEaten: 1900,
+          loggingStatus: LoggingStatus.logged,
+        ),
+      );
+    });
+  });
+
   test('runs once: a second launch finds nothing to migrate', () async {
     await FileDailyMetricRepository(file)
         .upsert(DateTime(2026, 8, 24), caloriesEaten: 1850);
@@ -136,4 +225,37 @@ class _FailingRepository extends InMemoryDailyMetricRepository {
     int? steps,
     LoggingStatus? loggingStatus,
   }) async => const Err(PlatformChannelFailure('boom', code: 'save_failed'));
+}
+
+/// Fails the [failUpsertNumber]th upsert (1-based) once, then works.
+class _FlakyRepository extends InMemoryDailyMetricRepository {
+  _FlakyRepository({required this.failUpsertNumber});
+
+  final int failUpsertNumber;
+  int _upserts = 0;
+
+  @override
+  ResultFuture<DailyMetric> upsert(
+    DateTime date, {
+    int? caloriesEaten,
+    int? caloriesBurnedActive,
+    int? caloriesBurnedBasal,
+    int? steps,
+    LoggingStatus? loggingStatus,
+  }) {
+    _upserts++;
+    if (_upserts == failUpsertNumber) {
+      return Future.value(
+        const Err(PlatformChannelFailure('boom', code: 'save_failed')),
+      );
+    }
+    return super.upsert(
+      date,
+      caloriesEaten: caloriesEaten,
+      caloriesBurnedActive: caloriesBurnedActive,
+      caloriesBurnedBasal: caloriesBurnedBasal,
+      steps: steps,
+      loggingStatus: loggingStatus,
+    );
+  }
 }
