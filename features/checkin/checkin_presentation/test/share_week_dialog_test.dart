@@ -94,6 +94,9 @@ void main() {
   PrimaryButton shareButton(WidgetTester tester) =>
       tester.widget(find.byKey(const Key('shareWeekConfirmButton')));
 
+  OutlineButton cancelButton(WidgetTester tester) =>
+      tester.widget(find.byKey(const Key('shareWeekCancelButton')));
+
   group('Share week from the check-in screen', () {
     testWidgets('previews the week with one range read', (tester) async {
       await openDialog(tester);
@@ -173,6 +176,55 @@ void main() {
       expect(find.text("Couldn't share: sheet unavailable"), findsOneWidget);
       expect(find.text('Share your week'), findsOneWidget);
       expect(shareButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('Cancel is disabled while a share is in flight', (
+      tester,
+    ) async {
+      final sheet = Completer<void>();
+      sharer
+        ..hold = sheet.future
+        ..result = const Err(PlatformChannelFailure('sheet unavailable'));
+      await openDialog(tester);
+      expect(cancelButton(tester).onPressed, isNotNull);
+
+      // Returns once the share sheet is "up", i.e. the sharer was called.
+      await share(tester);
+
+      expect(cancelButton(tester).onPressed, isNull);
+      expect(shareButton(tester).onPressed, isNull);
+
+      sheet.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.text("Couldn't share: sheet unavailable"), findsOneWidget);
+      expect(cancelButton(tester).onPressed, isNotNull);
+    });
+
+    testWidgets('dismissing the dialog mid-render neither shares nor throws', (
+      tester,
+    ) async {
+      await openDialog(tester);
+      final dialogContext = tester.element(find.byType(ShareWeekDialog));
+
+      // Start the share; it stops at the render, which needs real time.
+      await tester.tap(find.byKey(const Key('shareWeekConfirmButton')));
+      await tester.pump();
+      expect(cancelButton(tester).onPressed, isNull);
+
+      // Dismiss another way (barrier / Escape) before the render finishes.
+      unawaited(closeOverlay<void>(dialogContext));
+      await tester.pumpAndSettle();
+      expect(find.byType(ShareWeekDialog), findsNothing);
+
+      // Let the render finish against the disposed dialog.
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(sharer.calls, isEmpty);
     });
 
     testWidgets('a repository failure shows the error, not an empty card', (

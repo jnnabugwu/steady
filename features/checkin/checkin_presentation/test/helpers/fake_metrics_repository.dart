@@ -42,6 +42,11 @@ class RecordingSharer {
   RecordingSharer({this.result = const Ok(unit)});
 
   Result<Unit> result;
+
+  /// When set, each share waits for this before returning [result], so a
+  /// test can observe the dialog while the share sheet is still up.
+  Future<void>? hold;
+
   final List<({Uint8List png, String fileName, Rect? origin})> calls = [];
 
   ResultFuture<Unit> call({
@@ -50,6 +55,7 @@ class RecordingSharer {
     Rect? origin,
   }) async {
     calls.add((png: png, fileName: fileName, origin: origin));
+    if (hold case final hold?) await hold;
     return result;
   }
 }

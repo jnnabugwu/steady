@@ -160,7 +160,12 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
       ),
       actions: [
         OutlineButton(
-          onPressed: () => unawaited(closeOverlay<void>(context)),
+          key: const Key('shareWeekCancelButton'),
+          // Disabled while a share is in flight, so the dialog isn't torn
+          // down under the render or the share sheet.
+          onPressed: _sharing
+              ? null
+              : () => unawaited(closeOverlay<void>(context)),
           child: const Text('Cancel'),
         ),
         KeyedSubtree(
@@ -185,6 +190,9 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
     // The PNG lives only in this call: rendered, handed to the share seam,
     // then dropped. It never goes into provider state.
     final rendered = await renderWeekCardPng(_cardKey);
+    // The dialog can still be dismissed during the render (barrier, Escape),
+    // and `ref` must not be used once this State is disposed.
+    if (!mounted) return;
     final result = switch (rendered) {
       Ok(value: final png) =>
         await ref
