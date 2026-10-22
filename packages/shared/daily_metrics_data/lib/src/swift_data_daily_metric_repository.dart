@@ -22,6 +22,13 @@ import 'package:flutter/services.dart';
 /// - **Errors.** A `PlatformException` or `MissingPluginException` becomes
 ///   `Err(PlatformChannelFailure)`; a reply that doesn't decode becomes
 ///   `Err(UnknownFailure)`. Nothing raw escapes.
+/// - **Years 0000-9999 only.** The channel's dates are four-digit
+///   `yyyy-MM-dd`, so the store holds those years and no others: [upsert]
+///   rejects any other year with `ValidationFailure`, and [getRange] clamps
+///   its span to it. Nothing in the app produces such dates (PDF import,
+///   check-in and HealthKit all write real calendar days); the test that
+///   writes extreme years through the all-time export
+///   (`app/test/bootstrap_test.dart`) runs on the in-memory store.
 class SwiftDataDailyMetricRepository implements DailyMetricRepository {
   /// Creates a repository talking to the native store over `channel` (the
   /// real `steady/daily_metrics` channel by default).

@@ -500,9 +500,10 @@ protocol, no conflict resolution code, no backend involvement (see `steady_produ
 `daily_metrics_data` is its Dart side (§8). **CloudKit is gated off.** The native store
 syncs only when Info.plist `SteadyCloudKitEnabled` is true *and* `SteadyCloudKitContainer`
 names the iCloud container (e.g. `iCloud.com.jmagic.steady`); otherwise it opens with
-`cloudKitDatabase: .none` and never touches CloudKit. Both stay unset until the signing
-team, iCloud container and entitlements are set up, so for now it's local-only SwiftData
-and the iCloud sign-in requirement below isn't enforced yet. The model already follows
+`cloudKitDatabase: .none` and never touches CloudKit. Both Info.plists set
+`SteadyCloudKitEnabled` to `false` and leave `SteadyCloudKitContainer` out, until the
+signing team, iCloud container and entitlements are set up, so for now it's local-only
+SwiftData and the iCloud sign-in requirement below isn't enforced yet. The model already follows
 the schema constraints below, so turning sync on needs no migration. SwiftData set the
 deployment targets to iOS 17 / macOS 14. The interim JSON file store
 (`FileDailyMetricRepository`) is no longer live: it's only a migration source, read once

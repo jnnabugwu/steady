@@ -89,15 +89,19 @@ items land; don't let it drift into a change log — keep it a current-state che
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit) selected inside that list via
       `Platform.isIOS`/`isMacOS` or conditional imports — none exist yet; the shared store
-      is the same SwiftData plugin on both targets, everything else is in-memory.
+      is the same SwiftData plugin on both targets, account status goes through the
+      `steady/account` channel, and every other feature data repository is in-memory.
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
 - [x] Shared `DailyMetric` store live in SwiftData: `packages_native/daily_metrics_store`
       (`DailyMetricRecord` `@Model`, `steady/daily_metrics` channel) +
       `SwiftDataDailyMetricRepository`. Contract tests pass against real SwiftData on macOS
-      (`app/integration_test/daily_metrics_store_test.dart`). Same-day duplicates merged on
-      read.
+      (`app/integration_test/daily_metrics_store_test.dart`). Same-day duplicate records
+      merged on read, per field: newest non-null value wins (ties broken by the values, so
+      every device agrees). This is the one exception to "no custom merge logic" below.
+      Caveat: a field cleared on one record can come back from an older duplicate that
+      still has it.
 - [x] Interim `FileDailyMetricRepository` (one JSON file) is no longer live; it's only the
       source of a one-time launch migration (`migrateFileStore`), after which the file is
       renamed to `daily_metrics.json.migrated`.
@@ -112,7 +116,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       `SteadyCloudKitEnabled` true and `SteadyCloudKitContainer` set in both Info.plists.
       Until then the store is local-only SwiftData.
 - [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
-      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`.
+      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`. Exception:
+      the same-day `DailyMetricRecord` duplicate merge above.
 - [ ] No security-rules layer (single-user private database) — don't build one.
 
 ## Feature: checkin
