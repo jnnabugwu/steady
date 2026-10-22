@@ -34,9 +34,19 @@ class CalAIParser {
   /// must be skipped outright, not absorbed into the pending-name buffer,
   /// or they get prepended to the next real food entry's name.
   static const _boilerplateLines = {
-    "Jordan's Report",
     'Foods Calories Protein Carbs Fat Fiber Sugar Sodium Time',
   };
+
+  /// The per-page report title, `<name>'s Report`, where the name is the
+  /// exporting user's (letters, spaces, hyphens, periods, apostrophes;
+  /// straight or curly apostrophe before the `s`). Matched against the
+  /// whole trimmed line, and the name may not contain digits, so a food row
+  /// (which always ends in the numeric 8-token tail) can never match even
+  /// if the food's name itself ends in "Report".
+  static final _reportTitlePattern = RegExp(
+    r"^\p{L}[\p{L}\p{M} .'\u2019-]*['\u2019]s Report$",
+    unicode: true,
+  );
 
   static const _monthNames = {
     'January': 1,
@@ -167,5 +177,7 @@ class CalAIParser {
       int.parse(token.replaceAll(RegExp(r'[a-z]+$'), ''));
 
   bool _isBoilerplate(String line) =>
-      _boilerplateLines.contains(line) || line.startsWith('Start:');
+      _boilerplateLines.contains(line) ||
+      _reportTitlePattern.hasMatch(line) ||
+      line.startsWith('Start:');
 }
