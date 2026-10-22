@@ -19,8 +19,9 @@
 /// | `put`    | row (full replace, nil = nil) | the stored row             |
 /// | `remove` | `{date}`                      | null                       |
 ///
-/// Test-only: `useStore` (`{name}`, or null for the real store) reopens
-/// the container on a separate local store file; `reset` deletes every
+/// Test-only: `useStore` (`{name}`) reopens the container on a separate
+/// local, never-CloudKit store file (`{name: null}` switches back to the
+/// real store); `reset` deletes every
 /// record in the current store; `insertRecordForTesting` (`{row,
 /// modifiedAtMillis}`, test stores only) inserts a raw record without
 /// de-duplicating, to simulate two devices creating the same day.

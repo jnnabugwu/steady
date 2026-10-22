@@ -75,8 +75,10 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
     }
 
     /// Test only: switches to the local test store `name` (null for the
-    /// real store). Always reopens the container, even for the same name,
-    /// so a test can check what actually reached disk.
+    /// real store). A test store is reopened right away, even for the same
+    /// name, so a test can check what actually reached disk. The real store
+    /// is left to open lazily on its next use, so a test's teardown never
+    /// opens it.
     private func useStore(_ name: Any?) throws {
         var newName: String?
         if let name, !(name is NSNull) {
@@ -87,6 +89,6 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
         }
         store = nil  // Release the old container before opening the new one.
         testStoreName = newName
-        _ = try openStore()
+        if newName != nil { _ = try openStore() }
     }
 }
