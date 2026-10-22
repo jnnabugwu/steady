@@ -40,11 +40,16 @@ class FakePdfFilePicker {
   FakePdfFilePicker({this.bytes, this.error});
 
   Uint8List? bytes;
-  Exception? error;
+
+  /// Any object, not just an `Exception`: the real picker can throw
+  /// anything, and the controller catches `Object`.
+  Object? error;
   int calls = 0;
 
   Future<Uint8List?> call() async {
     calls++;
+    // Deliberately models a non-Exception throw from the platform picker.
+    // ignore: only_throw_errors
     if (error case final error?) throw error;
     return bytes;
   }

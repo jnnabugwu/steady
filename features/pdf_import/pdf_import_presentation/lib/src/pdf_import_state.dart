@@ -45,11 +45,17 @@ final class PdfImportParseFailed extends PdfImportState {
 /// last commit attempt failed, and the user can retry.
 final class PdfImportPreview extends PdfImportState {
   /// Creates a preview of [days].
+  ///
+  /// [isCommitting] and [commitFailure] are mutually exclusive: a retry
+  /// clears the previous failure when it starts.
   const PdfImportPreview(
     this.days, {
     this.isCommitting = false,
     this.commitFailure,
-  });
+  }) : assert(
+         !isCommitting || commitFailure == null,
+         'A commit in flight has no failure yet',
+       );
 
   /// The parsed days, in the order the PDF listed them.
   final List<ParsedDay> days;
