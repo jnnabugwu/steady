@@ -3,9 +3,10 @@ import 'dart:async';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:failures/failures.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/fake_check_in_repository.dart';
 
@@ -19,7 +20,8 @@ void main() {
     completedCount = 0;
   });
 
-  Widget module(DateTime date) => MaterialApp(
+  Widget module(DateTime date) => ShadcnApp(
+    theme: steadyTheme,
     home: CheckInModule(date: date, onCheckInCompleted: () => completedCount++),
   );
 
@@ -70,10 +72,7 @@ void main() {
       await pumpInScope(tester, midnight);
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Could not load check-in: channel down'),
-        findsOneWidget,
-      );
+      expect(find.text('Something went wrong: channel down'), findsOneWidget);
     });
 
     testWidgets('a failed log renders the Failure and does not complete', (
@@ -87,12 +86,46 @@ void main() {
       await tester.tap(find.byKey(const Key('checkInButton_skipped')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Could not load check-in: write failed'),
-        findsOneWidget,
-      );
+      expect(find.text('Something went wrong: write failed'), findsOneWidget);
       expect(completedCount, 0);
     });
+    testWidgets(
+      'rapid taps while a write is in flight log once and complete once',
+      (tester) async {
+        final write = Completer<Result<Unit>>();
+        repository.onLogCheckIn = (_, _) => write.future;
+
+        await pumpInScope(tester, midnight);
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byKey(const Key('checkInButton_partial')));
+        await tester.tap(find.byKey(const Key('checkInButton_skipped')));
+        await tester.pump();
+
+        // Buttons are disabled while the write is in flight.
+        for (final status in CheckInStatus.values) {
+          expect(
+            tester
+                .widget<OutlineButton>(
+                  find.byKey(Key('checkInButton_${status.name}')),
+                )
+                .onPressed,
+            isNull,
+          );
+        }
+        await tester.tap(
+          find.byKey(const Key('checkInButton_logged')),
+          warnIfMissed: false,
+        );
+
+        write.complete(const Ok(unit));
+        await tester.pumpAndSettle();
+
+        expect(repository.logCheckInCalls, [(midnight, CheckInStatus.partial)]);
+        expect(find.text('Status: Partial'), findsOneWidget);
+        expect(completedCount, 1);
+      },
+    );
   });
 
   group('date normalization', () {
@@ -155,7 +188,9 @@ void main() {
       expect(container.exists(checkInControllerProvider(midnight)), isTrue);
 
       // Simulate the screen popping: replace the module with another widget.
-      await tester.pumpWidget(scoped(const MaterialApp(home: SizedBox())));
+      await tester.pumpWidget(
+        scoped(const ShadcnApp(theme: steadyTheme, home: SizedBox())),
+      );
       await tester.pumpAndSettle();
 
       expect(container.exists(checkInControllerProvider(midnight)), isFalse);

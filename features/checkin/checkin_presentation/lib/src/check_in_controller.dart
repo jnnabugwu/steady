@@ -21,8 +21,10 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 /// normalize [date] to midnight before using it as the key, or the same day
 /// at two different times becomes two providers. `CheckInModule` does this.
 ///
-/// `null` data means nothing has been logged for that day yet. Errors are
-/// always a typed [Failure].
+/// `null` data means nothing has been logged for that day yet. Repository
+/// errors arrive as a typed [Failure] and are surfaced without retrying; any
+/// other (unexpected) error goes through Riverpod's default retry before it
+/// reaches `AsyncError`.
 @Riverpod(retry: _retryUnlessFailure)
 class CheckInController extends _$CheckInController {
   @override
@@ -39,7 +41,12 @@ class CheckInController extends _$CheckInController {
   /// Records [status] for this provider's [date]. On success the state
   /// becomes `AsyncData(status)`; on failure it becomes an `AsyncError`
   /// carrying the repository's [Failure].
+  ///
+  /// Ignored while the state is loading (the initial read or another write
+  /// still in flight), so rapid taps can't start concurrent writes, and
+  /// after the provider has been disposed.
   Future<void> logCheckIn(CheckInStatus status) async {
+    if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
     final result = await ref
         .read(checkInRepositoryProvider)
