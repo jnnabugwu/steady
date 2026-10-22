@@ -11,6 +11,8 @@ environment:
 dependencies:
   checkin_domain:
     path: ../checkin_domain
+  failures:
+    path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.4.3
