@@ -67,11 +67,11 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] Step 4: `Failure implements Exception`. PR #20.
 - [x] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
       the real override list; `get_it` removed. PR #22.
-- [x] Step 6: check-in screen as an `AsyncNotifier` family (W6, `refactor/run3-checkin-routing`).
-- [x] Step 7: typed routes + `routerProvider` (W7, same branch).
-- [x] Step 8: docs reconciled with the code (W8, same branch).
-- [ ] Step 9: verify (codegen no diff, analyzer = baseline, tests = baseline + new, iOS sim
-      + macOS builds).
+- [x] Step 6: check-in screen as an `AsyncNotifier` family (W6, #28).
+- [x] Step 7: typed routes + `routerProvider` (W7, #29).
+- [x] Step 8: docs reconciled with the code (W8, #30).
+- [x] Step 9: verify (codegen no diff, analyzer = baseline, tests = baseline + new, iOS sim
+      + macOS builds). W9, verified at `72e2eed`: 82 passed + 1 skipped, 0/0/88 analyzer.
 
 ## Dependency injection (CLAUDE.md §9)
 
