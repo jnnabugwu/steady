@@ -8,76 +8,66 @@ part of 'providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
-/// for an in-memory store.
-///
-/// `null` by default, so tests built from [appProviderOverrides] stay
-/// in-memory and touch no disk. `main.dart` overrides it with a file in the
-/// app-support directory, which needs an async `path_provider` lookup before
-/// `runApp`.
+/// The store [dailyMetricRepository] is built on. `main.dart` overrides it
+/// to [DailyMetricStore.swiftData].
 
-@ProviderFor(dailyMetricsFile)
-final dailyMetricsFileProvider = DailyMetricsFileProvider._();
+@ProviderFor(dailyMetricStore)
+final dailyMetricStoreProvider = DailyMetricStoreProvider._();
 
-/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
-/// for an in-memory store.
-///
-/// `null` by default, so tests built from [appProviderOverrides] stay
-/// in-memory and touch no disk. `main.dart` overrides it with a file in the
-/// app-support directory, which needs an async `path_provider` lookup before
-/// `runApp`.
+/// The store [dailyMetricRepository] is built on. `main.dart` overrides it
+/// to [DailyMetricStore.swiftData].
 
-final class DailyMetricsFileProvider
-    extends $FunctionalProvider<File?, File?, File?>
-    with $Provider<File?> {
-  /// The JSON file the interim [dailyMetricRepository] persists to, or `null`
-  /// for an in-memory store.
-  ///
-  /// `null` by default, so tests built from [appProviderOverrides] stay
-  /// in-memory and touch no disk. `main.dart` overrides it with a file in the
-  /// app-support directory, which needs an async `path_provider` lookup before
-  /// `runApp`.
-  DailyMetricsFileProvider._()
+final class DailyMetricStoreProvider
+    extends
+        $FunctionalProvider<
+          DailyMetricStore,
+          DailyMetricStore,
+          DailyMetricStore
+        >
+    with $Provider<DailyMetricStore> {
+  /// The store [dailyMetricRepository] is built on. `main.dart` overrides it
+  /// to [DailyMetricStore.swiftData].
+  DailyMetricStoreProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'dailyMetricsFileProvider',
+        name: r'dailyMetricStoreProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$dailyMetricsFileHash();
+  String debugGetCreateSourceHash() => _$dailyMetricStoreHash();
 
   @$internal
   @override
-  $ProviderElement<File?> $createElement($ProviderPointer pointer) =>
+  $ProviderElement<DailyMetricStore> $createElement($ProviderPointer pointer) =>
       $ProviderElement(pointer);
 
   @override
-  File? create(Ref ref) {
-    return dailyMetricsFile(ref);
+  DailyMetricStore create(Ref ref) {
+    return dailyMetricStore(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(File? value) {
+  Override overrideWithValue(DailyMetricStore value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<File?>(value),
+      providerOverride: $SyncValueProvider<DailyMetricStore>(value),
     );
   }
 }
 
-String _$dailyMetricsFileHash() => r'678c982433771b0f413af2d20a42d09eeee7aa4d';
+String _$dailyMetricStoreHash() => r'b54aeb2c7142d2ca8172dd1f72c40935ced6d480';
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through, and data_export reads from.
+/// Backed by [dailyMetricStore].
 ///
-/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
-/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
-/// changes only this body.
+/// The interim JSON file store is no longer used here; `main.dart` migrates
+/// its rows into this repository once (`migrateFileStore`).
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -87,10 +77,10 @@ final dailyMetricRepositoryProvider = DailyMetricRepositoryProvider._();
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through, and data_export reads from.
+/// Backed by [dailyMetricStore].
 ///
-/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
-/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
-/// changes only this body.
+/// The interim JSON file store is no longer used here; `main.dart` migrates
+/// its rows into this repository once (`migrateFileStore`).
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -105,10 +95,10 @@ final class DailyMetricRepositoryProvider
     with $Provider<DailyMetricRepository> {
   /// The single shared `DailyMetricRepository` that checkin, metrics and
   /// pdf_import all read and write through, and data_export reads from.
+  /// Backed by [dailyMetricStore].
   ///
-  /// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
-  /// until the SwiftData + CloudKit datasource replaces it (#43). That swap
-  /// changes only this body.
+  /// The interim JSON file store is no longer used here; `main.dart` migrates
+  /// its rows into this repository once (`migrateFileStore`).
   ///
   /// `keepAlive`: disposing it would lose the in-memory data and break the
   /// shared-store invariant (D6).
@@ -147,7 +137,7 @@ final class DailyMetricRepositoryProvider
 }
 
 String _$dailyMetricRepositoryHash() =>
-    r'b49cf68b0c82b3c536a51851c405d4d6cbf37b18';
+    r'3c5db3eea70d0d9777f52576e6977ecc9ad0c35a';
 
 /// Schedules and cancels the end-of-day reminder.
 ///
