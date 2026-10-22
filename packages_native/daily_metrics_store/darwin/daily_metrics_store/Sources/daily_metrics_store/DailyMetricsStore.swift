@@ -147,8 +147,10 @@ final class DailyMetricsStore {
         try save()
     }
 
-    /// Test only: deletes every record in this store.
+    /// Test only: deletes every record in this store. Refused on the real
+    /// store.
     func reset() throws {
+        guard testStoreName != nil else { throw StoreError.notTestStore }
         for record in try records(matching: nil) {
             context.delete(record)
         }
@@ -177,11 +179,13 @@ final class DailyMetricsStore {
         }
     }
 
+    /// The highest-ranked record (see `MetricRow.outranks`), the same one
+    /// on every device.
     private func newest(_ records: [DailyMetricRecord]) -> DailyMetricRecord? {
-        records.max { $0.modifiedAt < $1.modifiedAt }
+        records.max { $1.row.outranks($0.row) }
     }
 
-    /// Merges same-day `records` into the newest one and deletes the rest,
+    /// Merges same-day `records` into the highest-ranked one and deletes the rest,
     /// saving if anything changed. Returns the survivor.
     private func collapse(_ records: [DailyMetricRecord]) throws -> DailyMetricRecord? {
         guard records.count > 1 else { return records.first }

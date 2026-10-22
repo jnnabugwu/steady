@@ -21,14 +21,21 @@
 ///
 /// Test-only: `useStore` (`{name}`) reopens the container on a separate
 /// local, never-CloudKit store file (`{name: null}` switches back to the
-/// real store); `reset` deletes every
-/// record in the current store; `insertRecordForTesting` (`{row,
-/// modifiedAtMillis}`, test stores only) inserts a raw record without
-/// de-duplicating, to simulate two devices creating the same day.
+/// real store); `reset` (test stores only) deletes every record in the
+/// current store; `insertRecordForTesting` (`{row, modifiedAtMillis}`, test
+/// stores only) inserts a raw record without de-duplicating, to simulate
+/// two devices creating the same day. A test-stores-only call made while
+/// the real store is selected fails with `not_test_store` before the real
+/// store is opened.
+///
+/// Same-day duplicates are merged on read: per field, the non-null value
+/// from the record with the latest `modifiedAt` wins, equal timestamps
+/// broken by comparing the records' values (`MetricRow.outranks`), so every
+/// device reaches the same row.
 ///
 /// Failures come back as `PlatformException`s with one of these codes:
 /// `bad_args`, `store_unavailable`, `fetch_failed`, `save_failed`,
-/// `not_test_store`.
+/// `not_test_store`, or `unknown` (any other native error).
 library;
 
 /// The MethodChannel the native store listens on.

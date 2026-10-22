@@ -17,7 +17,8 @@ abstract final class DailyMetricsStoreTestControl {
   static Future<void> useStore(String? name) =>
       _channel.invokeMethod<void>('useStore', {'name': name});
 
-  /// Deletes every record in the current store.
+  /// Deletes every record in the current test store. Refused
+  /// (`not_test_store`) on the real store, without opening it.
   static Future<void> reset() => _channel.invokeMethod<void>('reset');
 
   /// Inserts [row] as a separate record without de-duplicating, as if

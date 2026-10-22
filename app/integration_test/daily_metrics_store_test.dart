@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_data/testing/daily_metric_repository_contract.dart';
 import 'package:daily_metrics_data/testing/daily_metrics_store_test_control.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// `SwiftDataDailyMetricRepository` against real SwiftData through the real
 /// `daily_metrics_store` plugin. Runs on a separate local `integration_test`
@@ -123,6 +127,36 @@ void main() {
       expect(await read(reopened, day), isNull);
     });
 
+    testWidgets('equal modifiedAt: the same merge whatever the insertion '
+        'order', (_) async {
+      // Same instant, conflicting fields: only the value tie-breaker
+      // decides. 1850 > 1500 in the first differing field, so the second
+      // row ranks higher on every device.
+      final sameInstant = DateTime(2026, 8, 24, 12);
+      final first = row(
+        caloriesEaten: 1500,
+        steps: 6000,
+        loggingStatus: 'logged',
+      );
+      final second = row(caloriesEaten: 1850, loggingStatus: 'partial');
+
+      Future<DailyMetric?> mergeInOrder(List<Map<String, Object?>> rows) async {
+        await DailyMetricsStoreTestControl.reset();
+        for (final r in rows) {
+          await DailyMetricsStoreTestControl.insertRecord(
+            r,
+            modifiedAt: sameInstant,
+          );
+        }
+        // Reopened, so the fetch order comes from disk, not the context.
+        await DailyMetricsStoreTestControl.useStore('integration_test');
+        return await read(SwiftDataDailyMetricRepository(), day);
+      }
+
+      expect(await mergeInOrder([first, second]), merged);
+      expect(await mergeInOrder([second, first]), merged);
+    });
+
     testWidgets('an upsert over duplicates leaves one merged row', (_) async {
       await insertDuplicates();
       final repo = SwiftDataDailyMetricRepository();
@@ -135,5 +169,40 @@ void main() {
         merged.copyWith(caloriesBurnedActive: 400, steps: null),
       );
     });
+  });
+
+  testWidgets('test-only calls are refused on the real store, which is '
+      'never opened', (_) async {
+    // Where DailyMetricsStore puts the real store: path_provider's support
+    // directory (which already includes the bundle id on macOS).
+    final support = await getApplicationSupportDirectory();
+    final realStore = File('${support.path}/DailyMetrics/steady.store');
+    if (realStore.existsSync()) {
+      // Real data may be there; a regression in the guard would wipe it.
+      markTestSkipped('The real store exists on this device; not risking it');
+      return;
+    }
+    final refused = throwsA(
+      isA<PlatformException>().having((e) => e.code, 'code', 'not_test_store'),
+    );
+
+    await DailyMetricsStoreTestControl.useStore(null);
+    await expectLater(DailyMetricsStoreTestControl.reset(), refused);
+    await expectLater(
+      DailyMetricsStoreTestControl.insertRecord({
+        'date': '2026-08-24',
+        for (final field in const [
+          'caloriesEaten',
+          'caloriesBurnedActive',
+          'caloriesBurnedBasal',
+          'steps',
+          'loggingStatus',
+        ])
+          field: null,
+      }, modifiedAt: DateTime(2026, 8, 24)),
+      refused,
+    );
+
+    expect(realStore.existsSync(), isFalse, reason: 'opened the real store');
   });
 }

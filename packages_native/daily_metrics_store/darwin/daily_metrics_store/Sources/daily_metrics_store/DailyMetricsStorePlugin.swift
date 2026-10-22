@@ -47,7 +47,7 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
                 try useStore(args["name"])
                 result(nil)
             case "reset":
-                try openStore().reset()
+                try openStore(testOnly: true).reset()
                 result(nil)
             case "insertRecordForTesting":
                 guard let rowMap = args["row"] as? [String: Any],
@@ -55,7 +55,7 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
                 else { throw StoreError.badArgs("Expected {row, modifiedAtMillis}") }
                 let modifiedAt = Date(timeIntervalSince1970: millis.doubleValue / 1000)
                 let row = try MetricRow(channelMap: rowMap, modifiedAt: modifiedAt)
-                try openStore().insertRecordForTesting(row)
+                try openStore(testOnly: true).insertRecordForTesting(row)
                 result(nil)
             default:
                 result(FlutterMethodNotImplemented)
@@ -67,7 +67,13 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func openStore() throws -> DailyMetricsStore {
+    /// The current store, opened on first use. `testOnly` refuses with
+    /// `not_test_store` unless a test store from `useStore(name)` is
+    /// selected, before anything is opened, so a test-only call can never
+    /// open (or create) the real store, let alone change it. The store
+    /// methods check again.
+    private func openStore(testOnly: Bool = false) throws -> DailyMetricsStore {
+        if testOnly, testStoreName == nil { throw StoreError.notTestStore }
         if let store { return store }
         let opened = try DailyMetricsStore(testStoreName: testStoreName)
         store = opened
@@ -83,7 +89,7 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
         var newName: String?
         if let name, !(name is NSNull) {
             guard let string = name as? String,
-                string.range(of: #"^[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil
+                string.range(of: #"^[A-Za-z0-9_-]+\z"#, options: .regularExpression) != nil
             else { throw StoreError.badArgs("\"name\" must match [A-Za-z0-9_-]+ or be null") }
             newName = string
         }

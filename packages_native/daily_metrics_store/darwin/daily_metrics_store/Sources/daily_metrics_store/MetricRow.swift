@@ -20,25 +20,74 @@ struct MetricRow: Equatable {
 ///
 /// CloudKit can't enforce uniqueness, so two devices can each create a
 /// record for the same day before either has synced the other's. For each
-/// field this takes the non-nil value from the most recently modified
-/// record that has one. The result keeps the newest record's `modifiedAt`
-/// (it isn't bumped), so two devices merging the same set reach the same
-/// row.
+/// field this takes the non-nil value from the highest-ranked record that
+/// has one (see `outranks`: newest `modifiedAt`, ties broken by the values).
+/// The result keeps the top record's `modifiedAt` (it isn't bumped), so two
+/// devices merging the same set reach the same row, whatever order their
+/// stores return the records in.
 ///
 /// Returns nil only for an empty input.
 func mergeDuplicates(_ rows: [MetricRow]) -> MetricRow? {
-    let newestFirst = rows.sorted { $0.modifiedAt > $1.modifiedAt }
-    guard var merged = newestFirst.first else { return nil }
-    for older in newestFirst.dropFirst() {
-        merged.caloriesEaten = merged.caloriesEaten ?? older.caloriesEaten
+    let highestFirst = rows.sorted { $0.outranks($1) }
+    guard var merged = highestFirst.first else { return nil }
+    for lower in highestFirst.dropFirst() {
+        merged.caloriesEaten = merged.caloriesEaten ?? lower.caloriesEaten
         merged.caloriesBurnedActive =
-            merged.caloriesBurnedActive ?? older.caloriesBurnedActive
+            merged.caloriesBurnedActive ?? lower.caloriesBurnedActive
         merged.caloriesBurnedBasal =
-            merged.caloriesBurnedBasal ?? older.caloriesBurnedBasal
-        merged.steps = merged.steps ?? older.steps
-        merged.loggingStatus = merged.loggingStatus ?? older.loggingStatus
+            merged.caloriesBurnedBasal ?? lower.caloriesBurnedBasal
+        merged.steps = merged.steps ?? lower.steps
+        merged.loggingStatus = merged.loggingStatus ?? lower.loggingStatus
     }
     return merged
+}
+
+extension MetricRow {
+    /// Whether this row takes precedence over `other` among same-day
+    /// duplicates: the later `modifiedAt` wins. Equal timestamps (two
+    /// devices writing in the same instant, or a clock that only ticks
+    /// coarsely) are broken by the stored values themselves, compared
+    /// field by field in a fixed order (`day`, `caloriesEaten`,
+    /// `caloriesBurnedActive`, `caloriesBurnedBasal`, `steps`,
+    /// `loggingStatus`; nil lowest, strings by UTF-8 bytes), and the greater
+    /// row wins. Every device holds the same values, so every device picks
+    /// the same winner. Only rows with identical values still tie, and
+    /// then either one gives the same result.
+    func outranks(_ other: MetricRow) -> Bool {
+        if modifiedAt != other.modifiedAt { return modifiedAt > other.modifiedAt }
+        let order = [
+            compareBytes(day, other.day),
+            compareOptional(caloriesEaten, other.caloriesEaten),
+            compareOptional(caloriesBurnedActive, other.caloriesBurnedActive),
+            compareOptional(caloriesBurnedBasal, other.caloriesBurnedBasal),
+            compareOptional(steps, other.steps),
+            compareBytes(loggingStatus, other.loggingStatus),
+        ]
+        return (order.first { $0 != 0 } ?? 0) > 0
+    }
+}
+
+/// -1, 0 or 1; nil sorts lowest.
+private func compareOptional(_ a: Int?, _ b: Int?) -> Int {
+    switch (a, b) {
+    case (nil, nil): return 0
+    case (nil, _): return -1
+    case (_, nil): return 1
+    case let (a?, b?): return a < b ? -1 : (a == b ? 0 : 1)
+    }
+}
+
+/// -1, 0 or 1 by UTF-8 bytes (not locale or Unicode collation, so it's the
+/// same everywhere); nil sorts lowest.
+private func compareBytes(_ a: String?, _ b: String?) -> Int {
+    switch (a, b) {
+    case (nil, nil): return 0
+    case (nil, _): return -1
+    case (_, nil): return 1
+    case let (a?, b?):
+        let (x, y) = (Array(a.utf8), Array(b.utf8))
+        return x == y ? 0 : (x.lexicographicallyPrecedes(y) ? -1 : 1)
+    }
 }
 
 // MARK: - Channel wire format
@@ -91,20 +140,25 @@ extension MetricRow {
     }
 }
 
-/// Validates a `yyyy-MM-dd` day key. Shape only; Dart owns calendar rules.
+/// Validates a `yyyy-MM-dd` day key: exactly ten ASCII characters, digits
+/// and dashes (`\z`, unlike `$`, doesn't accept a trailing newline). Shape
+/// only; Dart owns calendar rules.
 func dayString(_ value: Any?, key: String) throws -> String {
     guard let day = value as? String,
-        day.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
+        day.range(of: #"^[0-9]{4}-[0-9]{2}-[0-9]{2}\z"#, options: .regularExpression) != nil
     else {
         throw StoreError.badArgs("\"\(key)\" must be a yyyy-MM-dd string")
     }
     return day
 }
 
+/// An integer field. A Bool or floating-point NSNumber is rejected rather
+/// than converted (`intValue` would silently truncate 1.5 to 1).
 private func optionalInt(_ map: [String: Any], _ key: String) throws -> Int? {
     guard let value = map[key], !(value is NSNull) else { return nil }
     guard let number = value as? NSNumber,
-        CFGetTypeID(number) != CFBooleanGetTypeID()
+        CFGetTypeID(number) != CFBooleanGetTypeID(),
+        !CFNumberIsFloatType(number)
     else {
         throw StoreError.badArgs("\"\(key)\" must be an int or null")
     }
