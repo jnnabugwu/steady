@@ -25,7 +25,7 @@ void main() {
   group('weekStartFor', () {
     test('defaults to the Friday anchor (Friday-Thursday window)', () {
       // 2026-10-22 is a Thursday, the last day of the week starting Fri 16th.
-      expect(weekStartFor(DateTime(2026, 10, 22)), DateTime(2026, 10, 15));
+      expect(weekStartFor(DateTime(2026, 10, 22)), DateTime(2026, 10, 16));
     });
 
     test('an anchor day is its own week start', () {
