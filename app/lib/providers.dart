@@ -75,6 +75,11 @@ final List<Override> appProviderOverrides = [
   metricsRepositoryProvider.overrideWith(
     (ref) => MetricsRepositoryImpl(ref.watch(dailyMetricRepositoryProvider)),
   ),
+  // checkin's share card reads the week through metrics' read-only
+  // interface: the same instance, so the same shared store.
+  weekMetricsRepositoryProvider.overrideWith(
+    (ref) => ref.watch(metricsRepositoryProvider),
+  ),
   pdfImportRepositoryProvider.overrideWith(
     (ref) => PdfImportRepositoryImpl(
       parser: CalAIParser(),
