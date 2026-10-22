@@ -3,7 +3,8 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
-import 'package:pdfrx_engine/pdfrx_engine.dart';
+
+import 'support/pdfium.dart';
 
 /// End-to-end check of `CalAIParser` against the real reference export
 /// (personal data, gitignored -- see test/fixtures/README or
@@ -12,23 +13,16 @@ import 'package:pdfrx_engine/pdfrx_engine.dart';
 ///
 /// The CI-visible regression bar for the parsing logic lives in
 /// `cal_ai_parser_lines_test.dart`, which drives the `parsePageLines` seam
-/// with synthetic lines and needs no fixture.
+/// with synthetic lines and needs no fixture, and in
+/// `cal_ai_parser_pdf_test.dart`, which runs `parse` through PDFium on a
+/// synthetic PDF.
 void main() {
   final fixture = File('test/fixtures/jordanssummary.pdf');
   final fixtureExists = fixture.existsSync();
   final shortFixture = File('test/fixtures/summaryjordan7days.pdf');
   final shortFixtureExists = shortFixture.existsSync();
 
-  setUpAll(() {
-    // pdfium_dart 0.4.0 finds the bundled PDFium via
-    // .dart_tool/native_assets.yaml, which `flutter test` doesn't write, so
-    // loading fails with "Native assets file not found". `flutter test` does
-    // build the library, though; point pdfrx at it directly (#38).
-    final pdfium = File('build/native_assets/macos/libpdfium.dylib');
-    if (pdfium.existsSync()) {
-      Pdfrx.pdfiumModulePath = pdfium.absolute.path;
-    }
-  });
+  setUpAll(usePdfiumBuiltByFlutterTest);
 
   group('CalAIParser', () {
     test(
