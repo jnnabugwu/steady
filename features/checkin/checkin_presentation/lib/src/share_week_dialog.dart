@@ -31,6 +31,10 @@ Future<void> showShareWeekDialog(
 ///
 /// The intermediate `ui.Image` holds native memory the Dart GC can't see,
 /// so it is disposed as soon as it has been encoded.
+///
+/// Never throws: anything the engine throws, `Error`s included (e.g. the
+/// boundary still needing paint), comes back as an [UnknownFailure], so the
+/// dialog always leaves its in-flight state.
 ResultFuture<Uint8List> renderWeekCardPng(
   GlobalKey boundaryKey, {
   double pixelRatio = WeekCard.pixelRatio,
@@ -42,7 +46,7 @@ ResultFuture<Uint8List> renderWeekCardPng(
   final ui.Image image;
   try {
     image = await boundary.toImage(pixelRatio: pixelRatio);
-  } on Exception catch (e) {
+  } on Object catch (e) {
     return Err(UnknownFailure('The week card could not be drawn.', cause: e));
   }
   try {
@@ -53,7 +57,7 @@ ResultFuture<Uint8List> renderWeekCardPng(
     return Ok(
       bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
     );
-  } on Exception catch (e) {
+  } on Object catch (e) {
     return Err(UnknownFailure('The week card could not be encoded.', cause: e));
   } finally {
     image.dispose();

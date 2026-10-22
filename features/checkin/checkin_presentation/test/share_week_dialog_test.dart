@@ -97,6 +97,39 @@ void main() {
   OutlineButton cancelButton(WidgetTester tester) =>
       tester.widget(find.byKey(const Key('shareWeekCancelButton')));
 
+  group('renderWeekCardPng', () {
+    testWidgets(
+      'returns a Failure, not a throw, when drawing throws an Error',
+      (tester) async {
+        final key = GlobalKey();
+        await tester.pumpWidget(
+          RepaintBoundary(
+            key: key,
+            child: const SizedBox(width: 10, height: 10),
+          ),
+        );
+        // toImage asserts the boundary has been painted; an AssertionError is
+        // an Error, not an Exception.
+        key.currentContext!.findRenderObject()!.markNeedsPaint();
+
+        final result = await renderWeekCardPng(key);
+
+        expect(
+          result,
+          isA<Err<Uint8List>>().having(
+            (e) => e.failure,
+            'failure',
+            isA<UnknownFailure>().having(
+              (f) => f.cause,
+              'cause',
+              isA<AssertionError>(),
+            ),
+          ),
+        );
+      },
+    );
+  });
+
   group('Share week from the check-in screen', () {
     testWidgets('previews the week with one range read', (tester) async {
       await openDialog(tester);
