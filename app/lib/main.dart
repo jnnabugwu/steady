@@ -1,15 +1,18 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:steady/bootstrap.dart';
+import 'package:steady/providers.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 void main() {
-  configureDependencies();
-  runApp(const SteadyApp());
+  runApp(
+    ProviderScope(overrides: appProviderOverrides, child: const SteadyApp()),
+  );
 }
 
-/// Root widget. No routing/DI wiring yet (see `app_router.dart` /
-/// `bootstrap.dart`) — this proves the design system compiles and renders
-/// on both platform targets, per the ui_kit build step.
+/// Root widget. DI is wired by the `ProviderScope` in [main] (see
+/// `providers.dart`); no routing yet (see `app_router.dart`). For now this
+/// proves the design system compiles and renders on both platform targets,
+/// per the ui_kit build step.
 class SteadyApp extends StatelessWidget {
   const SteadyApp({super.key});
 
@@ -29,9 +32,7 @@ class _DesignSystemPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Scaffold(
-      headers: [
-        AppBar(title: Text('Steady')),
-      ],
+      headers: [AppBar(title: Text('Steady'))],
       child: Center(
         child: SteadyCard(
           child: Column(

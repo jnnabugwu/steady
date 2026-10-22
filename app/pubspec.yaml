@@ -32,6 +32,8 @@ dependencies:
     path: ../features/checkin/checkin_data
   checkin_domain:
     path: ../features/checkin/checkin_domain
+  checkin_presentation:
+    path: ../features/checkin/checkin_presentation
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -46,12 +48,13 @@ dependencies:
     sdk: flutter
 
   flutter_riverpod: ^3.4.3
-  get_it: ^9.2.1
 
   metrics_data:
     path: ../features/metrics/metrics_data
   metrics_domain:
     path: ../features/metrics/metrics_domain
+  metrics_presentation:
+    path: ../features/metrics/metrics_presentation
 
   notifications_data:
     path: ../features/notifications/notifications_data
@@ -62,6 +65,8 @@ dependencies:
     path: ../features/pdf_import/pdf_import_data
   pdf_import_domain:
     path: ../features/pdf_import/pdf_import_domain
+  pdf_import_presentation:
+    path: ../features/pdf_import/pdf_import_presentation
 
   riverpod_annotation: ^4.0.7
   shadcn_flutter: ^0.0.53

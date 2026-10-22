@@ -1,3 +1,5 @@
+export 'src/providers.dart';
+
 /// A Calculator.
 class Calculator {
   /// Returns [value] plus 1.
