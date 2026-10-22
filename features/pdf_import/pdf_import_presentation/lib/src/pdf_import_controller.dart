@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:failures/failures.dart';
+import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/src/pdf_file_picker.dart';
 import 'package:pdf_import_presentation/src/pdf_import_state.dart';
 import 'package:pdf_import_presentation/src/providers.dart';
@@ -22,20 +23,27 @@ class PdfImportController extends _$PdfImportController {
   @override
   PdfImportState build() => const PdfImportEmpty();
 
-  bool get _isBusy => switch (state) {
-    PdfImportParsing() || PdfImportCommitted() => true,
-    PdfImportPreview(:final isCommitting) => isCommitting,
-    PdfImportEmpty() || PdfImportParseFailed() => false,
-  };
+  /// True while the file picker is open. Not a state of its own: the
+  /// screen looks the same until a file comes back.
+  bool _isPicking = false;
+
+  bool get _isBusy =>
+      _isPicking ||
+      switch (state) {
+        PdfImportParsing() || PdfImportCommitted() => true,
+        PdfImportPreview(:final isCommitting) => isCommitting,
+        PdfImportEmpty() || PdfImportParseFailed() => false,
+      };
 
   /// Domain event: PdfSelected.
   ///
   /// Opens the file picker, then parses the chosen file ([parsePdf]).
   /// Cancelling the picker changes nothing. A picker error becomes
-  /// [PdfImportParseFailed]. Ignored while a parse or commit is in flight,
-  /// or once the import has been committed.
+  /// [PdfImportParseFailed]. Ignored while the picker is already open, while
+  /// a parse or commit is in flight, or once the import has been committed.
   Future<void> choosePdf() async {
     if (!ref.mounted || _isBusy) return;
+    _isPicking = true;
     final Uint8List? bytes;
     try {
       bytes = await ref.read(pdfFilePickerProvider)();
@@ -45,6 +53,8 @@ class PdfImportController extends _$PdfImportController {
         UnknownFailure("Couldn't open that file.", cause: error),
       );
       return;
+    } finally {
+      _isPicking = false;
     }
     if (bytes == null || !ref.mounted) return;
     await parsePdf(bytes);
@@ -58,7 +68,14 @@ class PdfImportController extends _$PdfImportController {
   Future<void> parsePdf(Uint8List bytes) async {
     if (!ref.mounted || _isBusy) return;
     state = const PdfImportParsing();
-    final result = await ref.read(pdfImportRepositoryProvider).parse(bytes);
+    Result<List<ParsedDay>> result;
+    try {
+      result = await ref.read(pdfImportRepositoryProvider).parse(bytes);
+    } on Object catch (error) {
+      // A repository should return Err, but a throw must not strand the
+      // screen in parsing, where every action is ignored.
+      result = Err(UnknownFailure("Couldn't read that PDF.", cause: error));
+    }
     if (!ref.mounted) return;
     state = switch (result) {
       Ok(:final value) => PdfImportPreview(value),
@@ -83,9 +100,14 @@ class PdfImportController extends _$PdfImportController {
     }
     final days = current.days;
     state = PdfImportPreview(days, isCommitting: true);
-    final result = await ref
-        .read(pdfImportRepositoryProvider)
-        .commitDailyTotals(days);
+    Result<Unit> result;
+    try {
+      result = await ref
+          .read(pdfImportRepositoryProvider)
+          .commitDailyTotals(days);
+    } on Object catch (error) {
+      result = Err(UnknownFailure("Couldn't save the import.", cause: error));
+    }
     if (!ref.mounted) return;
     state = switch (result) {
       Ok() => PdfImportCommitted(days),

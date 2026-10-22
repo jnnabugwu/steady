@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +46,59 @@ void main() {
 
   test('starts empty', () {
     expect(states, [isA<PdfImportEmpty>()]);
+  });
+
+  group('robustness', () {
+    test('a second choosePdf while the picker is open is ignored', () async {
+      final pick = Completer<Uint8List?>();
+      var calls = 0;
+      final c = ProviderContainer.test(
+        overrides: [
+          pdfImportRepositoryProvider.overrideWithValue(repository),
+          pdfFilePickerProvider.overrideWithValue(() {
+            calls++;
+            return pick.future;
+          }),
+        ],
+      );
+      final controller = (c..listen(pdfImportControllerProvider, (_, _) {}))
+          .read(pdfImportControllerProvider.notifier);
+
+      final first = controller.choosePdf();
+      await controller.choosePdf();
+      pick.complete(pdfBytes);
+      await first;
+
+      expect(calls, 1);
+      expect(repository.parseCalls, [pdfBytes]);
+    });
+
+    test('a throwing parse ends in parse failed, not stuck parsing', () async {
+      repository.onParse = (_) => throw StateError('boom');
+
+      await notifier().parsePdf(pdfBytes);
+
+      expect(
+        states.last,
+        isA<PdfImportParseFailed>().having(
+          (s) => s.failure,
+          'failure',
+          isA<UnknownFailure>(),
+        ),
+      );
+      // Not stranded: picking again works.
+      await notifier().choosePdf();
+      expect(picker.calls, 1);
+    });
+
+    test('a throwing commit keeps the preview with a commit failure', () async {
+      await notifier().parsePdf(pdfBytes);
+      repository.onCommit = (_) => throw StateError('boom');
+
+      await notifier().commitImport();
+
+      expect(states.last, isPreview(commitFailure: isA<UnknownFailure>()));
+    });
   });
 
   group('parsePdf', () {
