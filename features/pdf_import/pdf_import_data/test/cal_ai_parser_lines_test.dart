@@ -72,8 +72,8 @@ void main() {
         test(title, () {
           final days = parser.parsePageLines([
             title,
+            'Start: 08/02/2025 · End: 08/09/2025',
             'August 2, 2025',
-            title,
             'Oatmeal 300 10g 54g 5g 8g 1g 0mg 7:30am',
             'TOTAL Calories eaten: 300',
           ]);
@@ -97,6 +97,30 @@ void main() {
         'Weather Report',
       ]);
       expect(days.single.foodEntries.map((e) => e.calories), [250, 90]);
+    });
+
+    test('a title-shaped line below the top of the page stays in the food '
+        'name', () {
+      final days = parser.parsePageLines([
+        "Sam's Report",
+        'August 2, 2025',
+        "Grandma's Report",
+        'Casserole 250 5g 30g 10g 2g 12g 120mg 1:00pm',
+        'TOTAL Calories eaten: 250',
+      ]);
+
+      expect(days.single.foodEntries.single.name, "Grandma's Report Casserole");
+    });
+
+    test('a page whose first line is a date has no title to skip', () {
+      final days = parser.parsePageLines([
+        'August 2, 2025',
+        "Grandma's Report",
+        'Casserole 250 5g 30g 10g 2g 12g 120mg 1:00pm',
+        'TOTAL Calories eaten: 250',
+      ]);
+
+      expect(days.single.foodEntries.single.name, "Grandma's Report Casserole");
     });
 
     test('uses the printed TOTAL, not the sum of the food rows', () {

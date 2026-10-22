@@ -43,6 +43,11 @@ class CalAIParser {
   /// whole trimmed line, and the name may not contain digits, so a food row
   /// (which always ends in the numeric 8-token tail) can never match even
   /// if the food's name itself ends in "Report".
+  ///
+  /// Only skipped as the page's first non-empty line, which is where Cal AI
+  /// prints it. Anywhere else a title-shaped line is a wrapped food-name
+  /// fragment (e.g. `Grandma's Report` above its numeric row) and must
+  /// reach the pending-name buffer.
   static final _reportTitlePattern = RegExp(
     r"^\p{L}[\p{L}\p{M} .'\u2019-]*['\u2019]s Report$",
     unicode: true,
@@ -93,9 +98,14 @@ class CalAIParser {
     var pendingName = '';
     var currentEntries = <ParsedFoodEntry>[];
 
+    var isFirstLine = true;
+
     for (final rawLine in lines) {
       final line = rawLine.trim();
-      if (line.isEmpty || _isBoilerplate(line)) continue;
+      if (line.isEmpty) continue;
+      final isPageTitle = isFirstLine && _reportTitlePattern.hasMatch(line);
+      isFirstLine = false;
+      if (isPageTitle || _isBoilerplate(line)) continue;
 
       final dateMatch = _dateHeaderPattern.firstMatch(line);
       if (dateMatch != null) {
@@ -177,7 +187,5 @@ class CalAIParser {
       int.parse(token.replaceAll(RegExp(r'[a-z]+$'), ''));
 
   bool _isBoilerplate(String line) =>
-      _boilerplateLines.contains(line) ||
-      _reportTitlePattern.hasMatch(line) ||
-      line.startsWith('Start:');
+      _boilerplateLines.contains(line) || line.startsWith('Start:');
 }
