@@ -123,6 +123,11 @@ void main() {
     testWidgets('shares a 1080x1350 PNG named for the week, then closes', (
       tester,
     ) async {
+      // Not the test default of 3.0, so a render that used the device's
+      // pixel ratio instead of WeekCard.pixelRatio would come out the
+      // wrong size.
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.resetDevicePixelRatio);
       await openDialog(tester);
 
       await share(tester);
