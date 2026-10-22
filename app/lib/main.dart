@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart' show DefaultMaterialLocalizations;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
@@ -23,10 +22,6 @@ class SteadyApp extends ConsumerWidget {
     return ShadcnApp.router(
       title: 'Steady',
       theme: steadyTheme,
-      // Feature screens such as `CheckInModule` are built from Material
-      // widgets (e.g. `AppBar`), which need MaterialLocalizations.
-      // ShadcnApp only supplies widgets + shadcn localizations.
-      localizationsDelegates: const [DefaultMaterialLocalizations.delegate],
       routerConfig: ref.watch(routerProvider),
     );
   }

@@ -15,6 +15,9 @@ import 'package:steady/providers.dart';
 class _RecordingNotificationScheduler implements NotificationScheduler {
   final List<DateTime> cancelled = [];
 
+  /// What [cancelReminder] returns.
+  Result<Unit> cancelResult = const Ok(unit);
+
   @override
   ResultFuture<Unit> scheduleEndOfDayReminder(DateTime date) async =>
       const Ok(unit);
@@ -22,7 +25,7 @@ class _RecordingNotificationScheduler implements NotificationScheduler {
   @override
   ResultFuture<Unit> cancelReminder(DateTime date) async {
     cancelled.add(date);
-    return const Ok(unit);
+    return cancelResult;
   }
 }
 
@@ -71,9 +74,6 @@ void main() {
     return DateTime(date.year, date.month, date.day);
   }
 
-  bool sameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
-
   group('cold start', () {
     testWidgets('/ shows the home screen', (tester) async {
       await pumpApp(tester);
@@ -101,8 +101,7 @@ void main() {
 
         expect(find.text('Status: Logged'), findsOneWidget);
         expect(await storedStatus(container, day), LoggingStatus.logged);
-        expect(scheduler.cancelled, hasLength(1));
-        expect(sameDay(scheduler.cancelled.single, day), isTrue);
+        expect(scheduler.cancelled, [day]);
       },
     );
 
@@ -122,8 +121,56 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(await storedStatus(container, day), LoggingStatus.partial);
-      expect(scheduler.cancelled, hasLength(1));
-      expect(sameDay(scheduler.cancelled.single, day), isTrue);
+      // Exactly local midnight, not 21:30: the reminder is cancelled with
+      // the normalized day.
+      expect(scheduler.cancelled, [day]);
+    });
+
+    testWidgets('a UTC offset does not move the date across midnight', (
+      tester,
+    ) async {
+      // 23:30 at -05:00 is already the 20th in UTC (and in any zone east of
+      // -05:00); the path's leading date is what counts.
+      final day = DateTime(2026, 10, 19);
+      final container = await pumpApp(
+        tester,
+        coldStartLocation: '/checkin/2026-10-19T23:30:00-05:00',
+      );
+
+      expect(find.byType(CheckInModule), findsOneWidget);
+      expect(moduleDay(tester), day);
+
+      await tester.tap(find.byKey(const Key('checkInButton_skipped')));
+      await tester.pumpAndSettle();
+
+      expect(await storedStatus(container, day), LoggingStatus.skipped);
+      expect(scheduler.cancelled, [day]);
+    });
+
+    for (final location in ['/checkin/garbage', '/checkin/2026-02-30']) {
+      testWidgets('malformed $location redirects to the home screen', (
+        tester,
+      ) async {
+        await pumpApp(tester, coldStartLocation: location);
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(DesignSystemPreview), findsOneWidget);
+        expect(find.byType(CheckInModule), findsNothing);
+      });
+    }
+
+    testWidgets('a failed reminder cancel is reported, not dropped', (
+      tester,
+    ) async {
+      const failure = PlatformChannelFailure('cancel failed');
+      scheduler.cancelResult = const Err(failure);
+      await pumpApp(tester, coldStartLocation: '/checkin/2026-10-19');
+
+      await tester.tap(find.byKey(const Key('checkInButton_logged')));
+      await tester.pumpAndSettle();
+
+      expect(scheduler.cancelled, [DateTime(2026, 10, 19)]);
+      expect(tester.takeException(), same(failure));
     });
   });
 

@@ -10,17 +10,17 @@ class DesignSystemPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      headers: [AppBar(title: Text('Steady'))],
+    return Scaffold(
+      headers: const [AppBar(title: Text('Steady'))],
       child: Center(
         child: SteadyCard(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Today', style: SteadyType.headline),
-              SizedBox(height: 16),
-              Row(
+              const Text('Today', style: SteadyType.headline),
+              const SizedBox(height: 16),
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   MetricAccentChip(
@@ -36,15 +36,30 @@ class DesignSystemPreview extends StatelessWidget {
                   MetricAccentChip(accent: MetricAccent.steps, label: 'Steps'),
                 ],
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  LoggingStatusIndicator(status: LoggingStatus.logged),
-                  SizedBox(width: 6),
-                  LoggingStatusIndicator(status: LoggingStatus.partial),
-                  SizedBox(width: 6),
-                  LoggingStatusIndicator(status: LoggingStatus.skipped),
+                  Semantics(
+                    label: 'Status: Logged',
+                    child: const LoggingStatusIndicator(
+                      status: LoggingStatus.logged,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Semantics(
+                    label: 'Status: Partial',
+                    child: const LoggingStatusIndicator(
+                      status: LoggingStatus.partial,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Semantics(
+                    label: 'Status: Skipped',
+                    child: const LoggingStatusIndicator(
+                      status: LoggingStatus.skipped,
+                    ),
+                  ),
                 ],
               ),
             ],
