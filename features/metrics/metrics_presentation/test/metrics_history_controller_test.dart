@@ -38,20 +38,28 @@ void main() {
       );
       final newest = DailyMetric(date: DateTime(2026, 8, 16));
       repository.onGetRange = (_, _) => Ok([middle, oldest, newest]);
+      DateTime today() {
+        final now = DateTime.now();
+        return DateTime(now.year, now.month, now.day);
+      }
+
+      // Sampled either side of the read, so a run that crosses midnight
+      // still accepts the day the controller saw.
+      final before = today();
       listen();
 
       final days = await container.read(
         metricsHistoryControllerProvider.future,
       );
+      final after = today();
 
       expect(days, [newest, middle, oldest]);
       expect(states.first, isA<AsyncLoading<List<DailyMetric>>>());
       expect(states.last, isA<AsyncData<List<DailyMetric>>>());
 
-      final now = DateTime.now();
-      expect(repository.getRangeCalls, [
-        (DateTime(2000), DateTime(now.year, now.month, now.day)),
-      ]);
+      final (start, end) = repository.getRangeCalls.single;
+      expect(start, DateTime(2000));
+      expect(end, anyOf(before, after));
     });
 
     test(
