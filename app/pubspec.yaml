@@ -49,6 +49,10 @@ dependencies:
     path: ../packages/shared/daily_metrics_data
   daily_metrics_domain:
     path: ../packages/shared/daily_metrics_domain
+  data_export_domain:
+    path: ../features/data_export/data_export_domain
+  data_export_presentation:
+    path: ../features/data_export/data_export_presentation
 
   flutter:
     sdk: flutter

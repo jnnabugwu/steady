@@ -15,10 +15,12 @@ import 'helpers/fake_metrics_repository.dart';
 void main() {
   late FakeMetricsRepository repository;
   late int importRequests;
+  late int settingsRequests;
 
   setUp(() {
     repository = FakeMetricsRepository();
     importRequests = 0;
+    settingsRequests = 0;
   });
 
   Future<void> pumpInScope(WidgetTester tester) => tester.pumpWidget(
@@ -26,7 +28,10 @@ void main() {
       overrides: [metricsRepositoryProvider.overrideWithValue(repository)],
       child: ShadcnApp(
         theme: steadyTheme,
-        home: MetricsHistoryModule(onImportRequested: () => importRequests++),
+        home: MetricsHistoryModule(
+          onImportRequested: () => importRequests++,
+          onOpenSettings: () => settingsRequests++,
+        ),
       ),
     ),
   );
@@ -43,6 +48,18 @@ void main() {
       completer.complete(const Ok([]));
       await tester.pumpAndSettle();
       expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('the gear button calls onOpenSettings', (tester) async {
+      await pumpInScope(tester);
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await tester.pump();
+
+      expect(settingsRequests, 1);
+      expect(importRequests, 0);
+      expect(find.bySemanticsLabel('Settings'), findsOneWidget);
     });
 
     testWidgets('empty state offers the import button', (tester) async {

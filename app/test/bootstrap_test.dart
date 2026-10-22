@@ -6,6 +6,8 @@ import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
+import 'package:data_export_domain/data_export_domain.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
@@ -99,6 +101,74 @@ void main() {
     expect(rows.single.caloriesEaten, 1850);
   });
 
+  test('data_export reads what checkin and pdf_import wrote, from the same '
+      'store', () async {
+    // The real override list; only the share sheet and the clock are
+    // faked, so the export never reaches the share_plus plugin.
+    final shared = <ExportFile>[];
+    final exporting = ProviderContainer.test(
+      overrides: [
+        ...appProviderOverrides,
+        exportFileSharerProvider.overrideWithValue((
+          file, {
+          sharePositionOrigin,
+        }) async {
+          shared.add(file);
+          return const Ok(ExportShareOutcome.shared);
+        }),
+        exportClockProvider.overrideWithValue(() => DateTime(2026, 10, 22)),
+      ],
+    );
+    final date = DateTime(2026, 8, 24);
+    await exporting
+        .read(checkInRepositoryProvider)
+        .logCheckIn(date, CheckInStatus.partial);
+    await exporting.read(pdfImportRepositoryProvider).commitDailyTotals([
+      ParsedDay(date: date, caloriesEaten: 1850, foodEntries: const []),
+    ]);
+
+    // The export's repository is the shared store itself, not a copy.
+    expect(
+      exporting.read(exportDailyMetricRepositoryProvider),
+      same(exporting.read(dailyMetricRepositoryProvider)),
+    );
+
+    exporting.listen(dataExportControllerProvider, (_, _) {});
+    await exporting
+        .read(dataExportControllerProvider.notifier)
+        .exportData(ExportFormat.csv);
+
+    expect(shared.single.fileName, 'steady-export-2026-10-22.csv');
+    expect(
+      shared.single.contents.split('\r\n')[1],
+      '2026-08-24,1850,,,,partial',
+    );
+  });
+
+  test('data_export reads rows dated anywhere a DateTime can hold, from the '
+      'real store', () async {
+    final store = container.read(dailyMetricRepositoryProvider);
+    final dates = [
+      exportRangeStart,
+      DateTime(-5, 6, 7),
+      DateTime(1969, 12, 31),
+      DateTime(2026, 8, 24),
+      DateTime(10000),
+      exportRangeEnd,
+    ];
+    for (final date in dates) {
+      await store.upsert(date, steps: 1);
+    }
+
+    final result = await readExportBundle(
+      store,
+      exportedAt: DateTime(2026, 10, 22),
+    );
+
+    final bundle = (result as Ok<ExportBundle>).value;
+    expect(bundle.dailyMetrics.map((m) => m.date), dates);
+  });
+
   test('with a dailyMetricsFile, imports survive into a fresh container '
       '(an app restart)', () async {
     final dir = Directory.systemTemp.createTempSync('steady_bootstrap_');
@@ -127,6 +197,49 @@ void main() {
     final rows = (result as Ok<List<DailyMetric>>).value;
 
     expect(rows.single.caloriesEaten, 1850);
+  });
+
+  test('with a dailyMetricsFile, data_export reads the file-backed store, '
+      'including days written before an app restart', () async {
+    final dir = Directory.systemTemp.createTempSync('steady_bootstrap_');
+    addTearDown(() => dir.deleteSync(recursive: true));
+    final file = File('${dir.path}/daily_metrics.json');
+    final shared = <ExportFile>[];
+    ProviderContainer launch() => ProviderContainer.test(
+      overrides: [
+        ...appProviderOverrides,
+        dailyMetricsFileProvider.overrideWithValue(file),
+        exportFileSharerProvider.overrideWithValue((
+          exported, {
+          sharePositionOrigin,
+        }) async {
+          shared.add(exported);
+          return const Ok(ExportShareOutcome.shared);
+        }),
+        exportClockProvider.overrideWithValue(() => DateTime(2026, 10, 22)),
+      ],
+    );
+
+    final date = DateTime(2026, 8, 24);
+    await launch().read(pdfImportRepositoryProvider).commitDailyTotals([
+      ParsedDay(date: date, caloriesEaten: 1850, foodEntries: const []),
+    ]);
+
+    // A fresh container: the export can only see the day through the file.
+    final exporting = launch();
+    expect(
+      exporting.read(exportDailyMetricRepositoryProvider),
+      allOf(
+        isA<FileDailyMetricRepository>(),
+        same(exporting.read(dailyMetricRepositoryProvider)),
+      ),
+    );
+    exporting.listen(dataExportControllerProvider, (_, _) {});
+    await exporting
+        .read(dataExportControllerProvider.notifier)
+        .exportData(ExportFormat.csv);
+
+    expect(shared.single.contents.split('\r\n')[1], '2026-08-24,1850,,,,');
   });
 
   test('the share card reads the week from the shared store', () async {

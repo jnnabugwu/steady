@@ -265,6 +265,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.1.14"
+  data_export_domain:
+    dependency: "direct main"
+    description:
+      path: "../features/data_export/data_export_domain"
+      relative: true
+    source: path
+    version: "0.0.1"
+  data_export_presentation:
+    dependency: "direct main"
+    description:
+      path: "../features/data_export/data_export_presentation"
+      relative: true
+    source: path
+    version: "0.0.1"
   data_widget:
     dependency: transitive
     description:

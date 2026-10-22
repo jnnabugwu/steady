@@ -73,7 +73,7 @@ final class DailyMetricsFileProvider
 String _$dailyMetricsFileHash() => r'678c982433771b0f413af2d20a42d09eeee7aa4d';
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
-/// pdf_import all read and write through.
+/// pdf_import all read and write through, and data_export reads from.
 ///
 /// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
 /// until the SwiftData + CloudKit datasource replaces it (#43). That swap
@@ -86,7 +86,7 @@ String _$dailyMetricsFileHash() => r'678c982433771b0f413af2d20a42d09eeee7aa4d';
 final dailyMetricRepositoryProvider = DailyMetricRepositoryProvider._();
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
-/// pdf_import all read and write through.
+/// pdf_import all read and write through, and data_export reads from.
 ///
 /// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
 /// until the SwiftData + CloudKit datasource replaces it (#43). That swap
@@ -104,7 +104,7 @@ final class DailyMetricRepositoryProvider
         >
     with $Provider<DailyMetricRepository> {
   /// The single shared `DailyMetricRepository` that checkin, metrics and
-  /// pdf_import all read and write through.
+  /// pdf_import all read and write through, and data_export reads from.
   ///
   /// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
   /// until the SwiftData + CloudKit datasource replaces it (#43). That swap

@@ -5,21 +5,30 @@ import 'package:metrics_presentation/src/metrics_history_controller.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The metrics history screen: every imported day, newest first.
+/// The metrics history screen: every imported day, newest first. It's the
+/// home screen, so its app bar also holds the settings (gear) button.
 ///
-/// Knows nothing about routing or PDF import (CLAUDE.md §5): when the user
-/// asks to import a Cal AI PDF it calls [onImportRequested], and the app
-/// layer decides what happens next (and invalidates
-/// `metricsHistoryControllerProvider` once an import lands).
+/// Knows nothing about routing, PDF import or settings (CLAUDE.md §5): when
+/// the user asks to import a Cal AI PDF it calls [onImportRequested], and
+/// the app layer decides what happens next (and invalidates
+/// `metricsHistoryControllerProvider` once an import lands). The gear calls
+/// [onOpenSettings] the same way.
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
 class MetricsHistoryModule extends ConsumerWidget {
   /// Creates the metrics history screen.
-  const MetricsHistoryModule({required this.onImportRequested, super.key});
+  const MetricsHistoryModule({
+    required this.onImportRequested,
+    required this.onOpenSettings,
+    super.key,
+  });
 
   /// Called when the user asks to import a Cal AI PDF.
   final void Function() onImportRequested;
+
+  /// Called when the user taps the settings (gear) button.
+  final void Function() onOpenSettings;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,6 +43,15 @@ class MetricsHistoryModule extends ConsumerWidget {
               key: const Key('importButton_header'),
               onPressed: onImportRequested,
               child: const Text('Import Cal AI PDF'),
+            ),
+            Semantics(
+              label: 'Settings',
+              button: true,
+              child: IconButton.ghost(
+                key: const Key('openSettingsButton'),
+                icon: const Icon(LucideIcons.settings),
+                onPressed: onOpenSettings,
+              ),
             ),
           ],
         ),

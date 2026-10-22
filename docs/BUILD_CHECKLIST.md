@@ -233,7 +233,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       Until CloudKit is configured (`SteadyCloudKitEnabled` is `true` in both
       `Runner/Info.plist`s, with the container and entitlement), the status reads
       `notConfigured` and never blocks, so the screen isn't reachable on a real build.
-- [ ] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7).
+- [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
+      metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.
 - [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English

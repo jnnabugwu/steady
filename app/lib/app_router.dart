@@ -9,6 +9,7 @@
 /// iCloud (see [redirectForAccount]).
 ///
 /// [ImportRoute] is pushed from the home screen's import action.
+/// [SettingsRoute] (`/settings`) hosts the data export.
 library;
 
 import 'dart:async';
@@ -16,6 +17,7 @@ import 'dart:async';
 import 'package:account_domain/account_domain.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -74,7 +76,10 @@ GoRouter router(Ref ref) {
 }
 
 /// `/`: the home screen, the metrics history.
-@TypedGoRoute<HomeRoute>(path: '/')
+@TypedGoRoute<HomeRoute>(
+  path: '/',
+  routes: [TypedGoRoute<SettingsRoute>(path: 'settings')],
+)
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -84,6 +89,7 @@ class HomeRoute extends GoRouteData with $HomeRoute {
     final container = ProviderScope.containerOf(context, listen: false);
     return MetricsHistoryModule(
       onImportRequested: () => unawaited(_import(context, container)),
+      onOpenSettings: () => const SettingsRoute().go(context),
     );
   }
 
@@ -98,6 +104,22 @@ class HomeRoute extends GoRouteData with $HomeRoute {
     await const ImportRoute().push<void>(context);
     container.invalidate(metricsHistoryControllerProvider);
   }
+}
+
+/// `/settings`: the settings screen, which today is the data export
+/// (`DataExportModule`).
+///
+/// Nested under [HomeRoute], so the home screen is always beneath it, even
+/// on a cold start straight to `/settings`, and back returns home.
+class SettingsRoute extends GoRouteData with $SettingsRoute {
+  /// Creates the settings route.
+  const SettingsRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => DataExportModule(
+    onBack: () =>
+        context.canPop() ? context.pop() : const HomeRoute().go(context),
+  );
 }
 
 /// `/import`: the Cal AI PDF import flow.

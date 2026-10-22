@@ -523,10 +523,12 @@ reintroduce exactly the session/auth complexity this architecture exists to avoi
 
 **Multiple users = one copy per person.** Friends install via TestFlight, each with their own
 iCloud private database; nothing in this section changes per user. Since other people's data is
-now involved, the planned account-loss mitigation is a user-triggered data export (CSV/JSON)
-rather than any backend copy. **Not built yet** (`docs/BUILD_CHECKLIST.md`); until it ships,
-losing the Apple ID still loses the data, because CloudKit's private database has no separate
-backup.
+now involved, the account-loss mitigation is a user-triggered data export (CSV/JSON) rather
+than any backend copy: Settings → Export (`features/data_export`), handed to the system share
+sheet. It covers daily metrics and check-in statuses; coach sessions aren't included yet
+(`coach_domain` has no repository to read them from), and the JSON's `schemaVersion` leaves room
+to add them. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
+private database has no separate backup.
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
 (`share_plus`), built inside the owning feature's `_presentation` package. The card reads
