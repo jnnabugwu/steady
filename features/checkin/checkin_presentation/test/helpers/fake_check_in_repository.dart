@@ -8,7 +8,7 @@ import 'package:failures/failures.dart';
 /// Each method returns whatever its handler returns. Every call is
 /// recorded so tests can assert on the arguments and call counts.
 class FakeCheckInRepository implements CheckInRepository {
-  new({
+  FakeCheckInRepository({
     FutureOr<Result<CheckInStatus?>> Function(DateTime date)? onGetStatus,
     FutureOr<Result<Unit>> Function(DateTime date, CheckInStatus status)?
     onLogCheckIn,

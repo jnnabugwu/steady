@@ -13,7 +13,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 /// what happens next.
 class CheckInModule extends ConsumerWidget {
   /// Creates the check-in screen for [date].
-  const new({required this.date, required this.onCheckInCompleted, super.key});
+  const CheckInModule({
+    required this.date,
+    required this.onCheckInCompleted,
+    super.key,
+  });
 
   /// The day to check in for. Any time of day is accepted; it is normalized
   /// to midnight before keying [checkInControllerProvider].

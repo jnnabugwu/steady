@@ -28,6 +28,9 @@ linter:
   # `// ignore_for_file: name_of_lint` syntax on the line or in the file
   # producing the lint.
   rules:
+    # Classic `const ClassName(...)` constructors are the house style, not
+    # the `new(...)` form this lint suggests (see CLAUDE.md §5).
+    unnecessary_type_name_in_constructor: false
     # avoid_print: false  # Uncomment to disable the `avoid_print` rule
     # prefer_single_quotes: true  # Uncomment to enable the `prefer_single_quotes` rule
 
