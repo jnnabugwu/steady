@@ -817,6 +817,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.4.0"
+  pdfium_flutter:
+    dependency: transitive
+    description:
+      name: pdfium_flutter
+      sha256: e2c81c52bc4b44fc096ffae1f891328ccb0956013d7ae92ab29b473a5433cc97
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.0"
   pdfrx_engine:
     dependency: "direct main"
     description:

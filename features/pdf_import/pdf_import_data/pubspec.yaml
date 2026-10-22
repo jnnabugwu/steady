@@ -18,6 +18,11 @@ dependencies:
   meta: ^1.16.0
   pdf_import_domain:
     path: ../pdf_import_domain
+  # Not imported: carries PDFium's native library. On iOS it's the only
+  # source (pdfium_dart's build hook skips PDFium there); it links the
+  # XCFramework into the app on iOS and macOS. Keep in step with pdfrx_engine's
+  # pdfium_dart version.
+  pdfium_flutter: ^0.4.0
   pdfrx_engine: ^0.7.4
 
 dev_dependencies:
