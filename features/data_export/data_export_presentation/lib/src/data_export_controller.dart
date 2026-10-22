@@ -32,7 +32,8 @@ class DataExportController extends _$DataExportController {
   ///
   /// Ignored while another export is in flight (including while its share
   /// sheet is still open), so double taps can't start two, and after the
-  /// provider has been disposed.
+  /// provider has been disposed. If the provider is disposed while the read
+  /// is in flight (the user left Settings), the share sheet never opens.
   Future<void> exportData(
     ExportFormat format, {
     Rect? sharePositionOrigin,
@@ -40,14 +41,16 @@ class DataExportController extends _$DataExportController {
     if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
     final result = await _export(format, sharePositionOrigin);
-    if (!ref.mounted) return;
+    if (result == null || !ref.mounted) return;
     state = switch (result) {
       Ok(:final value) => AsyncData(value),
       Err(:final failure) => AsyncError(failure, StackTrace.current),
     };
   }
 
-  Future<Result<ExportReceipt>> _export(
+  /// Returns `null` if the provider was disposed during the read, so no
+  /// share sheet opens for a screen the user has already left.
+  Future<Result<ExportReceipt>?> _export(
     ExportFormat format,
     Rect? sharePositionOrigin,
   ) async {
@@ -62,6 +65,7 @@ class DataExportController extends _$DataExportController {
       case Err(:final failure):
         return Err(failure);
     }
+    if (!ref.mounted) return null;
 
     final file = bundle.toFile(format);
     final shared = await ref.read(exportFileSharerProvider)(

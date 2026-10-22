@@ -35,6 +35,7 @@ void main() {
   late FakeExportSharer sharer;
   late ProviderContainer container;
   late List<_State> states;
+  late ProviderSubscription<_State> subscription;
 
   setUp(() {
     repository = FakeDailyMetricRepository(onGetRange: () => Ok(rows));
@@ -47,7 +48,7 @@ void main() {
       ],
     );
     states = [];
-    container.listen<_State>(
+    subscription = container.listen<_State>(
       dataExportControllerProvider,
       (_, next) => states.add(next),
       fireImmediately: true,
@@ -165,6 +166,58 @@ void main() {
       expect(sharer.sharedFiles.map((f) => f.fileName), [
         'steady-export-2026-10-22.csv',
       ]);
+    });
+
+    test('an empty store is data(receipt) with dayCount 0, and shares a '
+        'header-only file', () async {
+      states.clear();
+      repository.onGetRange = () => const Ok([]);
+
+      await notifier().exportData(ExportFormat.csv);
+
+      expect(states, [
+        _isLoading(),
+        _isData(
+          const ExportReceipt(
+            format: ExportFormat.csv,
+            fileName: 'steady-export-2026-10-22.csv',
+            dayCount: 0,
+            outcome: ExportShareOutcome.shared,
+          ),
+        ),
+      ]);
+      expect(
+        sharer.sharedFiles.single,
+        ExportBundle(exportedAt: now, dailyMetrics: const []).toFile(
+          ExportFormat.csv,
+        ),
+      );
+      // Header only: no day rows.
+      expect(
+        sharer.sharedFiles.single.contents,
+        '${ExportBundle.columns.join(',')}\r\n',
+      );
+    });
+
+    test('disposed while the read is in flight: the share sheet never '
+        'opens', () async {
+      final read = Completer<Result<List<DailyMetric>>>();
+      repository.onGetRange = () => read.future;
+
+      final pending = notifier().exportData(ExportFormat.csv);
+      await pumpEventQueue();
+      expect(repository.getRangeCalls, hasLength(1));
+
+      // The user leaves Settings: the screen stops listening, and the
+      // auto-dispose controller is disposed.
+      subscription.close();
+      await pumpEventQueue();
+      expect(container.exists(dataExportControllerProvider), isFalse);
+
+      read.complete(Ok(rows));
+      await pending;
+
+      expect(sharer.sharedFiles, isEmpty);
     });
 
     test('can export again after a failure', () async {

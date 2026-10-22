@@ -98,8 +98,14 @@ final List<(String, Object? Function(DailyMetric))> _fields = [
 ];
 
 /// [date]'s calendar date as `yyyy-MM-dd`, ignoring any time of day.
+///
+/// The year is at least four digits, with a leading `-` before the year
+/// zero (ISO 8601's astronomical numbering, as `DateTime` uses): year -5
+/// is `-0005`, year 10000 is `10000`. The export reads every day a
+/// `DateTime` can hold, so a year like -5 must not come out as `00-5`.
 String formatIsoDate(DateTime date) {
-  final y = date.year.toString().padLeft(4, '0');
+  final sign = date.year < 0 ? '-' : '';
+  final y = '$sign${date.year.abs().toString().padLeft(4, '0')}';
   final m = date.month.toString().padLeft(2, '0');
   final d = date.day.toString().padLeft(2, '0');
   return '$y-$m-$d';

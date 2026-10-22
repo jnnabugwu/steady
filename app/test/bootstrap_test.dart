@@ -140,6 +140,30 @@ void main() {
     );
   });
 
+  test('data_export reads rows dated anywhere a DateTime can hold, from the '
+      'real store', () async {
+    final store = container.read(dailyMetricRepositoryProvider);
+    final dates = [
+      exportRangeStart,
+      DateTime(-5, 6, 7),
+      DateTime(1969, 12, 31),
+      DateTime(2026, 8, 24),
+      DateTime(10000),
+      exportRangeEnd,
+    ];
+    for (final date in dates) {
+      await store.upsert(date, steps: 1);
+    }
+
+    final result = await readExportBundle(
+      store,
+      exportedAt: DateTime(2026, 10, 22),
+    );
+
+    final bundle = (result as Ok<ExportBundle>).value;
+    expect(bundle.dailyMetrics.map((m) => m.date), dates);
+  });
+
   test('without appProviderOverrides, feature repositories are unbound', () {
     final bare = ProviderContainer.test();
     // Riverpod 3 wraps an error thrown while building a provider.

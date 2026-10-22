@@ -72,6 +72,24 @@ void main() {
     });
   });
 
+  group('formatIsoDate', () {
+    test('pads the year to four digits', () {
+      expect(formatIsoDate(DateTime(2026, 1, 5)), '2026-01-05');
+      expect(formatIsoDate(DateTime(1, 2, 3)), '0001-02-03');
+      expect(formatIsoDate(DateTime(0, 12, 31)), '0000-12-31');
+    });
+
+    test('a negative year keeps its sign in front of the padded digits', () {
+      expect(formatIsoDate(DateTime(-5, 6, 7)), '-0005-06-07');
+      expect(formatIsoDate(DateTime(-271821, 4, 21)), '-271821-04-21');
+    });
+
+    test('a year past 9999 is written in full', () {
+      expect(formatIsoDate(DateTime(10000)), '10000-01-01');
+      expect(formatIsoDate(DateTime(275760, 9, 12)), '275760-09-12');
+    });
+  });
+
   group('encodeCsvField', () {
     test('null is an empty cell', () {
       expect(encodeCsvField(null), '');

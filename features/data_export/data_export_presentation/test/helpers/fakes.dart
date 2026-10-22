@@ -38,6 +38,12 @@ class FakeDailyMetricRepository implements DailyMetricRepository {
   }) => throw UnimplementedError();
 
   @override
+  ResultFuture<Unit> clearFields(
+    DateTime date,
+    Set<DailyMetricField> fields,
+  ) => throw UnimplementedError();
+
+  @override
   ResultFuture<Unit> delete(DateTime date) => throw UnimplementedError();
 }
 

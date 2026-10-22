@@ -31,6 +31,12 @@ class _FakeDailyMetricRepository implements DailyMetricRepository {
   }) => throw UnimplementedError();
 
   @override
+  ResultFuture<Unit> clearFields(
+    DateTime date,
+    Set<DailyMetricField> fields,
+  ) => throw UnimplementedError();
+
+  @override
   ResultFuture<Unit> delete(DateTime date) => throw UnimplementedError();
 }
 
@@ -58,6 +64,59 @@ void main() {
       exportRangeEnd.isAfter(DateTime.now().add(const Duration(days: 3650))),
       isTrue,
     );
+  });
+
+  group("the range is pinned to DateTime's representable limit", () {
+    // 100,000,000 days either side of the epoch, in milliseconds.
+    const limitMs = 8640000000000000;
+    // Longest a local day can be (DST), so "within a day" holds in any zone.
+    final longestDayMs = const Duration(hours: 25).inMilliseconds;
+
+    bool isLocalMidnight(DateTime d) =>
+        !d.isUtc &&
+        d.hour == 0 &&
+        d.minute == 0 &&
+        d.second == 0 &&
+        d.millisecond == 0 &&
+        d.microsecond == 0;
+
+    test('start is the earliest representable local midnight', () {
+      final start = exportRangeStart;
+      expect(isLocalMidnight(start), isTrue);
+      expect(start.year, -271821);
+      expect(start.millisecondsSinceEpoch, greaterThanOrEqualTo(-limitMs));
+      // The previous midnight would be past the limit.
+      expect(start.millisecondsSinceEpoch - longestDayMs, lessThan(-limitMs));
+    });
+
+    test('end is the latest representable local midnight', () {
+      final end = exportRangeEnd;
+      expect(isLocalMidnight(end), isTrue);
+      expect(end.year, 275760);
+      expect(end.millisecondsSinceEpoch, lessThanOrEqualTo(limitMs));
+      // The next midnight would be past the limit.
+      expect(end.millisecondsSinceEpoch + longestDayMs, greaterThan(limitMs));
+    });
+
+    test('both bounds survive the DateTime(y, m, d) normalization a '
+        'repository applies to them', () {
+      for (final bound in [exportRangeStart, exportRangeEnd]) {
+        expect(DateTime(bound.year, bound.month, bound.day), bound);
+      }
+    });
+
+    test('rows before 1970 and after 9999 are inside the range', () {
+      for (final date in [
+        DateTime(-5000, 6, 15),
+        DateTime(1),
+        DateTime(1969, 12, 31),
+        DateTime(10000),
+        DateTime(275000),
+      ]) {
+        expect(date.isBefore(exportRangeStart), isFalse, reason: '$date');
+        expect(date.isAfter(exportRangeEnd), isFalse, reason: '$date');
+      }
+    });
   });
 
   test('an Err passes its Failure through, with no bundle', () async {
