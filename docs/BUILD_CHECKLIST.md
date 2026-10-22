@@ -29,39 +29,61 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] FFCA path-dependency graph wired: each `_data`/`_presentation` → its own `_domain`;
       `coach_presentation` → `metrics_domain` + `checkin_domain`; nothing crosses into
       another feature's `_data`/`_presentation` (CLAUDE.md §2/§3).
-- [ ] `app/lib/app_router.dart` is an empty stub; `bootstrap.dart` holds legacy `get_it` wiring until migration step 5. See Routing/DI below.
+- [x] `app/lib/app_router.dart` holds `routerProvider` and the typed routes (W7);
+      `app/lib/providers.dart` holds DI (`bootstrap.dart` and `get_it` were removed in W5).
+      See Routing/DI below.
 
 ## Routing (CLAUDE.md §5)
 
-- [ ] Add `go_router` + `go_router_builder` to `app/pubspec.yaml`.
-- [ ] First typed route: `CheckInRoute(date: DateTime)` — the concrete deep-link case
-      (local notification → specific day's check-in from cold start).
+- [x] Add `go_router` + `go_router_builder` to `app/pubspec.yaml` (`go_router` ^18.1.1,
+      `go_router_builder` ^4.5.2).
+- [x] First typed route: `CheckInRoute(date: DateTime)` at `/checkin/:date` — the concrete
+      deep-link case (local notification → specific day's check-in from cold start). Path
+      encoding is date-only `yyyy-MM-dd`; cold-start resolution is covered by
+      `app/test/app_router_test.dart`. The notification side (payload → route) isn't built;
+      see Feature: notifications.
+- [x] `routerProvider`: `@Riverpod(keepAlive: true)` `GoRouter` in `app_router.dart`, passed
+      to `ShadcnApp.router` in `main.dart`.
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
+      Done for checkin (`CheckInModule`); not yet for metrics, pdf_import, coach.
+- [ ] Open: the app shell is `ShadcnApp.router`, which (shadcn_flutter 0.0.55) supplies no
+      Material `Theme`, so Material-widget feature screens such as `CheckInModule` don't get
+      Steady's tokens (CLAUDE.md §5, "App shell"). Undecided: move feature screens to
+      `shadcn_flutter`/`ui_kit` widgets, or add a Material theme built from the tokens.
 
 ## freezed + Riverpod migration (`docs/freezed_riverpod_migration.md`, D1–D6 decided)
 
 - [x] D1–D6 decided and recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9
       updated to the target conventions.
 - [x] Baseline recorded: 56 tests passing, 0 errors/warnings, 63 infos (migration doc §4).
-- [ ] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
-      `scripts/codegen.sh`).
-- [ ] Step 2: `DailyMetric` → freezed, zero test changes (any test change means
-      equality changed).
-- [ ] Step 3: `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed. Existing tests
-      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable.
-- [ ] Step 4: `Failure implements Exception`.
-- [ ] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
-      the real override list; `get_it` removed.
+- [x] Step 1: tooling (freezed/riverpod deps, `analysis_options` excludes,
+      `scripts/codegen.sh`). PR #20.
+- [x] Step 2: `DailyMetric` → freezed, zero test changes (any test change means
+      equality changed). PR #20.
+- [x] Step 3: `ParsedFoodEntry`, `ParsedDay`, `WeeklyBucket` → freezed. Existing tests
+      unchanged; one new `WeeklyBucket` test that the `days` list is unmodifiable. PR #20.
+- [x] Step 4: `Failure implements Exception`. PR #20.
+- [x] Step 5: get_it → `appProviderOverrides`; `bootstrap_test.dart` rewritten against
+      the real override list; `get_it` removed. PR #22.
+- [x] Step 6: check-in screen as an `AsyncNotifier` family (W6, `refactor/run3-checkin-routing`).
+- [x] Step 7: typed routes + `routerProvider` (W7, same branch).
+- [x] Step 8: docs reconciled with the code (W8, same branch).
+- [ ] Step 9: verify (codegen no diff, analyzer = baseline, tests = baseline + new, iOS sim
+      + macOS builds).
 
 ## Dependency injection (CLAUDE.md §9)
 
-- [ ] Each `*_presentation` package declares its repository providers (throw unless
-      overridden), typed against its own `*_domain` interface.
-- [ ] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets,
-      platform-specific datasources (e.g. HealthKit) selected inside it via
-      `Platform.isIOS`/`isMacOS` or conditional imports.
+- [x] Each `*_presentation` package declares its repository providers (throw unless
+      overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
+      checkin, metrics, pdf_import. `coach_presentation` has none (no repository interface
+      in `coach_domain` yet).
+- [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
+      `main.dart` and `app/test/bootstrap_test.dart`.
+- [ ] Platform-specific datasources (e.g. HealthKit) selected inside that list via
+      `Platform.isIOS`/`isMacOS` or conditional imports — none exist yet; everything bound
+      today is in-memory.
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
@@ -75,25 +97,30 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 ## Feature: checkin
 
-- [ ] `checkin_domain`: `CheckInStatus` entity (logged/partial/skipped), repository
+- [x] `checkin_domain`: `CheckInStatus` entity (logged/partial/skipped), repository
       interface.
 - [ ] `checkin_data`: SwiftData datasource, repo impl, `Failure` mapping at the boundary.
-- [ ] `checkin_presentation`: `CheckInController` `AsyncNotifier` family keyed by
+- [x] `checkin_presentation`: `CheckInController` `AsyncNotifier` family keyed by
       midnight-normalized date, one public method per domain event per CLAUDE.md §4
       (`logCheckIn(status)` covers `CheckInLogged`/`CheckInPartial`/`CheckInSkipped`).
-- [ ] Home card (always-visible) + end-of-day check-in screen.
-- [ ] `CheckInModule` exposing `onCheckInCompleted` callback (see Routing above).
+- [ ] Home card (always-visible) + end-of-day check-in screen. (`CheckInModule` is a
+      functional check-in screen with Logged/Partial/Skipped buttons, built from default
+      Material widgets; no home card yet.)
+- [x] `CheckInModule` exposing `onCheckInCompleted` callback (see Routing above); called
+      only after a successful log. `CheckInRoute` wires it to cancel that day's reminder.
 
 ## Feature: metrics
 
-- [ ] `metrics_domain`: shared `DailyMetric` entity (calories eaten/burned, steps).
+- [x] Shared `DailyMetric` entity (calories eaten/burned, steps). Lives in
+      `packages/shared/daily_metrics_domain`, not `metrics_domain` (see
+      `docs/technical_decisions.md`, "Where the shared `DailyMetric` entity lives").
 - [ ] `metrics_data`: SwiftData datasource, repo impl.
 - [ ] `metrics_presentation`: weekly draggable 7-day view; metrics history page with
       per-metric mini-chart cards and a W/M/6M period toggle.
 
 ## Feature: pdf_import (CLAUDE.md §6)
 
-- [ ] `pdf_import_data`: add `pdfrx_engine`; `CalAIParser` using the **token-lookahead**
+- [x] `pdf_import_data`: add `pdfrx_engine`; `CalAIParser` using the **token-lookahead**
       algorithm — split each line on whitespace, check whether the **last 8 tokens**
       match the expected pattern (bare int, 5× grams, 1× mg, 1× time), everything before
       that tail is the food name. (Chosen over a whole-line regex — same shape as the
@@ -129,7 +156,10 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [ ] `notifications_data`: single local 10pm notification, scheduled only if nothing
       logged that day; cancelled the instant check-in completes.
-- [ ] Deep-link payload carries the date for `CheckInRoute` (see Routing above).
+- [ ] Deep-link payload carries the date for `CheckInRoute` (see Routing above). The route
+      side exists and takes the date in the path as `yyyy-MM-dd` (`/checkin/2026-10-19`;
+      a time component is also accepted). Nothing yet turns a tapped notification into that route, and
+      `NotificationScheduler` has only an in-memory implementation.
 - [ ] Stays headless — no `notifications_presentation` package (CLAUDE.md §3).
 
 ## Feature: notes (RAG) — "designed, not yet built" (product doc §8)
@@ -154,9 +184,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 ## Error handling (CLAUDE.md §9)
 
-- [ ] `packages/shared/failures`: typed `Failure` classes for genuinely cross-feature
+- [x] `packages/shared/failures`: typed `Failure` classes for genuinely cross-feature
       cases; feature-specific failures stay in that feature's own `_domain` package.
-- [ ] Every `_data` repository implementation returns `Result`/`Either<Failure, T>`; UI
+- [ ] Every `_data` repository implementation returns `Result<T>` (`ResultFuture<T>`); UI
       never sees a raw platform-channel/`PlatformException` — map to `Failure` at the
       `_data` boundary.
 
