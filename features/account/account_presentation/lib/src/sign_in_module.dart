@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:account_domain/account_domain.dart';
 import 'package:account_presentation/src/account_status_controller.dart';
-import 'package:failures/failures.dart';
 import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,12 +36,9 @@ class SignInModule extends ConsumerWidget {
     final status = ref.watch(accountStatusControllerProvider);
     final copy = switch (status) {
       AsyncData(:final value) => _copyFor(value),
-      AsyncError(error: final Failure failure) => _SignInCopy(
-        title: "Couldn't reach iCloud",
-        body:
-            "Steady couldn't check your iCloud account: ${failure.message}. "
-            'Check again in a moment.',
-      ),
+      // One fixed message for every error: a Failure's message can be a
+      // system-formatted CloudKit description that doesn't read well
+      // inside a sentence.
       AsyncError() => const _SignInCopy(
         title: "Couldn't reach iCloud",
         body:
@@ -131,7 +127,8 @@ class SignInModule extends ConsumerWidget {
             ? 'Open System Settings, choose "Sign in" with your Apple '
                   'Account, then come back here.'
             : 'Open Settings, go back to the top of the main list and tap '
-                  '"Sign in to your iPhone", then come back here.',
+                  'the sign-in banner for your Apple Account, then come back '
+                  'here.',
       ),
       AccountStatus.restricted => const _SignInCopy(
         title: 'iCloud is turned off on this device',

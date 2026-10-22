@@ -53,7 +53,13 @@ void main() {
         find.textContaining('needs to be signed in to iCloud'),
         findsOneWidget,
       );
-      expect(find.textContaining('Sign in to your iPhone'), findsOneWidget);
+      // Device-neutral: iOS covers both iPhone and iPad.
+      expect(
+        find.textContaining('sign-in banner for your Apple Account'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('iPhone'), findsNothing);
+      expect(find.textContaining('iPad'), findsNothing);
       expect(find.text('Open Settings'), findsOneWidget);
       expect(find.text('Check again'), findsOneWidget);
     });
@@ -97,13 +103,22 @@ void main() {
       });
     }
 
-    testWidgets('a Failure is shown in plain words', (tester) async {
-      repository.onAccountStatus = () =>
-          const Err(PlatformChannelFailure('channel down'));
+    testWidgets('a Failure is shown in fixed plain words, not its message', (
+      tester,
+    ) async {
+      repository.onAccountStatus = () => const Err(
+        PlatformChannelFailure('The operation couldn’t be completed'),
+      );
       await pump(tester);
 
       expect(title(tester), "Couldn't reach iCloud");
-      expect(find.textContaining('channel down'), findsOneWidget);
+      expect(
+        find.text(
+          "Steady couldn't check your iCloud account. Check again in a moment.",
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('operation'), findsNothing);
     });
   });
 
