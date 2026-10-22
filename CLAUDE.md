@@ -46,6 +46,10 @@
 - **freezed** — immutable value classes for domain entities (`DailyMetric`,
   `ParsedDay`, `ParsedFoodEntry`, `WeeklyBucket`). `Result` and `Failure` stay
   hand-written (§9).
+- **`shadcn_flutter`** — the app shell (`ShadcnApp.router` in `app/lib/main.dart`) and
+  the design system in `packages/shared/ui_kit` (`steadyTheme` is a `shadcn_flutter`
+  `ThemeData`). Material feature screens inside that shell have caveats; see §5,
+  "App shell".
 
 ---
 
@@ -55,14 +59,16 @@
 steady/
 ├── app/                          # The Flutter app — iOS + macOS targets, one codebase
 │   ├── lib/
-│   │   ├── app_router.dart        # Typed routes, wires feature callbacks (see §5)
+│   │   ├── app_router.dart        # routerProvider + typed routes, wires feature callbacks (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
-│   │   └── main.dart
+│   │   ├── design_system_preview.dart # Current home screen, served at `/` by HomeRoute
+│   │   └── main.dart               # ProviderScope + ShadcnApp.router
+│   ├── test/                      # bootstrap_test (shared-store invariant), app_router_test
 │   ├── ios/
 │   └── macos/
 │
 ├── features/                      # One folder per feature; FFCA layer packages inside
-│   ├── metrics/                    # Weekly view + metrics history (shared DailyMetric entity)
+│   ├── metrics/                    # Weekly view + metrics history (reads the shared DailyMetric)
 │   │   ├── metrics_domain/          # Dart: entities, repository interfaces
 │   │   ├── metrics_data/            # Dart: SwiftData-channel datasource, repo impl
 │   │   └── metrics_presentation/    # Flutter: weekly view, history page, Notifiers, Module
@@ -94,7 +100,9 @@ steady/
 ├── packages/
 │   └── shared/
 │       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets
-│       └── failures/                # Shared typed Failure classes
+│       ├── failures/                # Shared typed Failure classes, Result, Unit
+│       ├── daily_metrics_domain/    # Shared DailyMetric entity + DailyMetricRepository
+│       └── daily_metrics_data/      # InMemoryDailyMetricRepository (the shared store, §9)
 │
 ├── packages_native/
 │   ├── rag_kit/                     # Thin Flutter plugin — MethodChannel bridge only
@@ -105,8 +113,18 @@ steady/
 │                                     # unit-testable via `swift test`. See docs §8.
 │
 └── docs/
-    └── steady_product_overview.md
+    ├── steady_product_overview.md
+    ├── technical_decisions.md        # Decision records (D1–D6 and others)
+    ├── BUILD_CHECKLIST.md            # What's built vs. outstanding
+    └── freezed_riverpod_migration.md # Migration plan + factory run record
 ```
+
+Each `*_presentation` package that needs a repository declares its providers in
+`lib/src/providers.dart` (§9): `checkin_presentation`, `metrics_presentation` and
+`pdf_import_presentation` today. `coach_presentation` has none yet, because
+`coach_domain` has no repository interface. Generated files (`*.g.dart`,
+`*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
+doesn't list them.
 
 **Wiring feature packages in:** each `*_presentation` package depends on its own
 `*_domain` via a local path dependency, and may depend on **another feature's `_domain`
@@ -204,7 +222,11 @@ translates at the boundary: `Ok` becomes data, and `Err` throws or wraps its `Fa
 so `AsyncValue.error` always carries a typed `Failure` the UI can `switch` on:
 
 ```dart
-@riverpod
+// features/checkin/checkin_presentation/lib/src/check_in_controller.dart (doc comments trimmed)
+Duration? _retryUnlessFailure(int retryCount, Object error) =>
+    error is Failure ? null : ProviderContainer.defaultRetry(retryCount, error);
+
+@Riverpod(retry: _retryUnlessFailure)
 class CheckInController extends _$CheckInController {
   @override
   Future<CheckInStatus?> build(DateTime date) async {
@@ -218,8 +240,10 @@ class CheckInController extends _$CheckInController {
   /// Domain event: CheckInLogged / CheckInPartial / CheckInSkipped.
   Future<void> logCheckIn(CheckInStatus status) async {
     state = const AsyncLoading();
-    final result =
-        await ref.read(checkInRepositoryProvider).logCheckIn(date, status);
+    final result = await ref
+        .read(checkInRepositoryProvider)
+        .logCheckIn(date, status);
+    if (!ref.mounted) return;
     state = switch (result) {
       Ok() => AsyncData(status),
       Err(:final failure) => AsyncError(failure, StackTrace.current),
@@ -227,6 +251,18 @@ class CheckInController extends _$CheckInController {
   }
 }
 ```
+
+Two conventions in that controller that new repository-backed controllers copy:
+
+- **`retry` that skips `Failure`.** Riverpod 3 retries a provider whose `build` throws.
+  The default (`ProviderContainer.defaultRetry`, riverpod 3.4.3) allows up to 10
+  retries, backing off from 200 ms and doubling to a 6.4 s cap, about 38 s in total,
+  and the provider stays `AsyncLoading` the whole time. A `Failure` has already been
+  mapped at the `_data` boundary (§9), so `_retryUnlessFailure` returns `null` for it
+  and the UI gets `AsyncError` immediately. Any other error keeps the default retry.
+- **`if (!ref.mounted) return;` after every `await`** in a Notifier method, before
+  writing `state`. The controller is an auto-dispose family, so it can be disposed
+  while the repository call is in flight (e.g. the screen pops).
 
 **Provider lifetimes are decided per provider, not by default:**
 
@@ -236,6 +272,7 @@ class CheckInController extends _$CheckInController {
 | Repository providers (checkin, metrics, pdf_import, notifications) | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
+| `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
 
 Never mark a **family** `keepAlive`. Every argument value would live forever. If a family
 needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in a
@@ -246,10 +283,16 @@ needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in
 ## 5. Routing: typed go_router routes + callback injection, for deep linking
 
 Typed routes are required here (see §1), and the concrete reason is concrete, not
-theoretical: the **local notification safety net** (`NotificationScheduler` in
-`notifications_domain`; only an in-memory implementation exists so far) needs to deep-link straight into a specific day's check-in screen from a cold
-start when tapped — `CheckInRoute(date: DateTime)`, not a bare `/checkin` string a screen
-then has to figure out the date for separately.
+theoretical: the **local notification safety net** needs to deep-link straight into a
+specific day's check-in screen from a cold start when tapped — `CheckInRoute(date:
+DateTime)`, not a bare `/checkin` string a screen then has to figure out the date for
+separately.
+
+**What exists today:** the route side. `CheckInRoute` resolves `/checkin/<date>` from a
+cold start, and `app/test/app_router_test.dart` covers it. **What doesn't exist yet:**
+the notification side. `NotificationScheduler` (`notifications_domain`) has only an
+in-memory implementation, no local-notification plugin is wired, and nothing yet turns a
+tapped notification's payload into a route.
 
 Following FFCA's routing pattern, **features never import the router or each other's
 routes.** A feature's `presentation` Module exposes typed callbacks; the app layer wires
@@ -257,17 +300,13 @@ those callbacks to real routes. The repository isn't a constructor argument. The
 reads it from the feature's own provider, which the app root overrides (§9):
 
 ```dart
-// features/checkin/checkin_presentation — the feature knows a check-in was completed.
-// It does not know, or care, what happens next.
+// features/checkin/checkin_presentation/lib/src/check_in_module.dart — the feature
+// knows a check-in was completed. It does not know, or care, what happens next.
 class CheckInModule extends ConsumerWidget {
-  const CheckInModule({
-    required this.date,
-    required this.onCheckInCompleted,
-    super.key,
-  });
+  const new({required this.date, required this.onCheckInCompleted, super.key});
 
   final DateTime date;
-  final void Function() onCheckInCompleted;
+  final void Function() onCheckInCompleted; // called only after a successful log
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -282,30 +321,62 @@ class CheckInModule extends ConsumerWidget {
 ```dart
 // app/lib/app_router.dart — the app layer, where features are allowed to meet.
 @TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
-class CheckInRoute extends GoRouteData with _$CheckInRoute {
-  const CheckInRoute({required this.date});
+class CheckInRoute extends GoRouteData with $CheckInRoute {
+  const new({required this.date});
+
+  @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
   @override
   Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
     return CheckInModule(
       date: date,
       onCheckInCompleted: () => unawaited(
-        ProviderScope.containerOf(context)
-            .read(notificationSchedulerProvider)
-            .cancelReminder(date),
+        container.read(notificationSchedulerProvider).cancelReminder(date),
       ),
     );
   }
 }
 ```
 
-The `GoRouter` itself is a `@Riverpod(keepAlive: true)` provider in `app/`, so redirects
-can read providers later without a second DI path.
+Facts about that route worth knowing before adding the next one:
 
-The notification payload carries the date; the OS hands it to `app_router.dart` on tap;
-the typed route resolves it without any feature needing to know about deep linking at
-all.
+- `go_router_builder` 4.x generates a public mixin, `$CheckInRoute` (not
+  `_$CheckInRoute`), plus the `$appRoutes` list that `routerProvider` hands to
+  `GoRouter`.
+- New code in this repo writes constructors as `const new(...)` (the
+  `unnecessary_type_name_in_constructor` lint). `CheckInModule`, `HomeRoute` and
+  `CheckInRoute` do; older classes such as `SteadyApp` and `DesignSystemPreview` still
+  use the class name.
+- **Date encoding.** `encodeCheckInDate` writes only the calendar date, `yyyy-MM-dd`
+  (`/checkin/2026-10-19`), and drops any time component. Decoding goes through
+  `DateTime.parse`, so `/checkin/2026-10-19T21:30:00` also resolves to the 19th.
+  `CheckInModule` normalizes to midnight itself; the route doesn't.
+- The container is read once in `build` with `listen: false`, and the callback closes
+  over it.
+- `notificationSchedulerProvider` is declared in `app/lib/providers.dart`, not in a
+  feature package, because `notifications` is headless (§3).
+
+The `GoRouter` itself is `routerProvider`, a `@Riverpod(keepAlive: true)` provider in
+`app/lib/app_router.dart`, so redirects can read providers later without a second DI
+path. Its `initialLocation` is `/` (`HomeRoute`, currently `DesignSystemPreview`). That's
+only the fallback: on a cold start from a deep link the platform's initial route wins,
+because `overridePlatformDefaultLocation` is left `false`.
+
+The intended flow: the notification payload carries the date; the OS hands it to the app
+on tap; the typed route resolves it without any feature needing to know about deep
+linking at all. Only the last step is built (see "What exists today" above).
+
+**App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
+ref.watch(routerProvider))`. `CheckInModule` is built from Material widgets (`Scaffold`,
+`AppBar`, `TextButton`), which need `MaterialLocalizations`. `ShadcnApp` (shadcn_flutter
+0.0.55, the locked version) supplies only widgets and shadcn localizations, so
+`main.dart` adds `DefaultMaterialLocalizations.delegate`. `ShadcnApp` 0.0.55 also puts
+no Material `Theme` above the routes, so Material feature screens don't get Steady's
+design tokens; they fall back to Flutter's default Material theme. **Open, not decided:**
+whether feature screens move to `shadcn_flutter`/`ui_kit` widgets, or the app adds a
+Material theme built from the same tokens.
 
 ---
 
@@ -459,8 +530,9 @@ the reasoning and what iOS shows instead.
 
 ### DI: providers declared in features, overridden at the app root
 
-- Each `*_presentation` package declares the repository providers it needs, typed
-  against its **domain** interface, and throws if not overridden:
+- Each `*_presentation` package declares the repository providers it needs in
+  `lib/src/providers.dart`, typed against its **domain** interface, and throws if not
+  overridden:
 
   ```dart
   @Riverpod(keepAlive: true)
@@ -482,10 +554,14 @@ the reasoning and what iOS shows instead.
   against the real override list.
 - One app, two platform targets, so there's one override list, not one per target.
   Platform-specific implementations (e.g. the HealthKit datasource) are chosen inside
-  that list with `Platform.isIOS`/`isMacOS` or conditional imports.
-- No `get_it`. While the migration is in flight, `app/lib/bootstrap.dart` still holds
-  the old `get_it` registration. It's deleted in step 5 of
-  `docs/freezed_riverpod_migration.md`, so don't add to it.
+  that list with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed yet:
+  every implementation bound today is in-memory and identical on both targets.
+- Providers for headless features have no `*_presentation` package to live in, so
+  they're declared directly in `app/lib/providers.dart` rather than overridden:
+  `notificationSchedulerProvider` (`InMemoryNotificationScheduler` today).
+- No `get_it`. It was removed in migration step 5 (W5, PR #22), along with
+  `app/lib/bootstrap.dart`; the invariant test kept its name,
+  `app/test/bootstrap_test.dart`. Don't reintroduce either.
 
 ---
 

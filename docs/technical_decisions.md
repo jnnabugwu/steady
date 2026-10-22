@@ -43,7 +43,9 @@ opposite of Steady's no-shame stance (product doc §1).
 **Decision:** domain entities move to `freezed`. DI and state management move to Riverpod with
 code generation. `get_it` and the Bloc mandate are dropped. Execution steps are in
 `docs/freezed_riverpod_migration.md`; the resulting conventions are in CLAUDE.md §4, §5 and §9.
-This supersedes the `get_it` references in the "Scope of this pass" entry below.
+The "Scope of this pass" entry below originally pointed at `bootstrap.dart`'s `get_it`
+registration; both were removed in migration step 5 (PR #22), and that entry now points at
+`app/lib/providers.dart`.
 
 **Why it came up:** the domain and data layers existed, but no presentation layer did. Every
 `*_presentation` package was a stub, so switching state management before the first screen cost
@@ -52,7 +54,11 @@ the least it ever would. It's also deliberate practice on the freezed + Riverpod
 **D1. Where providers live: abstract providers in `*_presentation`, overridden at the app root
 (Option A).** Each feature declares its repository providers against its domain interface, and they
 throw if not overridden. `app/lib/providers.dart` holds the one `appProviderOverrides` list that
-binds them to `*_data` implementations, and `main()` and tests share it. *Rejected:* providers in
+binds them to `*_data` implementations, and `main()` and tests share it. As built: checkin,
+metrics and pdf_import declare theirs in `lib/src/providers.dart`; `coach` declares none yet (no
+repository interface in `coach_domain`); `notificationSchedulerProvider` is declared directly in
+`app/lib/providers.dart`, since `notifications` is headless and has no `*_presentation` package to
+declare it in. *Rejected:* providers in
 `*_data` with presentation importing data (breaks the CLAUDE.md §3 layer rule), and keeping `get_it`
 for repositories alongside Riverpod for UI (two DI systems).
 
@@ -118,8 +124,9 @@ depending on `daily_metrics_domain` and using `LoggingStatus` directly.
 **Why it came up:** the two enums have identical values right now, so reusing `LoggingStatus`
 directly looked like the cheaper option — one fewer type, one fewer file, no mapping function.
 
-**Rationale:** CLAUDE.md §4 names check-in's Bloc vocabulary as its own thing
-(`CheckInLogged`/`CheckInPartial`/`CheckInSkipped`), and it's plausible check-in grows nuance later
+**Rationale:** CLAUDE.md §4 names check-in's event vocabulary as its own thing
+(`CheckInLogged`/`CheckInPartial`/`CheckInSkipped`; Bloc events when this was decided, Notifier
+domain events since D3), and it's plausible check-in grows nuance later
 (e.g. a transitional "editable-late" state) with no reason for that nuance to become a new value on
 the *shared* `daily_metrics` row that `metrics_domain` and `pdf_import_data` also read. Keeping
 `CheckInStatus` separate contains that kind of future change to `checkin_domain` plus the one mapping
@@ -129,7 +136,7 @@ It also preserves the "domain packages have zero path deps on each other" conven
 reason that isn't load-bearing yet. Cost: a 3-line duplicate enum and one small mapping function.
 
 **Alternative considered:** depend on `daily_metrics_domain` and use `LoggingStatus` directly.
-Rejected — cheaper today, but couples check-in's Bloc vocabulary to the shared entity's field type,
+Rejected — cheaper today, but couples check-in's event vocabulary to the shared entity's field type,
 and breaks the zero-domain-dependency convention for a savings that's mostly cosmetic.
 
 ---
@@ -215,8 +222,10 @@ ID/team — not something a coding pass can do unattended.
 
 **Rationale:** the domain/data layer's *shape* (entities, interfaces, `Failure` mapping) doesn't
 depend on whether the backing store is a `Map` or SwiftData — designing the interface now, against a
-fake, means the eventual real datasource swap is a one-line change in `bootstrap.dart`'s `get_it`
-registration, not a redesign.
+fake, means the eventual real datasource swap is a change to the body of the
+`dailyMetricRepository` provider in `app/lib/providers.dart` (originally written as "a one-line
+change in `bootstrap.dart`'s `get_it` registration"; `get_it` was replaced in migration step 5),
+not a redesign.
 
 **Alternative considered:** scaffolding the real Swift `@Model`/`ModelContainer`/`MethodChannel` code
 now too, even though it can't run without entitlements. Rejected — untestable code with no way to

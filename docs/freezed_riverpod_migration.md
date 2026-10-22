@@ -2,22 +2,24 @@
 
 *Written 2026-10-20 from the current repo state (`955dd13`). This is a plan and a set of things to analyze, not a record of work done.*
 
-**Status: D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files).** Recorded in `docs/technical_decisions.md`; CLAUDE.md §1/§4/§5/§9 already describe the target conventions. Baseline recorded (§4). Next: step 1.
+**Status (2026-10-22): steps 1–9 done; step 9 verified 2026-10-22 at `72e2eed` (codegen no diff, analyzer 0/0/88 with no new issues, 82 passed + 1 skipped, iOS simulator + macOS debug builds succeed; results in §4).** D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files), recorded in `docs/technical_decisions.md`. Steps 1–4 (run 1) merged in PR #20 from `refactor/freezed-riverpod`; step 5 (run 2, W5) merged in PR #22 from `refactor/riverpod-di`; Checkpoint B passed 2026-10-22 (Jordan approved the DI wiring, recorded on #13); the Checkpoint A decision merged in PR #23. Run 3 was built on the local branch `refactor/run3-checkin-routing` and reviewed as stacked PRs, one per unit: W6 (step 6) `4a8bb70` in #28, W7 (step 7) `3bd3224` in #29, W8 (step 8, docs reconciled with the code) `72e2eed` in #30, and W9 (step 9, verify; this commit records the results) in the PR stacked on #30.
 
 **Why now:** the domain and data layers exist, but **no presentation layer has been written.** Every `*_presentation` package is a stub, and there are no Blocs to rewrite. Switching state management before the first screen costs the least it ever will. It's also a common production stack (Riverpod with code generation, freezed for models), so this is deliberate practice.
 
 ---
 
-## 1. What exists today (verified)
+## 1. What existed at plan time (verified 2026-10-20)
 
-| Area | Today | Where |
+A snapshot of the repo the plan was written against. For the current state, see the status line above and CLAUDE.md.
+
+| Area | At plan time | Where |
 |---|---|---|
 | Value classes | `Equatable` with hand-written `props` | `DailyMetric`, `ParsedDay`, `ParsedFoodEntry`, `WeeklyBucket` |
 | Errors | Hand-written `sealed class Result<T>` (`Ok`/`Err`) + `abstract class Failure extends Equatable` (`cause` deliberately excluded from equality) | `packages/shared/failures` |
-| DI | `get_it`, one `configureDependencies()` | `app/lib/bootstrap.dart` |
+| DI | `get_it`, one `configureDependencies()` (both removed in step 5, PR #22; now `appProviderOverrides`) | `app/lib/bootstrap.dart` (deleted; now `app/lib/providers.dart`) |
 | DI invariant | One shared `DailyMetricRepository` that checkin/metrics/pdf_import all write to, guarded by an integration test | `app/test/bootstrap_test.dart` |
-| State management | Bloc was mandated at plan time; superseded by Riverpod (D3). Neither written yet | `CLAUDE.md` §4 |
-| Routing | Typed go_router planned, not written | `CLAUDE.md` §5, `app/lib/app_router.dart` |
+| State management | Bloc was mandated at plan time; superseded by Riverpod (D3). Neither written yet (first Notifier: `CheckInController`, W6) | `CLAUDE.md` §4 |
+| Routing | Typed go_router planned, not written (built in W7) | `CLAUDE.md` §5, `app/lib/app_router.dart` |
 | Packages | 22 `pubspec.yaml`s, path dependencies, no workspace root | `scripts/analyze.sh` loops them |
 | Lints | `very_good_analysis` (includes `only_throw_errors`) | each package |
 
@@ -179,6 +181,8 @@ expect((result as Ok<DailyMetric?>).value?.loggingStatus, LoggingStatus.logged);
 
 Then delete `bootstrap.dart`'s `get_it` code and remove `get_it` from `app/pubspec.yaml`.
 
+*As built (W5, `7defcf1`):* `notificationSchedulerProvider` isn't in `appProviderOverrides`; it's declared directly in `app/lib/providers.dart`, because `notifications` is headless and has no `*_presentation` package to declare an abstract provider in.
+
 ### Step 6. First feature screen: check-in, as an `AsyncNotifier` family
 ```dart
 @riverpod
@@ -205,6 +209,8 @@ class CheckInController extends _$CheckInController {
 ```
 In the widget: `final checkIn = ref.watch(checkInControllerProvider(date));` and switch over `AsyncData` / `AsyncError(error: Failure f)` / `AsyncLoading`.
 
+*As built (W6, `4a8bb70`):* the controller also sets `@Riverpod(retry: ...)` so a `Failure` isn't retried, and checks `ref.mounted` after the `await` in `logCheckIn`. CLAUDE.md §4 has the current code.
+
 Tests:
 - **Notifier:** a `ProviderContainer` with `checkInRepositoryProvider` overridden by a fake; assert the state sequence (loading → data, loading → error with the right `Failure`).
 - **Widget:** `ProviderScope(overrides: [...])` around the screen.
@@ -216,6 +222,8 @@ Tests:
 - `@Riverpod(keepAlive: true) GoRouter router(Ref ref)` builds the router, so redirects can read providers later.
 - `@TypedGoRoute<CheckInRoute>(path: '/checkin/:date')` builds the check-in screen with the `date` from the path. Keep the FFCA callback pattern: the route passes `onCheckInCompleted`, and the feature never imports the router.
 
+*As built (W7, `3bd3224`):* the path encodes the date as `yyyy-MM-dd` via `@CustomParameterCodec`, the generated mixin is `$CheckInRoute`, and the app shell is `ShadcnApp.router`. CLAUDE.md §5 has the current code.
+
 ### Step 8. Update the docs agents read
 - `CLAUDE.md` §4/§5/§9 and the D1–D6 entry in `docs/technical_decisions.md` were updated ahead of the code (2026-10-20). Re-check them against what was actually built and fix any drift (e.g. mention `scripts/codegen.sh` as existing once step 1 lands).
 - `docs/BUILD_CHECKLIST.md`: tick off and adjust.
@@ -225,19 +233,21 @@ Tests:
 - Every package's tests pass. The count should be **baseline + new tests**, with no deleted assertions.
 - `flutter build ios --simulator` and `flutter build macos` from `app/`.
 
+*As verified (W9, 2026-10-22, at `72e2eed`; Flutter 3.47.5, Xcode 27.1):* `codegen.sh` left `git status` empty (cold and warm runs). `analyze.sh --all` exited 0 with 0 errors, 0 warnings, 88 infos, issue lines identical to W7. All 21 test packages pass: 82 passed + 1 skipped. `flutter build ios --simulator --debug` succeeded in 37 s and `flutter build macos --debug` in 36 s (wall clock). Both builds ran Flutter's project migration and rewrote `project.pbxproj` (iOS `IPHONEOS_DEPLOYMENT_TARGET` 13.0 → 15.0, macOS `MACOSX_DEPLOYMENT_TARGET` 10.15 → 12.0, 3 lines each). W9 is read-only, so those edits were reverted, not committed; every local build will make them again until someone commits them. Numbers are in §4.
+
 ---
 
 ## 4. Things to measure and write down (your analysis)
 
 | Question | Before | After |
 |---|---|---|
-| Lines of hand-written code in the 4 entity files | | |
-| Generated lines added (`*.freezed.dart`, `*.g.dart`) | — | |
-| `build_runner` time per package, and for the whole repo | — | |
-| Tests changed (should be 0 in steps 2–3) | | |
-| Tests passing (all packages) | 56 | |
-| Analyzer issues (`analyze.sh --all`) | 0 errors, 0 warnings, 63 infos | |
-| Places that registered or constructed a repository | 1 (`bootstrap.dart`) | |
+| Lines of hand-written code in the 4 entity files | At `a11c97d`: 181 lines total, 102 excluding blank and `//` lines (`daily_metric.dart` 52/27, `parsed_food_entry.dart` 59/35, `parsed_day.dart` 25/14, `weekly_bucket.dart` 45/26) | At `72e2eed`: 169 total, 76 excluding blank and `//` lines (38/14, 40/16, 22/11, 69/35). Diff over the 4 files: +112 / −124. `weekly_bucket.dart` grew: public factory that copies `days` into an unmodifiable list, a private `_create` constructor, `@Freezed(...)` options, and field docs moved onto the constructor |
+| Generated lines added (`*.freezed.dart`, `*.g.dart`) | — | 1,737 lines in 10 files (`git diff --numstat a11c97d..72e2eed -- '*.dart'`): `*.freezed.dart` 1,040 in 4 files, `*.g.dart` 697 in 6 files. Per package: `pdf_import_domain` 626, `daily_metrics_domain` 308, `app` 291 (`providers.g.dart` 148, `app_router.g.dart` 143), `checkin_presentation` 235, `metrics_domain` 106, `pdf_import_presentation` 86, `metrics_presentation` 85. For comparison, hand-written Dart over the same range: `lib/` +559 / −252 (net +307) in 18 files, `test/` +718 / −11 (net +707) in 9 files |
+| `build_runner` time per package, and for the whole repo | — | `scripts/codegen.sh` at `72e2eed` on this Mac (seconds per package, `dart run build_runner build` only, excluding `pub get`). Cold (no `.dart_tool/build` cache): `app` 24, `checkin_presentation` 17, `metrics_domain` 19, `metrics_presentation` 20, `pdf_import_domain` 19, `pdf_import_presentation` 20, `daily_metrics_domain` 18; whole script 143 s wall. Warm (immediate re-run, 0 outputs written): 1–2 s per package, 13 s wall. Both runs left `git status` empty |
+| Tests changed (should be 0 in steps 2–3) | — | 0 existing test files modified (from `git`: W2a `a7c69d2` touched no test files; W2b `50e18e6` and W2c `6c36b69` each only added a new file, `parsed_day_test.dart` and `weekly_bucket_test.dart`). Whole migration (`a11c97d..72e2eed`): 7 test files added (`failure_exception_test.dart`, `parsed_day_test.dart`, `weekly_bucket_test.dart`, `app_router_test.dart`, `check_in_controller_test.dart`, `check_in_module_test.dart`, plus the helper `test/helpers/fake_check_in_repository.dart`), 2 modified, 0 deleted. Modified: `app/test/bootstrap_test.dart` (W5; `expect(` 6 → 14, tests 2 → 5; the 5 `getIt.isRegistered<…>()` assertions were rewritten as 5 `container.read(…Provider)` + `isA<…>()` assertions, none dropped) and `app/test/widget_test.dart` (W7; `expect(` 2 → 2, only the `pumpWidget` call wrapped in `ProviderScope`). Runtime test count per package: `app` 3 → 11, `checkin_presentation` 1 → 14, `failures` 8 → 10, `metrics_domain` 7 → 9, `pdf_import_domain` 0 → 5 (new `test/` dir); all other packages unchanged (+30 total) |
+| Tests passing (all packages) | 56 | At `72e2eed` (W9): 82 passed + 1 skipped across 21 packages, all passing. Run-3 start `04080ca`: 64 passed + 1 skipped. W9 re-ran the `a11c97d` tree (exported with `git archive`): 52 passed + 1 skipped across 20 packages, so the recorded 56 does not reproduce. 52 + 30 new = 82 matches exactly |
+| Analyzer issues (`analyze.sh --all`) | 0 errors, 0 warnings, 63 infos | At `72e2eed` (W9, after `codegen.sh`): 0 errors, 0 warnings, 88 infos; sorted issue lines identical to `3bd3224`. Run-3 start `04080ca`: 89 infos; vs that, −1 `public_member_api_docs` and two `unnecessary_type_name_in_constructor` lines that moved (W7), no new rule instances |
+| Places that registered or constructed a repository | 1 file (`bootstrap.dart`): 5 sites, `CheckInRepositoryImpl(`, `MetricsRepositoryImpl(`, `PdfImportRepositoryImpl(`, `InMemoryDailyMetricRepository.new`, `InMemoryNotificationScheduler.new` | 1 file (`app/lib/providers.dart`): the same 5 sites (`InMemoryDailyMetricRepository()`, `InMemoryNotificationScheduler()`, 3 `*RepositoryImpl(` in `appProviderOverrides`). Grep of non-test, non-generated Dart for `RepositoryImpl(` and `InMemory*(`, excluding the constructor declarations in `*_data`. `get_it`/`getIt` appear nowhere in `*.dart` or `*.yaml` |
 | Did any equality behavior change? | | |
 
 **Baseline recorded 2026-10-20 at `a11c97d`** (after the dependency upgrade). Before that upgrade, `app` and `pdf_import_data` couldn't compile their tests at all: `pdfrx_engine` 0.4.5 is broken on Dart 3.13.4. So the baseline was taken on the upgraded tree, not on `955dd13`.
@@ -273,13 +283,18 @@ How steps 1–9 split across agents. Each unit has one owner, a fixed set of pac
 | **Checkpoint B** | | | | Jordan reviews DI wiring |
 | W6 Check-in screen | 6 | `features/checkin/checkin_presentation` | W5 | notifier + widget tests pass; auto-dispose and date-normalization tests exist |
 | W7 Routing | 7 | `app/lib/app_router.dart`, `app/pubspec.yaml` | W6 | cold-start `CheckInRoute` resolves in a test |
+| W8 Docs | 8 | `CLAUDE.md`, `docs/*.md` (no code) | W7 | every changed doc claim checked against the code |
 | W9 Verify | 9 | read-only | all | `codegen.sh` produces no diff; `analyze.sh --all` = baseline; tests = baseline + new; iOS sim + macOS builds succeed |
 
 **Parallelism:** W2a, W2b, W2c and W4 touch disjoint packages and run concurrently. Everything else is serial, because W5–W7 all edit `app/`.
 
-**Run shape:** run 1 = W1 → {W2a, W2b, W2c, W4} → V1, stopping at Checkpoint A (about 7 agents). Run 2 = W5. Run 3 = W6 → W7 → W9.
+**Run shape:** run 1 = W1 → {W2a, W2b, W2c, W4} → V1, stopping at Checkpoint A (about 7 agents). Run 2 = W5. Run 3 = W6 → W7 → W8 → W9 (W8 was added to the table for run 3).
+
+**Recorded: actual touches beyond "Touches only"** (from `git show --stat`):
+- W5 (`7defcf1`) also edited `metrics_presentation/pubspec.yaml`, `pdf_import_presentation/pubspec.yaml`, the three presentation barrel files (`lib/<package>.dart`, to export `providers.dart`), and `app/pubspec.lock`.
+- W7 (`3bd3224`) also needed `app/lib/main.dart` (`ShadcnApp.router`, Material localizations delegate), a new `app/lib/design_system_preview.dart` (home screen moved out of `main.dart` so `HomeRoute` can build it), `app/lib/app_router.g.dart`, `app/pubspec.lock`, and `app/test/` (`widget_test.dart` wrapped in `ProviderScope`; new `app_router_test.dart`). The listed scope was too narrow for step 7.
 
 **Rules every unit follows:**
-- Work on `refactor/freezed-riverpod`. One commit per unit, generated files in the same commit (D5).
+- Work on `refactor/freezed-riverpod`. One commit per unit, generated files in the same commit (D5). *Recorded:* that branch was merged in PR #20 after run 1, so run 2 used `refactor/riverpod-di` (PR #22) and run 3 was built on `refactor/run3-checkin-routing` and opened as one stacked PR per unit (#28 W6, #29 W7, #30 W8, then W9).
 - Run `build_runner` only in the packages you touch, never repo-wide (concurrent units would collide).
 - If a gate fails, stop and report. Don't edit tests to make it pass.
