@@ -1,0 +1,22 @@
+name: account_data
+description: "Account feature data layer: the steady/account platform channel and an in-memory implementation."
+version: 0.0.1
+homepage:
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  account_domain:
+    path: ../account_domain
+  failures:
+    path: ../../../packages/shared/failures
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0

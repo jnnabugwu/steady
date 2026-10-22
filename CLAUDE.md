@@ -69,6 +69,12 @@ steady/
 │   └── macos/
 │
 ├── features/                      # One folder per feature; FFCA layer packages inside
+│   ├── account/                    # iCloud account status + sign-in screen (#53). No login:
+│   │   │                            # the Apple Account is the account (§1, §7)
+│   │   ├── account_domain/          # AccountStatus, AccountStatusRepository
+│   │   ├── account_data/            # `steady/account` channel datasource (Swift side in
+│   │   │                            # app/macos MainFlutterWindow, app/ios AppDelegate)
+│   │   └── account_presentation/    # AccountStatusController, SignInModule
 │   ├── metrics/                    # Weekly view + metrics history (reads the shared DailyMetric)
 │   │   ├── metrics_domain/          # Dart: entities, repository interfaces
 │   │   ├── metrics_data/            # Dart: SwiftData-channel datasource, repo impl

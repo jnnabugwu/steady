@@ -28,6 +28,12 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  account_data:
+    path: ../features/account/account_data
+  account_domain:
+    path: ../features/account/account_domain
+  account_presentation:
+    path: ../features/account/account_presentation
   checkin_data:
     path: ../features/checkin/checkin_data
   checkin_domain:

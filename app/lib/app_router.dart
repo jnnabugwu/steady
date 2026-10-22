@@ -4,11 +4,17 @@
 ///
 /// [CheckInRoute] is the deep-link target for the local-notification safety
 /// net: a tapped reminder opens `/checkin/<date>` from a cold start.
+///
+/// [SignInRoute] is where the router sends a user who isn't signed in to
+/// iCloud (see [redirectForAccount]).
+///
 /// [ImportRoute] is pushed from the home screen's import action.
 library;
 
 import 'dart:async';
 
+import 'package:account_domain/account_domain.dart';
+import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,17 +36,40 @@ part 'app_router.g.dart';
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
 ///
-/// A `/checkin/<segment>` whose segment doesn't start with a valid
-/// `yyyy-MM-dd` date is redirected to `/` instead of building
-/// [CheckInRoute] (see [redirectMalformedCheckIn]).
+/// The top-level `redirect` is [appRedirect]: the iCloud account gate
+/// ([redirectForAccount]) first, then the malformed check-in link check
+/// ([redirectMalformedCheckIn]).
+///
+/// **Reading the account status without rebuilding the router.** The router
+/// must not `ref.watch` [accountStatusControllerProvider]: that would build
+/// a new `GoRouter` (and reset navigation) every time the status changed.
+/// Instead it `ref.listen`s and copies each new value into a
+/// [ValueNotifier], which is both what the redirect reads and the router's
+/// `refreshListenable`, so the redirect re-runs on every status change. The
+/// listen also keeps the (already `keepAlive`) controller subscribed for as
+/// long as the router lives.
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
+  final accountStatus = ValueNotifier<AsyncValue<AccountStatus>>(
+    const AsyncLoading(),
+  );
+  ref.listen(
+    accountStatusControllerProvider,
+    (_, next) => accountStatus.value = next,
+    fireImmediately: true,
+  );
   final router = GoRouter(
     initialLocation: '/',
     routes: $appRoutes,
-    redirect: (_, state) => redirectMalformedCheckIn(state.uri),
+    refreshListenable: accountStatus,
+    redirect: (_, state) => appRedirect(state.uri, accountStatus.value),
   );
-  ref.onDispose(router.dispose);
+  ref.onDispose(() {
+    // The router removes its listener from `accountStatus` when disposed,
+    // so it goes first.
+    router.dispose();
+    accountStatus.dispose();
+  });
   return router;
 }
 
@@ -91,6 +120,42 @@ class ImportRoute extends GoRouteData with $ImportRoute {
           const HomeRoute().go(context);
         }
       },
+    );
+  }
+}
+
+/// `/sign-in`: the iCloud sign-in screen.
+///
+/// Reached through [redirectForAccount], not by navigating here directly,
+/// and left the same way once the status allows it. "Open Settings" goes
+/// through the account repository's platform channel; a failure is
+/// reported, not dropped.
+@TypedGoRoute<SignInRoute>(path: '/sign-in')
+class SignInRoute extends GoRouteData with $SignInRoute {
+  /// Creates the sign-in route.
+  const SignInRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return SignInModule(
+      onOpenSettings: () => unawaited(_openAccountSettings(container)),
+    );
+  }
+
+  static Future<void> _openAccountSettings(ProviderContainer container) async {
+    final result = await container
+        .read(accountStatusRepositoryProvider)
+        .openAccountSettings();
+    result.fold<void>(
+      (failure) => FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: failure,
+          library: 'steady app_router',
+          context: ErrorDescription('while opening the iCloud settings'),
+        ),
+      ),
+      (_) {},
     );
   }
 }
@@ -191,7 +256,7 @@ String? checkInCalendarDate(String pathSegment) {
   return match.group(0);
 }
 
-/// Top-level redirect for [routerProvider]: sends a `/checkin/<segment>`
+/// The second half of [appRedirect]: sends a `/checkin/<segment>`
 /// whose segment has no valid leading date to `/`, so a malformed deep link
 /// opens the home screen instead of failing to build [CheckInRoute].
 /// Returns `null` (no redirect) for every other location.
@@ -200,6 +265,46 @@ String? redirectMalformedCheckIn(Uri uri) {
   if (segments.length == 2 &&
       segments.first == 'checkin' &&
       checkInCalendarDate(segments.last) == null) {
+    return const HomeRoute().location;
+  }
+  return null;
+}
+
+/// Top-level redirect for [routerProvider]: the account gate
+/// ([redirectForAccount]) first, so a signed-out user's deep link (even a
+/// malformed one) lands on the sign-in screen, then
+/// [redirectMalformedCheckIn].
+String? appRedirect(Uri uri, AsyncValue<AccountStatus> accountStatus) =>
+    redirectForAccount(uri, accountStatus) ?? redirectMalformedCheckIn(uri);
+
+/// The iCloud account gate (CLAUDE.md §7: iCloud is required, with no
+/// local-only fallback).
+///
+/// - `noAccount` / `restricted` ([AccountStatus.requiresSignIn]): every
+///   location goes to `/sign-in`.
+/// - On `/sign-in`, `available` or `notConfigured` goes to `/`: the user
+///   signed in, or this build has nothing to sign in to.
+/// - Everything else returns `null` (no redirect): `notConfigured`,
+///   `couldNotDetermine` and `temporarilyUnavailable` never block, and
+///   neither does a status that's still loading or failed to load. During a
+///   re-check the state is loading, so the user stays where they are.
+///
+/// Only a settled `AsyncData` counts. A loading or error state that still
+/// carries a previous value is ignored, so a re-check can't bounce the user
+/// between screens.
+String? redirectForAccount(Uri uri, AsyncValue<AccountStatus> accountStatus) {
+  final status = switch (accountStatus) {
+    AsyncData(:final value) => value,
+    _ => null,
+  };
+  if (status == null) return null;
+  final onSignIn = uri.path == const SignInRoute().location;
+  if (status.requiresSignIn) {
+    return onSignIn ? null : const SignInRoute().location;
+  }
+  if (onSignIn &&
+      (status == AccountStatus.available ||
+          status == AccountStatus.notConfigured)) {
     return const HomeRoute().location;
   }
   return null;

@@ -6,7 +6,12 @@ part of 'app_router.dart';
 // GoRouterGenerator
 // **************************************************************************
 
-List<RouteBase> get $appRoutes => [$homeRoute, $importRoute, $checkInRoute];
+List<RouteBase> get $appRoutes => [
+  $homeRoute,
+  $importRoute,
+  $signInRoute,
+  $checkInRoute,
+];
 
 RouteBase get $homeRoute => GoRouteData.$route(
   path: '/',
@@ -45,6 +50,32 @@ mixin $ImportRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/import');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $signInRoute => GoRouteData.$route(
+  path: '/sign-in',
+  hasOverriddenOnExit: false,
+  factory: $SignInRoute._fromState,
+);
+
+mixin $SignInRoute on GoRouteData {
+  static SignInRoute _fromState(GoRouterState state) => const SignInRoute();
+
+  @override
+  String get location => GoRouteData.$location('/sign-in');
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -108,9 +139,18 @@ mixin $CheckInRoute on GoRouteData {
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
 ///
-/// A `/checkin/<segment>` whose segment doesn't start with a valid
-/// `yyyy-MM-dd` date is redirected to `/` instead of building
-/// [CheckInRoute] (see [redirectMalformedCheckIn]).
+/// The top-level `redirect` is [appRedirect]: the iCloud account gate
+/// ([redirectForAccount]) first, then the malformed check-in link check
+/// ([redirectMalformedCheckIn]).
+///
+/// **Reading the account status without rebuilding the router.** The router
+/// must not `ref.watch` [accountStatusControllerProvider]: that would build
+/// a new `GoRouter` (and reset navigation) every time the status changed.
+/// Instead it `ref.listen`s and copies each new value into a
+/// [ValueNotifier], which is both what the redirect reads and the router's
+/// `refreshListenable`, so the redirect re-runs on every status change. The
+/// listen also keeps the (already `keepAlive`) controller subscribed for as
+/// long as the router lives.
 
 @ProviderFor(router)
 final routerProvider = RouterProvider._();
@@ -125,9 +165,18 @@ final routerProvider = RouterProvider._();
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
 ///
-/// A `/checkin/<segment>` whose segment doesn't start with a valid
-/// `yyyy-MM-dd` date is redirected to `/` instead of building
-/// [CheckInRoute] (see [redirectMalformedCheckIn]).
+/// The top-level `redirect` is [appRedirect]: the iCloud account gate
+/// ([redirectForAccount]) first, then the malformed check-in link check
+/// ([redirectMalformedCheckIn]).
+///
+/// **Reading the account status without rebuilding the router.** The router
+/// must not `ref.watch` [accountStatusControllerProvider]: that would build
+/// a new `GoRouter` (and reset navigation) every time the status changed.
+/// Instead it `ref.listen`s and copies each new value into a
+/// [ValueNotifier], which is both what the redirect reads and the router's
+/// `refreshListenable`, so the redirect re-runs on every status change. The
+/// listen also keeps the (already `keepAlive`) controller subscribed for as
+/// long as the router lives.
 
 final class RouterProvider
     extends $FunctionalProvider<GoRouter, GoRouter, GoRouter>
@@ -142,9 +191,18 @@ final class RouterProvider
   /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
   /// `overridePlatformDefaultLocation` is left `false`.
   ///
-  /// A `/checkin/<segment>` whose segment doesn't start with a valid
-  /// `yyyy-MM-dd` date is redirected to `/` instead of building
-  /// [CheckInRoute] (see [redirectMalformedCheckIn]).
+  /// The top-level `redirect` is [appRedirect]: the iCloud account gate
+  /// ([redirectForAccount]) first, then the malformed check-in link check
+  /// ([redirectMalformedCheckIn]).
+  ///
+  /// **Reading the account status without rebuilding the router.** The router
+  /// must not `ref.watch` [accountStatusControllerProvider]: that would build
+  /// a new `GoRouter` (and reset navigation) every time the status changed.
+  /// Instead it `ref.listen`s and copies each new value into a
+  /// [ValueNotifier], which is both what the redirect reads and the router's
+  /// `refreshListenable`, so the redirect re-runs on every status change. The
+  /// listen also keeps the (already `keepAlive`) controller subscribed for as
+  /// long as the router lives.
   RouterProvider._()
     : super(
         from: null,
@@ -178,4 +236,4 @@ final class RouterProvider
   }
 }
 
-String _$routerHash() => r'0089ba9ad4bf2ad4871b31ab83f507dd4e9f9adc';
+String _$routerHash() => r'5ae2f38facfc62de498867a767baaa98878075d9';
