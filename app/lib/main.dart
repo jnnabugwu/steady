@@ -1,12 +1,27 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
+import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  configurePdfium();
+  final supportDir = await getApplicationSupportDirectory();
   runApp(
-    ProviderScope(overrides: appProviderOverrides, child: const SteadyApp()),
+    ProviderScope(
+      overrides: [
+        ...appProviderOverrides,
+        dailyMetricsFileProvider.overrideWithValue(
+          File('${supportDir.path}/daily_metrics.json'),
+        ),
+      ],
+      child: const SteadyApp(),
+    ),
   );
 }
 

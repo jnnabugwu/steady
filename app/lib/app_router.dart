@@ -4,6 +4,7 @@
 ///
 /// [CheckInRoute] is the deep-link target for the local-notification safety
 /// net: a tapped reminder opens `/checkin/<date>` from a cold start.
+/// [ImportRoute] is pushed from the home screen's import action.
 library;
 
 import 'dart:async';
@@ -12,8 +13,9 @@ import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:steady/design_system_preview.dart';
 import 'package:steady/providers.dart';
 
 part 'app_router.g.dart';
@@ -42,7 +44,7 @@ GoRouter router(Ref ref) {
   return router;
 }
 
-/// `/`: the home screen.
+/// `/`: the home screen, the metrics history.
 @TypedGoRoute<HomeRoute>(path: '/')
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
@@ -50,7 +52,33 @@ class HomeRoute extends GoRouteData with $HomeRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const DesignSystemPreview();
+      MetricsHistoryModule(
+        onImportRequested: () => unawaited(const ImportRoute().push(context)),
+      );
+}
+
+/// `/import`: the Cal AI PDF import flow.
+@TypedGoRoute<ImportRoute>(path: '/import')
+class ImportRoute extends GoRouteData with $ImportRoute {
+  /// Creates the import route.
+  const ImportRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return PdfImportModule(
+      onImportCompleted: () {
+        // The history screen may still be mounted under this route, so
+        // refresh it rather than relying on auto-dispose.
+        container.invalidate(metricsHistoryControllerProvider);
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          const HomeRoute().go(context);
+        }
+      },
+    );
+  }
 }
 
 /// `/checkin/:date`: one calendar day's check-in screen.
