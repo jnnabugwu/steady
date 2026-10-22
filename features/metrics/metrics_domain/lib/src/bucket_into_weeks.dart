@@ -1,4 +1,5 @@
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
+import 'package:metrics_domain/src/week_start.dart';
 import 'package:metrics_domain/src/weekly_bucket.dart';
 
 /// Buckets [days] into `WeeklyBucket`s anchored on [anchorWeekday]
@@ -13,11 +14,14 @@ List<WeeklyBucket> bucketIntoWeeks(
   if (days.isEmpty) return [];
 
   final buckets = <WeeklyBucket>[];
-  var currentWeekStart = _weekStartFor(days.first.date, anchorWeekday);
+  var currentWeekStart = weekStartFor(
+    days.first.date,
+    anchorWeekday: anchorWeekday,
+  );
   var currentDays = <DailyMetric>[];
 
   for (final day in days) {
-    final weekStart = _weekStartFor(day.date, anchorWeekday);
+    final weekStart = weekStartFor(day.date, anchorWeekday: anchorWeekday);
     if (weekStart != currentWeekStart) {
       buckets.add(WeeklyBucket(weekStart: currentWeekStart, days: currentDays));
       currentWeekStart = weekStart;
@@ -28,14 +32,4 @@ List<WeeklyBucket> bucketIntoWeeks(
   buckets.add(WeeklyBucket(weekStart: currentWeekStart, days: currentDays));
 
   return buckets;
-}
-
-DateTime _weekStartFor(DateTime date, int anchorWeekday) {
-  final daysSinceAnchor = (date.weekday - anchorWeekday) % 7;
-  // Calendar-date arithmetic, not `Duration(days: n)`: subtracting a fixed
-  // 24h duration across a DST transition lands on 23:00/01:00 of an
-  // adjacent day, which would give a non-midnight `weekStart` and split one
-  // week into two buckets. The DateTime constructor normalizes a negative
-  // day-of-month and always yields local midnight.
-  return DateTime(date.year, date.month, date.day - daysSinceAnchor);
 }
