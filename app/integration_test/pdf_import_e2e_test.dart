@@ -25,10 +25,11 @@ const _e2ePdfPath = String.fromEnvironment('E2E_PDF_PATH');
 /// a simulated restart. Only the native file dialog is replaced.
 ///
 /// The export (personal data, never committed) comes from `E2E_PDF_PATH`
-/// when it's set and readable, else from `<app support>/e2e_export.pdf`
-/// inside the app's container. With neither, the test skips; with
-/// `E2E_PDF_PATH` set, it fails instead, so a broken setup can't pass as a
-/// skip. Run with `flutter test integration_test -d macos`, or
+/// when it's set, and the test fails if that file is unreadable (no
+/// fallback, so it can't pass against a different export). Without the
+/// define it uses `<app support>/e2e_export.pdf` inside the app's
+/// container, and skips if that's missing. Run with
+/// `flutter test integration_test -d macos`, or
 /// `flutter test integration_test -d SIMULATOR_ID
 /// --dart-define=E2E_PDF_PATH=/abs/path.pdf`.
 void main() {
@@ -39,16 +40,18 @@ void main() {
   ) async {
     configurePdfium();
     final support = await getApplicationSupportDirectory();
-    final pdf =
-        _readable(_e2ePdfPath) ?? File('${support.path}/e2e_export.pdf');
-    if (!pdf.existsSync()) {
-      if (_e2ePdfPath.isNotEmpty) {
-        fail(
-          'E2E_PDF_PATH=$_e2ePdfPath is unreadable and ${pdf.path} is missing',
-        );
+    final File pdf;
+    if (_e2ePdfPath.isNotEmpty) {
+      // Explicitly requested: never fall back to a different export.
+      final requested = _readable(_e2ePdfPath);
+      if (requested == null) fail('E2E_PDF_PATH=$_e2ePdfPath is unreadable');
+      pdf = requested;
+    } else {
+      pdf = File('${support.path}/e2e_export.pdf');
+      if (!pdf.existsSync()) {
+        markTestSkipped('No export at ${pdf.path}');
+        return;
       }
-      markTestSkipped('No export at ${pdf.path}');
-      return;
     }
     final store = File('${support.path}/e2e_daily_metrics.json');
     if (store.existsSync()) store.deleteSync();
