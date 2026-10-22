@@ -14,9 +14,7 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('the home import action opens the import screen', (
-    tester,
-  ) async {
+  testWidgets('the home import action opens the import screen', (tester) async {
     await pumpApp(tester);
 
     await tester.tap(find.byKey(const Key('importButton_header')));

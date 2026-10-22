@@ -118,6 +118,60 @@ void main() {
         ),
       ]);
     });
+    test(
+      'a throwing write ends in an error and a later write still runs',
+      () async {
+        listen();
+        await container.read(checkInControllerProvider(day).future);
+        states.clear();
+
+        repository.onLogCheckIn = (_, _) => throw StateError('channel died');
+        final notifier = container.read(
+          checkInControllerProvider(day).notifier,
+        );
+        await notifier.logCheckIn(CheckInStatus.partial);
+
+        expect(states, [
+          _isLoading(),
+          _isError(
+            isA<UnknownFailure>().having(
+              (f) => f.cause,
+              'cause',
+              isA<StateError>(),
+            ),
+          ),
+        ]);
+
+        repository.onLogCheckIn = (_, _) => const Ok(unit);
+        await notifier.logCheckIn(CheckInStatus.logged);
+
+        expect(states.last, _isData(CheckInStatus.logged));
+        expect(repository.logCheckInCalls, [
+          (day, CheckInStatus.partial),
+          (day, CheckInStatus.logged),
+        ]);
+      },
+    );
+
+    test('a thrown Failure is surfaced as that Failure', () async {
+      listen();
+      await container.read(checkInControllerProvider(day).future);
+      states.clear();
+
+      repository.onLogCheckIn = (_, _) =>
+          throw const PlatformChannelFailure('write failed', code: 'E_IO');
+      await container
+          .read(checkInControllerProvider(day).notifier)
+          .logCheckIn(CheckInStatus.skipped);
+
+      expect(states, [
+        _isLoading(),
+        _isError(
+          isA<PlatformChannelFailure>().having((f) => f.code, 'code', 'E_IO'),
+        ),
+      ]);
+    });
+
     test('a second write while one is in flight is ignored', () async {
       listen();
       await container.read(checkInControllerProvider(day).future);
