@@ -63,6 +63,40 @@ class InMemoryDailyMetricRepository implements DailyMetricRepository {
   }
 
   @override
+  ResultFuture<Unit> clearFields(
+    DateTime date,
+    Set<DailyMetricField> fields,
+  ) async {
+    final key = _key(date);
+    final existing = _store[key];
+    if (existing == null || fields.isEmpty) return const Ok(unit);
+
+    var cleared = existing;
+    for (final field in fields) {
+      cleared = switch (field) {
+        DailyMetricField.caloriesEaten => cleared.copyWith(caloriesEaten: null),
+        DailyMetricField.caloriesBurnedActive => cleared.copyWith(
+          caloriesBurnedActive: null,
+        ),
+        DailyMetricField.caloriesBurnedBasal => cleared.copyWith(
+          caloriesBurnedBasal: null,
+        ),
+        DailyMetricField.steps => cleared.copyWith(steps: null),
+        DailyMetricField.loggingStatus => cleared.copyWith(loggingStatus: null),
+      };
+    }
+
+    // A row with every field null means "nothing recorded", same as no row,
+    // so it's removed rather than kept (see the interface doc comment).
+    if (cleared == DailyMetric(date: key)) {
+      _store.remove(key);
+    } else {
+      _store[key] = cleared;
+    }
+    return const Ok(unit);
+  }
+
+  @override
   ResultFuture<Unit> delete(DateTime date) async {
     _store.remove(_key(date));
     return const Ok(unit);

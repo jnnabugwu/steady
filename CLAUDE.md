@@ -46,10 +46,11 @@
 - **freezed** — immutable value classes for domain entities (`DailyMetric`,
   `ParsedDay`, `ParsedFoodEntry`, `WeeklyBucket`). `Result` and `Failure` stay
   hand-written (§9).
-- **`shadcn_flutter`** — the app shell (`ShadcnApp.router` in `app/lib/main.dart`) and
-  the design system in `packages/shared/ui_kit` (`steadyTheme` is a `shadcn_flutter`
-  `ThemeData`). Material feature screens inside that shell have caveats; see §5,
-  "App shell".
+- **`shadcn_flutter`** — the app shell (`ShadcnApp.router` in `app/lib/main.dart`), the
+  design system in `packages/shared/ui_kit` (`steadyTheme` is a `shadcn_flutter`
+  `ThemeData`), and every feature screen. Feature and app `lib/` code uses
+  `shadcn_flutter` / `ui_kit` widgets only, never Material: no
+  `package:flutter/material.dart` import. See §5, "App shell".
 
 ---
 
@@ -129,7 +130,9 @@ doesn't list them.
 **Wiring feature packages in:** each `*_presentation` package depends on its own
 `*_domain` via a local path dependency, and may depend on **another feature's `_domain`
 only** (never another feature's `_data` or `_presentation` — that's the FFCA boundary,
-enforced by the dependency graph, not a review comment):
+enforced by the dependency graph, not a review comment). Shared packages under
+`packages/shared/*` are allowed too: `checkin_presentation` depends on `failures` and
+`ui_kit` (plus `shadcn_flutter`, for its widgets; §5, "App shell"):
 
 ```yaml
 # features/coach/coach_presentation/pubspec.yaml
@@ -180,6 +183,8 @@ whole repo first.
 ---
 
 ## 4. State management: Riverpod Notifiers, named after domain events
+
+Full guide: `docs/riverpod.md`.
 
 Use **Riverpod with code generation** (`@riverpod`). This replaced an earlier Bloc
 mandate before any screen existed, so no Blocs were ever written; don't add `bloc` or
@@ -239,6 +244,7 @@ class CheckInController extends _$CheckInController {
 
   /// Domain event: CheckInLogged / CheckInPartial / CheckInSkipped.
   Future<void> logCheckIn(CheckInStatus status) async {
+    if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
     final result = await ref
         .read(checkInRepositoryProvider)
@@ -252,7 +258,8 @@ class CheckInController extends _$CheckInController {
 }
 ```
 
-Two conventions in that controller that new repository-backed controllers copy:
+Conventions in that controller (and its screen) that new repository-backed controllers
+copy:
 
 - **`retry` that skips `Failure`.** Riverpod 3 retries a provider whose `build` throws.
   The default (`ProviderContainer.defaultRetry`, riverpod 3.4.3) allows up to 10
@@ -263,13 +270,21 @@ Two conventions in that controller that new repository-backed controllers copy:
 - **`if (!ref.mounted) return;` after every `await`** in a Notifier method, before
   writing `state`. The controller is an auto-dispose family, so it can be disposed
   while the repository call is in flight (e.g. the screen pops).
+- **A write is ignored while loading or unmounted:** `logCheckIn` starts with
+  `if (!ref.mounted || state.isLoading) return;`, so rapid taps (or a tap during the
+  initial read) can't start concurrent writes.
+- **Error copy is operation-neutral** (`Something went wrong: <failure.message>`): one
+  `AsyncError` state covers both a failed read and a failed write.
+
+`docs/riverpod.md` covers these conventions in depth.
 
 **Provider lifetimes are decided per provider, not by default:**
 
 | Provider | Lifetime | Why |
 | --- | --- | --- |
 | `dailyMetricRepositoryProvider` | `keepAlive: true` | The shared store. Disposing it loses in-memory data and breaks the shared-store invariant (§9). |
-| Repository providers (checkin, metrics, pdf_import, notifications) | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
+| Feature repository providers (checkin, metrics, pdf_import), overridden in `appProviderOverrides` | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
+| `notificationSchedulerProvider` (declared and built directly in `app/lib/providers.dart`, not overridden) | `keepAlive: true` | Same reason: cheap and stateless. `notifications` is headless, so the app layer declares it (§5, §9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
@@ -303,7 +318,11 @@ reads it from the feature's own provider, which the app root overrides (§9):
 // features/checkin/checkin_presentation/lib/src/check_in_module.dart — the feature
 // knows a check-in was completed. It does not know, or care, what happens next.
 class CheckInModule extends ConsumerWidget {
-  const new({required this.date, required this.onCheckInCompleted, super.key});
+  const CheckInModule({
+    required this.date,
+    required this.onCheckInCompleted,
+    super.key,
+  });
 
   final DateTime date;
   final void Function() onCheckInCompleted; // called only after a successful log
@@ -322,7 +341,7 @@ class CheckInModule extends ConsumerWidget {
 // app/lib/app_router.dart — the app layer, where features are allowed to meet.
 @TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
 class CheckInRoute extends GoRouteData with $CheckInRoute {
-  const new({required this.date});
+  const CheckInRoute({required this.date});
 
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
@@ -330,11 +349,32 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final container = ProviderScope.containerOf(context, listen: false);
+    // The reminder is per calendar day, so cancel with the midnight day.
+    final day = DateTime(date.year, date.month, date.day);
     return CheckInModule(
       date: date,
-      onCheckInCompleted: () => unawaited(
-        container.read(notificationSchedulerProvider).cancelReminder(date),
+      onCheckInCompleted: () => unawaited(_cancelReminder(container, day)),
+    );
+  }
+
+  static Future<void> _cancelReminder(
+    ProviderContainer container,
+    DateTime day,
+  ) async {
+    final result = await container
+        .read(notificationSchedulerProvider)
+        .cancelReminder(day);
+    result.fold<void>(
+      (failure) => FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: failure,
+          library: 'steady app_router',
+          context: ErrorDescription(
+            'while cancelling the check-in reminder for $day',
+          ),
+        ),
       ),
+      (_) {},
     );
   }
 }
@@ -345,14 +385,25 @@ Facts about that route worth knowing before adding the next one:
 - `go_router_builder` 4.x generates a public mixin, `$CheckInRoute` (not
   `_$CheckInRoute`), plus the `$appRoutes` list that `routerProvider` hands to
   `GoRouter`.
-- New code in this repo writes constructors as `const new(...)` (the
-  `unnecessary_type_name_in_constructor` lint). `CheckInModule`, `HomeRoute` and
-  `CheckInRoute` do; older classes such as `SteadyApp` and `DesignSystemPreview` still
-  use the class name.
+- **Constructors use the classic form, `const ClassName(...)`**, not `const new(...)`.
+  The `unnecessary_type_name_in_constructor` lint, which suggests `new(...)`, is disabled
+  in every package's `analysis_options.yaml`.
 - **Date encoding.** `encodeCheckInDate` writes only the calendar date, `yyyy-MM-dd`
-  (`/checkin/2026-10-19`), and drops any time component. Decoding goes through
-  `DateTime.parse`, so `/checkin/2026-10-19T21:30:00` also resolves to the 19th.
-  `CheckInModule` normalizes to midnight itself; the route doesn't.
+  (`/checkin/2026-10-19`), and drops any time component. `decodeCheckInDate` keeps only
+  the path segment's leading `yyyy-MM-dd` (via `checkInCalendarDate`) and ignores any
+  time or UTC offset after it, so `/checkin/2026-10-19T21:30:00` and
+  `/checkin/2026-10-19T23:30:00-05:00` both resolve to local midnight on the 19th; an
+  offset can't move the date across midnight. Impossible dates (`2026-02-30`) are
+  rejected, and the decoder throws a `FormatException` for a segment without a valid
+  leading date.
+- **Malformed deep links go home.** `routerProvider`'s top-level `redirect`
+  (`redirectMalformedCheckIn`) sends a `/checkin/<segment>` with no valid leading date
+  (e.g. `/checkin/garbage`, `/checkin/2026-02-30`) to `/`, so `CheckInRoute` is never
+  built for it.
+- **Reminder cancel uses the normalized day.** `onCheckInCompleted` cancels with
+  `day` (midnight), not the route's raw `date`, and awaits `cancelReminder`. An `Err` is
+  reported via `FlutterError.reportError` (there's no UI for a failed cancel yet), not
+  dropped. `CheckInModule` also normalizes to midnight itself, for its provider key.
 - The container is read once in `build` with `listen: false`, and the callback closes
   over it.
 - `notificationSchedulerProvider` is declared in `app/lib/providers.dart`, not in a
@@ -360,7 +411,7 @@ Facts about that route worth knowing before adding the next one:
 
 The `GoRouter` itself is `routerProvider`, a `@Riverpod(keepAlive: true)` provider in
 `app/lib/app_router.dart`, so redirects can read providers later without a second DI
-path. Its `initialLocation` is `/` (`HomeRoute`, currently `DesignSystemPreview`). That's
+path. Its one redirect today is `redirectMalformedCheckIn` (above). Its `initialLocation` is `/` (`HomeRoute`, currently `DesignSystemPreview`). That's
 only the fallback: on a cold start from a deep link the platform's initial route wins,
 because `overridePlatformDefaultLocation` is left `false`.
 
@@ -369,14 +420,16 @@ on tap; the typed route resolves it without any feature needing to know about de
 linking at all. Only the last step is built (see "What exists today" above).
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
-ref.watch(routerProvider))`. `CheckInModule` is built from Material widgets (`Scaffold`,
-`AppBar`, `TextButton`), which need `MaterialLocalizations`. `ShadcnApp` (shadcn_flutter
-0.0.55, the locked version) supplies only widgets and shadcn localizations, so
-`main.dart` adds `DefaultMaterialLocalizations.delegate`. `ShadcnApp` 0.0.55 also puts
-no Material `Theme` above the routes, so Material feature screens don't get Steady's
-design tokens; they fall back to Flutter's default Material theme. **Open, not decided:**
-whether feature screens move to `shadcn_flutter`/`ui_kit` widgets, or the app adds a
-Material theme built from the same tokens.
+ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
+(2026-10-22): feature screens use `shadcn_flutter` / `ui_kit` widgets only, never
+Material.** No `package:flutter/material.dart` import in any feature or app `lib/` (the
+only one left is the `rag_kit` plugin's generated example app). Steady's tokens reach a
+screen through `steadyTheme` and `ui_kit` widgets; a Material widget reads neither.
+`CheckInModule` is built this way: shadcn `Scaffold` + `AppBar`,
+`SteadyCard`, `OutlineButton` with a `LoggingStatusIndicator` leading each status, and
+shadcn `CircularProgressIndicator`. It needs a `ShadcnApp` ancestor and no Material ones;
+its widget tests wrap it in `ShadcnApp(theme: steadyTheme)`. Decision record:
+`docs/technical_decisions.md`, "Feature screens are shadcn-only".
 
 ---
 
