@@ -386,16 +386,23 @@ the entire auth story (§1), a user who isn't signed into iCloud simply can't us
 Building a signed-out/local-only degraded mode was considered and rejected: it would
 reintroduce exactly the session/auth complexity this architecture exists to avoid.
 
-**Account loss (locked/lost/deleted Apple ID) is accepted risk, no backup mitigation.**
-CloudKit's private database has no separate backend copy, so losing the Apple ID loses the
-data with it. Consistent with the "add the escape hatch only when a real requirement forces
-it" philosophy below — revisit only if this stops being a single personal-use install.
+**Multiple users = one copy per person.** Friends install via TestFlight, each with their own
+iCloud private database; nothing in this section changes per user. Since other people's data is
+now involved, the planned account-loss mitigation is a user-triggered data export (CSV/JSON)
+rather than any backend copy. **Not built yet** (`docs/BUILD_CHECKLIST.md`); until it ships,
+losing the Apple ID still loses the data, because CloudKit's private database has no separate
+backup.
 
-**The one thing that would change this:** if Steady ever grows a feature that shares data
-*beyond* the single user (e.g., some future "share your week" export), that's the trigger
-to introduce a CloudKit shared/public database schema — same "add the escape hatch only
-when a real requirement forces it" philosophy as §6, just applied to sync instead of
-compute.
+**Sharing is share cards, not live data.** A rendered image handed to the system share sheet
+(`share_plus`), built inside the owning feature's `_presentation` package. The card reads
+existing check-in and metric data through those features' domain repositories (§2, §9); no new
+schema, persistence layer, or CloudKit change is needed. Decision record:
+`docs/technical_decisions.md`, "Sharing is share cards, not live data".
+
+**The one thing that would change this:** a feature where one user's data appears inside
+another user's app. That needs CloudKit's shared database, which **SwiftData doesn't support**
+— so it means Core Data (`NSPersistentCloudKitContainer`) or a hand-written CloudKit sync layer.
+Read `docs/live_sharing_research.md` before designing any such feature.
 
 ---
 

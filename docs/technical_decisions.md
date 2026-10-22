@@ -7,6 +7,37 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Sharing is share cards, not live data (2026-10-22)
+
+**Decision:** Steady opens to friends (US, Apple-only) as one copy per person: each installs it
+via TestFlight and keeps their data in their own iCloud private database, exactly as the
+single-user design already works. "Sharing" means **share cards**: Steady renders a card
+(`RenderRepaintBoundary.toImage` → PNG) and hands it to the system share sheet via `share_plus`,
+which reaches Messages, Instagram, WhatsApp, Photos. The default card shows check-in statuses;
+calories and steps are opt-in per share. Live in-app sharing between users is deferred.
+
+**Why it came up:** opening the app to multiple people raised whether friends should see each
+other's data. Research showed live sharing needs CloudKit's shared database, which SwiftData
+doesn't support.
+
+**Rationale:** share cards need no schema, no CloudKit change, no server, and keep the user in
+control of what leaves the device. Calories are opt-in because a public Instagram post is the
+opposite of Steady's no-shame stance (product doc §1).
+
+**Alternatives considered:**
+
+- *Live sharing via CloudKit `CKShare`.* Deferred until real users ask for it. Needs Core Data
+  (`NSPersistentCloudKitContainer`) or a hand-written CloudKit sync layer beside SwiftData. The
+  research is in `docs/live_sharing_research.md`.
+- *Build persistence on Core Data now to keep live sharing cheap later.* Rejected for now: it
+  trades SwiftData's simplicity today for a feature nobody has asked for. Accepted cost: if live
+  sharing happens, existing users' synced data has to be migrated.
+- *A direct "Share to Instagram Story" button.* Not in v1 — the share sheet already reaches
+  Instagram. It would need a Meta (Facebook) App ID, `instagram-stories` in
+  `LSApplicationQueriesSchemes`, Meta's pasteboard keys, and a 9:16 image ≥720×1280.
+
+---
+
 ## freezed + Riverpod replace Equatable + get_it + Bloc (D1–D6, 2026-10-20)
 
 **Decision:** domain entities move to `freezed`. DI and state management move to Riverpod with
