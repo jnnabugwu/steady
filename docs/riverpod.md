@@ -14,7 +14,8 @@ Related: CLAUDE.md §4 (state), §5 (routing), §9 (DI); `docs/technical_decisio
 ## 1. The stack
 
 Steady uses **Riverpod 3 with code generation** for both dependency injection and state
-management. Resolved versions in `app/pubspec.lock` (the only committed lockfile):
+management. Resolved versions in `app/pubspec.lock`, the Flutter app's lockfile (the only
+other committed one is `packages_native/rag_kit/example/pubspec.lock`):
 
 | Package | Version | Role |
 | --- | --- | --- |
@@ -167,12 +168,12 @@ provider in the repo:
 | Provider | Declared in | Lifetime | Why |
 | --- | --- | --- | --- |
 | `dailyMetricRepositoryProvider` | `app/lib/providers.dart` | `keepAlive` | The shared store. Disposing it loses the in-memory data and breaks the invariant above. |
-| `notificationSchedulerProvider` | `app/lib/providers.dart` | `keepAlive` | Cheap and stateless. Recreating it gains nothing. |
-| `checkInRepositoryProvider` | `checkin_presentation/lib/src/providers.dart` | `keepAlive` | Same reason. Overridden in `appProviderOverrides`. |
-| `metricsRepositoryProvider` | `metrics_presentation/lib/src/providers.dart` | `keepAlive` | Same reason. |
-| `pdfImportRepositoryProvider` | `pdf_import_presentation/lib/src/providers.dart` | `keepAlive` | Same reason. |
+| `notificationSchedulerProvider` | `app/lib/providers.dart` | `keepAlive` | Stateful. `InMemoryNotificationScheduler` holds the scheduled reminder dates in a `Set`, so recreating it would drop pending reminders. (The provider's doc comment in `providers.dart` still says "cheap and stateless"; that's out of date.) |
+| `checkInRepositoryProvider` | `features/checkin/checkin_presentation/lib/src/providers.dart` | `keepAlive` | Cheap and stateless: the impl only wraps the shared store. Recreating it gains nothing. Overridden in `appProviderOverrides`. |
+| `metricsRepositoryProvider` | `features/metrics/metrics_presentation/lib/src/providers.dart` | `keepAlive` | Same reason as `checkInRepositoryProvider`. |
+| `pdfImportRepositoryProvider` | `features/pdf_import/pdf_import_presentation/lib/src/providers.dart` | `keepAlive` | Same reason (the impl holds the shared store and a stateless `CalAIParser`). |
 | `routerProvider` | `app/lib/app_router.dart` | `keepAlive` | Rebuilding the `GoRouter` would reset navigation. It registers `ref.onDispose(router.dispose)`. |
-| `checkInControllerProvider(date)` | `checkin_presentation/lib/src/check_in_controller.dart` | auto-dispose family | One instance per day. It's freed when the screen leaves the tree, so instances don't pile up per date visited. |
+| `checkInControllerProvider(date)` | `features/checkin/checkin_presentation/lib/src/check_in_controller.dart` | auto-dispose family | One instance per day. It's freed when the screen leaves the tree, so instances don't pile up per date visited. |
 
 The generated code records the choice: `isAutoDispose: false` in `providers.g.dart`,
 `isAutoDispose: true` in `check_in_controller.g.dart`.
@@ -245,8 +246,10 @@ root would bring it back, and none exists yet.
 **`Result` → `AsyncValue` at the Notifier boundary (D4).** Repositories return
 `Result<T>`. `build` returns the `Ok` value and *throws* the `Err`'s `Failure`. Riverpod
 turns a throw from `build` into `AsyncError`. Methods can't throw into state, so they
-assign `AsyncError(failure, StackTrace.current)` instead. Either way,
-`AsyncValue.error` is always a typed `Failure`. `Failure implements Exception`
+assign `AsyncError(failure, StackTrace.current)` instead. Either way, an error that came
+from a repository `Result` reaches `AsyncValue.error` as a typed `Failure`. Anything else
+(a bug that throws in `build`) arrives as whatever was thrown, which is why the Module keeps
+a bare `AsyncError()` fallback arm (§6). `Failure implements Exception`
 (`packages/shared/failures/lib/src/failure.dart`), so the throw doesn't trip
 `only_throw_errors`.
 
