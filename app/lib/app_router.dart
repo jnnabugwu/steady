@@ -27,9 +27,17 @@ part 'app_router.g.dart';
 /// `initialLocation` is only the fallback. On a cold start from a deep link
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
+///
+/// A `/checkin/<segment>` whose segment doesn't start with a valid
+/// `yyyy-MM-dd` date is redirected to `/` instead of building
+/// [CheckInRoute] (see [redirectMalformedCheckIn]).
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
-  final router = GoRouter(initialLocation: '/', routes: $appRoutes);
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: $appRoutes,
+    redirect: (_, state) => redirectMalformedCheckIn(state.uri),
+  );
   ref.onDispose(router.dispose);
   return router;
 }
@@ -38,7 +46,7 @@ GoRouter router(Ref ref) {
 @TypedGoRoute<HomeRoute>(path: '/')
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
-  const new();
+  const HomeRoute();
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
@@ -49,14 +57,15 @@ class HomeRoute extends GoRouteData with $HomeRoute {
 ///
 /// **Date encoding:** [date] is written to the path as a date-only
 /// `yyyy-MM-dd` string (`/checkin/2026-10-19`); any time component is
-/// dropped, since a check-in belongs to a whole day. Reading accepts
-/// anything `DateTime.parse` does, so `/checkin/2026-10-19` and
-/// `/checkin/2026-10-19T21:30:00` both resolve to the 19th. [CheckInModule]
-/// normalizes to midnight itself.
+/// dropped, since a check-in belongs to a whole day. Reading takes only the
+/// segment's leading `yyyy-MM-dd` and ignores any time or UTC offset after
+/// it, so `/checkin/2026-10-19`, `/checkin/2026-10-19T21:30:00` and
+/// `/checkin/2026-10-19T23:30:00-05:00` all resolve to local midnight on the
+/// 19th. [CheckInModule] normalizes to midnight itself.
 @TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
 class CheckInRoute extends GoRouteData with $CheckInRoute {
   /// Creates the check-in route for [date].
-  const new({required this.date});
+  const CheckInRoute({required this.date});
 
   /// The day to check in for.
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
@@ -65,11 +74,36 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final container = ProviderScope.containerOf(context, listen: false);
+    // The reminder is per calendar day, so cancel with the midnight day,
+    // not whatever time of day [date] carries.
+    final day = DateTime(date.year, date.month, date.day);
     return CheckInModule(
       date: date,
-      onCheckInCompleted: () => unawaited(
-        container.read(notificationSchedulerProvider).cancelReminder(date),
+      onCheckInCompleted: () => unawaited(_cancelReminder(container, day)),
+    );
+  }
+
+  /// Cancels [day]'s reminder. There is no UI for a failed cancel yet, so an
+  /// `Err` is reported through [FlutterError.reportError] rather than
+  /// dropped.
+  static Future<void> _cancelReminder(
+    ProviderContainer container,
+    DateTime day,
+  ) async {
+    final result = await container
+        .read(notificationSchedulerProvider)
+        .cancelReminder(day);
+    result.fold<void>(
+      (failure) => FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: failure,
+          library: 'steady app_router',
+          context: ErrorDescription(
+            'while cancelling the check-in reminder for $day',
+          ),
+        ),
       ),
+      (_) {},
     );
   }
 }
@@ -86,7 +120,45 @@ String encodeCheckInDate(String dateTimeString) {
   return '$y-$m-$d';
 }
 
-/// Path decoder for [CheckInRoute.date]. The identity: the generated code
-/// passes the result to `DateTime.parse`, which already accepts both
-/// `2026-10-19` and `2026-10-19T21:30:00`.
-String decodeCheckInDate(String pathSegment) => pathSegment;
+/// Path decoder for [CheckInRoute.date].
+///
+/// Returns only the segment's leading `yyyy-MM-dd`, which the generated
+/// code passes to `DateTime.parse` (local midnight). Any time or UTC offset
+/// after it is ignored, so an offset can't move the date across midnight.
+/// Throws a [FormatException] if the segment doesn't start with a valid
+/// date; the router redirects those away first ([redirectMalformedCheckIn]).
+String decodeCheckInDate(String pathSegment) =>
+    checkInCalendarDate(pathSegment) ??
+    (throw FormatException('Not a yyyy-MM-dd check-in date', pathSegment));
+
+final _leadingDate = RegExp(r'^(\d{4})-(\d{2})-(\d{2})');
+
+/// The leading `yyyy-MM-dd` of a `/checkin/:date` path segment, or `null`
+/// if the segment doesn't start with a real calendar date (`2026-02-30`
+/// and `garbage` both give `null`).
+String? checkInCalendarDate(String pathSegment) {
+  final match = _leadingDate.firstMatch(pathSegment);
+  if (match == null) return null;
+  final year = int.parse(match.group(1)!);
+  final month = int.parse(match.group(2)!);
+  final day = int.parse(match.group(3)!);
+  final date = DateTime(year, month, day);
+  if (date.year != year || date.month != month || date.day != day) {
+    return null;
+  }
+  return match.group(0);
+}
+
+/// Top-level redirect for [routerProvider]: sends a `/checkin/<segment>`
+/// whose segment has no valid leading date to `/`, so a malformed deep link
+/// opens the home screen instead of failing to build [CheckInRoute].
+/// Returns `null` (no redirect) for every other location.
+String? redirectMalformedCheckIn(Uri uri) {
+  final segments = uri.pathSegments;
+  if (segments.length == 2 &&
+      segments.first == 'checkin' &&
+      checkInCalendarDate(segments.last) == null) {
+    return const HomeRoute().location;
+  }
+  return null;
+}

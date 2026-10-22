@@ -7,6 +7,34 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Feature screens are shadcn-only (2026-10-22)
+
+**Decision:** feature screens are built from `shadcn_flutter` and `ui_kit` widgets only, never
+Material. No feature or app `lib/` file imports `package:flutter/material.dart`. `main.dart`'s
+`ShadcnApp.router` adds no Material localizations delegate, and `CheckInModule` uses shadcn
+`Scaffold` + `AppBar`, `SteadyCard`, `OutlineButton` and `LoggingStatusIndicator`.
+
+**Why it came up:** W7 put the first feature screen, `CheckInModule` (then built from Material
+`Scaffold`, `AppBar` and `TextButton`), inside `ShadcnApp.router`. It failed with "No
+MaterialLocalizations found", so `main.dart` added `DefaultMaterialLocalizations.delegate`. Even
+then, Material screens got no Steady tokens: `steadyTheme` is a shadcn `ThemeData`, and Material
+widgets don't read it, so they fell back to Flutter's default Material theme.
+
+**Rationale:** the design system already lives in shadcn (`steadyTheme`) and `ui_kit`. Building
+screens from the same widgets means every screen gets the tokens with no second theme to keep in
+sync, and the shell needs no Material ancestors.
+
+**Alternative considered:** keep Material feature screens and add a Material theme built from the
+same tokens (or switch the shell to `MaterialShadcnApp` from `package:shadcn_flutter_material`,
+which layers Material's theme, localizations and ancestors on top of `ShadcnApp`). Rejected: two themes describing one
+design, plus Material ancestors the shell otherwise doesn't need.
+
+**Constructor style, decided the same day:** classic `const ClassName(...)` constructors, not
+`const new(...)`. The `unnecessary_type_name_in_constructor` lint is disabled in every package's
+`analysis_options.yaml`.
+
+---
+
 ## Sharing is share cards, not live data (2026-10-22)
 
 **Decision:** Steady opens to friends (US, Apple-only) as one copy per person: each installs it

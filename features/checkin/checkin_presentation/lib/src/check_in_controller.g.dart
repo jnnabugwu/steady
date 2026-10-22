@@ -14,8 +14,10 @@ part of 'check_in_controller.dart';
 /// normalize [date] to midnight before using it as the key, or the same day
 /// at two different times becomes two providers. `CheckInModule` does this.
 ///
-/// `null` data means nothing has been logged for that day yet. Errors are
-/// always a typed [Failure].
+/// `null` data means nothing has been logged for that day yet. Repository
+/// errors arrive as a typed [Failure] and are surfaced without retrying; any
+/// other (unexpected) error goes through Riverpod's default retry before it
+/// reaches `AsyncError`.
 
 @ProviderFor(CheckInController)
 final checkInControllerProvider = CheckInControllerFamily._();
@@ -26,8 +28,10 @@ final checkInControllerProvider = CheckInControllerFamily._();
 /// normalize [date] to midnight before using it as the key, or the same day
 /// at two different times becomes two providers. `CheckInModule` does this.
 ///
-/// `null` data means nothing has been logged for that day yet. Errors are
-/// always a typed [Failure].
+/// `null` data means nothing has been logged for that day yet. Repository
+/// errors arrive as a typed [Failure] and are surfaced without retrying; any
+/// other (unexpected) error goes through Riverpod's default retry before it
+/// reaches `AsyncError`.
 final class CheckInControllerProvider
     extends $AsyncNotifierProvider<CheckInController, CheckInStatus?> {
   /// One calendar day's check-in status.
@@ -36,8 +40,10 @@ final class CheckInControllerProvider
   /// normalize [date] to midnight before using it as the key, or the same day
   /// at two different times becomes two providers. `CheckInModule` does this.
   ///
-  /// `null` data means nothing has been logged for that day yet. Errors are
-  /// always a typed [Failure].
+  /// `null` data means nothing has been logged for that day yet. Repository
+  /// errors arrive as a typed [Failure] and are surfaced without retrying; any
+  /// other (unexpected) error goes through Riverpod's default retry before it
+  /// reaches `AsyncError`.
   CheckInControllerProvider._({
     required CheckInControllerFamily super.from,
     required DateTime super.argument,
@@ -74,7 +80,7 @@ final class CheckInControllerProvider
   }
 }
 
-String _$checkInControllerHash() => r'0460d37773c281fd2026de9052d66f51b54c4b76';
+String _$checkInControllerHash() => r'da027cbdb89bc317e3e3a95f7d693b548e31afc6';
 
 /// One calendar day's check-in status.
 ///
@@ -82,8 +88,10 @@ String _$checkInControllerHash() => r'0460d37773c281fd2026de9052d66f51b54c4b76';
 /// normalize [date] to midnight before using it as the key, or the same day
 /// at two different times becomes two providers. `CheckInModule` does this.
 ///
-/// `null` data means nothing has been logged for that day yet. Errors are
-/// always a typed [Failure].
+/// `null` data means nothing has been logged for that day yet. Repository
+/// errors arrive as a typed [Failure] and are surfaced without retrying; any
+/// other (unexpected) error goes through Riverpod's default retry before it
+/// reaches `AsyncError`.
 
 final class CheckInControllerFamily extends $Family
     with
@@ -109,8 +117,10 @@ final class CheckInControllerFamily extends $Family
   /// normalize [date] to midnight before using it as the key, or the same day
   /// at two different times becomes two providers. `CheckInModule` does this.
   ///
-  /// `null` data means nothing has been logged for that day yet. Errors are
-  /// always a typed [Failure].
+  /// `null` data means nothing has been logged for that day yet. Repository
+  /// errors arrive as a typed [Failure] and are surfaced without retrying; any
+  /// other (unexpected) error goes through Riverpod's default retry before it
+  /// reaches `AsyncError`.
 
   CheckInControllerProvider call(DateTime date) =>
       CheckInControllerProvider._(argument: date, from: this);
@@ -125,8 +135,10 @@ final class CheckInControllerFamily extends $Family
 /// normalize [date] to midnight before using it as the key, or the same day
 /// at two different times becomes two providers. `CheckInModule` does this.
 ///
-/// `null` data means nothing has been logged for that day yet. Errors are
-/// always a typed [Failure].
+/// `null` data means nothing has been logged for that day yet. Repository
+/// errors arrive as a typed [Failure] and are surfaced without retrying; any
+/// other (unexpected) error goes through Riverpod's default retry before it
+/// reaches `AsyncError`.
 
 abstract class _$CheckInController extends $AsyncNotifier<CheckInStatus?> {
   late final _$args = ref.$arg as DateTime;

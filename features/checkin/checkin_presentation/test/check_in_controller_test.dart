@@ -118,6 +118,41 @@ void main() {
         ),
       ]);
     });
+    test('a second write while one is in flight is ignored', () async {
+      listen();
+      await container.read(checkInControllerProvider(day).future);
+      states.clear();
+
+      final completer = Completer<Result<Unit>>();
+      repository.onLogCheckIn = (_, _) => completer.future;
+      final notifier = container.read(checkInControllerProvider(day).notifier);
+      final first = notifier.logCheckIn(CheckInStatus.partial);
+      final second = notifier.logCheckIn(CheckInStatus.skipped);
+
+      await second;
+      expect(states, [_isLoading()]);
+
+      completer.complete(const Ok(unit));
+      await first;
+
+      expect(states, [_isLoading(), _isData(CheckInStatus.partial)]);
+      expect(repository.logCheckInCalls, [(day, CheckInStatus.partial)]);
+    });
+
+    test('a write while the initial read is in flight is ignored', () async {
+      final read = Completer<Result<CheckInStatus?>>();
+      repository.onGetStatus = (_) => read.future;
+      listen();
+
+      await container
+          .read(checkInControllerProvider(day).notifier)
+          .logCheckIn(CheckInStatus.logged);
+      read.complete(const Ok(null));
+      await container.read(checkInControllerProvider(day).future);
+
+      expect(states, [_isLoading(), _isData(null)]);
+      expect(repository.logCheckInCalls, isEmpty);
+    });
   });
 
   group('family key', () {

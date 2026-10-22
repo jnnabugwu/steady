@@ -81,6 +81,10 @@ mixin $CheckInRoute on GoRouteData {
 /// `initialLocation` is only the fallback. On a cold start from a deep link
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
+///
+/// A `/checkin/<segment>` whose segment doesn't start with a valid
+/// `yyyy-MM-dd` date is redirected to `/` instead of building
+/// [CheckInRoute] (see [redirectMalformedCheckIn]).
 
 @ProviderFor(router)
 final routerProvider = RouterProvider._();
@@ -94,6 +98,10 @@ final routerProvider = RouterProvider._();
 /// `initialLocation` is only the fallback. On a cold start from a deep link
 /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
 /// `overridePlatformDefaultLocation` is left `false`.
+///
+/// A `/checkin/<segment>` whose segment doesn't start with a valid
+/// `yyyy-MM-dd` date is redirected to `/` instead of building
+/// [CheckInRoute] (see [redirectMalformedCheckIn]).
 
 final class RouterProvider
     extends $FunctionalProvider<GoRouter, GoRouter, GoRouter>
@@ -107,6 +115,10 @@ final class RouterProvider
   /// `initialLocation` is only the fallback. On a cold start from a deep link
   /// the platform's initial route (e.g. `/checkin/2026-10-19`) wins, because
   /// `overridePlatformDefaultLocation` is left `false`.
+  ///
+  /// A `/checkin/<segment>` whose segment doesn't start with a valid
+  /// `yyyy-MM-dd` date is redirected to `/` instead of building
+  /// [CheckInRoute] (see [redirectMalformedCheckIn]).
   RouterProvider._()
     : super(
         from: null,
@@ -140,4 +152,4 @@ final class RouterProvider
   }
 }
 
-String _$routerHash() => r'b1ad23e6509f303b4378d069298c7b359dc7d72b';
+String _$routerHash() => r'0089ba9ad4bf2ad4871b31ab83f507dd4e9f9adc';
