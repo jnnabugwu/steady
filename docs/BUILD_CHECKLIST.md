@@ -229,7 +229,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 ## Feature: share cards
 
 Entry point: a "Share week" button on the check-in screen (`CheckInModule`) until a week view
-exists. Everything lives in `checkin_presentation`. The one entry point is
+exists. The share-card UI, data, rendering and share seam live in `checkin_presentation`; the
+week boundary itself is `metrics_domain`'s `weekStartFor`. The one entry point is
 `showShareWeekDialog(context, date: ...)`: it takes any day of the week and normalizes it with
 `weekCardStart`, so a week view can host the same flow later through an app-layer callback. Under
 it, `weekCardControllerProvider(weekStart)` takes a normalized week start (from
