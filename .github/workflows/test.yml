@@ -1,0 +1,49 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Runners are UTC, which has no DST, so the DST tests in metrics_domain
+      # and checkin_presentation would skip. A US zone makes them run.
+      TZ: America/Chicago
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      # PRs: changed packages plus everything that depends on them through
+      # path dependencies. Pushes to main: every package, as the safety net.
+      - name: Test packages
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            ./scripts/test.sh --base "origin/$BASE_REF" --coverage
+          else
+            ./scripts/test.sh --all --coverage
+          fi
+
+      - name: Coverage summary
+        if: always() && hashFiles('coverage/summary.md') != ''
+        run: cat coverage/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload lcov
+        if: always() && hashFiles('coverage/lcov.info') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
+          if-no-files-found: ignore
