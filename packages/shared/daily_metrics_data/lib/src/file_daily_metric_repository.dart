@@ -9,12 +9,10 @@ import 'package:failures/failures.dart';
 
 /// A `DailyMetricRepository` persisted to a single local JSON file.
 ///
-/// **Interim, local-only store.** This exists so data survives an app
-/// restart until the real SwiftData + CloudKit-backed implementation lands
-/// (#43). It does not sync between devices and has no backup. When #43
-/// ships, it is swapped by changing only the body of the
-/// `dailyMetricRepository` provider in `app/lib/providers.dart`; no other
-/// signature changes.
+/// **No longer the live store.** This was the interim local-only store
+/// before `SwiftDataDailyMetricRepository` replaced it. It's kept because
+/// its file format is what `migrateFileStore` reads on first launch after
+/// the switch, and the tests here pin that format down.
 ///
 /// Semantics are exactly [InMemoryDailyMetricRepository]'s: an instance of
 /// it is held internally, seeded from the file on first use, and the file is
