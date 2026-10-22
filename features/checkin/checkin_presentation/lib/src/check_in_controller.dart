@@ -1,19 +1,10 @@
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/src/providers.dart';
+import 'package:checkin_presentation/src/retry_unless_failure.dart';
 import 'package:failures/failures.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'check_in_controller.g.dart';
-
-/// Retry policy for [CheckInController].
-///
-/// A [Failure] has already been mapped at the `_data` boundary (CLAUDE.md
-/// §9), so it is surfaced immediately as `AsyncError` instead of being
-/// retried. Riverpod 3's default retry would otherwise keep the provider in
-/// `AsyncLoading` for up to 10 attempts before the UI saw the error. Any
-/// other error falls back to Riverpod's default retry.
-Duration? _retryUnlessFailure(int retryCount, Object error) =>
-    error is Failure ? null : ProviderContainer.defaultRetry(retryCount, error);
 
 /// One calendar day's check-in status.
 ///
@@ -25,7 +16,7 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 /// errors arrive as a typed [Failure] and are surfaced without retrying; any
 /// other (unexpected) error goes through Riverpod's default retry before it
 /// reaches `AsyncError`.
-@Riverpod(retry: _retryUnlessFailure)
+@Riverpod(retry: retryUnlessFailure)
 class CheckInController extends _$CheckInController {
   @override
   Future<CheckInStatus?> build(DateTime date) async {
@@ -40,7 +31,10 @@ class CheckInController extends _$CheckInController {
   ///
   /// Records [status] for this provider's [date]. On success the state
   /// becomes `AsyncData(status)`; on failure it becomes an `AsyncError`
-  /// carrying the repository's [Failure].
+  /// carrying the repository's [Failure]. If the repository throws instead
+  /// of returning a `Result`, the state still leaves loading: it becomes an
+  /// `AsyncError` carrying the thrown [Failure], or an [UnknownFailure]
+  /// wrapping anything else, so the next call can retry.
   ///
   /// Ignored while the state is loading (the initial read or another write
   /// still in flight), so rapid taps can't start concurrent writes, and
@@ -48,9 +42,19 @@ class CheckInController extends _$CheckInController {
   Future<void> logCheckIn(CheckInStatus status) async {
     if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
-    final result = await ref
-        .read(checkInRepositoryProvider)
-        .logCheckIn(date, status);
+    final Result<Unit> result;
+    try {
+      result = await ref
+          .read(checkInRepositoryProvider)
+          .logCheckIn(date, status);
+    } on Object catch (error, stackTrace) {
+      if (!ref.mounted) return;
+      final failure = error is Failure
+          ? error
+          : UnknownFailure('Saving the check-in failed.', cause: error);
+      state = AsyncError(failure, stackTrace);
+      return;
+    }
     if (!ref.mounted) return;
     state = switch (result) {
       Ok() => AsyncData(status),

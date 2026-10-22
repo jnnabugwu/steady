@@ -232,16 +232,27 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 
 ## Feature: share cards
 
-- [ ] Render a week card from a widget in the owning feature's `_presentation` package — wrap
+Entry point: a "Share week" button on the check-in screen (`CheckInModule`) until a week view
+exists. The share-card UI, data, rendering and share seam live in `checkin_presentation`; the
+week boundary itself is `metrics_domain`'s `weekStartFor`. The one entry point is
+`showShareWeekDialog(context, date: ...)`: it takes any day of the week and normalizes it with
+`weekCardStart`, so a week view can host the same flow later through an app-layer callback. Under
+it, `weekCardControllerProvider(weekStart)` takes a normalized week start (from
+`weekCardStart`, never a raw date) and yields a `WeekCardData`, and `WeekCard(data: ...)` draws
+that `WeekCardData`.
+
+- [x] Render a week card from a widget in the owning feature's `_presentation` package — wrap
       it in a `RepaintBoundary` with a `GlobalKey`, then
       `(key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage()` →
       `toByteData(format: ImageByteFormat.png)`. Default content: the 7 check-in statuses.
-- [ ] Calories / steps are opt-in per share (off by default).
-- [ ] `share_plus`: `SharePlus.instance.share(ShareParams(files: [XFile.fromData(png,
-      mimeType: 'image/png')], fileNameOverrides: ['steady-week-2026-10-19.png']))` (week's
+      The week is `metrics_domain`'s Friday→Thursday window (`weekStartFor`), read with one
+      `getRange`; the PNG is a fixed 1080×1350.
+- [x] Calories / steps are opt-in per share (off by default).
+- [x] `share_plus`: `SharePlus.instance.share(ShareParams(files: [XFile.fromData(png,
+      mimeType: 'image/png')], fileNameOverrides: ['steady-week-2026-10-16.png']))` (week's
       start date in the name; without the override the file gets a random UUID name), with
       `sharePositionOrigin` set for iPad.
-- [ ] Card design follows the single-hue status ladder (product doc §10) — no red/green.
+- [x] Card design follows the single-hue status ladder (product doc §10) — no red/green.
 - [ ] Not in v1: a direct Instagram Story button (needs a Meta App ID; see the decision
       record).
 - [ ] Live in-app sharing is deferred — `docs/live_sharing_research.md` before any work.

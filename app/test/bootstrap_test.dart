@@ -96,6 +96,34 @@ void main() {
     expect(rows.single.caloriesEaten, 1850);
   });
 
+  test('the share card reads the week from the shared store', () async {
+    final day = DateTime(2026, 8, 24);
+    await container
+        .read(checkInRepositoryProvider)
+        .logCheckIn(day, CheckInStatus.partial);
+    await container.read(pdfImportRepositoryProvider).commitDailyTotals([
+      ParsedDay(date: day, caloriesEaten: 1850, foodEntries: const []),
+    ]);
+
+    final weekStart = weekCardStart(day);
+    final sub = container.listen(
+      weekCardControllerProvider(weekStart),
+      (_, _) {},
+    );
+    addTearDown(sub.close);
+    final week = await container.read(
+      weekCardControllerProvider(weekStart).future,
+    );
+
+    final shown = week.days.singleWhere((d) => d.date == day);
+    expect(shown.status, LoggingStatus.partial);
+    expect(shown.caloriesEaten, 1850);
+    expect(
+      container.read(weekMetricsRepositoryProvider),
+      same(container.read(metricsRepositoryProvider)),
+    );
+  });
+
   test('without appProviderOverrides, feature repositories are unbound', () {
     final bare = ProviderContainer.test();
     // Riverpod 3 wraps an error thrown while building a provider.

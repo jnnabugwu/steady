@@ -48,7 +48,7 @@ final class CheckInControllerProvider
     required CheckInControllerFamily super.from,
     required DateTime super.argument,
   }) : super(
-         retry: _retryUnlessFailure,
+         retry: retryUnlessFailure,
          name: r'checkInControllerProvider',
          isAutoDispose: true,
          dependencies: null,
@@ -80,7 +80,7 @@ final class CheckInControllerProvider
   }
 }
 
-String _$checkInControllerHash() => r'da027cbdb89bc317e3e3a95f7d693b548e31afc6';
+String _$checkInControllerHash() => r'26d86a431d230d21bc9490c1809a72fa24771226';
 
 /// One calendar day's check-in status.
 ///
@@ -104,7 +104,7 @@ final class CheckInControllerFamily extends $Family
         > {
   CheckInControllerFamily._()
     : super(
-        retry: _retryUnlessFailure,
+        retry: retryUnlessFailure,
         name: r'checkInControllerProvider',
         dependencies: null,
         $allTransitiveDependencies: null,
