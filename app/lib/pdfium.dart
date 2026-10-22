@@ -1,18 +1,24 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:pdfrx_engine/pdfrx_engine.dart';
 
-/// Points `pdfrx_engine` at the PDFium library bundled into the macOS app.
+/// Makes sure `pdfrx_engine` can find PDFium on iOS and macOS.
 ///
-/// Under Flutter on macOS, `pdfium_dart` assumes PDFium is already linked
-/// into the process and looks it up with `DynamicLibrary.process()`. The
-/// macOS build only bundles it as `Contents/Frameworks/pdfium.framework`
-/// without linking it, so that lookup fails and every PDF parse throws
-/// (#38). Setting the module path makes it `dlopen` the bundled framework
-/// instead. Must run before the first parse.
+/// Under Flutter on iOS and macOS, `pdfium_dart` assumes PDFium is already
+/// linked into the process and looks it up with `DynamicLibrary.process()`.
+/// `pdfium_flutter` (a dependency of `pdf_import_data`) is what makes that
+/// true: it links its PDFium XCFramework into the app on both platforms
+/// (iOS has no other source, since `pdfium_dart`'s build hook skips PDFium
+/// there). So normally this is a no-op.
 ///
-/// iOS is not handled yet (#44): its build hook ships no PDFium at all.
+/// The fallback is the macOS-only fix from before `pdfium_flutter` (#38): if
+/// the process doesn't export PDFium, point the module path at the
+/// `Contents/Frameworks/pdfium.framework` that `pdfium_dart` bundles, so it
+/// `dlopen`s that instead. Must run before the first parse.
 void configurePdfium() {
+  if (!Platform.isIOS && !Platform.isMacOS) return;
+  if (DynamicLibrary.process().providesSymbol('FPDF_InitLibrary')) return;
   if (!Platform.isMacOS) return;
   final contents = File(Platform.resolvedExecutable).parent.parent.path;
   final module = '$contents/Frameworks/pdfium.framework/pdfium';

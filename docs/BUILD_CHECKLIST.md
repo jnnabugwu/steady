@@ -150,7 +150,9 @@ items land; don't let it drift into a change log — keep it a current-state che
       the daily totals. Wired at `/import`.
 - [x] PDFium loads in the macOS app (`app/lib/pdfium.dart`) and under `flutter test`.
       Verified end to end by `app/integration_test/pdf_import_e2e_test.dart`.
-- [ ] iOS: PDFium via `pdfium_flutter` + document picker.
+- [x] iOS: PDFium via `pdfium_flutter` (a `pdf_import_data` dependency, which also links it
+      on macOS); the document picker needs no Info.plist key. Same e2e test passes on the iOS
+      simulator with `--dart-define=E2E_PDF_PATH=...`. Not yet tried on a physical iPhone.
 - [ ] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
       `CLAUDE.md` §12).
 

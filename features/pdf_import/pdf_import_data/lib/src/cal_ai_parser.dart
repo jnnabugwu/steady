@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:meta/meta.dart';
@@ -71,7 +72,13 @@ class CalAIParser {
 
   /// Parses [pdfBytes] into a list of `ParsedDay`s.
   Future<List<ParsedDay>> parse(Uint8List pdfBytes) async {
-    await pdfrxInitialize();
+    // An explicit cache dir: pdfrx's default reads `$HOME`, which the iOS
+    // app process doesn't have, and would throw before any parse.
+    await pdfrxInitialize(
+      tmpPath:
+          Pdfrx.cacheDirectoryPath ??
+          '${Directory.systemTemp.path}/pdfrx.cache',
+    );
     final document = await PdfDocument.openData(pdfBytes);
     try {
       final days = <ParsedDay>[];

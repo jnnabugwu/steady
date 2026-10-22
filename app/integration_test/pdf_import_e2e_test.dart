@@ -14,13 +14,23 @@ import 'package:steady/main.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 
-/// End-to-end PDF import in the real macOS app: PDFium loading, parsing,
-/// committing to the file-backed store, and reading it back after a
-/// simulated restart. Only the native file dialog is replaced.
+/// Host path of a Cal AI export, passed with
+/// `--dart-define=E2E_PDF_PATH=/abs/path.pdf`. The iOS simulator can read
+/// host paths; the macOS sandbox can't, so there it falls back to the
+/// container copy.
+const _e2ePdfPath = String.fromEnvironment('E2E_PDF_PATH');
+
+/// End-to-end PDF import in the real app (macOS or iOS): PDFium loading,
+/// parsing, committing to the file-backed store, and reading it back after
+/// a simulated restart. Only the native file dialog is replaced.
 ///
-/// Needs a Cal AI export at `<app support>/e2e_export.pdf` inside the
-/// app's sandbox container (personal data, never committed); skips
-/// otherwise. Run with `flutter test integration_test -d macos`.
+/// The export (personal data, never committed) comes from `E2E_PDF_PATH`
+/// when it's set and readable, else from `<app support>/e2e_export.pdf`
+/// inside the app's container. With neither, the test skips; with
+/// `E2E_PDF_PATH` set, it fails instead, so a broken setup can't pass as a
+/// skip. Run with `flutter test integration_test -d macos`, or
+/// `flutter test integration_test -d SIMULATOR_ID
+/// --dart-define=E2E_PDF_PATH=/abs/path.pdf`.
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -29,8 +39,14 @@ void main() {
   ) async {
     configurePdfium();
     final support = await getApplicationSupportDirectory();
-    final pdf = File('${support.path}/e2e_export.pdf');
+    final pdf =
+        _readable(_e2ePdfPath) ?? File('${support.path}/e2e_export.pdf');
     if (!pdf.existsSync()) {
+      if (_e2ePdfPath.isNotEmpty) {
+        fail(
+          'E2E_PDF_PATH=$_e2ePdfPath is unreadable and ${pdf.path} is missing',
+        );
+      }
       markTestSkipped('No export at ${pdf.path}');
       return;
     }
@@ -39,11 +55,18 @@ void main() {
     final bytes = pdf.readAsBytesSync();
     // The expected rows come from the parser directly, so the test checks
     // what the app stored against what's actually in this export.
+    final days = await CalAIParser().parse(bytes);
     final expected = {
-      for (final d in await CalAIParser().parse(bytes))
+      for (final d in days)
         DateTime(d.date.year, d.date.month, d.date.day): d.caloriesEaten,
     };
     expect(expected, isNotEmpty);
+    final entries = days.fold(0, (n, d) => n + d.foodEntries.length);
+    // Surfaced in the run log as evidence of what was parsed.
+    // ignore: avoid_print
+    print(
+      'E2E: parsed ${expected.length} days, $entries entries from ${pdf.path}',
+    );
     final summary = '${expected.length} days';
 
     Future<Map<DateTime, int?>> stored(ProviderContainer container) async {
@@ -101,4 +124,16 @@ void main() {
     // ignore: avoid_print
     print('E2E: ${store.lengthSync()} bytes stored at ${store.path}');
   });
+}
+
+/// [path] as a file if it's set and this process can read it.
+File? _readable(String path) {
+  if (path.isEmpty) return null;
+  try {
+    final file = File(path);
+    file.openSync().closeSync();
+    return file;
+  } on FileSystemException {
+    return null;
+  }
 }
