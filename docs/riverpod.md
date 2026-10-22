@@ -57,7 +57,7 @@ There are three ways to read a provider. Each has a fixed place:
 | --- | --- | --- |
 | `ref.watch(p)` | Read and subscribe. A change rebuilds the caller or re-runs its `build`. | Inside `build` methods and provider bodies only: `CheckInController.build` watches `checkInRepositoryProvider`; `CheckInModule.build` watches `checkInControllerProvider(day)`; `SteadyApp.build` watches `routerProvider`; the factory of every override in `appProviderOverrides` watches `dailyMetricRepositoryProvider`. |
 | `ref.read(p)` | One-off read, no subscription. | Inside event handlers and Notifier methods: `logCheckIn` reads the repository; the Module's `log()` reads `provider.notifier` and then the new state; `CheckInRoute` reads `notificationSchedulerProvider` in its callback. |
-| `ref.listen` / `container.listen` | Callback on every change, no rebuild. | Not used in `lib/` yet. Tests use `container.listen(..., fireImmediately: true)` to record state sequences (§8). |
+| `ref.listen` / `container.listen` | Callback on every change, no rebuild. | `routerProvider`'s body listens to `accountStatusControllerProvider` and copies each value into its `refreshListenable` (§6), so a status change re-runs the redirect without rebuilding the router. Tests use `container.listen(..., fireImmediately: true)` to record state sequences (§8). |
 
 The rule behind the table: **`watch` in `build`, `read` in callbacks.** A provider body
 counts as a `build`. That includes a function provider like `dailyMetricRepository(Ref ref)`
@@ -175,7 +175,9 @@ provider in the repo:
 | `checkInRepositoryProvider` | `features/checkin/checkin_presentation/lib/src/providers.dart` | `keepAlive` | Cheap and stateless: the impl only wraps the shared store. Recreating it gains nothing. Overridden in `appProviderOverrides`. |
 | `metricsRepositoryProvider` | `features/metrics/metrics_presentation/lib/src/providers.dart` | `keepAlive` | Same reason as `checkInRepositoryProvider`. |
 | `pdfImportRepositoryProvider` | `features/pdf_import/pdf_import_presentation/lib/src/providers.dart` | `keepAlive` | Same reason (the impl holds the shared store and a stateless `CalAIParser`). |
-| `routerProvider` | `app/lib/app_router.dart` | `keepAlive` | Rebuilding the `GoRouter` would reset navigation. It registers `ref.onDispose(router.dispose)`. |
+| `routerProvider` | `app/lib/app_router.dart` | `keepAlive` | Rebuilding the `GoRouter` would reset navigation. Its `ref.onDispose` disposes the router, then the account-status `ValueNotifier` it listens to. |
+| `accountStatusRepositoryProvider` | `features/account/account_presentation/lib/src/providers.dart` | `keepAlive` | Same reason as `checkInRepositoryProvider` (the impl wraps a `MethodChannel`). Overridden in `appProviderOverrides`. |
+| `accountStatusControllerProvider` | `features/account/account_presentation/lib/src/account_status_controller.dart` | `keepAlive` (not a family) | App-wide state, not screen state: the router's redirect reads it on every navigation and listens to it for the app's lifetime. One instance, so `keepAlive` can't pile up. Disposing it would drop the last known status and re-read the channel. |
 | `checkInControllerProvider(date)` | `features/checkin/checkin_presentation/lib/src/check_in_controller.dart` | auto-dispose family | One instance per day. It's freed when the screen leaves the tree, so instances don't pile up per date visited. |
 
 The generated code records the choice: `isAutoDispose: false` in `providers.g.dart`,
@@ -406,9 +408,16 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   `FlutterError.reportError` rather than dropping it (test: `a failed reminder cancel is
   reported, not dropped`).
 - **The router is a provider.** `routerProvider` is `@Riverpod(keepAlive: true)` and
-  `SteadyApp` (a `ConsumerWidget`) passes `ref.watch(routerProvider)` to
-  `ShadcnApp.router(routerConfig: ...)`. As a provider, a future `redirect` can
-  `ref.read` other providers without a second DI path.
+  `SteadyApp` (a `ConsumerStatefulWidget`, which also re-checks the account status on
+  app resume) passes `ref.watch(routerProvider)` to `ShadcnApp.router(routerConfig:
+  ...)`. As a provider, its `redirect` reads other providers without a second DI path.
+- **A redirect that depends on provider state** (`redirectForAccount`, #53) must not
+  `ref.watch` that state in `routerProvider`: a change would build a new `GoRouter` and
+  reset navigation. The body `ref.listen`s `accountStatusControllerProvider` with
+  `fireImmediately: true`, copies each value into a `ValueNotifier`, and passes that
+  notifier as `refreshListenable` and reads it in `redirect`. Test: `flipping to available
+  on /sign-in goes home` asserts the router instance is the same afterwards; removing
+  `refreshListenable` fails ten tests in `app/test/account_redirect_test.dart`.
 
 ---
 
