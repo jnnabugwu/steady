@@ -9,7 +9,7 @@ part of 'providers.dart';
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
 /// The single shared `DailyMetricRepository` that checkin, metrics and
-/// pdf_import all read and write through.
+/// pdf_import all read and write through, and data_export reads from.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -18,7 +18,7 @@ part of 'providers.dart';
 final dailyMetricRepositoryProvider = DailyMetricRepositoryProvider._();
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
-/// pdf_import all read and write through.
+/// pdf_import all read and write through, and data_export reads from.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -32,7 +32,7 @@ final class DailyMetricRepositoryProvider
         >
     with $Provider<DailyMetricRepository> {
   /// The single shared `DailyMetricRepository` that checkin, metrics and
-  /// pdf_import all read and write through.
+  /// pdf_import all read and write through, and data_export reads from.
   ///
   /// `keepAlive`: disposing it would lose the in-memory data and break the
   /// shared-store invariant (D6).

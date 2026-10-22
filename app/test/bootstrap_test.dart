@@ -1,6 +1,8 @@
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
+import 'package:data_export_domain/data_export_domain.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
@@ -92,6 +94,50 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single.loggingStatus, LoggingStatus.partial);
     expect(rows.single.caloriesEaten, 1850);
+  });
+
+  test('data_export reads what checkin and pdf_import wrote, from the same '
+      'store', () async {
+    // The real override list; only the share sheet and the clock are
+    // faked, so the export never reaches the share_plus plugin.
+    final shared = <ExportFile>[];
+    final exporting = ProviderContainer.test(
+      overrides: [
+        ...appProviderOverrides,
+        exportFileSharerProvider.overrideWithValue((
+          file, {
+          sharePositionOrigin,
+        }) async {
+          shared.add(file);
+          return const Ok(ExportShareOutcome.shared);
+        }),
+        exportClockProvider.overrideWithValue(() => DateTime(2026, 10, 22)),
+      ],
+    );
+    final date = DateTime(2026, 8, 24);
+    await exporting
+        .read(checkInRepositoryProvider)
+        .logCheckIn(date, CheckInStatus.partial);
+    await exporting.read(pdfImportRepositoryProvider).commitDailyTotals([
+      ParsedDay(date: date, caloriesEaten: 1850, foodEntries: const []),
+    ]);
+
+    // The export's repository is the shared store itself, not a copy.
+    expect(
+      exporting.read(exportDailyMetricRepositoryProvider),
+      same(exporting.read(dailyMetricRepositoryProvider)),
+    );
+
+    exporting.listen(dataExportControllerProvider, (_, _) {});
+    await exporting
+        .read(dataExportControllerProvider.notifier)
+        .exportData(ExportFormat.csv);
+
+    expect(shared.single.fileName, 'steady-export-2026-10-22.csv');
+    expect(
+      shared.single.contents.split('\r\n')[1],
+      '2026-08-24,1850,,,,partial',
+    );
   });
 
   test('without appProviderOverrides, feature repositories are unbound', () {

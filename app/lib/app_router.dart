@@ -4,11 +4,13 @@
 ///
 /// [CheckInRoute] is the deep-link target for the local-notification safety
 /// net: a tapped reminder opens `/checkin/<date>` from a cold start.
+/// [SettingsRoute] (`/settings`) hosts the data export.
 library;
 
 import 'dart:async';
 
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -43,14 +45,35 @@ GoRouter router(Ref ref) {
 }
 
 /// `/`: the home screen.
-@TypedGoRoute<HomeRoute>(path: '/')
+@TypedGoRoute<HomeRoute>(
+  path: '/',
+  routes: [TypedGoRoute<SettingsRoute>(path: 'settings')],
+)
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
 
   @override
   Widget build(BuildContext context, GoRouterState state) =>
-      const DesignSystemPreview();
+      DesignSystemPreview(
+        onOpenSettings: () => const SettingsRoute().go(context),
+      );
+}
+
+/// `/settings`: the settings screen, which today is the data export
+/// (`DataExportModule`).
+///
+/// Nested under [HomeRoute], so the home screen is always beneath it, even
+/// on a cold start straight to `/settings`, and back returns home.
+class SettingsRoute extends GoRouteData with $SettingsRoute {
+  /// Creates the settings route.
+  const SettingsRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => DataExportModule(
+    onBack: () =>
+        context.canPop() ? context.pop() : const HomeRoute().go(context),
+  );
 }
 
 /// `/checkin/:date`: one calendar day's check-in screen.

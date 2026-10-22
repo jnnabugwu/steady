@@ -19,7 +19,8 @@
 /// `ref.watch(dailyMetricRepositoryProvider)` and never constructs its own.
 /// If that's ever broken, checkin/metrics/pdf_import each end up with a
 /// private copy of the store, and their writes silently stop being visible
-/// to each other even though every isolated unit test still passes.
+/// to each other (or to data_export, which would then export an empty or
+/// stale copy) even though every isolated unit test still passes.
 /// `test/bootstrap_test.dart` guards this against [appProviderOverrides].
 ///
 /// Nothing is wired for coach yet: `coach_domain` has no repository
@@ -34,6 +35,7 @@ import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_data/notifications_data.dart';
@@ -45,7 +47,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 part 'providers.g.dart';
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
-/// pdf_import all read and write through.
+/// pdf_import all read and write through, and data_export reads from.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -80,5 +82,10 @@ final List<Override> appProviderOverrides = [
       parser: CalAIParser(),
       dailyMetrics: ref.watch(dailyMetricRepositoryProvider),
     ),
+  ),
+  // data_export has no `*_data` package: it only reads, through the shared
+  // store's domain interface, so it binds straight to that store.
+  exportDailyMetricRepositoryProvider.overrideWith(
+    (ref) => ref.watch(dailyMetricRepositoryProvider),
   ),
 ];

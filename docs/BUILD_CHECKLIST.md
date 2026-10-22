@@ -210,7 +210,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short
       "not medical advice" note for the coach.
 - [ ] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
-- [ ] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7).
+- [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
+      metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.
 - [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English

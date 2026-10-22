@@ -1,5 +1,6 @@
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
+import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -171,6 +172,51 @@ void main() {
 
       expect(scheduler.cancelled, [DateTime(2026, 10, 19)]);
       expect(tester.takeException(), same(failure));
+    });
+  });
+
+  group('settings', () {
+    test('SettingsRoute.location is /settings', () {
+      expect(const SettingsRoute().location, '/settings');
+    });
+
+    testWidgets('cold start at /settings opens the data export screen', (
+      tester,
+    ) async {
+      await pumpApp(tester, coldStartLocation: '/settings');
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(find.byType(DesignSystemPreview), findsNothing);
+    });
+
+    testWidgets('the home gear button opens settings, and back returns', (
+      tester,
+    ) async {
+      final container = await pumpApp(tester);
+
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(container.read(routerProvider).state.matchedLocation, '/settings');
+
+      await tester.tap(find.byKey(const Key('settingsBackButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DataExportModule), findsNothing);
+      expect(find.byType(DesignSystemPreview), findsOneWidget);
+    });
+
+    testWidgets('back from a cold-started /settings returns home', (
+      tester,
+    ) async {
+      await pumpApp(tester, coldStartLocation: '/settings');
+
+      await tester.tap(find.byKey(const Key('settingsBackButton')));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DesignSystemPreview), findsOneWidget);
     });
   });
 
