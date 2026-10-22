@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
+import 'package:pdfrx_engine/pdfrx_engine.dart';
 
 /// End-to-end check of `CalAIParser` against the real reference export
 /// (personal data, gitignored -- see test/fixtures/README or
@@ -15,6 +16,19 @@ import 'package:pdf_import_data/pdf_import_data.dart';
 void main() {
   final fixture = File('test/fixtures/jordanssummary.pdf');
   final fixtureExists = fixture.existsSync();
+  final shortFixture = File('test/fixtures/summaryjordan7days.pdf');
+  final shortFixtureExists = shortFixture.existsSync();
+
+  setUpAll(() {
+    // pdfium_dart 0.4.0 finds the bundled PDFium via
+    // .dart_tool/native_assets.yaml, which `flutter test` doesn't write, so
+    // loading fails with "Native assets file not found". `flutter test` does
+    // build the library, though; point pdfrx at it directly (#38).
+    final pdfium = File('build/native_assets/macos/libpdfium.dylib');
+    if (pdfium.existsSync()) {
+      Pdfrx.pdfiumModulePath = pdfium.absolute.path;
+    }
+  });
 
   group('CalAIParser', () {
     test(
@@ -43,8 +57,9 @@ void main() {
         // Multi-line wrapped food name reassembled correctly, with no
         // boilerplate (the "Foods Calories ... Time" column header, or
         // "Jordan's Report" page header) leaking into the name.
-        final aug5Names = byDate[DateTime(2025, 8, 5)]!.foodEntries
-            .map((e) => e.name);
+        final aug5Names = byDate[DateTime(2025, 8, 5)]!.foodEntries.map(
+          (e) => e.name,
+        );
         expect(
           aug5Names,
           contains('Muscle Milk Chocolate Peanut Butter Protein Shake'),
@@ -65,6 +80,24 @@ void main() {
       skip: fixtureExists
           ? null
           : 'reference PDF not present at test/fixtures/jordanssummary.pdf',
+    );
+
+    test(
+      'parses the short reference export, with each day summing to its total',
+      () async {
+        final bytes = shortFixture.readAsBytesSync();
+        final days = await CalAIParser().parse(Uint8List.fromList(bytes));
+
+        expect(days, hasLength(8));
+        expect(days.expand((d) => d.foodEntries), hasLength(36));
+        for (final day in days) {
+          final sum = day.foodEntries.fold<int>(0, (s, e) => s + e.calories);
+          expect(sum, day.caloriesEaten, reason: 'day ${day.date}');
+        }
+      },
+      skip: shortFixtureExists
+          ? null
+          : 'reference PDF not present at test/fixtures/summaryjordan7days.pdf',
     );
   });
 }

@@ -27,10 +27,10 @@ void main() {
       expect(days, hasLength(1));
       expect(days.single.date, DateTime(2025, 8));
       expect(days.single.caloriesEaten, 985);
-      expect(
-        days.single.foodEntries.map((e) => e.name),
-        ['Ground Turkey', 'White Rice'],
-      );
+      expect(days.single.foodEntries.map((e) => e.name), [
+        'Ground Turkey',
+        'White Rice',
+      ]);
       expect(days.single.foodEntries.map((e) => e.calories), [780, 205]);
     });
 
@@ -59,6 +59,68 @@ void main() {
       ]);
 
       expect(days.single.foodEntries.single.name, 'Oatmeal');
+    });
+
+    group("skips any <name>'s Report title", () {
+      for (final title in [
+        "Sam's Report",
+        "Alex Kim's Report",
+        'Sam\u2019s Report',
+        "D'Angelo's Report",
+        "Mary-Jane O\u2019Neil's Report",
+      ]) {
+        test(title, () {
+          final days = parser.parsePageLines([
+            title,
+            'Start: 08/02/2025 · End: 08/09/2025',
+            'August 2, 2025',
+            'Oatmeal 300 10g 54g 5g 8g 1g 0mg 7:30am',
+            'TOTAL Calories eaten: 300',
+          ]);
+
+          expect(days.single.foodEntries.single.name, 'Oatmeal');
+        });
+      }
+    });
+
+    test('a food row whose name ends in "Report" still parses as food', () {
+      final days = parser.parsePageLines([
+        "Sam's Report",
+        'August 2, 2025',
+        "Grandma's Report 250 5g 30g 10g 2g 12g 120mg 1:00pm",
+        'Weather Report 90 1g 20g 0g 1g 15g 10mg 2:00pm',
+        'TOTAL Calories eaten: 340',
+      ]);
+
+      expect(days.single.foodEntries.map((e) => e.name), [
+        "Grandma's Report",
+        'Weather Report',
+      ]);
+      expect(days.single.foodEntries.map((e) => e.calories), [250, 90]);
+    });
+
+    test('a title-shaped line below the top of the page stays in the food '
+        'name', () {
+      final days = parser.parsePageLines([
+        "Sam's Report",
+        'August 2, 2025',
+        "Grandma's Report",
+        'Casserole 250 5g 30g 10g 2g 12g 120mg 1:00pm',
+        'TOTAL Calories eaten: 250',
+      ]);
+
+      expect(days.single.foodEntries.single.name, "Grandma's Report Casserole");
+    });
+
+    test('a page whose first line is a date has no title to skip', () {
+      final days = parser.parsePageLines([
+        'August 2, 2025',
+        "Grandma's Report",
+        'Casserole 250 5g 30g 10g 2g 12g 120mg 1:00pm',
+        'TOTAL Calories eaten: 250',
+      ]);
+
+      expect(days.single.foodEntries.single.name, "Grandma's Report Casserole");
     });
 
     test('uses the printed TOTAL, not the sum of the food rows', () {
