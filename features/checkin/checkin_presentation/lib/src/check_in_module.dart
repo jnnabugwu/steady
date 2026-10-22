@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/src/check_in_controller.dart';
+import 'package:checkin_presentation/src/share_week_dialog.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -12,6 +13,9 @@ import 'package:ui_kit/ui_kit.dart';
 /// Knows nothing about routing (CLAUDE.md §5): when a check-in is logged
 /// successfully it calls [onCheckInCompleted], and the app layer decides
 /// what happens next.
+///
+/// Also hosts the "Share week" action (see `showShareWeekDialog`) until a
+/// week view exists.
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
@@ -90,6 +94,17 @@ class CheckInModule extends ConsumerWidget {
                   ),
                   const SizedBox(height: 8),
                 ],
+                const SizedBox(height: 8),
+                // Entry point for the week share card until a week view
+                // exists to host it. Independent of this day's check-in
+                // state: the card reads the whole week itself.
+                GhostButton(
+                  key: const Key('shareWeekButton'),
+                  onPressed: () =>
+                      unawaited(showShareWeekDialog(context, date: day)),
+                  leading: const Icon(LucideIcons.share),
+                  child: const Text('Share week'),
+                ),
               ],
             ),
           ),
