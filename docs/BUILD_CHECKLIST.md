@@ -229,9 +229,12 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 ## Feature: share cards
 
 Entry point: a "Share week" button on the check-in screen (`CheckInModule`) until a week view
-exists. The card (`WeekCard`), its data (`weekCardControllerProvider`) and the dialog
-(`showShareWeekDialog`) live in `checkin_presentation` and take only a date, so a week view
-can host the same flow later through an app-layer callback.
+exists. Everything lives in `checkin_presentation`. The one entry point is
+`showShareWeekDialog(context, date: ...)`: it takes any day of the week and normalizes it with
+`weekCardStart`, so a week view can host the same flow later through an app-layer callback. Under
+it, `weekCardControllerProvider(weekStart)` takes a normalized week start (from
+`weekCardStart`, never a raw date) and yields a `WeekCardData`, and `WeekCard(data: ...)` draws
+that `WeekCardData`.
 
 - [x] Render a week card from a widget in the owning feature's `_presentation` package — wrap
       it in a `RepaintBoundary` with a `GlobalKey`, then
