@@ -87,7 +87,7 @@ void main() {
 
     final dstChanges = _dstChangeDays(2026);
     test(
-      'stays on midnight across the host zone\'s DST changes',
+      "stays on midnight across the host zone's DST changes",
       () {
         for (final change in dstChanges) {
           // The share-card week that contains the change day.

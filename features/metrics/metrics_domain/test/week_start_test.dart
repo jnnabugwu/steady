@@ -60,7 +60,7 @@ void main() {
 
     final dstChanges = _dstChangeDays(2026);
     test(
-      'lands on midnight across the host zone\'s DST changes',
+      "lands on midnight across the host zone's DST changes",
       () {
         for (final change in dstChanges) {
           // The day after the clocks changed, at noon. With every anchor
