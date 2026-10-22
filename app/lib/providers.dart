@@ -11,8 +11,11 @@
 /// target. When an implementation does differ by platform (e.g. the
 /// HealthKit or SwiftData datasource), the choice is made inside this file
 /// with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed
-/// yet: every repository below is backed by an in-memory fake, which is the
-/// same on both platforms.
+/// yet: every repository below is either backed by an in-memory fake or,
+/// for the account status, by the `steady/account` platform channel, whose
+/// one Dart implementation talks to a per-platform Swift handler
+/// (`app/macos/Runner/MainFlutterWindow.swift`,
+/// `app/ios/Runner/AppDelegate.swift`).
 ///
 /// **Shared-store invariant:** [dailyMetricRepositoryProvider] is the single
 /// `DailyMetricRepository`. Every override that needs it does
@@ -30,6 +33,8 @@
 /// the same.
 library;
 
+import 'package:account_data/account_data.dart';
+import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -69,6 +74,12 @@ NotificationScheduler notificationScheduler(Ref ref) =>
 /// implementation. Passed to `ProviderScope` in `main.dart`, and used as-is
 /// by `test/bootstrap_test.dart`.
 final List<Override> appProviderOverrides = [
+  // The iCloud account status (#53). Until CloudKit is configured (the
+  // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native
+  // side answers `notConfigured`, which never blocks the app.
+  accountStatusRepositoryProvider.overrideWith(
+    (ref) => MethodChannelAccountStatusRepository(),
+  ),
   checkInRepositoryProvider.overrideWith(
     (ref) => CheckInRepositoryImpl(ref.watch(dailyMetricRepositoryProvider)),
   ),
