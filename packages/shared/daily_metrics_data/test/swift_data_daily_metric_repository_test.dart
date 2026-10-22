@@ -100,6 +100,35 @@ void main() {
     });
   });
 
+  group('SwiftDataDailyMetricRepository range bounds', () {
+    test('a range past the storable years is clamped, not sent raw', () async {
+      final repo = SwiftDataDailyMetricRepository();
+      await repo.upsert(DateTime(2026, 8, 24), steps: 1);
+      native.calls.clear();
+
+      // Like data_export, which asks for every day a DateTime can hold.
+      final result = await repo.getRange(DateTime(-200000), DateTime(200000));
+
+      expect((result as Ok<List<DailyMetric>>).value.map((m) => m.date), [
+        DateTime(2026, 8, 24),
+      ]);
+      expect(native.calls.single.arguments, {
+        'start': '0000-01-01',
+        'end': '9999-12-31',
+      });
+    });
+
+    test('a range entirely outside the storable years is empty', () async {
+      final result = await SwiftDataDailyMetricRepository().getRange(
+        DateTime(10000),
+        DateTime(10001),
+      );
+
+      expect((result as Ok<List<DailyMetric>>).value, isEmpty);
+      expect(native.calls, isEmpty);
+    });
+  });
+
   group('SwiftDataDailyMetricRepository failure mapping', () {
     final day = DateTime(2026, 8, 24);
 

@@ -29,6 +29,11 @@ class SwiftDataDailyMetricRepository implements DailyMetricRepository {
     this._channel = const MethodChannel(dailyMetricsStoreChannelName),
   });
 
+  /// The span the store can hold: upsert rejects other years, and the
+  /// channel's `yyyy-MM-dd` dates are four-digit.
+  static final DateTime _firstStorableDay = DateTime(0);
+  static final DateTime _lastStorableDay = DateTime(9999, 12, 31);
+
   final MethodChannel _channel;
 
   static Future<void> _queue = Future<void>.value();
@@ -42,11 +47,21 @@ class SwiftDataDailyMetricRepository implements DailyMetricRepository {
   @override
   ResultFuture<List<DailyMetric>> getRange(DateTime start, DateTime end) =>
       _run(() async {
-        final from = _key(start);
-        final to = _key(end);
-        if (from.isAfter(to)) {
+        final requestedFrom = _key(start);
+        final requestedTo = _key(end);
+        if (requestedFrom.isAfter(requestedTo)) {
           return const Err(ValidationFailure('start must not be after end'));
         }
+        // The store only ever holds years 0000-9999 (upsert rejects the
+        // rest) and the channel's dates are four-digit, so clamp to that
+        // span. Callers like data_export ask for every representable day.
+        final from = requestedFrom.isBefore(_firstStorableDay)
+            ? _firstStorableDay
+            : requestedFrom;
+        final to = requestedTo.isAfter(_lastStorableDay)
+            ? _lastStorableDay
+            : requestedTo;
+        if (from.isAfter(to)) return const Ok([]);
         final reply = await _channel.invokeMethod<Object?>('range', {
           'start': formatDailyMetricDate(from),
           'end': formatDailyMetricDate(to),
