@@ -114,7 +114,9 @@ else
 
   # The test harness itself changed: its selection logic can't be trusted
   # to pick its own scope, so test everything.
-  if echo "$changed_files" | grep -qE '^(scripts/test\.sh|\.github/workflows/)'; then
+  # Here-strings, not `echo ... | grep -q`: under pipefail, grep -q exiting
+  # on the first match can SIGPIPE the writer and fail the whole test.
+  if grep -qE '^(scripts/test\.sh|\.github/workflows/)' <<< "$changed_files"; then
     echo "scripts/test.sh or a workflow changed; testing every package."
     RUN_ALL=true
     all_reason="test harness changed"
@@ -147,7 +149,7 @@ $dir	changed"
         dependents="$(printf '%s\n' "$edges" | awk -F'\t' -v d="$pkg" '$1 == d { print $2 }')"
         while IFS= read -r dependent; do
           [[ -z "$dependent" ]] && continue
-          if ! printf '%s\n' "$closure" | grep -qxF "$dependent"; then
+          if ! grep -qxF "$dependent" <<< "$closure"; then
             closure="$closure
 $dependent"
             next="$next
