@@ -34,9 +34,24 @@ class CalAIParser {
   /// must be skipped outright, not absorbed into the pending-name buffer,
   /// or they get prepended to the next real food entry's name.
   static const _boilerplateLines = {
-    "Jordan's Report",
     'Foods Calories Protein Carbs Fat Fiber Sugar Sodium Time',
   };
+
+  /// The per-page report title, `<name>'s Report`, where the name is the
+  /// exporting user's (letters, spaces, hyphens, periods, apostrophes;
+  /// straight or curly apostrophe before the `s`). Matched against the
+  /// whole trimmed line, and the name may not contain digits, so a food row
+  /// (which always ends in the numeric 8-token tail) can never match even
+  /// if the food's name itself ends in "Report".
+  ///
+  /// Only skipped as the page's first non-empty line, which is where Cal AI
+  /// prints it. Anywhere else a title-shaped line is a wrapped food-name
+  /// fragment (e.g. `Grandma's Report` above its numeric row) and must
+  /// reach the pending-name buffer.
+  static final _reportTitlePattern = RegExp(
+    r"^\p{L}[\p{L}\p{M} .'\u2019-]*['\u2019]s Report$",
+    unicode: true,
+  );
 
   static const _monthNames = {
     'January': 1,
@@ -83,9 +98,14 @@ class CalAIParser {
     var pendingName = '';
     var currentEntries = <ParsedFoodEntry>[];
 
+    var isFirstLine = true;
+
     for (final rawLine in lines) {
       final line = rawLine.trim();
-      if (line.isEmpty || _isBoilerplate(line)) continue;
+      if (line.isEmpty) continue;
+      final isPageTitle = isFirstLine && _reportTitlePattern.hasMatch(line);
+      isFirstLine = false;
+      if (isPageTitle || _isBoilerplate(line)) continue;
 
       final dateMatch = _dateHeaderPattern.firstMatch(line);
       if (dateMatch != null) {
