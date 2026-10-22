@@ -44,10 +44,11 @@ class CalAIParser {
   /// (which always ends in the numeric 8-token tail) can never match even
   /// if the food's name itself ends in "Report".
   ///
-  /// Only skipped as the page's first non-empty line, which is where Cal AI
-  /// prints it. Anywhere else a title-shaped line is a wrapped food-name
-  /// fragment (e.g. `Grandma's Report` above its numeric row) and must
-  /// reach the pending-name buffer.
+  /// Skipped only where a title can be: the page's first non-empty line
+  /// (where Cal AI prints it), or a line followed by boilerplate, a date
+  /// header, or the end of the page. A wrapped food-name fragment (e.g.
+  /// `Grandma's Report` above its numeric row) is always followed by its
+  /// row or another fragment, so it reaches the pending-name buffer.
   static final _reportTitlePattern = RegExp(
     r"^\p{L}[\p{L}\p{M} .'\u2019-]*['\u2019]s Report$",
     unicode: true,
@@ -98,14 +99,13 @@ class CalAIParser {
     var pendingName = '';
     var currentEntries = <ParsedFoodEntry>[];
 
-    var isFirstLine = true;
+    final trimmed = [
+      for (final rawLine in lines)
+        if (rawLine.trim() case final line when line.isNotEmpty) line,
+    ];
 
-    for (final rawLine in lines) {
-      final line = rawLine.trim();
-      if (line.isEmpty) continue;
-      final isPageTitle = isFirstLine && _reportTitlePattern.hasMatch(line);
-      isFirstLine = false;
-      if (isPageTitle || _isBoilerplate(line)) continue;
+    for (final (index, line) in trimmed.indexed) {
+      if (_isPageTitle(trimmed, index) || _isBoilerplate(line)) continue;
 
       final dateMatch = _dateHeaderPattern.firstMatch(line);
       if (dateMatch != null) {
@@ -185,6 +185,16 @@ class CalAIParser {
 
   int _stripUnit(String token) =>
       int.parse(token.replaceAll(RegExp(r'[a-z]+$'), ''));
+
+  /// Whether `lines[index]` is the report title rather than a wrapped
+  /// food-name fragment that happens to look like one. See
+  /// [_reportTitlePattern].
+  bool _isPageTitle(List<String> lines, int index) {
+    if (!_reportTitlePattern.hasMatch(lines[index])) return false;
+    if (index == 0 || index == lines.length - 1) return true;
+    final next = lines[index + 1];
+    return _isBoilerplate(next) || _dateHeaderPattern.hasMatch(next);
+  }
 
   bool _isBoilerplate(String line) =>
       _boilerplateLines.contains(line) || line.startsWith('Start:');
