@@ -51,10 +51,24 @@ class HomeRoute extends GoRouteData with $HomeRoute {
   const HomeRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      MetricsHistoryModule(
-        onImportRequested: () => unawaited(const ImportRoute().push(context)),
-      );
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return MetricsHistoryModule(
+      onImportRequested: () => unawaited(_import(context, container)),
+    );
+  }
+
+  /// Opens the import flow, then refreshes the history however it closes.
+  /// Refreshing on return rather than on completion also covers leaving
+  /// mid-commit, when the days are written but the import screen is gone
+  /// before it can report completion.
+  static Future<void> _import(
+    BuildContext context,
+    ProviderContainer container,
+  ) async {
+    await const ImportRoute().push<void>(context);
+    container.invalidate(metricsHistoryControllerProvider);
+  }
 }
 
 /// `/import`: the Cal AI PDF import flow.
@@ -68,12 +82,12 @@ class ImportRoute extends GoRouteData with $ImportRoute {
     final container = ProviderScope.containerOf(context, listen: false);
     return PdfImportModule(
       onImportCompleted: () {
-        // The history screen may still be mounted under this route, so
-        // refresh it rather than relying on auto-dispose.
-        container.invalidate(metricsHistoryControllerProvider);
         if (context.canPop()) {
+          // HomeRoute refreshes the history once this route pops.
           context.pop();
         } else {
+          // Cold start straight into /import: no history under us yet.
+          container.invalidate(metricsHistoryControllerProvider);
           const HomeRoute().go(context);
         }
       },

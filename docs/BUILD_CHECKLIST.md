@@ -94,7 +94,7 @@ items land; don't let it drift into a change log — keep it a current-state che
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
 - [x] Interim: `FileDailyMetricRepository` persists the shared store to one JSON file in the
-      app-support directory (#41, wired in #42). Local-only, no sync; replaced by #43.
+      app-support directory. Local-only, no sync; replaced by the SwiftData store below.
 
 - [ ] Per-feature `@Model` schema design, respecting the CloudKit constraints already
       decided in `CLAUDE.md`: every attribute optional or defaulted, no
@@ -126,7 +126,7 @@ items land; don't let it drift into a change log — keep it a current-state che
       `packages/shared/daily_metrics_domain`, not `metrics_domain` (see
       `docs/technical_decisions.md`, "Where the shared `DailyMetric` entity lives").
 - [ ] `metrics_data`: SwiftData datasource, repo impl.
-- [x] `metrics_presentation`: minimal metrics history list, the home screen (#40).
+- [x] `metrics_presentation`: minimal metrics history list, the home screen.
 - [ ] `metrics_presentation`: weekly draggable 7-day view; metrics history page with
       per-metric mini-chart cards and a W/M/6M period toggle.
 
@@ -144,13 +144,14 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Known residual risk to watch, not yet observed: `currentDate` / pending-name buffer
       resets per PDF page — a day's food list spilling across a page boundary without a
       repeated date header would silently drop entries after the break.
-- [x] Report title matched as any `<name>'s Report`, so friends' exports parse cleanly (#37).
+- [x] Report title matched as any `<name>'s Report` (only as a page's first line), so
+      friends' exports parse cleanly.
 - [x] `pdf_import_presentation`: `PdfImportModule` — pick a PDF, preview the days, import
-      the daily totals (#39). Wired at `/import` (#42).
-- [x] PDFium loads in the macOS app (`app/lib/pdfium.dart`) and under `flutter test` (#38).
+      the daily totals. Wired at `/import`.
+- [x] PDFium loads in the macOS app (`app/lib/pdfium.dart`) and under `flutter test`.
       Verified end to end by `app/integration_test/pdf_import_e2e_test.dart`.
-- [ ] iOS: PDFium via `pdfium_flutter` + document picker (#44).
-- [ ] Rows land in SwiftData rather than the interim JSON file (#43; no backend, ever — see
+- [ ] iOS: PDFium via `pdfium_flutter` + document picker.
+- [ ] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
       `CLAUDE.md` §12).
 
 ## Feature: coach (CLAUDE.md §11)
