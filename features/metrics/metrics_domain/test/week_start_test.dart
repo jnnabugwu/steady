@@ -6,9 +6,10 @@ import 'package:metrics_domain/metrics_domain.dart';
 ///
 /// Derived from the host zone instead of hard-coding a US date: Dart's local
 /// time always follows the host's zone (it can't be overridden from inside a
-/// test), and this repo's CI runs no tests, so there is no fixed zone to rely
-/// on. Empty when the host zone has no DST, in which case there is nothing
-/// to cross and the DST test is skipped rather than passing vacuously.
+/// test). CI's runners are UTC, so the test workflow sets
+/// `TZ=America/Chicago` to make this case run there. Empty when the host
+/// zone has no DST, in which case there is nothing to cross and the DST test
+/// is skipped rather than passing vacuously.
 List<DateTime> _dstChangeDays(int year) => [
   for (
     var day = DateTime(year);

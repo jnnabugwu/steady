@@ -146,7 +146,10 @@ String _$dailyMetricRepositoryHash() =>
 /// it, e.g. a route cancelling the reminder once a check-in completes
 /// (CLAUDE.md §5).
 ///
-/// `keepAlive`: cheap and stateless, so recreating it gains nothing (D6).
+/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
+/// set of scheduled reminder dates, so disposing and recreating it would
+/// silently drop every pending reminder. The lifetime is about that state,
+/// not construction cost (D6).
 
 @ProviderFor(notificationScheduler)
 final notificationSchedulerProvider = NotificationSchedulerProvider._();
@@ -158,7 +161,10 @@ final notificationSchedulerProvider = NotificationSchedulerProvider._();
 /// it, e.g. a route cancelling the reminder once a check-in completes
 /// (CLAUDE.md §5).
 ///
-/// `keepAlive`: cheap and stateless, so recreating it gains nothing (D6).
+/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
+/// set of scheduled reminder dates, so disposing and recreating it would
+/// silently drop every pending reminder. The lifetime is about that state,
+/// not construction cost (D6).
 
 final class NotificationSchedulerProvider
     extends
@@ -175,7 +181,10 @@ final class NotificationSchedulerProvider
   /// it, e.g. a route cancelling the reminder once a check-in completes
   /// (CLAUDE.md §5).
   ///
-  /// `keepAlive`: cheap and stateless, so recreating it gains nothing (D6).
+  /// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
+  /// set of scheduled reminder dates, so disposing and recreating it would
+  /// silently drop every pending reminder. The lifetime is about that state,
+  /// not construction cost (D6).
   NotificationSchedulerProvider._()
     : super(
         from: null,

@@ -88,7 +88,10 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 /// it, e.g. a route cancelling the reminder once a check-in completes
 /// (CLAUDE.md §5).
 ///
-/// `keepAlive`: cheap and stateless, so recreating it gains nothing (D6).
+/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
+/// set of scheduled reminder dates, so disposing and recreating it would
+/// silently drop every pending reminder. The lifetime is about that state,
+/// not construction cost (D6).
 @Riverpod(keepAlive: true)
 NotificationScheduler notificationScheduler(Ref ref) =>
     InMemoryNotificationScheduler();
