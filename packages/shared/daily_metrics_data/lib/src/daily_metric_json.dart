@@ -17,7 +17,7 @@ const int dailyMetricsJsonVersion = 1;
 /// (CLAUDE.md §9).
 Map<String, Object?> encodeDailyMetrics(Iterable<DailyMetric> metrics) => {
   'version': dailyMetricsJsonVersion,
-  'metrics': [for (final m in metrics) _encode(m)],
+  'metrics': [for (final m in metrics) encodeDailyMetric(m)],
 };
 
 /// Decodes the envelope written by [encodeDailyMetrics].
@@ -37,11 +37,13 @@ List<DailyMetric> decodeDailyMetrics(Object? json) {
   if (metrics is! List<Object?>) {
     throw const FormatException('Expected "metrics" to be a list');
   }
-  return [for (final m in metrics) _decode(m)];
+  return [for (final m in metrics) decodeDailyMetric(m)];
 }
 
-Map<String, Object?> _encode(DailyMetric m) => {
-  'date': _formatDate(m.date),
+/// Encodes one row as a map with `date` (`yyyy-MM-dd`) plus every field.
+/// Also the row format of the `steady/daily_metrics` channel.
+Map<String, Object?> encodeDailyMetric(DailyMetric m) => {
+  'date': formatDailyMetricDate(m.date),
   'caloriesEaten': m.caloriesEaten,
   'caloriesBurnedActive': m.caloriesBurnedActive,
   'caloriesBurnedBasal': m.caloriesBurnedBasal,
@@ -49,7 +51,9 @@ Map<String, Object?> _encode(DailyMetric m) => {
   'loggingStatus': m.loggingStatus?.name,
 };
 
-DailyMetric _decode(Object? json) {
+/// Decodes one row written by [encodeDailyMetric]. Throws
+/// [FormatException] for a wrong shape, bad date or unknown logging status.
+DailyMetric decodeDailyMetric(Object? json) {
   if (json is! Map<String, Object?>) {
     throw const FormatException('Expected each metric to be a JSON object');
   }
@@ -79,7 +83,8 @@ LoggingStatus? _optionalLoggingStatus(Object? value) {
 
 final RegExp _datePattern = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$');
 
-String _formatDate(DateTime date) {
+/// Formats [date]'s calendar day as `yyyy-MM-dd`.
+String formatDailyMetricDate(DateTime date) {
   String two(int n) => n.toString().padLeft(2, '0');
   return '${date.year.toString().padLeft(4, '0')}-'
       '${two(date.month)}-${two(date.day)}';

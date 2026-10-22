@@ -1,11 +1,10 @@
 import 'dart:io';
 
 import 'package:daily_metrics_data/daily_metrics_data.dart';
+import 'package:daily_metrics_data/testing/daily_metric_repository_contract.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'daily_metric_repository_contract.dart';
 
 void main() {
   late Directory tempDir;

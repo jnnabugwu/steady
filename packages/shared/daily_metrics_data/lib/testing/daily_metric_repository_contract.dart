@@ -3,10 +3,13 @@ import 'package:failures/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Runs the shared `DailyMetricRepository` contract against whatever
-/// implementation [build] constructs. Used against the in-memory fake today
-/// and the real SwiftData-backed implementation later, so behavioral parity
-/// between the two is enforced by construction rather than hand-copied
-/// assertions across two test files.
+/// implementation [build] constructs: the in-memory and file repositories,
+/// `SwiftDataDailyMetricRepository` over a fake channel (unit tests here),
+/// and the same over real SwiftData (`app/integration_test/`). Behavioral
+/// parity is enforced by construction rather than hand-copied assertions.
+///
+/// Lives under `lib/testing/` rather than `test/` so `app/` can import it.
+/// Test-only: never import it from `lib/src/`.
 void runDailyMetricRepositoryContractTests(
   DailyMetricRepository Function() build,
 ) {

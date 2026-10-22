@@ -1,5 +1,5 @@
 name: daily_metrics_data
-description: "A new Flutter package project."
+description: "DailyMetricRepository implementations: SwiftData over a platform channel (live), in-memory (tests), and the interim JSON file (migration source)."
 version: 0.0.1
 homepage:
 publish_to: 'none'
@@ -11,14 +11,22 @@ environment:
 dependencies:
   daily_metrics_domain:
     path: ../daily_metrics_domain
+  # Native side of the channel SwiftDataDailyMetricRepository talks to.
+  # data -> plugin, never the reverse: the plugin is a leaf with no Dart
+  # logic, and depending on it here is what registers it in the app.
+  daily_metrics_store:
+    path: ../../../packages_native/daily_metrics_store
   failures:
     path: ../failures
   flutter:
     sdk: flutter
-
-dev_dependencies:
+  # A regular dependency only for lib/testing/ (the shared repository
+  # contract and the fake native store), which app/ tests import too.
+  # Nothing under lib/src/ imports it.
   flutter_test:
     sdk: flutter
+
+dev_dependencies:
   very_good_analysis: ^11.0.0
 
 # For information on the generic Dart part of this file, see the

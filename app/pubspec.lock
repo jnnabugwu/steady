@@ -257,6 +257,13 @@ packages:
       relative: true
     source: path
     version: "0.0.1"
+  daily_metrics_store:
+    dependency: transitive
+    description:
+      path: "../packages_native/daily_metrics_store"
+      relative: true
+    source: path
+    version: "0.0.1"
   dart_style:
     dependency: transitive
     description:
@@ -296,7 +303,7 @@ packages:
     source: hosted
     version: "3.0.0"
   failures:
-    dependency: "direct dev"
+    dependency: "direct main"
     description:
       path: "../packages/shared/failures"
       relative: true

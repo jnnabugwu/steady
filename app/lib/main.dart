@@ -1,7 +1,10 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:account_presentation/account_presentation.dart';
+import 'package:daily_metrics_data/daily_metrics_data.dart';
+import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -13,18 +16,53 @@ import 'package:ui_kit/ui_kit.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configurePdfium();
-  final supportDir = await getApplicationSupportDirectory();
-  runApp(
-    ProviderScope(
-      overrides: [
-        ...appProviderOverrides,
-        dailyMetricsFileProvider.overrideWithValue(
-          File('${supportDir.path}/daily_metrics.json'),
-        ),
-      ],
-      child: const SteadyApp(),
-    ),
+  // Built before runApp so the one-time migration below writes through the
+  // same shared repository instance the app then uses.
+  final container = ProviderContainer(
+    overrides: [
+      ...appProviderOverrides,
+      dailyMetricStoreProvider.overrideWithValue(DailyMetricStore.swiftData),
+    ],
   );
+  await _migrateInterimFileStore(container);
+  runApp(
+    UncontrolledProviderScope(container: container, child: const SteadyApp()),
+  );
+}
+
+/// Moves rows from the interim JSON file store into SwiftData, once (the
+/// file is renamed afterwards). Any failure, including the support
+/// directory lookup throwing, is logged, not fatal: the app still starts,
+/// and the file is left in place, so the next launch retries.
+Future<void> _migrateInterimFileStore(ProviderContainer container) async {
+  final Result<int> result;
+  try {
+    final supportDir = await getApplicationSupportDirectory();
+    result = await migrateFileStore(
+      File('${supportDir.path}/daily_metrics.json'),
+      container.read(dailyMetricRepositoryProvider),
+    );
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Daily metrics migration failed',
+      name: 'steady',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return;
+  }
+  switch (result) {
+    case Ok(value: 0):
+      break;
+    case Ok(:final value):
+      developer.log('Migrated $value rows into SwiftData', name: 'steady');
+    case Err(:final failure):
+      developer.log(
+        'Daily metrics migration failed: ${failure.message}',
+        name: 'steady',
+        error: failure.cause ?? failure,
+      );
+  }
 }
 
 /// Root widget. DI is wired by the `ProviderScope` in [main] (see
