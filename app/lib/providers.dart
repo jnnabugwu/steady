@@ -11,9 +11,10 @@
 /// target. When an implementation does differ by platform (e.g. the
 /// HealthKit or SwiftData datasource), the choice is made inside this file
 /// with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed
-/// yet: every repository below is either backed by an in-memory fake or,
-/// for the account status, by the `steady/account` platform channel, whose
-/// one Dart implementation talks to a per-platform Swift handler
+/// yet: the shared store is an interim JSON file (in-memory in tests),
+/// every other repository is in-memory, the same on both platforms, and
+/// the account status goes through the `steady/account` platform channel,
+/// whose one Dart implementation talks to a per-platform Swift handler
 /// (`app/macos/Runner/MainFlutterWindow.swift`,
 /// `app/ios/Runner/AppDelegate.swift`).
 ///
@@ -33,6 +34,8 @@
 /// the same.
 library;
 
+import 'dart:io';
+
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_data/checkin_data.dart';
@@ -49,14 +52,32 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'providers.g.dart';
 
+/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
+/// for an in-memory store.
+///
+/// `null` by default, so tests built from [appProviderOverrides] stay
+/// in-memory and touch no disk. `main.dart` overrides it with a file in the
+/// app-support directory, which needs an async `path_provider` lookup before
+/// `runApp`.
+@Riverpod(keepAlive: true)
+File? dailyMetricsFile(Ref ref) => null;
+
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through.
+///
+/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
+/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
+/// changes only this body.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
 @Riverpod(keepAlive: true)
-DailyMetricRepository dailyMetricRepository(Ref ref) =>
-    InMemoryDailyMetricRepository();
+DailyMetricRepository dailyMetricRepository(Ref ref) {
+  final file = ref.watch(dailyMetricsFileProvider);
+  return file == null
+      ? InMemoryDailyMetricRepository()
+      : FileDailyMetricRepository(file);
+}
 
 /// Schedules and cancels the end-of-day reminder.
 ///

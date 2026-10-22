@@ -217,6 +217,11 @@ vocabulary by grep. In Riverpod, the domain event is the method:
 - Async, repository-backed state: an `AsyncNotifier` (`@riverpod class ... extends
   _$...` with `Future<T> build(...)`). `AsyncValue` covers loading/data/error, so there's
   no hand-written `status` enum or `copyWith` state class.
+- Exception: a multi-step flow whose steps fail *differently* may use a hand-written
+  sealed state instead. `PdfImportState` is the one case so far: a failed parse sends the
+  user back to pick a file, but a failed commit keeps the preview on screen for a retry,
+  which `AsyncValue` can only express through error-with-retained-value combinations.
+  Failures in it are still typed `Failure`s translated from `Result`.
 - Per-entity screens are **families**: `checkInControllerProvider(date)`. Normalize
   `DateTime` arguments to midnight first, or the same day at two times becomes two
   providers.

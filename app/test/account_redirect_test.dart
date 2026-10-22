@@ -9,8 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/app_router.dart';
-import 'package:steady/design_system_preview.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 
@@ -59,7 +60,8 @@ void main() {
     return ProviderScope.containerOf(tester.element(find.byType(SteadyApp)));
   }
 
-  final home = find.byType(DesignSystemPreview);
+  final home = find.byType(MetricsHistoryModule);
+  final importScreen = find.byType(PdfImportModule);
   final signIn = find.byType(SignInModule);
   final checkAgain = find.byKey(const Key('signInButton_checkAgain'));
 
@@ -206,6 +208,27 @@ void main() {
       expect(signIn, findsOneWidget);
     });
 
+    testWidgets('/import with noAccount goes to /sign-in', (tester) async {
+      nativeStatus = () => 'noAccount';
+      final container = await pumpApp(tester, coldStartLocation: '/import');
+
+      expect(signIn, findsOneWidget);
+      expect(importScreen, findsNothing);
+      expect(location(container), '/sign-in');
+    });
+
+    for (final status in ['available', 'notConfigured', 'couldNotDetermine']) {
+      testWidgets('/import with $status opens the import screen', (
+        tester,
+      ) async {
+        nativeStatus = () => status;
+        await pumpApp(tester, coldStartLocation: '/import');
+
+        expect(importScreen, findsOneWidget);
+        expect(signIn, findsNothing);
+      });
+    }
+
     testWidgets('/sign-in with notConfigured goes home', (tester) async {
       nativeStatus = () => 'notConfigured';
       final container = await pumpApp(tester, coldStartLocation: '/sign-in');
@@ -276,6 +299,21 @@ void main() {
       expect(nativeCalls.where((m) => m == 'accountStatus'), hasLength(2));
     });
 
+    testWidgets('signing out while on the pushed import screen goes to '
+        '/sign-in on resume', (tester) async {
+      final container = await pumpApp(tester);
+      await tester.tap(find.byKey(const Key('importButton_header')));
+      await tester.pumpAndSettle();
+      expect(importScreen, findsOneWidget);
+
+      nativeStatus = () => 'noAccount';
+      await resumeApp(tester);
+
+      expect(signIn, findsOneWidget);
+      expect(importScreen, findsNothing);
+      expect(location(container), '/sign-in');
+    });
+
     testWidgets('signing out while in the background is caught on resume', (
       tester,
     ) async {
@@ -322,6 +360,7 @@ void main() {
   group('redirectForAccount', () {
     final locations = [
       '/',
+      '/import',
       '/sign-in',
       '/checkin/2026-10-19',
       '/checkin/garbage',
