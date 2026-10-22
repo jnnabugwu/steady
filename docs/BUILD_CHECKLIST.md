@@ -166,10 +166,39 @@ items land; don't let it drift into a change log — keep it a current-state che
       real identifier before any TestFlight/App Store step.
 - [ ] Entitlements: HealthKit, Foundation Models (macOS only), CloudKit container.
 - [ ] Real app icons (currently placeholder from scaffold).
-- [ ] Open, undecided per `CLAUDE.md` §11: whether to lower iOS's hardware/OS floor now
-      that Foundation Models no longer gates it there — HealthKit and SwiftData/CloudKit
-      don't need A17 Pro+. Not resolved by that doc; revisit when there's a reason to
-      care about broader iPhone compatibility.
+- [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
+      friends' iPhones. HealthKit and SwiftData/CloudKit don't need A17 Pro+.
+
+## Opening to friends (TestFlight, US, Apple-only)
+
+Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not live data".
+
+- [ ] Apple Developer Program membership, real bundle ID, signing — before any CloudKit
+      schema is deployed to production.
+- [ ] Finalize every `@Model` schema before the first production deploy: CloudKit's
+      production schema is additive-only (no field removal or rename once users have data).
+- [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short
+      "not medical advice" note for the coach.
+- [ ] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
+- [ ] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7).
+- [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
+      server) before considering a third-party service.
+- [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English
+      month names, 12-hour `3:11pm` times, whole-number grams, `Calories eaten:` label) hold
+      beyond the one validated account; a parse failure must surface as a `Failure`, not
+      empty data.
+
+## Feature: share cards
+
+- [ ] Render a week card from a widget (`RepaintBoundary.toImage` → PNG) in the owning
+      feature's `_presentation` package — default content: the 7 check-in statuses.
+- [ ] Calories / steps are opt-in per share (off by default).
+- [ ] `share_plus`: `SharePlus.instance.share(ShareParams(files: [XFile.fromData(png,
+      mimeType: 'image/png')]))`, with `sharePositionOrigin` set for iPad.
+- [ ] Card design follows the single-hue status ladder (product doc §10) — no red/green.
+- [ ] Not in v1: a direct Instagram Story button (needs a Meta App ID; see the decision
+      record).
+- [ ] Live in-app sharing is deferred — `docs/live_sharing_research.md` before any work.
 
 ## Testing
 

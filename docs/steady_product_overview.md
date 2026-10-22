@@ -1,7 +1,8 @@
 # Steady — Product Overview
 
-*A personal-use iOS + macOS app for tracking food, steps, and consistency — with an
-on-device coach.*
+*An iOS + macOS app for tracking food, steps, and consistency — with an on-device coach.
+Built for personal use first, then opened to a small group of friends via TestFlight (US,
+Apple-only), each with their own private copy of their data.*
 
 ## 1. Product Goals
 
@@ -19,6 +20,9 @@ on-device coach.*
   "how's my tracking going," since it's self-reported rather than inferred.
 - An on-device **coach** (not "therapist") for craving support and a weekly 15-minute
   check-in session, focused on tracking consistency and behavior — not calorie prescriptions.
+- **Share cards**: share an image of your week (check-in statuses by default; calories and
+  steps only if you choose) to Messages, Instagram, or anywhere the share sheet reaches.
+  Friends never see each other's data inside the app (see `technical_decisions.md`).
 
 **Explicitly parked (not being built right now):**
 
