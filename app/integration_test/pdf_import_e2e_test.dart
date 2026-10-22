@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:daily_metrics_data/testing/daily_metrics_store_test_control.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter/widgets.dart';
@@ -21,8 +22,10 @@ import 'package:steady/providers.dart';
 const _e2ePdfPath = String.fromEnvironment('E2E_PDF_PATH');
 
 /// End-to-end PDF import in the real app (macOS or iOS): PDFium loading,
-/// parsing, committing to the file-backed store, and reading it back after
-/// a simulated restart. Only the native file dialog is replaced.
+/// parsing, committing to the real SwiftData store (a separate `e2e` test
+/// store, never the user's data), and reading it back after a simulated
+/// restart that also reopens the store from disk. Only the native file
+/// dialog is replaced.
 ///
 /// The export (personal data, never committed) comes from `E2E_PDF_PATH`
 /// when it's set, and the test fails if that file is unreadable (no
@@ -53,8 +56,9 @@ void main() {
         return;
       }
     }
-    final store = File('${support.path}/e2e_daily_metrics.json');
-    if (store.existsSync()) store.deleteSync();
+    await DailyMetricsStoreTestControl.useStore('e2e');
+    await DailyMetricsStoreTestControl.reset();
+    addTearDown(() => DailyMetricsStoreTestControl.useStore(null));
     final bytes = pdf.readAsBytesSync();
     // The expected rows come from the parser directly, so the test checks
     // what the app stored against what's actually in this export.
@@ -88,7 +92,7 @@ void main() {
     Widget app() => ProviderScope(
       overrides: [
         ...appProviderOverrides,
-        dailyMetricsFileProvider.overrideWithValue(store),
+        dailyMetricStoreProvider.overrideWithValue(DailyMetricStore.swiftData),
         pdfFilePickerProvider.overrideWithValue(() async => bytes),
       ],
       child: const SteadyApp(),
@@ -117,15 +121,16 @@ void main() {
     expect(find.textContaining(summary), findsOneWidget);
     expect(await stored(container()), expected);
 
-    // Restart: a fresh ProviderScope over the same file.
+    // Restart: a fresh ProviderScope, and the store reopened from disk.
     await tester.pumpWidget(const SizedBox());
+    await DailyMetricsStoreTestControl.useStore('e2e');
     await tester.pumpWidget(app());
     await tester.pumpAndSettle();
     expect(find.textContaining(summary), findsOneWidget);
     expect(await stored(container()), expected);
-    // Surfaced in the run log as evidence of where the store landed.
+    // Surfaced in the run log as evidence of what reached SwiftData.
     // ignore: avoid_print
-    print('E2E: ${store.lengthSync()} bytes stored at ${store.path}');
+    print('E2E: ${expected.length} days read back from SwiftData');
   });
 }
 

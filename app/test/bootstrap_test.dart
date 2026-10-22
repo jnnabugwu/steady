@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:account_domain/account_domain.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
+import 'package:daily_metrics_data/testing/fake_daily_metrics_store.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
@@ -23,6 +22,8 @@ import 'package:steady/providers.dart';
 /// [appProviderOverrides] list rather than hand-picked fakes, so a broken
 /// override fails here even when every feature's own unit tests pass.
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   late ProviderContainer container;
 
   setUp(() {
@@ -169,15 +170,15 @@ void main() {
     expect(bundle.dailyMetrics.map((m) => m.date), dates);
   });
 
-  test('with a dailyMetricsFile, imports survive into a fresh container '
+  test('with the SwiftData store, imports survive into a fresh container '
       '(an app restart)', () async {
-    final dir = Directory.systemTemp.createTempSync('steady_bootstrap_');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final file = File('${dir.path}/daily_metrics.json');
+    // A Dart stand-in for the native plugin; its rows outlive containers.
+    final native = FakeDailyMetricsStore()..install();
+    addTearDown(native.uninstall);
     ProviderContainer launch() => ProviderContainer.test(
       overrides: [
         ...appProviderOverrides,
-        dailyMetricsFileProvider.overrideWithValue(file),
+        dailyMetricStoreProvider.overrideWithValue(DailyMetricStore.swiftData),
       ],
     );
 
@@ -185,11 +186,14 @@ void main() {
     final first = launch();
     expect(
       first.read(dailyMetricRepositoryProvider),
-      isA<FileDailyMetricRepository>(),
+      isA<SwiftDataDailyMetricRepository>(),
     );
     await first.read(pdfImportRepositoryProvider).commitDailyTotals([
       ParsedDay(date: date, caloriesEaten: 1850, foodEntries: const []),
     ]);
+    await first
+        .read(checkInRepositoryProvider)
+        .logCheckIn(date, CheckInStatus.partial);
 
     final result = await launch()
         .read(metricsRepositoryProvider)
@@ -197,18 +201,26 @@ void main() {
     final rows = (result as Ok<List<DailyMetric>>).value;
 
     expect(rows.single.caloriesEaten, 1850);
+    expect(rows.single.loggingStatus, LoggingStatus.partial);
   });
 
-  test('with a dailyMetricsFile, data_export reads the file-backed store, '
-      'including days written before an app restart', () async {
-    final dir = Directory.systemTemp.createTempSync('steady_bootstrap_');
-    addTearDown(() => dir.deleteSync(recursive: true));
-    final file = File('${dir.path}/daily_metrics.json');
+  test('by default the shared store is in memory (no native plugin)', () {
+    expect(
+      container.read(dailyMetricRepositoryProvider),
+      isA<InMemoryDailyMetricRepository>(),
+    );
+  });
+
+  test('with the SwiftData store, data_export reads it, including days '
+      'written before an app restart', () async {
+    // A Dart stand-in for the native plugin; its rows outlive containers.
+    final native = FakeDailyMetricsStore()..install();
+    addTearDown(native.uninstall);
     final shared = <ExportFile>[];
     ProviderContainer launch() => ProviderContainer.test(
       overrides: [
         ...appProviderOverrides,
-        dailyMetricsFileProvider.overrideWithValue(file),
+        dailyMetricStoreProvider.overrideWithValue(DailyMetricStore.swiftData),
         exportFileSharerProvider.overrideWithValue((
           exported, {
           sharePositionOrigin,
@@ -225,12 +237,12 @@ void main() {
       ParsedDay(date: date, caloriesEaten: 1850, foodEntries: const []),
     ]);
 
-    // A fresh container: the export can only see the day through the file.
+    // A fresh container: the export can only see the day through the store.
     final exporting = launch();
     expect(
       exporting.read(exportDailyMetricRepositoryProvider),
       allOf(
-        isA<FileDailyMetricRepository>(),
+        isA<SwiftDataDailyMetricRepository>(),
         same(exporting.read(dailyMetricRepositoryProvider)),
       ),
     );

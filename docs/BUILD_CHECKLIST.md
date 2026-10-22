@@ -88,20 +88,36 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit) selected inside that list via
-      `Platform.isIOS`/`isMacOS` or conditional imports — none exist yet; everything bound
-      today is in-memory.
+      `Platform.isIOS`/`isMacOS` or conditional imports — none exist yet; the shared store
+      is the same SwiftData plugin on both targets, account status goes through the
+      `steady/account` channel, and every other feature data repository is in-memory.
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
-- [x] Interim: `FileDailyMetricRepository` persists the shared store to one JSON file in the
-      app-support directory. Local-only, no sync; replaced by the SwiftData store below.
+- [x] Shared `DailyMetric` store live in SwiftData: `packages_native/daily_metrics_store`
+      (`DailyMetricRecord` `@Model`, `steady/daily_metrics` channel) +
+      `SwiftDataDailyMetricRepository`. Contract tests pass against real SwiftData on macOS
+      (`app/integration_test/daily_metrics_store_test.dart`). Same-day duplicate records
+      merged on read, per field: newest non-null value wins (ties broken by the values, so
+      every device agrees). This is the one exception to "no custom merge logic" below.
+      Caveat: a field cleared on one record can come back from an older duplicate that
+      still has it.
+- [x] Interim `FileDailyMetricRepository` (one JSON file) is no longer live; it's only the
+      source of a one-time launch migration (`migrateFileStore`), after which the file is
+      renamed to `daily_metrics.json.migrated`.
+- [x] Deployment targets raised to iOS 17 / macOS 14 (SwiftData's minimum).
 
-- [ ] Per-feature `@Model` schema design, respecting the CloudKit constraints already
-      decided in `CLAUDE.md`: every attribute optional or defaulted, no
-      `@Attribute(.unique)`, optional relationships with inverses for to-many.
-- [ ] CloudKit container entitlement wired into `app/ios` and `app/macos`.
+- [x] `DailyMetricRecord` follows the CloudKit constraints in `CLAUDE.md`: every attribute
+      optional or defaulted, no `@Attribute(.unique)`, no relationships.
+- [ ] `@Model` schemas for later features (coach sessions, notes), same constraints:
+      optional relationships with inverses for to-many.
+- [ ] CloudKit sync on. Gated off until the signing team and iCloud container are set up:
+      iCloud container + CloudKit entitlement in `app/ios` and `app/macos`, then
+      `SteadyCloudKitEnabled` true and `SteadyCloudKitContainer` set in both Info.plists.
+      Until then the store is local-only SwiftData.
 - [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
-      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`.
+      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`. Exception:
+      the same-day `DailyMetricRecord` duplicate merge above.
 - [ ] No security-rules layer (single-user private database) — don't build one.
 
 ## Feature: checkin
@@ -153,8 +169,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] iOS: PDFium via `pdfium_flutter` (a `pdf_import_data` dependency, which also links it
       on macOS); the document picker needs no Info.plist key. Same e2e test passes on the iOS
       simulator with `--dart-define=E2E_PDF_PATH=...`. Not yet tried on a physical iPhone.
-- [ ] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
-      `CLAUDE.md` §12).
+- [x] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
+      `CLAUDE.md` §12). Verified on macOS by `app/integration_test/pdf_import_e2e_test.dart`.
 
 ## Feature: coach (CLAUDE.md §11)
 
@@ -219,7 +235,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Entitlements: HealthKit, Foundation Models (macOS only), CloudKit container.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
-      friends' iPhones. HealthKit and SwiftData/CloudKit don't need A17 Pro+.
+      friends' iPhones. HealthKit and SwiftData/CloudKit don't need A17 Pro+. SwiftData
+      already sets the OS floor at iOS 17 / macOS 14.
 
 ## Opening to friends (TestFlight, US, Apple-only)
 

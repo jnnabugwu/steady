@@ -9,9 +9,9 @@
 ///
 /// One app, two platform targets, so there's one override list, not one per
 /// target. When an implementation does differ by platform (e.g. the
-/// HealthKit or SwiftData datasource), the choice is made inside this file
-/// with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed
-/// yet: the shared store is an interim JSON file (in-memory in tests),
+/// HealthKit datasource), the choice is made inside this file with
+/// `Platform.isIOS`/`isMacOS` or conditional imports. The shared store is
+/// SwiftData on both targets (in-memory in tests, see [dailyMetricStore]),
 /// every other repository is in-memory, the same on both platforms, and
 /// the account status goes through the `steady/account` platform channel,
 /// whose one Dart implementation talks to a per-platform Swift handler
@@ -29,13 +29,7 @@
 ///
 /// Nothing is wired for coach yet: `coach_domain` has no repository
 /// interface so far.
-///
-/// Swap-in-later: once the real SwiftData-backed datasource lands, only the
-/// body of [dailyMetricRepository] changes. Every downstream signature stays
-/// the same.
 library;
-
-import 'dart:io';
 
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
@@ -54,32 +48,38 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'providers.g.dart';
 
-/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
-/// for an in-memory store.
-///
-/// `null` by default, so tests built from [appProviderOverrides] stay
-/// in-memory and touch no disk. `main.dart` overrides it with a file in the
-/// app-support directory, which needs an async `path_provider` lookup before
-/// `runApp`.
+/// Which backing store [dailyMetricRepository] uses.
+enum DailyMetricStore {
+  /// In memory, gone on restart. The default, so tests built from
+  /// [appProviderOverrides] touch no disk and need no native plugin.
+  inMemory,
+
+  /// SwiftData via the `daily_metrics_store` plugin: the live store on iOS
+  /// and macOS. CloudKit sync is gated natively by Info.plist
+  /// `SteadyCloudKitEnabled` (CLAUDE.md §7).
+  swiftData,
+}
+
+/// The store [dailyMetricRepository] is built on. `main.dart` overrides it
+/// to [DailyMetricStore.swiftData].
 @Riverpod(keepAlive: true)
-File? dailyMetricsFile(Ref ref) => null;
+DailyMetricStore dailyMetricStore(Ref ref) => DailyMetricStore.inMemory;
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through, and data_export reads from.
+/// Backed by [dailyMetricStore].
 ///
-/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
-/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
-/// changes only this body.
+/// The interim JSON file store is no longer used here; `main.dart` migrates
+/// its rows into this repository once (`migrateFileStore`).
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
 @Riverpod(keepAlive: true)
-DailyMetricRepository dailyMetricRepository(Ref ref) {
-  final file = ref.watch(dailyMetricsFileProvider);
-  return file == null
-      ? InMemoryDailyMetricRepository()
-      : FileDailyMetricRepository(file);
-}
+DailyMetricRepository dailyMetricRepository(Ref ref) =>
+    switch (ref.watch(dailyMetricStoreProvider)) {
+      DailyMetricStore.inMemory => InMemoryDailyMetricRepository(),
+      DailyMetricStore.swiftData => SwiftDataDailyMetricRepository(),
+    };
 
 /// Schedules and cancels the end-of-day reminder.
 ///
