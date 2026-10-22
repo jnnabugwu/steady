@@ -4,6 +4,7 @@
 ///
 /// [CheckInRoute] is the deep-link target for the local-notification safety
 /// net: a tapped reminder opens `/checkin/<date>` from a cold start.
+/// [ImportRoute] is pushed from the home screen's import action.
 /// [SettingsRoute] (`/settings`) hosts the data export.
 library;
 
@@ -14,8 +15,9 @@ import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
-import 'package:steady/design_system_preview.dart';
 import 'package:steady/providers.dart';
 
 part 'app_router.g.dart';
@@ -44,7 +46,7 @@ GoRouter router(Ref ref) {
   return router;
 }
 
-/// `/`: the home screen.
+/// `/`: the home screen, the metrics history.
 @TypedGoRoute<HomeRoute>(
   path: '/',
   routes: [TypedGoRoute<SettingsRoute>(path: 'settings')],
@@ -54,10 +56,25 @@ class HomeRoute extends GoRouteData with $HomeRoute {
   const HomeRoute();
 
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      DesignSystemPreview(
-        onOpenSettings: () => const SettingsRoute().go(context),
-      );
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return MetricsHistoryModule(
+      onImportRequested: () => unawaited(_import(context, container)),
+      onOpenSettings: () => const SettingsRoute().go(context),
+    );
+  }
+
+  /// Opens the import flow, then refreshes the history however it closes.
+  /// Refreshing on return rather than on completion also covers leaving
+  /// mid-commit, when the days are written but the import screen is gone
+  /// before it can report completion.
+  static Future<void> _import(
+    BuildContext context,
+    ProviderContainer container,
+  ) async {
+    await const ImportRoute().push<void>(context);
+    container.invalidate(metricsHistoryControllerProvider);
+  }
 }
 
 /// `/settings`: the settings screen, which today is the data export
@@ -74,6 +91,30 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
     onBack: () =>
         context.canPop() ? context.pop() : const HomeRoute().go(context),
   );
+}
+
+/// `/import`: the Cal AI PDF import flow.
+@TypedGoRoute<ImportRoute>(path: '/import')
+class ImportRoute extends GoRouteData with $ImportRoute {
+  /// Creates the import route.
+  const ImportRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return PdfImportModule(
+      onImportCompleted: () {
+        if (context.canPop()) {
+          // HomeRoute refreshes the history once this route pops.
+          context.pop();
+        } else {
+          // Cold start straight into /import: no history under us yet.
+          container.invalidate(metricsHistoryControllerProvider);
+          const HomeRoute().go(context);
+        }
+      },
+    );
+  }
 }
 
 /// `/checkin/:date`: one calendar day's check-in screen.

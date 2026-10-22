@@ -1,7 +1,3 @@
+export 'src/metrics_history_controller.dart';
+export 'src/metrics_history_module.dart' show MetricsHistoryModule;
 export 'src/providers.dart';
-
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}

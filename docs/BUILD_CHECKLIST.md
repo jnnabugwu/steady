@@ -48,7 +48,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
-      Done for checkin (`CheckInModule`); not yet for metrics, pdf_import, coach.
+      Done for checkin, metrics (`MetricsHistoryModule`) and pdf_import (`PdfImportModule`);
+      not yet for coach.
 - [x] Feature screens use `shadcn_flutter`/`ui_kit` widgets only, never Material (decided
       2026-10-22; CLAUDE.md §5, "App shell"). `CheckInModule` is converted and `main.dart`
       has no Material localizations delegate.
@@ -92,6 +93,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
+- [x] Interim: `FileDailyMetricRepository` persists the shared store to one JSON file in the
+      app-support directory. Local-only, no sync; replaced by the SwiftData store below.
+
 - [ ] Per-feature `@Model` schema design, respecting the CloudKit constraints already
       decided in `CLAUDE.md`: every attribute optional or defaulted, no
       `@Attribute(.unique)`, optional relationships with inverses for to-many.
@@ -122,6 +126,7 @@ items land; don't let it drift into a change log — keep it a current-state che
       `packages/shared/daily_metrics_domain`, not `metrics_domain` (see
       `docs/technical_decisions.md`, "Where the shared `DailyMetric` entity lives").
 - [ ] `metrics_data`: SwiftData datasource, repo impl.
+- [x] `metrics_presentation`: minimal metrics history list, the home screen.
 - [ ] `metrics_presentation`: weekly draggable 7-day view; metrics history page with
       per-metric mini-chart cards and a W/M/6M period toggle.
 
@@ -139,8 +144,15 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Known residual risk to watch, not yet observed: `currentDate` / pending-name buffer
       resets per PDF page — a day's food list spilling across a page boundary without a
       repeated date header would silently drop entries after the break.
-- [ ] `pdf_import_presentation`: upload flow UI, writes `DailyMetric` rows straight to
-      SwiftData (no backend, ever — see `CLAUDE.md` §12).
+- [x] Report title matched as any `<name>'s Report` (only as a page's first line), so
+      friends' exports parse cleanly.
+- [x] `pdf_import_presentation`: `PdfImportModule` — pick a PDF, preview the days, import
+      the daily totals. Wired at `/import`.
+- [x] PDFium loads in the macOS app (`app/lib/pdfium.dart`) and under `flutter test`.
+      Verified end to end by `app/integration_test/pdf_import_e2e_test.dart`.
+- [ ] iOS: PDFium via `pdfium_flutter` + document picker.
+- [ ] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
+      `CLAUDE.md` §12).
 
 ## Feature: coach (CLAUDE.md §11)
 

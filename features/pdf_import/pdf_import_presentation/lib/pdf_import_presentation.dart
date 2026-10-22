@@ -1,7 +1,5 @@
+export 'src/pdf_file_picker.dart';
+export 'src/pdf_import_controller.dart';
+export 'src/pdf_import_module.dart';
+export 'src/pdf_import_state.dart';
 export 'src/providers.dart';
-
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}

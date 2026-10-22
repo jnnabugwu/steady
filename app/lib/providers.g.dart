@@ -8,8 +8,76 @@ part of 'providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
+/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
+/// for an in-memory store.
+///
+/// `null` by default, so tests built from [appProviderOverrides] stay
+/// in-memory and touch no disk. `main.dart` overrides it with a file in the
+/// app-support directory, which needs an async `path_provider` lookup before
+/// `runApp`.
+
+@ProviderFor(dailyMetricsFile)
+final dailyMetricsFileProvider = DailyMetricsFileProvider._();
+
+/// The JSON file the interim [dailyMetricRepository] persists to, or `null`
+/// for an in-memory store.
+///
+/// `null` by default, so tests built from [appProviderOverrides] stay
+/// in-memory and touch no disk. `main.dart` overrides it with a file in the
+/// app-support directory, which needs an async `path_provider` lookup before
+/// `runApp`.
+
+final class DailyMetricsFileProvider
+    extends $FunctionalProvider<File?, File?, File?>
+    with $Provider<File?> {
+  /// The JSON file the interim [dailyMetricRepository] persists to, or `null`
+  /// for an in-memory store.
+  ///
+  /// `null` by default, so tests built from [appProviderOverrides] stay
+  /// in-memory and touch no disk. `main.dart` overrides it with a file in the
+  /// app-support directory, which needs an async `path_provider` lookup before
+  /// `runApp`.
+  DailyMetricsFileProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'dailyMetricsFileProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$dailyMetricsFileHash();
+
+  @$internal
+  @override
+  $ProviderElement<File?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  File? create(Ref ref) {
+    return dailyMetricsFile(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(File? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<File?>(value),
+    );
+  }
+}
+
+String _$dailyMetricsFileHash() => r'678c982433771b0f413af2d20a42d09eeee7aa4d';
+
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through, and data_export reads from.
+///
+/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
+/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
+/// changes only this body.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -19,6 +87,10 @@ final dailyMetricRepositoryProvider = DailyMetricRepositoryProvider._();
 
 /// The single shared `DailyMetricRepository` that checkin, metrics and
 /// pdf_import all read and write through, and data_export reads from.
+///
+/// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
+/// until the SwiftData + CloudKit datasource replaces it (#43). That swap
+/// changes only this body.
 ///
 /// `keepAlive`: disposing it would lose the in-memory data and break the
 /// shared-store invariant (D6).
@@ -33,6 +105,10 @@ final class DailyMetricRepositoryProvider
     with $Provider<DailyMetricRepository> {
   /// The single shared `DailyMetricRepository` that checkin, metrics and
   /// pdf_import all read and write through, and data_export reads from.
+  ///
+  /// Interim: backed by a local JSON file when [dailyMetricsFile] is set,
+  /// until the SwiftData + CloudKit datasource replaces it (#43). That swap
+  /// changes only this body.
   ///
   /// `keepAlive`: disposing it would lose the in-memory data and break the
   /// shared-store invariant (D6).
@@ -71,7 +147,7 @@ final class DailyMetricRepositoryProvider
 }
 
 String _$dailyMetricRepositoryHash() =>
-    r'547e0f3e434a590f1598268c98691f1011f1c0e3';
+    r'b49cf68b0c82b3c536a51851c405d4d6cbf37b18';
 
 /// Schedules and cancels the end-of-day reminder.
 ///

@@ -5,9 +5,9 @@ import 'package:failures/failures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_domain/notifications_domain.dart';
 import 'package:steady/app_router.dart';
-import 'package:steady/design_system_preview.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 
@@ -79,7 +79,7 @@ void main() {
     testWidgets('/ shows the home screen', (tester) async {
       await pumpApp(tester);
 
-      expect(find.byType(DesignSystemPreview), findsOneWidget);
+      expect(find.byType(MetricsHistoryModule), findsOneWidget);
       expect(find.byType(CheckInModule), findsNothing);
     });
 
@@ -155,7 +155,7 @@ void main() {
         await pumpApp(tester, coldStartLocation: location);
 
         expect(tester.takeException(), isNull);
-        expect(find.byType(DesignSystemPreview), findsOneWidget);
+        expect(find.byType(MetricsHistoryModule), findsOneWidget);
         expect(find.byType(CheckInModule), findsNothing);
       });
     }
@@ -187,7 +187,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(DataExportModule), findsOneWidget);
-      expect(find.byType(DesignSystemPreview), findsNothing);
+      expect(find.byType(MetricsHistoryModule), findsNothing);
     });
 
     testWidgets('the home gear button opens settings, and back returns', (
@@ -205,7 +205,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(DataExportModule), findsNothing);
-      expect(find.byType(DesignSystemPreview), findsOneWidget);
+      expect(find.byType(MetricsHistoryModule), findsOneWidget);
     });
 
     testWidgets('back from a cold-started /settings returns home', (
@@ -216,7 +216,7 @@ void main() {
       await tester.tap(find.byKey(const Key('settingsBackButton')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(DesignSystemPreview), findsOneWidget);
+      expect(find.byType(MetricsHistoryModule), findsOneWidget);
     });
   });
 

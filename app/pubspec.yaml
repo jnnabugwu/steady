@@ -66,6 +66,8 @@ dependencies:
   notifications_domain:
     path: ../features/notifications/notifications_domain
 
+  path_provider: ^2.1.5
+
   pdf_import_data:
     path: ../features/pdf_import/pdf_import_data
   pdf_import_domain:
@@ -73,6 +75,7 @@ dependencies:
   pdf_import_presentation:
     path: ../features/pdf_import/pdf_import_presentation
 
+  pdfrx_engine: ^0.7.4
   riverpod_annotation: ^4.0.7
   shadcn_flutter: ^0.0.53
 
@@ -91,6 +94,8 @@ dev_dependencies:
   # your package. See that file for information about deactivating specific
   # lint rules and activating additional ones.
   go_router_builder: ^4.5.2
+  integration_test:
+    sdk: flutter
   riverpod_generator: ^4.0.9
   very_good_analysis: ^11.0.0
 
