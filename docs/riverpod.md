@@ -55,11 +55,14 @@ There are three ways to read a provider. Each has a fixed place:
 
 | Call | Meaning | Where Steady uses it |
 | --- | --- | --- |
-| `ref.watch(p)` | Read and subscribe. A change rebuilds the caller or re-runs its `build`. | Inside `build` methods only: `CheckInController.build` watches `checkInRepositoryProvider`; `CheckInModule.build` watches `checkInControllerProvider(day)`; `SteadyApp.build` watches `routerProvider`; every override in `appProviderOverrides` watches `dailyMetricRepositoryProvider`. |
+| `ref.watch(p)` | Read and subscribe. A change rebuilds the caller or re-runs its `build`. | Inside `build` methods and provider bodies only: `CheckInController.build` watches `checkInRepositoryProvider`; `CheckInModule.build` watches `checkInControllerProvider(day)`; `SteadyApp.build` watches `routerProvider`; the factory of every override in `appProviderOverrides` watches `dailyMetricRepositoryProvider`. |
 | `ref.read(p)` | One-off read, no subscription. | Inside event handlers and Notifier methods: `logCheckIn` reads the repository; the Module's `log()` reads `provider.notifier` and then the new state; `CheckInRoute` reads `notificationSchedulerProvider` in its callback. |
 | `ref.listen` / `container.listen` | Callback on every change, no rebuild. | Not used in `lib/` yet. Tests use `container.listen(..., fireImmediately: true)` to record state sequences (§8). |
 
-The rule behind the table: **`watch` in `build`, `read` in callbacks.** If you `read` in
+The rule behind the table: **`watch` in `build`, `read` in callbacks.** A provider body
+counts as a `build`. That includes a function provider like `dailyMetricRepository(Ref ref)`
+and an `overrideWith((ref) => ...)` factory, because each one is how that provider builds its
+value. So the DI bindings in §3 `ref.watch` their dependencies too. If you `read` in
 `build`, a dependency can change underneath you without the screen updating. If you
 `watch` in a callback, you create a subscription on every tap.
 
