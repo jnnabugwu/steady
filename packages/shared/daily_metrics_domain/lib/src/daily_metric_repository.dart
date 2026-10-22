@@ -51,14 +51,9 @@ abstract class DailyMetricRepository {
   ///   yet"), and removing it means readers never need to filter out empty
   ///   rows. Clearing every field of a day is then the same as [delete].
   ///
-  /// Why a separate method instead of a sentinel or `Optional`-style wrapper
-  /// on [upsert]'s parameters: [upsert]'s signature and its "null = leave
-  /// untouched" rule stay exactly as they are (Checkpoint A kept them), so
-  /// none of its callers change. A wrapper would give every [upsert]
-  /// parameter three states (leave, set, clear) that each caller and each
-  /// implementation would have to get right. A separate method keeps
-  /// clearing an explicit act you can find by name, and maps onto the
-  /// SwiftData channel as a plain list of field names.
+  /// A separate method keeps clearing explicit, rather than adding a sentinel
+  /// or `Optional`-style wrapper that gives every [upsert] parameter three
+  /// states (leave, set, clear).
   ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields);
 
   /// Deletes the row for [date], if one exists.
