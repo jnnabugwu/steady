@@ -4,6 +4,18 @@ import 'package:failures/failures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// A channel whose every call throws [error], for exceptions the mocked
+/// messenger can't produce (anything other than a [PlatformException]).
+class _ThrowingChannel extends MethodChannel {
+  const _ThrowingChannel(this.error) : super(AccountChannel.name);
+
+  final Exception error;
+
+  @override
+  Future<T?> invokeMethod<T>(String method, [dynamic arguments]) async =>
+      throw error;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -139,6 +151,31 @@ void main() {
       final result = await repository.openAccountSettings();
 
       expect((result as Err<Unit>).failure, isA<PlatformChannelFailure>());
+    });
+  });
+
+  group('any other Exception', () {
+    const error = FormatException('bad payload');
+    final throwing = MethodChannelAccountStatusRepository(
+      channel: const _ThrowingChannel(error),
+    );
+
+    test('from accountStatus is an UnknownFailure', () async {
+      final result = await throwing.accountStatus();
+
+      expect(
+        (result as Err<AccountStatus>).failure,
+        isA<UnknownFailure>().having((f) => f.cause, 'cause', error),
+      );
+    });
+
+    test('from openAccountSettings is an UnknownFailure', () async {
+      final result = await throwing.openAccountSettings();
+
+      expect(
+        (result as Err<Unit>).failure,
+        isA<UnknownFailure>().having((f) => f.cause, 'cause', error),
+      );
     });
   });
 }

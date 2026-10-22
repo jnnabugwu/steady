@@ -13,7 +13,9 @@ import 'package:flutter/services.dart';
 /// `notConfigured` without touching CloudKit.
 ///
 /// Every platform error is mapped to a typed [Failure] here, so the UI never
-/// sees a raw [PlatformException] (CLAUDE.md §9).
+/// sees a raw [PlatformException] (CLAUDE.md §9): [PlatformException] and
+/// [MissingPluginException] become a [PlatformChannelFailure], and any other
+/// [Exception] an [UnknownFailure], so nothing escapes the `Result`.
 class MethodChannelAccountStatusRepository implements AccountStatusRepository {
   /// Creates the repository. [channel] is for tests; the default is the
   /// real `steady/account` channel.
@@ -45,6 +47,10 @@ class MethodChannelAccountStatusRepository implements AccountStatusRepository {
           cause: e,
         ),
       );
+    } on Exception catch (e) {
+      return Err(
+        UnknownFailure('Could not read the iCloud account status', cause: e),
+      );
     }
   }
 
@@ -71,6 +77,8 @@ class MethodChannelAccountStatusRepository implements AccountStatusRepository {
           cause: e,
         ),
       );
+    } on Exception catch (e) {
+      return Err(UnknownFailure('Could not open Settings', cause: e));
     }
   }
 }
