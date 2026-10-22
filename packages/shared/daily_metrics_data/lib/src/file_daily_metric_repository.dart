@@ -69,6 +69,11 @@ class FileDailyMetricRepository implements DailyMetricRepository {
     LoggingStatus? loggingStatus,
   }) => _run(() async {
     final key = _key(date);
+    // The file stores dates as four-digit `yyyy-MM-dd`; refuse a row it
+    // couldn't read back.
+    if (key.year < 0 || key.year > 9999) {
+      return Err(ValidationFailure('Year ${key.year} is outside 0000-9999'));
+    }
     final previous = _rows[key];
     final result = await _memory.upsert(
       key,
@@ -88,6 +93,30 @@ class FileDailyMetricRepository implements DailyMetricRepository {
     }
     return result;
   });
+
+  @override
+  ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields) =>
+      _run(() async {
+        final key = _key(date);
+        final previous = _rows[key];
+        if (previous == null || fields.isEmpty) return const Ok(unit);
+        final result = await _memory.clearFields(key, fields);
+        if (result is Ok<Unit>) {
+          // Clearing every field removes the row, same as the in-memory repo.
+          final current = await _memory.getByDate(key);
+          if (current case Ok(value: final DailyMetric row)) {
+            _rows[key] = row;
+          } else {
+            _rows.remove(key);
+          }
+          final persisted = await _persist();
+          if (persisted case Err(:final failure)) {
+            await _restore(key, previous);
+            return Err(failure);
+          }
+        }
+        return result;
+      });
 
   @override
   ResultFuture<Unit> delete(DateTime date) => _run(() async {

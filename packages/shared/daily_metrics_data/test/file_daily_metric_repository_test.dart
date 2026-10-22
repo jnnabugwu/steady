@@ -119,8 +119,118 @@ void main() {
     });
   });
 
+  group('FileDailyMetricRepository file format', () {
+    test('duplicate dates in a hand-edited file merge on load', () async {
+      file.writeAsStringSync(
+        '{"version":1,"metrics":['
+        '{"date":"2026-08-24","caloriesEaten":2000},'
+        '{"date":"2026-08-24","steps":8000}]}',
+      );
+
+      final row = ((await FileDailyMetricRepository(
+        file,
+      ).getByDate(DateTime(2026, 8, 24))) as Ok).value;
+
+      expect(
+        row,
+        DailyMetric(
+          date: DateTime(2026, 8, 24),
+          caloriesEaten: 2000,
+          steps: 8000,
+        ),
+      );
+    });
+
+    test(
+      'a year the file format cannot hold is rejected, not written',
+      () async {
+        final repo = FileDailyMetricRepository(file);
+
+        final result = await repo.upsert(DateTime(10000), steps: 1);
+
+        expect((result as Err).failure, isA<ValidationFailure>());
+        expect(file.existsSync(), isFalse);
+      },
+    );
+
+    test(
+      'clearFields persists, and clearing every field drops the row',
+      () async {
+        final repo = FileDailyMetricRepository(file);
+        final day = DateTime(2026, 8, 24);
+        await repo.upsert(day, caloriesEaten: 2000, steps: 8000);
+        await repo.clearFields(day, {DailyMetricField.steps});
+
+        final reread = ((await FileDailyMetricRepository(
+          file,
+        ).getByDate(day)) as Ok).value;
+        expect(reread, DailyMetric(date: day, caloriesEaten: 2000));
+
+        await repo.clearFields(day, {DailyMetricField.caloriesEaten});
+        expect(
+          ((await FileDailyMetricRepository(file).getByDate(day)) as Ok).value,
+          isNull,
+        );
+      },
+    );
+  });
+
+  group('FileDailyMetricRepository write failure', () {
+    // A read-only parent directory makes creating `<file>.tmp` fail.
+    void makeReadOnly() {
+      Process.runSync('chmod', ['555', tempDir.path]);
+      addTearDown(() => Process.runSync('chmod', ['755', tempDir.path]));
+    }
+
+    test('a failed upsert returns Err and keeps the previous row', () async {
+      final repo = FileDailyMetricRepository(file);
+      final day = DateTime(2026, 8, 24);
+      await repo.upsert(day, caloriesEaten: 2000);
+      makeReadOnly();
+
+      final result = await repo.upsert(day, caloriesEaten: 2500, steps: 10);
+
+      expect((result as Err).failure, isA<UnknownFailure>());
+      expect(
+        ((await repo.getByDate(day)) as Ok).value,
+        DailyMetric(date: day, caloriesEaten: 2000),
+      );
+    });
+
+    test('a failed clearFields returns Err and keeps the field', () async {
+      final repo = FileDailyMetricRepository(file);
+      final day = DateTime(2026, 8, 24);
+      await repo.upsert(day, caloriesEaten: 2000, steps: 8000);
+      makeReadOnly();
+
+      final result = await repo.clearFields(day, {DailyMetricField.steps});
+
+      expect((result as Err).failure, isA<UnknownFailure>());
+      expect(
+        ((await repo.getByDate(day)) as Ok).value,
+        DailyMetric(date: day, caloriesEaten: 2000, steps: 8000),
+      );
+    });
+
+    test('a failed delete returns Err and keeps the row', () async {
+      final repo = FileDailyMetricRepository(file);
+      final day = DateTime(2026, 8, 24);
+      await repo.upsert(day, caloriesEaten: 2000);
+      makeReadOnly();
+
+      final result = await repo.delete(day);
+
+      expect((result as Err).failure, isA<UnknownFailure>());
+      expect(
+        ((await repo.getByDate(day)) as Ok).value,
+        DailyMetric(date: day, caloriesEaten: 2000),
+      );
+    });
+  });
+
   group('FileDailyMetricRepository corrupt file', () {
     for (final (label, contents) in [
+      ('empty file', ''),
       ('invalid JSON', '{not json'),
       ('wrong version', '{"version":2,"metrics":[]}'),
       ('bad date', '{"version":1,"metrics":[{"date":"2026-02-31"}]}'),
@@ -141,7 +251,12 @@ void main() {
         expect((write as Err).failure, isA<UnknownFailure>());
 
         final delete = await repo.delete(DateTime(2026, 8, 24));
-        expect(delete, isA<Err<Unit>>());
+        expect((delete as Err).failure, isA<UnknownFailure>());
+
+        final clear = await repo.clearFields(DateTime(2026, 8, 24), {
+          DailyMetricField.steps,
+        });
+        expect((clear as Err).failure, isA<UnknownFailure>());
 
         expect(file.readAsStringSync(), contents);
       });
