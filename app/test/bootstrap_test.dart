@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:account_domain/account_domain.dart';
+import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -282,5 +284,25 @@ void main() {
     expect(() => bare.read(checkInRepositoryProvider), unbound);
     expect(() => bare.read(metricsRepositoryProvider), unbound);
     expect(() => bare.read(pdfImportRepositoryProvider), unbound);
+  });
+
+  test('accountStatusRepositoryProvider is bound by appProviderOverrides', () {
+    expect(
+      container.read(accountStatusRepositoryProvider),
+      isA<AccountStatusRepository>(),
+    );
+
+    // And it's genuinely the override doing it: unbound without the list.
+    final bare = ProviderContainer.test();
+    expect(
+      () => bare.read(accountStatusRepositoryProvider),
+      throwsA(
+        isA<ProviderException>().having(
+          (e) => e.exception,
+          'exception',
+          isA<UnimplementedError>(),
+        ),
+      ),
+    );
   });
 }

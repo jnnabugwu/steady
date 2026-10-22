@@ -229,7 +229,10 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       production schema is additive-only (no field removal or rename once users have data).
 - [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short
       "not medical advice" note for the coach.
-- [ ] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
+- [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
+      Until CloudKit is configured (`SteadyCloudKitEnabled` is `true` in both
+      `Runner/Info.plist`s, with the container and entitlement), the status reads
+      `notConfigured` and never blocks, so the screen isn't reachable on a real build.
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
       metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no

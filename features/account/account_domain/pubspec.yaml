@@ -1,0 +1,20 @@
+name: account_domain
+description: "Account feature domain: the iCloud account status and the repository interface that reads it."
+version: 0.0.1
+homepage:
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  failures:
+    path: ../../../packages/shared/failures
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
