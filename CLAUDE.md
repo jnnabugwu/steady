@@ -109,9 +109,12 @@ steady/
 │       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets
 │       ├── failures/                # Shared typed Failure classes, Result, Unit
 │       ├── daily_metrics_domain/    # Shared DailyMetric entity + DailyMetricRepository
-│       └── daily_metrics_data/      # InMemoryDailyMetricRepository (the shared store, §9)
+│       └── daily_metrics_data/      # SwiftDataDailyMetricRepository (the shared store, §7,
+│                                     # §9), in-memory + file impls, lib/testing/ contract
 │
 ├── packages_native/
+│   ├── daily_metrics_store/         # Flutter plugin: SwiftData @Model behind the
+│   │   └── darwin/                   # steady/daily_metrics channel, thin bridge (§7, §8)
 │   ├── rag_kit/                     # Thin Flutter plugin — MethodChannel bridge only
 │   │   ├── ios/Classes/
 │   │   └── macos/Classes/
@@ -491,6 +494,21 @@ CloudKit-backed, so sync across iPhone and Mac happens automatically — no cust
 protocol, no conflict resolution code, no backend involvement (see `steady_product_overview.md`
 §2 for why this was chosen over building sync through FastAPI).
 
+**Where this stands.** The shared `DailyMetric` store is live in SwiftData:
+`packages_native/daily_metrics_store` holds `DailyMetricRecord` (`@Model`) behind the
+`steady/daily_metrics` MethodChannel, and `SwiftDataDailyMetricRepository` in
+`daily_metrics_data` is its Dart side (§8). **CloudKit is gated off.** The native store
+syncs only when Info.plist `SteadyCloudKitEnabled` is true *and* `SteadyCloudKitContainer`
+names the iCloud container (e.g. `iCloud.com.jmagic.steady`); otherwise it opens with
+`cloudKitDatabase: .none` and never touches CloudKit. Both stay unset until the signing
+team, iCloud container and entitlements are set up, so for now it's local-only SwiftData
+and the iCloud sign-in requirement below isn't enforced yet. The model already follows
+the schema constraints below, so turning sync on needs no migration. SwiftData set the
+deployment targets to iOS 17 / macOS 14. The interim JSON file store
+(`FileDailyMetricRepository`) is no longer live: it's only a migration source, read once
+at launch by `migrateFileStore` (`main.dart`) and then renamed to
+`daily_metrics.json.migrated`.
+
 **No security-rules layer, by design.** The generic starter's Firestore section spends a
 full section on role-based rules because it has two roles (staff/admin) reading a shared
 collection. Steady has one user and CloudKit's private database is scoped to that user's
@@ -508,9 +526,18 @@ discovered mid-migration:
 
 These constraints apply uniformly, so there's no per-feature exception to design around.
 
+**Same-day duplicates are merged on read.** Without `.unique`, two devices can each create
+a record for the same natural key (a `DailyMetricRecord` day, stored as a `yyyy-MM-dd`
+string so it can't drift across time zones) before either has synced. On read, the store
+merges them (per field, the non-nil value from the most recently modified record, by a
+`modifiedAt` attribute), saves the survivor and deletes the extras. A field cleared on one
+device can come back from an older duplicate this way; accepted, since it needs two
+devices writing the same day before a sync.
+
 **Conflict resolution is plain last-writer-wins, everywhere, including coach transcripts.**
 CloudKit resolves concurrent record writes at the record level with LWW; Steady doesn't
-layer any custom merge logic on top, not even for append-style data like coach session
+layer any custom merge logic on top (collapsing duplicate *records*, above, is the only
+merge), not even for append-style data like coach session
 transcripts. The accepted tradeoff: if iPhone and Mac somehow write a transcript record at
 the same moment, one write silently wins and the other's messages are lost, with no error
 surfaced. Given single-user, single-writer-at-a-time usage in practice, this edge case is
@@ -552,6 +579,17 @@ is the thin Flutter plugin bridging `notes_data` to it via MethodChannel — the
 does no logic of its own, just translation. Full design rationale in
 `steady_product_overview.md` §8.
 
+**`packages_native/daily_metrics_store`** — Flutter plugin (iOS + macOS,
+`sharedDarwinSource`, Swift Package Manager) holding the SwiftData store for the shared
+`DailyMetric` rows (§7). The Swift side is a thin full-row store (`get`, `range`, `put`,
+`remove` on `yyyy-MM-dd` keys, plus the duplicate merge, which needs the records). Every
+domain rule (partial-field merge, `clearFields`, normalization, validation) lives in
+`SwiftDataDailyMetricRepository` in `daily_metrics_data`, unit-tested against a fake
+channel; `app/integration_test/daily_metrics_store_test.dart` runs the same contract
+against real SwiftData on a separate test store. Dependency direction:
+`daily_metrics_data` → `daily_metrics_store`, which is what registers the plugin in the
+app. The channel contract is documented in the plugin's `lib/daily_metrics_store.dart`.
+
 **HealthKit platform channels** currently live directly in `app/ios/` and `app/macos/`
 runner-adjacent plugin code rather than as a separately extracted Swift package — there's
 less shared logic to isolate there than with `RAGKitCore` (mostly "call the native API,
@@ -582,8 +620,11 @@ the reasoning and what iOS shows instead.
 - Domain entities are `@freezed` (`abstract class X with _$X`). Getters go through a
   private `const X._();` constructor. Domain entities get **no** `fromJson`; the domain
   doesn't know the wire format.
-- When the SwiftData/HealthKit channels land, wire formats get freezed +
+- When the HealthKit channel lands, wire formats get freezed +
   `json_serializable` **DTOs inside the `*_data` package** (map ↔ DTO ↔ entity).
+  The daily-metrics SwiftData channel is the exception: it reuses the hand-written
+  mapper in `daily_metrics_data/lib/src/daily_metric_json.dart`, the same flat row
+  format as the interim file, so there's one row format rather than two.
   Unknown union values from native are handled with `fallbackUnion` on the DTO, plus a
   try/catch at the data boundary that returns `Err(...)`.
 - Generated files (`*.freezed.dart`, `*.g.dart`) are **committed**, so agent sessions
@@ -621,7 +662,9 @@ the reasoning and what iOS shows instead.
 - One app, two platform targets, so there's one override list, not one per target.
   Platform-specific implementations (e.g. the HealthKit datasource) are chosen inside
   that list with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed yet:
-  every implementation bound today is in-memory and identical on both targets.
+  the shared store is the same SwiftData plugin on both targets, and everything else is
+  in-memory. `dailyMetricStoreProvider` picks the store: in-memory by default, so tests
+  built from `appProviderOverrides` need no native plugin, and SwiftData in `main.dart`.
 - Providers for headless features have no `*_presentation` package to live in, so
   they're declared directly in `app/lib/providers.dart` rather than overridden:
   `notificationSchedulerProvider` (`InMemoryNotificationScheduler` today).
