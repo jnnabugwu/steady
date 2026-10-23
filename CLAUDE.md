@@ -499,14 +499,15 @@ protocol, no conflict resolution code, no backend involvement (see `steady_produ
 **Where this stands.** The shared `DailyMetric` store is live in SwiftData:
 `packages_native/daily_metrics_store` holds `DailyMetricRecord` (`@Model`) behind the
 `steady/daily_metrics` MethodChannel, and `SwiftDataDailyMetricRepository` in
-`daily_metrics_data` is its Dart side (§8). **CloudKit is gated off.** The native store
+`daily_metrics_data` is its Dart side (§8). **CloudKit sync is on.** The native store
 syncs only when Info.plist `SteadyCloudKitEnabled` is true *and* `SteadyCloudKitContainer`
-names the iCloud container (e.g. `iCloud.com.jmagic.steady`); otherwise it opens with
-`cloudKitDatabase: .none` and never touches CloudKit. Both Info.plists set
-`SteadyCloudKitEnabled` to `false` and leave `SteadyCloudKitContainer` out, until the
-signing team, iCloud container and entitlements are set up, so for now it's local-only
-SwiftData and the iCloud sign-in requirement below isn't enforced yet. The model already follows
-the schema constraints below, so turning sync on needs no migration. SwiftData set the
+names the iCloud container; otherwise it opens with `cloudKitDatabase: .none` and never
+touches CloudKit. Both Info.plists set `SteadyCloudKitEnabled` to `true` and
+`SteadyCloudKitContainer` to `iCloud.com.jmagic.steady`, signed with team `UXZV3C926U`
+(iCloud/CloudKit and push entitlements on both targets), so the iCloud sign-in requirement
+below is enforced. Builds run from Xcode use the CloudKit development environment;
+TestFlight and App Store builds use production, which needs the schema deployed first
+(`docs/cloudkit_schema.md`). SwiftData set the
 deployment targets to iOS 17 / macOS 14. The interim JSON file store
 (`FileDailyMetricRepository`) is no longer live: it's only a migration source, read once
 at launch by `migrateFileStore` (`main.dart`) and then renamed to

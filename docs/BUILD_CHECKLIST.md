@@ -112,10 +112,11 @@ items land; don't let it drift into a change log — keep it a current-state che
       optional or defaulted, no `@Attribute(.unique)`, no relationships.
 - [ ] `@Model` schemas for later features (coach sessions, notes), same constraints:
       optional relationships with inverses for to-many.
-- [ ] CloudKit sync on. Gated off until the signing team and iCloud container are set up:
-      iCloud container + CloudKit entitlement in `app/ios` and `app/macos`, then
-      `SteadyCloudKitEnabled` true and `SteadyCloudKitContainer` set in both Info.plists.
-      Until then the store is local-only SwiftData.
+- [x] CloudKit sync on: team `UXZV3C926U`, container `iCloud.com.jmagic.steady`, iCloud/CloudKit
+      and push entitlements on both targets, `SteadyCloudKitEnabled` true and
+      `SteadyCloudKitContainer` set in both Info.plists. Verified syncing Mac → iPhone.
+- [ ] Production CloudKit schema deployed (needed before any TestFlight/App Store build syncs);
+      run the full-schema initializer and check every field first.
 - [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
       transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`. Exception:
       the same-day `DailyMetricRecord` duplicate merge above.
@@ -282,9 +283,7 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       "personal health information" (5.1.3(ii)); the first external TestFlight build's Beta
       App Review is the check.
 - [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
-      Until CloudKit is configured (`SteadyCloudKitEnabled` is `true` in both
-      `Runner/Info.plist`s, with the container and entitlement), the status reads
-      `notConfigured` and never blocks, so the screen isn't reachable on a real build.
+      Live now that CloudKit is configured: a signed-out device is redirected to it.
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
       metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
