@@ -263,6 +263,39 @@ void main() {
 
       expect(store.writes, isEmpty);
     });
+
+    test('the launch cleanup only removes Health fields an older build '
+        'stored; Health paths still write nothing', () async {
+      // A row as an older build left it: Health values next to PDF data.
+      await store._inner.upsert(
+        yesterday,
+        steps: 1111,
+        caloriesBurnedBasal: 2222,
+      );
+      store.allowLegacyHealthClears = true;
+      final cleared = await clearLegacyHealthFields(store);
+      store.allowLegacyHealthClears = false;
+
+      expect((cleared as Ok<int>).value, 1);
+      expect(store.legacyHealthClears, {
+        yesterday: {
+          DailyMetricField.steps,
+          DailyMetricField.caloriesBurnedBasal,
+        },
+      });
+      expect(
+        ((await store.getByDate(yesterday)) as Ok<DailyMetric?>).value,
+        DailyMetric(date: yesterday, caloriesEaten: 1850),
+      );
+
+      final container = ProviderContainer.test(overrides: overrides());
+      final notifier = container.read(healthAccessControllerProvider.notifier);
+      final totals = healthDayTotalsProvider(window.start, window.end);
+      container.listen(totals, (_, _) {});
+      await notifier.refreshHealthData();
+      await container.read(totals.future);
+      expect(store.writes, isEmpty);
+    });
   });
 
   group('AppleHealthCard', () {
@@ -332,6 +365,12 @@ void main() {
 
 /// The shared store, wrapped so every write is recorded and fails the test:
 /// reads go to [_inner], and no Health path may call a write at all.
+///
+/// The one exception is the launch cleanup (`clearLegacyHealthFields`),
+/// which removes Health values an older build stored: while
+/// [allowLegacyHealthClears] is set, a `clearFields` of Health fields only
+/// is recorded in [legacyHealthClears] and forwarded. Any other write still
+/// fails, and the flag is off for every Health path under test.
 class _WriteForbiddenDailyMetricRepository implements DailyMetricRepository {
   _WriteForbiddenDailyMetricRepository(this._inner);
 
@@ -339,6 +378,12 @@ class _WriteForbiddenDailyMetricRepository implements DailyMetricRepository {
 
   /// Every write attempted, by method name.
   final List<String> writes = [];
+
+  /// Whether the launch cleanup's `clearFields` of Health fields may pass.
+  bool allowLegacyHealthClears = false;
+
+  /// The launch cleanup's clears, by day.
+  final Map<DateTime, Set<DailyMetricField>> legacyHealthClears = {};
 
   Never _write(String method) {
     writes.add(method);
@@ -363,8 +408,13 @@ class _WriteForbiddenDailyMetricRepository implements DailyMetricRepository {
   }) => _write('upsert');
 
   @override
-  ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields) =>
-      _write('clearFields');
+  ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields) {
+    if (allowLegacyHealthClears && legacyHealthFields.containsAll(fields)) {
+      legacyHealthClears[date] = fields;
+      return _inner.clearFields(date, fields);
+    }
+    return _write('clearFields');
+  }
 
   @override
   ResultFuture<Unit> delete(DateTime date) => _write('delete');

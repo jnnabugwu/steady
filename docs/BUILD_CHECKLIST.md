@@ -224,7 +224,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       Health data. The history merges them in memory (`healthDayTotalsProvider` in
       `metrics_presentation`); `app/test/health_access_test.dart` fails if any Health
       path writes the shared store. The week/share card and the data export carry no
-      Health values.
+      Health values. Values an older build stored are removed at launch
+      (`clearLegacyHealthFields`, run from `app/lib/main.dart`).
 
 ## Error handling (CLAUDE.md §9)
 

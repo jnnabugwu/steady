@@ -10,7 +10,9 @@
 ///
 /// `DailyMetric` keeps its `steps` and `caloriesBurned*` fields (CloudKit's
 /// production schema is additive-only), but nothing writes them any more,
-/// and the history ignores whatever an older build stored there.
+/// and the history ignores whatever an older build stored there. The app
+/// also removes those stored values at launch (`clearLegacyHealthFields`
+/// in `daily_metrics_data`, run from `app/lib/main.dart`).
 library;
 
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
