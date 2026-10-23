@@ -20,9 +20,9 @@ import 'dart:developer' as developer;
 
 import 'package:failures/failures.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
-import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/remote_changes.dart';
 
 part 'health_sync.g.dart';
 
@@ -86,8 +86,10 @@ class HealthSyncController extends _$HealthSyncController {
   ///
   /// Shows Health's read-permission sheet if it has never been shown, then
   /// copies the last [healthSyncWindowDays] days into the shared store
-  /// (only the three Health fields, only where they changed). Refreshes the
-  /// history when any day changed.
+  /// (only the three Health fields, only where they changed). When any day
+  /// changed, re-reads every daily-metric screen (history, check-in, week
+  /// card) through `invalidateDailyMetricReaders`, the same refresh a
+  /// CloudKit remote change triggers.
   ///
   /// Never throws: a failure becomes an `AsyncError` carrying the
   /// [Failure], and is logged. A no-op where Health isn't bound (macOS). A
@@ -143,7 +145,7 @@ class HealthSyncController extends _$HealthSyncController {
             'Health sync updated ${value.daysUpdated} days',
             name: 'steady.health',
           );
-          ref.invalidate(metricsHistoryControllerProvider);
+          invalidateDailyMetricReaders(ref);
         }
       case Err(:final failure):
         _fail(failure);

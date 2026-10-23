@@ -84,12 +84,7 @@ String _$dailyMetricsRemoteChangeSourceHash() =>
     r'22e6d2a57e9371dc891a879939d964cc82033a09';
 
 /// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
-/// and, on each event, invalidates every provider that holds data read
-/// from the shared `DailyMetric` store:
-///
-/// - `metricsHistoryControllerProvider` (the home screen's history),
-/// - every `checkInControllerProvider(date)` (check-in screens),
-/// - every `weekCardControllerProvider(weekStart)` (the share card).
+/// and, on each event, calls [invalidateDailyMetricReaders].
 ///
 /// Providers nobody is watching are already disposed, so invalidating them
 /// costs nothing. A watched one re-reads, and keeps showing its previous
@@ -104,19 +99,12 @@ String _$dailyMetricsRemoteChangeSourceHash() =>
 ///
 /// State: how many refreshes it has triggered, for tests and debugging.
 /// `keepAlive`: it must outlive every screen. `SteadyApp` starts it.
-///
-/// Add a provider here when a new screen caches daily-metric reads.
 
 @ProviderFor(DailyMetricsRemoteRefresh)
 final dailyMetricsRemoteRefreshProvider = DailyMetricsRemoteRefreshProvider._();
 
 /// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
-/// and, on each event, invalidates every provider that holds data read
-/// from the shared `DailyMetric` store:
-///
-/// - `metricsHistoryControllerProvider` (the home screen's history),
-/// - every `checkInControllerProvider(date)` (check-in screens),
-/// - every `weekCardControllerProvider(weekStart)` (the share card).
+/// and, on each event, calls [invalidateDailyMetricReaders].
 ///
 /// Providers nobody is watching are already disposed, so invalidating them
 /// costs nothing. A watched one re-reads, and keeps showing its previous
@@ -131,17 +119,10 @@ final dailyMetricsRemoteRefreshProvider = DailyMetricsRemoteRefreshProvider._();
 ///
 /// State: how many refreshes it has triggered, for tests and debugging.
 /// `keepAlive`: it must outlive every screen. `SteadyApp` starts it.
-///
-/// Add a provider here when a new screen caches daily-metric reads.
 final class DailyMetricsRemoteRefreshProvider
     extends $NotifierProvider<DailyMetricsRemoteRefresh, int> {
   /// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
-  /// and, on each event, invalidates every provider that holds data read
-  /// from the shared `DailyMetric` store:
-  ///
-  /// - `metricsHistoryControllerProvider` (the home screen's history),
-  /// - every `checkInControllerProvider(date)` (check-in screens),
-  /// - every `weekCardControllerProvider(weekStart)` (the share card).
+  /// and, on each event, calls [invalidateDailyMetricReaders].
   ///
   /// Providers nobody is watching are already disposed, so invalidating them
   /// costs nothing. A watched one re-reads, and keeps showing its previous
@@ -156,8 +137,6 @@ final class DailyMetricsRemoteRefreshProvider
   ///
   /// State: how many refreshes it has triggered, for tests and debugging.
   /// `keepAlive`: it must outlive every screen. `SteadyApp` starts it.
-  ///
-  /// Add a provider here when a new screen caches daily-metric reads.
   DailyMetricsRemoteRefreshProvider._()
     : super(
         from: null,
@@ -186,15 +165,10 @@ final class DailyMetricsRemoteRefreshProvider
 }
 
 String _$dailyMetricsRemoteRefreshHash() =>
-    r'8a03419c99ca3a3923f43d6bcf83e032ccfd0b4a';
+    r'a8a657a9d5d42a3a7d6fa4caeb9c54a483d457a1';
 
 /// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
-/// and, on each event, invalidates every provider that holds data read
-/// from the shared `DailyMetric` store:
-///
-/// - `metricsHistoryControllerProvider` (the home screen's history),
-/// - every `checkInControllerProvider(date)` (check-in screens),
-/// - every `weekCardControllerProvider(weekStart)` (the share card).
+/// and, on each event, calls [invalidateDailyMetricReaders].
 ///
 /// Providers nobody is watching are already disposed, so invalidating them
 /// costs nothing. A watched one re-reads, and keeps showing its previous
@@ -209,8 +183,6 @@ String _$dailyMetricsRemoteRefreshHash() =>
 ///
 /// State: how many refreshes it has triggered, for tests and debugging.
 /// `keepAlive`: it must outlive every screen. `SteadyApp` starts it.
-///
-/// Add a provider here when a new screen caches daily-metric reads.
 
 abstract class _$DailyMetricsRemoteRefresh extends $Notifier<int> {
   int build();

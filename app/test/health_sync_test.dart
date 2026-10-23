@@ -1,3 +1,4 @@
+import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -171,6 +172,35 @@ void main() {
 
       expect(builds, greaterThan(before));
     });
+
+    test(
+      'also re-reads check-in and the week card when a day changed',
+      () async {
+        final checkIn = checkInControllerProvider(yesterday);
+        final weekCard = weekCardControllerProvider(weekCardStart(yesterday));
+        var checkInBuilds = 0;
+        var weekCardBuilds = 0;
+        container
+          ..listen(checkIn, (_, _) => checkInBuilds++)
+          ..listen(weekCard, (_, _) => weekCardBuilds++);
+        await container.read(checkIn.future);
+        final before = await container.read(weekCard.future);
+        expect(
+          before.days.singleWhere((d) => d.date == yesterday).steps,
+          isNull,
+        );
+        checkInBuilds = 0;
+        weekCardBuilds = 0;
+
+        await sync();
+        await container.read(checkIn.future);
+        final after = await container.read(weekCard.future);
+
+        expect(checkInBuilds, greaterThan(0));
+        expect(weekCardBuilds, greaterThan(0));
+        expect(after.days.singleWhere((d) => d.date == yesterday).steps, 8123);
+      },
+    );
   });
 
   test('without Health bound (macOS), syncHealthData does nothing', () async {

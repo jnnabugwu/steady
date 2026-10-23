@@ -108,7 +108,7 @@ final class HealthSyncControllerProvider
 }
 
 String _$healthSyncControllerHash() =>
-    r'8b0b2bb3340913b82c54e2994528e61645ab05a9';
+    r'2b351e949dc89b693bce3b0a69cf47a6a259172a';
 
 /// Runs the Health sync and holds its latest outcome.
 ///
