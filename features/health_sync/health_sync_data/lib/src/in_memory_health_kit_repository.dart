@@ -1,10 +1,14 @@
 import 'package:failures/failures.dart';
+import 'package:health_sync_data/src/health_kit_wire.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 
 /// In-memory [HealthKitRepository] for tests and previews.
 ///
 /// Answers [dailyTotals] from [days] (keyed by local midnight), filling the
-/// rest of the range with empty days the way the native side does.
+/// rest of the range with empty days the way the native side does. Same
+/// date contract as `MethodChannelHealthKitRepository`: local calendar days
+/// (a UTC `DateTime` is converted first), years 0000 to 9999, and `start`
+/// not after `end`, else `Err(ValidationFailure)`.
 /// [requestAuthorization] moves [status] from `notDetermined` to
 /// `requested`, like the real permission sheet. Counts calls, so tests can
 /// assert the sheet was asked for once.
@@ -15,7 +19,7 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
     Iterable<HealthDayTotals> days = const [],
   }) : days = {
          for (final d in days)
-           DateTime(d.date.year, d.date.month, d.date.day): d,
+           healthLocalDay(d.date): d.copyWith(date: healthLocalDay(d.date)),
        };
 
   /// What [authorizationStatus] returns.
@@ -58,17 +62,26 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
     DateTime end,
   ) async {
     dailyTotalsCalls++;
-    return _or(() {
-      final last = DateTime(end.year, end.month, end.day);
-      return [
-        for (
-          var d = DateTime(start.year, start.month, start.day);
-          !d.isAfter(last);
-          d = DateTime(d.year, d.month, d.day + 1)
-        )
-          days[d] ?? HealthDayTotals(date: d),
-      ];
-    });
+    final failure = this.failure;
+    if (failure != null) return Err(failure);
+    final first = healthLocalDay(start);
+    final last = healthLocalDay(end);
+    if (!isSupportedHealthDate(first) || !isSupportedHealthDate(last)) {
+      return const Err(
+        ValidationFailure('start and end must be in the years 0000 to 9999'),
+      );
+    }
+    if (first.isAfter(last)) {
+      return const Err(ValidationFailure('start must not be after end'));
+    }
+    return Ok([
+      for (
+        var d = first;
+        !d.isAfter(last);
+        d = DateTime(d.year, d.month, d.day + 1)
+      )
+        days[d] ?? HealthDayTotals(date: d),
+    ]);
   }
 
   Result<T> _or<T>(T Function() value) {
