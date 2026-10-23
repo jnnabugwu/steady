@@ -9,7 +9,7 @@ part 'health_day_totals.freezed.dart';
 /// day. `null` is "unknown", never "zero": HealthKit doesn't tell an app
 /// whether the user denied it read access, so a type the user didn't allow
 /// looks exactly like a type with no data. Field names match the
-/// `DailyMetric` fields they're written to.
+/// `DailyMetric` fields of the same meaning.
 @freezed
 abstract class HealthDayTotals with _$HealthDayTotals {
   /// Creates one day's totals.
@@ -29,7 +29,8 @@ abstract class HealthDayTotals with _$HealthDayTotals {
 
   const HealthDayTotals._();
 
-  /// Whether Health had no samples of any of the three types that day.
+  /// Whether all three totals are unavailable that day: no samples, or
+  /// read access not granted (HealthKit doesn't say which).
   bool get isEmpty =>
       steps == null &&
       caloriesBurnedActive == null &&

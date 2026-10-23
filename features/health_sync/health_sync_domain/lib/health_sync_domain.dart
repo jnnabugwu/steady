@@ -1,5 +1,6 @@
-/// Health sync (iOS only): Apple Health daily totals, and the use case that
-/// merges them into the shared `DailyMetric` store.
+/// Health sync (iOS only): Apple Health daily totals, read live through
+/// `HealthKitRepository`. Nothing here is merged into the shared
+/// `DailyMetric` store.
 library;
 
 export 'src/health_authorization_status.dart';
