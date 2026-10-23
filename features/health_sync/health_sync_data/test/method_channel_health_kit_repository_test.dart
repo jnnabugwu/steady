@@ -162,6 +162,43 @@ void main() {
       },
     );
 
+    final unsupportedYears = <String, (DateTime, DateTime)>{
+      'a start before year 0': (DateTime(-1, 12, 31), DateTime(2026, 10, 4)),
+      'an end after year 9999': (DateTime(2026, 10, 4), DateTime(10000)),
+    };
+    for (final MapEntry(key: name, value: (start, end))
+        in unsupportedYears.entries) {
+      test('$name is a ValidationFailure, without calling native', () async {
+        answer((_) => <Object?>[]);
+        final failure = errFailure(await repository.dailyTotals(start, end));
+        expect(failure, isA<ValidationFailure>());
+        expect(calls, isEmpty);
+      });
+    }
+
+    test('a UTC bound is sent as its local calendar day', () async {
+      final utc = utcWithDifferentLocalDay();
+      if (utc == null) {
+        markTestSkipped('Local time is UTC here: no differing day to test');
+        return;
+      }
+      final local = utc.toLocal();
+      final expected = formatHealthDate(
+        DateTime(local.year, local.month, local.day),
+      );
+      expect(
+        expected,
+        isNot(
+          '${utc.year.toString().padLeft(4, '0')}-'
+          '${utc.month.toString().padLeft(2, '0')}-'
+          '${utc.day.toString().padLeft(2, '0')}',
+        ),
+      );
+      answer((_) => <Object?>[]);
+      okValue(await repository.dailyTotals(utc, utc));
+      expect(calls.single.arguments, {'start': expected, 'end': expected});
+    });
+
     final malformed = <String, Object?>{
       'not a list': {'date': '2026-10-21'},
       'a row that is not a map': ['2026-10-21'],
@@ -214,7 +251,40 @@ void main() {
   group('wire dates', () {
     test('format pads and parse round-trips to local midnight', () {
       expect(formatHealthDate(DateTime(2026, 3, 4, 23, 59)), '2026-03-04');
+      expect(formatHealthDate(DateTime(7, 1, 2)), '0007-01-02');
       expect(parseHealthDate('2026-03-04'), DateTime(2026, 3, 4));
     });
+
+    test('format rejects years outside 0000 to 9999', () {
+      expect(formatHealthDate(DateTime(0)), '0000-01-01');
+      expect(formatHealthDate(DateTime(9999, 12, 31)), '9999-12-31');
+      expect(() => formatHealthDate(DateTime(-1)), throwsRangeError);
+      expect(() => formatHealthDate(DateTime(10000)), throwsRangeError);
+    });
+
+    test('format uses the local calendar day of a UTC DateTime', () {
+      final utc = utcWithDifferentLocalDay();
+      if (utc == null) {
+        markTestSkipped('Local time is UTC here: no differing day to test');
+        return;
+      }
+      final local = utc.toLocal();
+      expect(local.day, isNot(utc.day));
+      expect(formatHealthDate(utc), formatHealthDate(local));
+    });
   });
+}
+
+/// A UTC instant whose local calendar day differs from its UTC one in the
+/// test's time zone (CI runs with `TZ=America/Chicago`), or `null` when
+/// local time is UTC. 01:00 UTC is the previous local day west of UTC;
+/// 23:00 UTC is the next local day east of it.
+DateTime? utcWithDifferentLocalDay() {
+  for (final utc in [
+    DateTime.utc(2026, 10, 22, 1),
+    DateTime.utc(2026, 10, 21, 23),
+  ]) {
+    if (utc.toLocal().day != utc.day) return utc;
+  }
+  return null;
 }

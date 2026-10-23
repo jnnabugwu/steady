@@ -47,11 +47,32 @@ HealthAuthorizationStatus healthAuthorizationStatusFromWire(Object? raw) =>
       _ => HealthAuthorizationStatus.notDetermined,
     };
 
-/// Formats [date]'s local calendar day as `yyyy-MM-dd`.
+/// [date]'s local calendar day, at local midnight. A UTC [DateTime] is
+/// converted to local time first, so `DateTime.utc(2026, 10, 22, 2)` in
+/// Chicago is October 21st: the wire contract is local calendar days.
+DateTime healthLocalDay(DateTime date) {
+  final local = date.toLocal();
+  return DateTime(local.year, local.month, local.day);
+}
+
+/// Whether [date]'s local calendar day can be written as `yyyy-MM-dd`:
+/// its year is 0000 to 9999.
+bool isSupportedHealthDate(DateTime date) {
+  final year = healthLocalDay(date).year;
+  return year >= 0 && year <= 9999;
+}
+
+/// Formats [date]'s local calendar day (see [healthLocalDay]) as
+/// `yyyy-MM-dd`. Throws [RangeError] if the year is outside 0000 to 9999
+/// (see [isSupportedHealthDate]), rather than emitting a malformed date.
 String formatHealthDate(DateTime date) {
-  final y = date.year.toString().padLeft(4, '0');
-  final m = date.month.toString().padLeft(2, '0');
-  final d = date.day.toString().padLeft(2, '0');
+  final day = healthLocalDay(date);
+  if (!isSupportedHealthDate(day)) {
+    throw RangeError.range(day.year, 0, 9999, 'date.year');
+  }
+  final y = day.year.toString().padLeft(4, '0');
+  final m = day.month.toString().padLeft(2, '0');
+  final d = day.day.toString().padLeft(2, '0');
   return '$y-$m-$d';
 }
 

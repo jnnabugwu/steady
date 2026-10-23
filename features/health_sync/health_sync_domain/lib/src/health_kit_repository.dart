@@ -23,7 +23,9 @@ abstract class HealthKitRepository {
   ResultFuture<Unit> requestAuthorization();
 
   /// One [HealthDayTotals] per local calendar day from [start] to [end],
-  /// inclusive (both are reduced to their calendar day), sorted by date.
-  /// A day with no samples still has a row, with `null` values.
+  /// inclusive (both are converted to local time, then reduced to their
+  /// calendar day), sorted by date. A day with no samples still has a row,
+  /// with `null` values. `Err(ValidationFailure)` if [start] is after
+  /// [end], or either is outside the years 0000 to 9999.
   ResultFuture<List<HealthDayTotals>> dailyTotals(DateTime start, DateTime end);
 }

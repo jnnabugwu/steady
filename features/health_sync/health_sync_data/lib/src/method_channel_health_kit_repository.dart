@@ -58,11 +58,15 @@ class MethodChannelHealthKitRepository implements HealthKitRepository {
     DateTime start,
     DateTime end,
   ) async {
-    if (DateTime(
-      start.year,
-      start.month,
-      start.day,
-    ).isAfter(DateTime(end.year, end.month, end.day))) {
+    // Local calendar days, even for a UTC DateTime (the wire contract).
+    final first = healthLocalDay(start);
+    final last = healthLocalDay(end);
+    if (!isSupportedHealthDate(first) || !isSupportedHealthDate(last)) {
+      return const Err(
+        ValidationFailure('start and end must be in the years 0000 to 9999'),
+      );
+    }
+    if (first.isAfter(last)) {
       return const Err(ValidationFailure('start must not be after end'));
     }
     return await _call(
@@ -70,7 +74,7 @@ class MethodChannelHealthKitRepository implements HealthKitRepository {
       () async => healthDayTotalsFromWire(
         await _channel.invokeMethod<Object?>(
           HealthKitChannel.dailyTotalsMethod,
-          {'start': formatHealthDate(start), 'end': formatHealthDate(end)},
+          {'start': formatHealthDate(first), 'end': formatHealthDate(last)},
         ),
       ),
     );
