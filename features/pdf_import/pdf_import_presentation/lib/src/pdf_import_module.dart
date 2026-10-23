@@ -7,11 +7,13 @@ import 'package:pdf_import_presentation/src/pdf_import_state.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The PDF import screen: pick a Cal AI export, review its days, import.
+/// The PDF import screen: pick a Cal AI export (or try the bundled sample),
+/// review its days, import.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): once the parsed days are
 /// committed it calls [onImportCompleted], and the app layer decides what
-/// happens next.
+/// happens next. After a sample import it first stays on the confirmation,
+/// which says how to remove the sample days, until the user taps Done.
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
@@ -19,8 +21,9 @@ class PdfImportModule extends ConsumerWidget {
   /// Creates the PDF import screen.
   const PdfImportModule({required this.onImportCompleted, super.key});
 
-  /// Called once after the parsed days are committed successfully. Not
-  /// called when the commit fails.
+  /// Called once after the parsed days are committed successfully: right
+  /// away for a chosen file, or when the user taps Done on a sample
+  /// import's confirmation. Not called when the commit fails.
   final void Function() onImportCompleted;
 
   @override
@@ -29,11 +32,16 @@ class PdfImportModule extends ConsumerWidget {
     final controller = ref.read(pdfImportControllerProvider.notifier);
 
     void choosePdf() => unawaited(controller.choosePdf());
+    void chooseSamplePdf() => unawaited(controller.chooseSamplePdf());
 
     Future<void> commit() async {
       await controller.commitImport();
       if (!context.mounted) return;
-      if (ref.read(pdfImportControllerProvider) is PdfImportCommitted) {
+      // A sample import stays on its confirmation (the removal hint) until
+      // Done.
+      if (ref.read(pdfImportControllerProvider) case PdfImportCommitted(
+        isSample: false,
+      )) {
         onImportCompleted();
       }
     }
@@ -50,9 +58,29 @@ class PdfImportModule extends ConsumerWidget {
                   'Choose a PDF exported from Cal AI. Steady reads each '
                   "day's calories on this device and shows them to you "
                   'before anything is saved.',
-              action: _ChooseButton(
-                label: 'Choose Cal AI PDF',
-                onPressed: choosePdf,
+              action: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ChooseButton(
+                    label: 'Choose Cal AI PDF',
+                    onPressed: choosePdf,
+                  ),
+                  const SizedBox(height: 8),
+                  SecondaryButton(
+                    key: const Key('pdfImport_sampleButton'),
+                    onPressed: chooseSamplePdf,
+                    child: const Text('Try a sample export'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Seven made-up days from January 2025, to see how '
+                    'importing works.',
+                    style: SteadyType.body.copyWith(
+                      fontSize: 13,
+                      color: SteadyColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
             PdfImportParsing() => const Center(
@@ -119,9 +147,30 @@ class PdfImportModule extends ConsumerWidget {
                   ],
                 ),
               ),
-            PdfImportCommitted(:final days) => _Message(
+            PdfImportCommitted(:final days, :final isSample) => _Message(
               title: 'Imported ${_dayCount(days.length)}',
               body: "Each day's calories are now in Steady.",
+              action: isSample
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          'These are sample days. Remove them anytime in '
+                          'Settings → Sample data.',
+                          key: const Key('pdfImport_sampleHint'),
+                          style: SteadyType.body.copyWith(
+                            color: SteadyColors.textMuted,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        PrimaryButton(
+                          key: const Key('pdfImport_doneButton'),
+                          onPressed: onImportCompleted,
+                          child: const Text('Done'),
+                        ),
+                      ],
+                    )
+                  : null,
             ),
           },
         ),

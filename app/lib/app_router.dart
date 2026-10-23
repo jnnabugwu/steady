@@ -9,8 +9,8 @@
 /// iCloud (see [redirectForAccount]).
 ///
 /// [ImportRoute] is pushed from the home screen's import action.
-/// [SettingsRoute] (`/settings`) hosts Apple Health and the data export (and,
-/// in debug builds, the Developer card).
+/// [SettingsRoute] (`/settings`) hosts Apple Health, "Sample data" and the
+/// data export (and, in debug builds, the Developer card).
 library;
 
 import 'dart:async';
@@ -28,6 +28,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/sample_data_card.dart';
 
 part 'app_router.g.dart';
 
@@ -110,7 +111,9 @@ class HomeRoute extends GoRouteData with $HomeRoute {
 }
 
 /// `/settings`: the settings screen (`DataExportModule`), with the Apple
-/// Health section ([AppleHealthCard]) and the debug-only Developer card
+/// Health section ([AppleHealthCard]), "Sample data" ([SampleDataCard],
+/// shown only while the sample export's days are in the store) and the
+/// debug-only Developer card
 /// ([developerSettingsSections]) composed in above the export.
 ///
 /// Nested under [HomeRoute], so the home screen is always beneath it, even
@@ -123,7 +126,11 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
   Widget build(BuildContext context, GoRouterState state) => DataExportModule(
     onBack: () =>
         context.canPop() ? context.pop() : const HomeRoute().go(context),
-    sections: [const AppleHealthCard(), ...developerSettingsSections()],
+    sections: [
+      const AppleHealthCard(),
+      const SampleDataCard(),
+      ...developerSettingsSections(),
+    ],
   );
 }
 

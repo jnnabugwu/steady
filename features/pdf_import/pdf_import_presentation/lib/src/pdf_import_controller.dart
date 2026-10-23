@@ -5,6 +5,7 @@ import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/src/pdf_file_picker.dart';
 import 'package:pdf_import_presentation/src/pdf_import_state.dart';
 import 'package:pdf_import_presentation/src/providers.dart';
+import 'package:pdf_import_presentation/src/sample_export.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pdf_import_controller.g.dart';
@@ -23,8 +24,9 @@ class PdfImportController extends _$PdfImportController {
   @override
   PdfImportState build() => const PdfImportEmpty();
 
-  /// True while the file picker is open. Not a state of its own: the
-  /// screen looks the same until a file comes back.
+  /// True while the file picker is open or the sample export is loading.
+  /// Not a state of its own: the screen looks the same until the bytes come
+  /// back.
   bool _isPicking = false;
 
   bool get _isBusy =>
@@ -60,12 +62,41 @@ class PdfImportController extends _$PdfImportController {
     await parsePdf(bytes);
   }
 
+  /// Domain event: SampleExportSelected.
+  ///
+  /// Loads the bundled sample export (seven made-up days, Jan 6-12 2025),
+  /// then parses it the same way as a chosen file ([parsePdf]), so the
+  /// preview and import that follow are the real flow. A load error becomes
+  /// [PdfImportParseFailed]. Ignored whenever [choosePdf] would be.
+  Future<void> chooseSamplePdf() async {
+    if (!ref.mounted || _isBusy) return;
+    _isPicking = true;
+    final Uint8List bytes;
+    try {
+      bytes = await ref.read(sampleExportLoaderProvider)();
+    } on Object catch (error) {
+      if (!ref.mounted) return;
+      state = PdfImportParseFailed(
+        UnknownFailure("Couldn't open the sample export.", cause: error),
+      );
+      return;
+    } finally {
+      _isPicking = false;
+    }
+    if (!ref.mounted) return;
+    await _parse(bytes, isSample: true);
+  }
+
   /// Domain event: PdfParsed.
   ///
   /// Parses [bytes] as a Cal AI export. Goes [PdfImportParsing], then
   /// [PdfImportPreview] (possibly with no days) or [PdfImportParseFailed].
   /// Ignored while a parse or commit is in flight, or once committed.
-  Future<void> parsePdf(Uint8List bytes) async {
+  Future<void> parsePdf(Uint8List bytes) => _parse(bytes, isSample: false);
+
+  /// [parsePdf], marking the preview as the sample export's when
+  /// [isSample].
+  Future<void> _parse(Uint8List bytes, {required bool isSample}) async {
     if (!ref.mounted || _isBusy) return;
     state = const PdfImportParsing();
     Result<List<ParsedDay>> result;
@@ -78,7 +109,7 @@ class PdfImportController extends _$PdfImportController {
     }
     if (!ref.mounted) return;
     state = switch (result) {
-      Ok(:final value) => PdfImportPreview(value),
+      Ok(:final value) => PdfImportPreview(value, isSample: isSample),
       Err(:final failure) => PdfImportParseFailed(failure),
     };
   }
@@ -98,8 +129,8 @@ class PdfImportController extends _$PdfImportController {
         current.days.isEmpty) {
       return;
     }
-    final days = current.days;
-    state = PdfImportPreview(days, isCommitting: true);
+    final PdfImportPreview(:days, :isSample) = current;
+    state = PdfImportPreview(days, isCommitting: true, isSample: isSample);
     Result<Unit> result;
     try {
       result = await ref
@@ -110,8 +141,12 @@ class PdfImportController extends _$PdfImportController {
     }
     if (!ref.mounted) return;
     state = switch (result) {
-      Ok() => PdfImportCommitted(days),
-      Err(:final failure) => PdfImportPreview(days, commitFailure: failure),
+      Ok() => PdfImportCommitted(days, isSample: isSample),
+      Err(:final failure) => PdfImportPreview(
+        days,
+        commitFailure: failure,
+        isSample: isSample,
+      ),
     };
   }
 }

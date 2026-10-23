@@ -42,7 +42,9 @@ final class PdfImportParseFailed extends PdfImportState {
 ///
 /// [days] may be empty (the PDF had no Cal AI day sections). While
 /// [isCommitting] the import is in flight. [commitFailure] is set when the
-/// last commit attempt failed, and the user can retry.
+/// last commit attempt failed, and the user can retry. [isSample] is true
+/// when the days came from the bundled sample export rather than a chosen
+/// file.
 final class PdfImportPreview extends PdfImportState {
   /// Creates a preview of [days].
   ///
@@ -52,6 +54,7 @@ final class PdfImportPreview extends PdfImportState {
     this.days, {
     this.isCommitting = false,
     this.commitFailure,
+    this.isSample = false,
   }) : assert(
          !isCommitting || commitFailure == null,
          'A commit in flight has no failure yet',
@@ -65,13 +68,21 @@ final class PdfImportPreview extends PdfImportState {
 
   /// The failure from the last commit attempt, if it failed.
   final Failure? commitFailure;
+
+  /// Whether [days] came from the bundled sample export
+  /// (`PdfImportController.chooseSamplePdf`).
+  final bool isSample;
 }
 
 /// The parsed days' totals were committed. Terminal for this flow.
 final class PdfImportCommitted extends PdfImportState {
   /// Creates the committed state for [days].
-  const PdfImportCommitted(this.days);
+  const PdfImportCommitted(this.days, {this.isSample = false});
 
   /// The days that were committed.
   final List<ParsedDay> days;
+
+  /// Whether [days] came from the bundled sample export. The screen then
+  /// says how to remove them (Settings → Sample data).
+  final bool isSample;
 }

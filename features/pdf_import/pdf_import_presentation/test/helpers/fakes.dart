@@ -19,6 +19,9 @@ class FakePdfImportRepository implements PdfImportRepository {
   FutureOr<Result<Unit>> Function(List<ParsedDay> days) onCommit;
 
   final List<Uint8List> parseCalls = [];
+
+  /// What [countSampleDays] and [removeSampleDays] return.
+  Result<int> sampleDayCount = const Ok(0);
   final List<List<ParsedDay>> commitCalls = [];
 
   @override
@@ -32,6 +35,12 @@ class FakePdfImportRepository implements PdfImportRepository {
     commitCalls.add(days);
     return await onCommit(days);
   }
+
+  @override
+  ResultFuture<int> countSampleDays() async => sampleDayCount;
+
+  @override
+  ResultFuture<int> removeSampleDays() async => sampleDayCount;
 }
 
 /// A fake file picker: returns [bytes] (`null` = cancelled), or throws
@@ -56,6 +65,10 @@ class FakePdfFilePicker {
 }
 
 final pdfBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46]); // "%PDF"
+
+/// Stands in for the bundled sample export; distinct from [pdfBytes] so a
+/// test can tell which path supplied the bytes.
+final sampleBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46, 0x2D]); // %PDF-
 
 ParsedFoodEntry _entry(String name, int calories) => ParsedFoodEntry(
   name: name,

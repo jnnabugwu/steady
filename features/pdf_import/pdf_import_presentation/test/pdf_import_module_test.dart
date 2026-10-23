@@ -26,6 +26,7 @@ void main() {
       overrides: [
         pdfImportRepositoryProvider.overrideWithValue(repository),
         pdfFilePickerProvider.overrideWithValue(picker.call),
+        sampleExportLoaderProvider.overrideWithValue(() async => sampleBytes),
       ],
       child: ShadcnApp(
         theme: steadyTheme,
@@ -35,6 +36,7 @@ void main() {
   );
 
   final chooseButton = find.byKey(const Key('pdfImport_chooseButton'));
+  final sampleButton = find.byKey(const Key('pdfImport_sampleButton'));
   final importButton = find.byKey(const Key('pdfImport_importButton'));
   final chooseAgainButton = find.byKey(
     const Key('pdfImport_chooseAgainButton'),
@@ -189,5 +191,77 @@ void main() {
 
     expect(find.text('Ground Turkey · 780 kcal'), findsOneWidget);
     expect(find.text('Rice Bowl · 1,370 kcal'), findsOneWidget);
+  });
+
+  testWidgets('"Try a sample export" sits under the picker with its caption', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    expect(find.text('Try a sample export'), findsOneWidget);
+    expect(
+      find.text(
+        'Seven made-up days from January 2025, to see how importing works.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      tester.getTopLeft(sampleButton).dy,
+      greaterThan(tester.getTopLeft(chooseButton).dy),
+    );
+  });
+
+  testWidgets('the sample export runs parse -> preview -> import', (
+    tester,
+  ) async {
+    await pump(tester);
+
+    await tester.tap(sampleButton);
+    await tester.pumpAndSettle();
+
+    expect(picker.calls, 0);
+    expect(repository.parseCalls, [sampleBytes]);
+    expect(find.text('2 days found'), findsOneWidget);
+
+    await tester.tap(importButton);
+    await tester.pumpAndSettle();
+
+    expect(repository.commitCalls, [sampleDays]);
+    // The confirmation stays up with the removal hint until Done.
+    expect(completedCount, 0);
+    expect(find.text('Imported 2 days'), findsOneWidget);
+    expect(
+      find.text(
+        'These are sample days. Remove them anytime in '
+        'Settings → Sample data.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('pdfImport_doneButton')));
+    await tester.pump();
+
+    expect(completedCount, 1);
+  });
+
+  testWidgets('a chosen file gets no sample hint and completes at once', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tester.tap(chooseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(importButton);
+    await tester.pumpAndSettle();
+
+    expect(completedCount, 1);
+    expect(find.byKey(const Key('pdfImport_sampleHint')), findsNothing);
+    expect(find.byKey(const Key('pdfImport_doneButton')), findsNothing);
+  });
+
+  testWidgets('the real loader reads the bundled PDF asset', (tester) async {
+    final bytes = await tester.runAsync(loadSampleExportFromBundle);
+
+    // "%PDF": the pubspec's assets entry is in place and the file is a PDF.
+    expect(bytes!.sublist(0, 4), [0x25, 0x50, 0x44, 0x46]);
   });
 }

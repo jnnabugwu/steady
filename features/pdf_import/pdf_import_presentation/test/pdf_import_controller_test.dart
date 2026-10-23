@@ -189,6 +189,89 @@ void main() {
     });
   });
 
+  group('chooseSamplePdf', () {
+    PdfImportController sampleNotifier(SampleExportLoader loader) {
+      final c = ProviderContainer.test(
+        overrides: [
+          pdfImportRepositoryProvider.overrideWithValue(repository),
+          pdfFilePickerProvider.overrideWithValue(picker.call),
+          sampleExportLoaderProvider.overrideWithValue(loader),
+        ],
+      );
+      return (c..listen(
+            pdfImportControllerProvider,
+            (_, next) => states.add(next),
+          ))
+          .read(pdfImportControllerProvider.notifier);
+    }
+
+    test('loads the sample then parses it, through to the preview', () async {
+      var loads = 0;
+      final n = sampleNotifier(() async {
+        loads++;
+        return sampleBytes;
+      });
+
+      await n.chooseSamplePdf();
+
+      expect(loads, 1);
+      expect(picker.calls, 0);
+      expect(repository.parseCalls, [sampleBytes]);
+      expect(states.last, isPreview());
+    });
+
+    test('marks the preview and the commit as the sample', () async {
+      final n = sampleNotifier(() async => sampleBytes);
+
+      await n.chooseSamplePdf();
+      expect(
+        states.last,
+        isA<PdfImportPreview>().having((s) => s.isSample, 'isSample', true),
+      );
+
+      await n.commitImport();
+      expect(
+        states.last,
+        isA<PdfImportCommitted>().having((s) => s.isSample, 'isSample', true),
+      );
+    });
+
+    test('a load error becomes a parse failure', () async {
+      final n = sampleNotifier(() async => throw Exception('missing asset'));
+
+      await n.chooseSamplePdf();
+
+      expect(
+        states.last,
+        isA<PdfImportParseFailed>().having(
+          (s) => s.failure.message,
+          'message',
+          "Couldn't open the sample export.",
+        ),
+      );
+      expect(repository.parseCalls, isEmpty);
+    });
+
+    test('a second tap while the sample is loading is ignored', () async {
+      final load = Completer<Uint8List>();
+      var loads = 0;
+      final n = sampleNotifier(() {
+        loads++;
+        return load.future;
+      });
+
+      final first = n.chooseSamplePdf();
+      await n.chooseSamplePdf();
+      await n.choosePdf();
+      load.complete(sampleBytes);
+      await first;
+
+      expect(loads, 1);
+      expect(picker.calls, 0);
+      expect(repository.parseCalls, hasLength(1));
+    });
+  });
+
   group('commitImport', () {
     setUp(() => notifier().parsePdf(pdfBytes));
 
@@ -199,7 +282,9 @@ void main() {
 
       expect(states, [
         isPreview(isCommitting: true),
-        isA<PdfImportCommitted>().having((s) => s.days, 'days', sampleDays),
+        isA<PdfImportCommitted>()
+            .having((s) => s.days, 'days', sampleDays)
+            .having((s) => s.isSample, 'isSample', false),
       ]);
       expect(repository.commitCalls, [sampleDays]);
     });

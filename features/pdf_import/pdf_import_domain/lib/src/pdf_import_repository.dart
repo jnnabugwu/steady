@@ -22,4 +22,24 @@ abstract class PdfImportRepository {
   /// CloudKit-backed store anyway (CLAUDE.md §7: record-level last-writer-
   /// wins, no custom merge layer).
   ResultFuture<Unit> commitDailyTotals(List<ParsedDay> days);
+
+  /// Counts the sample export's rows still in the shared store: rows whose
+  /// date is in `sampleExportDailyTotals` and whose `caloriesEaten` equals
+  /// that date's sample total. Settings shows "Sample data" only when this
+  /// is at least 1.
+  ResultFuture<int> countSampleDays();
+
+  /// Removes the sample export's rows (the ones [countSampleDays] counts)
+  /// and returns how many it removed. Nothing else is touched:
+  ///
+  /// - A row with only the sample's `caloriesEaten` is deleted.
+  /// - A row that also holds other data (a check-in status, steps, burned
+  ///   calories) keeps it: only its `caloriesEaten` is cleared.
+  /// - A row on a sample date with a different `caloriesEaten` is a real
+  ///   day, and is left alone.
+  ///
+  /// Not atomic, like [commitDailyTotals]: a failure partway returns the
+  /// first `Err`, with earlier rows already removed. Re-running is safe,
+  /// since removed rows no longer match.
+  ResultFuture<int> removeSampleDays();
 }
