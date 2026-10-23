@@ -165,7 +165,7 @@ final class DailyMetricsRemoteRefreshProvider
 }
 
 String _$dailyMetricsRemoteRefreshHash() =>
-    r'a8a657a9d5d42a3a7d6fa4caeb9c54a483d457a1';
+    r'e920f303a2eac80b6f9f0fa91f1495a36c49a798';
 
 /// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
 /// and, on each event, calls [invalidateDailyMetricReaders].

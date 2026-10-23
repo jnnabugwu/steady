@@ -6,39 +6,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
-import 'package:notifications_domain/notifications_domain.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 
-/// Records every `cancelReminder` call, so a test can see which day the
-/// route asked to cancel.
-class _RecordingNotificationScheduler implements NotificationScheduler {
-  final List<DateTime> cancelled = [];
-
-  /// What [cancelReminder] returns.
-  Result<Unit> cancelResult = const Ok(unit);
-
-  @override
-  ResultFuture<Unit> scheduleEndOfDayReminder(DateTime date) async =>
-      const Ok(unit);
-
-  @override
-  ResultFuture<Unit> cancelReminder(DateTime date) async {
-    cancelled.add(date);
-    return cancelResult;
-  }
-}
-
 void main() {
-  late _RecordingNotificationScheduler scheduler;
-
-  setUp(() => scheduler = _RecordingNotificationScheduler());
-
-  /// Pumps the real app, with the real override list plus the recording
-  /// scheduler. If [coldStartLocation] is given, it is the platform's
-  /// initial route, which is how the OS hands a tapped notification's deep
-  /// link to a cold-started app.
+  /// Pumps the real app, with the real override list. If
+  /// [coldStartLocation] is given, it is the platform's initial route, which
+  /// is how the OS hands a deep link to a cold-started app.
   Future<ProviderContainer> pumpApp(
     WidgetTester tester, {
     String? coldStartLocation,
@@ -49,10 +24,7 @@ void main() {
     }
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          ...appProviderOverrides,
-          notificationSchedulerProvider.overrideWithValue(scheduler),
-        ],
+        overrides: appProviderOverrides,
         child: const SteadyApp(),
       ),
     );
@@ -84,8 +56,7 @@ void main() {
     });
 
     testWidgets(
-      '/checkin/2026-10-19 opens that day, logs to the shared store and '
-      "cancels that day's reminder",
+      '/checkin/2026-10-19 opens that day and logs to the shared store',
       (tester) async {
         final day = DateTime(2026, 10, 19);
         final container = await pumpApp(
@@ -102,7 +73,6 @@ void main() {
 
         expect(find.text('Status: Logged'), findsOneWidget);
         expect(await storedStatus(container, day), LoggingStatus.logged);
-        expect(scheduler.cancelled, [day]);
       },
     );
 
@@ -122,9 +92,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(await storedStatus(container, day), LoggingStatus.partial);
-      // Exactly local midnight, not 21:30: the reminder is cancelled with
-      // the normalized day.
-      expect(scheduler.cancelled, [day]);
     });
 
     testWidgets('a UTC offset does not move the date across midnight', (
@@ -145,7 +112,6 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(await storedStatus(container, day), LoggingStatus.skipped);
-      expect(scheduler.cancelled, [day]);
     });
 
     for (final location in ['/checkin/garbage', '/checkin/2026-02-30']) {
@@ -159,20 +125,6 @@ void main() {
         expect(find.byType(CheckInModule), findsNothing);
       });
     }
-
-    testWidgets('a failed reminder cancel is reported, not dropped', (
-      tester,
-    ) async {
-      const failure = PlatformChannelFailure('cancel failed');
-      scheduler.cancelResult = const Err(failure);
-      await pumpApp(tester, coldStartLocation: '/checkin/2026-10-19');
-
-      await tester.tap(find.byKey(const Key('checkInButton_logged')));
-      await tester.pumpAndSettle();
-
-      expect(scheduler.cancelled, [DateTime(2026, 10, 19)]);
-      expect(tester.takeException(), same(failure));
-    });
   });
 
   group('settings', () {

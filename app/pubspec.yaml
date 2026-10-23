@@ -74,11 +74,6 @@ dependencies:
   metrics_presentation:
     path: ../features/metrics/metrics_presentation
 
-  notifications_data:
-    path: ../features/notifications/notifications_data
-  notifications_domain:
-    path: ../features/notifications/notifications_domain
-
   path_provider: ^2.1.5
 
   pdf_import_data:
