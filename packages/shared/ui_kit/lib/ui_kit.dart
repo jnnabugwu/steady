@@ -4,6 +4,7 @@ library;
 
 export 'src/design_tokens.dart';
 export 'src/steady_theme.dart';
+export 'src/widgets/cairn_week.dart';
 export 'src/widgets/logging_status_indicator.dart';
 export 'src/widgets/metric_accent_chip.dart';
 export 'src/widgets/steady_card.dart';
