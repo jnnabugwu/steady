@@ -87,10 +87,17 @@ TestFlight → Test Information:
   (`docs/PRIVACY.md` must be merged to `main` first, or the link 404s).
 - **Beta App Review information:** contact name, phone and email in App Store Connect.
   **Sign-in required: off** (no account; it needs an iCloud-signed-in device).
-- **Review notes:** say that the app needs iCloud sign-in, that Apple Health steps and
-  energy are read on the iPhone and never stored in iCloud, and that a Cal AI PDF export is
-  needed to import calories (check-ins work without one). Decide whether to give the
-  reviewer a sample PDF (it must not contain anyone's real data).
+- **Review notes** (paste as is):
+
+  > No account is needed: Steady uses the device's iCloud account to sync the user's own
+  > data between their iPhone and Mac (CloudKit private database; no servers). To see the
+  > app working without a Cal AI export, tap **Import Cal AI PDF → Try a sample export →
+  > Import 7 days**: it imports seven made-up days from January 2025 and shows them in the
+  > history. The same sample file is at
+  > https://github.com/jnnabugwu/steady/blob/main/docs/sample/cal_ai_sample_export.pdf.
+  > On iPhone, Steady asks to read steps and active/resting energy from Apple Health. These
+  > are shown on the iPhone only: they are never stored in iCloud and never written back to
+  > Apple Health.
 - **What to Test** (per build): "Import a Cal AI PDF export, do the end-of-day check-in,
   grant Apple Health access and check today's steps and energy, export your data from
   Settings, and if you have a Mac, check that calories and check-ins sync."
