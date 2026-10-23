@@ -1,0 +1,67 @@
+# Steady Privacy Policy
+
+Effective 23 October 2026.
+
+Steady is an app for iPhone and Mac that shows your daily calories and a simple end-of-day
+check-in. This policy describes what the app does with your data.
+
+## The short version
+
+- Steady has no servers and no accounts of its own. Your Apple ID and iCloud are the only
+  account.
+- Your data stays on your devices and in your own private iCloud storage. The developer
+  can't see it.
+- No analytics, no ads, no tracking, no third-party services.
+
+## What Steady stores
+
+- **Calories eaten.** When you import a Cal AI PDF export, Steady reads each day's total
+  calories eaten and saves those daily totals. The PDF itself isn't kept.
+- **Check-ins.** Your end-of-day status for each day (logged, partial or skipped).
+
+This data is stored on your device and in your own private iCloud storage (the CloudKit
+private database for your Apple ID), so your iPhone and Mac stay in sync. Only you can access
+your private iCloud data; the developer can't.
+
+## Apple Health
+
+On iPhone, with your permission, Steady reads your daily steps, active energy and resting
+energy from Apple Health and shows them in the app. Steady:
+
+- reads them fresh from Apple Health and doesn't save them, so they are never stored in
+  iCloud;
+- never writes anything to Apple Health;
+- never shares them with anyone or uses them for advertising.
+
+You can turn off Steady's access at any time in the Health app or in Settings → Privacy &
+Security → Health. The Mac app doesn't use Apple Health.
+
+## What Steady doesn't do
+
+- No Steady servers: nothing is sent to the developer or to anyone else.
+- No analytics, advertising or tracking, and no third-party services that receive your data.
+- No selling or sharing of your data.
+
+Apple may pass crash reports to the developer if you've turned on sharing with app
+developers in your device's analytics settings, and feedback you send through TestFlight goes
+to the developer. Both are handled by Apple, not by Steady.
+
+When you choose to share something, such as a week card image or an export file, it goes
+where you send it through the system share sheet. Steady doesn't send it anywhere itself.
+
+## Your data, your control
+
+- **Export:** in Steady's Settings you can export your data as CSV or JSON.
+- **Delete:** deleting the app removes its data from that device. To delete the copy in
+  iCloud, go to Settings → [your name] → iCloud → Manage Storage (on Mac: System Settings →
+  [your name] → iCloud → Manage) and delete Steady's data.
+
+## Changes
+
+If this policy changes, the updated version will be posted at this address with a new
+effective date.
+
+## Contact
+
+Privacy questions or data requests: email **jordannnabugwu@gmail.com**. Please don't post personal
+details in public GitHub issues. Other questions about the app: <https://github.com/jnnabugwu/steady/issues>.

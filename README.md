@@ -22,7 +22,7 @@ One Flutter codebase, two platform targets — iOS and macOS, not two separate a
 | --- | --- |
 | Client | Flutter — iOS + macOS |
 | Local persistence, sync, and auth | **SwiftData (CloudKit-backed)** — Apple ID is the entire auth story, no separate login system |
-| Step / energy data | **HealthKit**, via platform channels (native on both iOS and macOS 26 Tahoe+) |
+| Step / energy data | **HealthKit** on iOS only, read live and never stored in iCloud (App Store 5.1.3); no Health data on the Mac |
 | On-device coach LLM | Apple **Foundation Models** — **macOS only**; iOS shows read-only, CloudKit-synced session history instead of live inference |
 | PDF parsing | **`pdfrx_engine`** (pure Dart) — parses Cal AI weekly exports on-device, no backend at all |
 | Routing | **go_router** with `go_router_builder` / `@TypedGoRoute` — typed routes for deep linking (e.g. a check-in notification → a specific day's check-in screen) |
@@ -84,6 +84,5 @@ flutter pub get
 flutter run
 ```
 
-Requires macOS 26 "Tahoe"+ on Apple Silicon for native HealthKit and Foundation Models
-on the Mac target; iOS's minimum OS version is not yet finalized (see
+Requires macOS 26 "Tahoe"+ on Apple Silicon for Foundation Models on the Mac target; iOS's minimum OS version is not yet finalized (see
 [`docs/steady_product_overview.md`](docs/steady_product_overview.md) §2).

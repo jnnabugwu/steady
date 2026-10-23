@@ -23,8 +23,10 @@
   separate login system, no password, no session token, no server verifying anything.
   Apple ID *is* the account. If Steady never grows a feature that shares data with a
   second party, there is no auth system left to build.
-- **HealthKit** — accessed via platform channels (Dart ↔ Swift), native on both iOS and
-  macOS 26 Tahoe+ (previously Catalyst-only on Mac; now genuinely native there).
+- **HealthKit — iOS only.** Accessed via platform channels (Dart ↔ Swift) on the iPhone.
+  The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` returns false on
+  macOS. Health values are read live and never stored in the synced store (App Store
+  guideline 5.1.3; `docs/technical_decisions.md`, "Health data stays on the iPhone").
 - **Apple Foundation Models — macOS only.** The coach runs live sessions on macOS
   exclusively; the iOS app never wires up the Foundation Models platform channel at all,
   no entitlement needed there. This decouples iOS's hardware floor from the A17 Pro+
@@ -497,18 +499,28 @@ protocol, no conflict resolution code, no backend involvement (see `steady_produ
 **Where this stands.** The shared `DailyMetric` store is live in SwiftData:
 `packages_native/daily_metrics_store` holds `DailyMetricRecord` (`@Model`) behind the
 `steady/daily_metrics` MethodChannel, and `SwiftDataDailyMetricRepository` in
-`daily_metrics_data` is its Dart side (§8). **CloudKit is gated off.** The native store
+`daily_metrics_data` is its Dart side (§8). **CloudKit sync is on.** The native store
 syncs only when Info.plist `SteadyCloudKitEnabled` is true *and* `SteadyCloudKitContainer`
-names the iCloud container (e.g. `iCloud.com.jmagic.steady`); otherwise it opens with
-`cloudKitDatabase: .none` and never touches CloudKit. Both Info.plists set
-`SteadyCloudKitEnabled` to `false` and leave `SteadyCloudKitContainer` out, until the
-signing team, iCloud container and entitlements are set up, so for now it's local-only
-SwiftData and the iCloud sign-in requirement below isn't enforced yet. The model already follows
-the schema constraints below, so turning sync on needs no migration. SwiftData set the
+names the iCloud container; otherwise it opens with `cloudKitDatabase: .none` and never
+touches CloudKit. Both Info.plists set `SteadyCloudKitEnabled` to `true` and
+`SteadyCloudKitContainer` to `iCloud.com.jmagic.steady`, signed with team `UXZV3C926U`
+(iCloud/CloudKit and push entitlements on both targets), so the iCloud sign-in requirement
+below is enforced. Builds run from Xcode use the CloudKit development environment;
+TestFlight and App Store builds use production, which needs the schema deployed first
+(`docs/cloudkit_schema.md`). SwiftData set the
 deployment targets to iOS 17 / macOS 14. The interim JSON file store
 (`FileDailyMetricRepository`) is no longer live: it's only a migration source, read once
 at launch by `migrateFileStore` (`main.dart`) and then renamed to
 `daily_metrics.json.migrated`.
+
+**Apple Health values never enter the synced store.** App Store guideline 5.1.3(ii) bars
+storing personal health information in iCloud, so steps and active/basal energy are read
+live from HealthKit on the iPhone and shown there, never written to `DailyMetricRecord`.
+The record's `caloriesBurnedActive`, `caloriesBurnedBasal` and `steps` attributes stay in
+the schema (CloudKit's production schema is additive-only), but Apple Health values aren't
+written to them. The Mac shows calories eaten (Cal AI PDFs) and check-ins only, and the
+coach runs without Health data for now. Decision record: `docs/technical_decisions.md`,
+"Health data stays on the iPhone (App Store 5.1.3)".
 
 **No security-rules layer, by design.** The generic starter's Firestore section spends a
 full section on role-based rules because it has two roles (staff/admin) reading a shared
@@ -591,10 +603,11 @@ against real SwiftData on a separate test store. Dependency direction:
 `daily_metrics_data` → `daily_metrics_store`, which is what registers the plugin in the
 app. The channel contract is documented in the plugin's `lib/daily_metrics_store.dart`.
 
-**HealthKit platform channels** currently live directly in `app/ios/` and `app/macos/`
-runner-adjacent plugin code rather than as a separately extracted Swift package — there's
-less shared logic to isolate there than with `RAGKitCore` (mostly "call the native API,
-marshal the result"), so extracting it now would be premature.
+**HealthKit platform channels** live directly in `app/ios/` runner-adjacent plugin code
+(iOS only; there's no macOS HealthKit implementation, see §1) rather than as a separately
+extracted Swift package — there's less shared logic to isolate there than with
+`RAGKitCore` (mostly "call the native API, marshal the result"), so extracting it now
+would be premature.
 
 **Foundation Models is wired only in `app/macos/`.** There is no iOS implementation of
 the coach's live-inference call at all — not a disabled one, an absent one. §11 covers
@@ -661,8 +674,9 @@ the reasoning and what iOS shows instead.
   every isolated unit test still passes. `app/test/bootstrap_test.dart` guards this
   against the real override list.
 - One app, two platform targets, so there's one override list, not one per target.
-  Platform-specific implementations (e.g. the HealthKit datasource) are chosen inside
-  that list with `Platform.isIOS`/`isMacOS` or conditional imports. None is needed yet:
+  Platform-specific implementations (e.g. the HealthKit datasource, iOS only; macOS
+  gets none) are chosen inside that list with `Platform.isIOS`/`isMacOS` or conditional
+  imports. None is needed yet:
   the shared store is the same SwiftData plugin on both targets, and everything else is
   in-memory. `dailyMetricStoreProvider` picks the store: in-memory by default, so tests
   built from `appProviderOverrides` need no native plugin, and SwiftData in `main.dart`.

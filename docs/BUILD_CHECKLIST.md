@@ -87,10 +87,11 @@ items land; don't let it drift into a change log — keep it a current-state che
       in `coach_domain` yet).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
-- [ ] Platform-specific datasources (e.g. HealthKit) selected inside that list via
-      `Platform.isIOS`/`isMacOS` or conditional imports — none exist yet; the shared store
-      is the same SwiftData plugin on both targets, account status goes through the
-      `steady/account` channel, and every other feature data repository is in-memory.
+- [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
+      inside that list via `Platform.isIOS`/`isMacOS` or conditional imports — none exist
+      yet; the shared store is the same SwiftData plugin on both targets, account status
+      goes through the `steady/account` channel, and every other feature data repository
+      is in-memory.
 
 ## Persistence — SwiftData + CloudKit (CLAUDE.md §7)
 
@@ -111,10 +112,11 @@ items land; don't let it drift into a change log — keep it a current-state che
       optional or defaulted, no `@Attribute(.unique)`, no relationships.
 - [ ] `@Model` schemas for later features (coach sessions, notes), same constraints:
       optional relationships with inverses for to-many.
-- [ ] CloudKit sync on. Gated off until the signing team and iCloud container are set up:
-      iCloud container + CloudKit entitlement in `app/ios` and `app/macos`, then
-      `SteadyCloudKitEnabled` true and `SteadyCloudKitContainer` set in both Info.plists.
-      Until then the store is local-only SwiftData.
+- [x] CloudKit sync on: team `UXZV3C926U`, container `iCloud.com.jmagic.steady`, iCloud/CloudKit
+      and push entitlements on both targets, `SteadyCloudKitEnabled` true and
+      `SteadyCloudKitContainer` set in both Info.plists. Verified syncing Mac → iPhone.
+- [ ] Production CloudKit schema deployed (needed before any TestFlight/App Store build syncs);
+      run the full-schema initializer and check every field first.
 - [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
       transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`. Exception:
       the same-day `DailyMetricRecord` duplicate merge above.
@@ -214,11 +216,12 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] `notes_presentation` package added once the import/entry UI is actually built — no
       structural change needed beyond adding the package (CLAUDE.md §3).
 
-## HealthKit (CLAUDE.md §8)
+## HealthKit (CLAUDE.md §1/§7/§8)
 
-- [ ] Platform channels live directly in `app/ios`/`app/macos` runner-adjacent code —
-      deliberately not extracted into a native package like `RAGKitCore` (less shared
-      logic to isolate; mostly "call the native API, marshal the result").
+- [x] Decided: Health data stays on the iPhone (App Store guideline 5.1.3(ii), no personal
+      health information in iCloud). HealthKit is iOS-only; `isHealthDataAvailable()` is
+      false on macOS. Decision record: `docs/technical_decisions.md`, "Health data stays on
+      the iPhone (App Store 5.1.3)".
 - [x] Current state: Apple Health values are read live on iPhone and never
       stored in the iCloud-synced store (App Store 5.1.3(ii)); the Mac and coach have no
       Health data. The history merges them in memory (`healthDayTotalsProvider` in
@@ -226,6 +229,11 @@ items land; don't let it drift into a change log — keep it a current-state che
       path writes the shared store. The week/share card and the data export carry no
       Health values. Values an older build stored are removed at launch
       (`clearLegacyHealthFields`, run from `app/lib/main.dart`).
+- [x] Platform channels live directly in `app/ios` runner-adjacent code (no macOS
+      implementation) — deliberately not extracted into a native package like `RAGKitCore`
+      (less shared logic to isolate; mostly "call the native API, marshal the result").
+- [ ] Deferred: iPhone→Mac local handoff of Health context for the coach (nothing via
+      iCloud).
 
 ## Error handling (CLAUDE.md §9)
 
@@ -237,9 +245,17 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 ## App identity / release readiness
 
-- [ ] Bundle IDs are still the `flutter create` default (`com.example.steady`) — needs a
-      real identifier before any TestFlight/App Store step.
-- [ ] Entitlements: HealthKit, Foundation Models (macOS only), CloudKit container.
+- [x] Bundle ID `com.jmagic.steady` on both targets, signing team set.
+- [x] Display name "Steady" (`CFBundleDisplayName`/`CFBundleName`) on iOS and macOS.
+- [x] Version 1.0.0 build 1 (`app/pubspec.yaml`), read by both Info.plists via
+      `FLUTTER_BUILD_NAME`/`FLUTTER_BUILD_NUMBER`.
+- [x] `ITSAppUsesNonExemptEncryption` false in both Info.plists (Apple-provided encryption
+      only).
+- [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
+      iPad review.
+- [ ] Entitlements: HealthKit (iOS only), Foundation Models (macOS only). CloudKit container
+      entitlement is set.
+- [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
       friends' iPhones. HealthKit and SwiftData/CloudKit don't need A17 Pro+. SwiftData
@@ -249,23 +265,25 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not live data".
 
-- [ ] Apple Developer Program membership, real bundle ID, signing — before any CloudKit
-      schema is deployed to production.
 - [ ] Before **every** production schema deploy: run the CloudKit schema initializer on a
       debug build (Settings → Developer → Initialize CloudKit schema), then confirm every
       field in `docs/cloudkit_schema.md` exists with the right type in CloudKit Console
       (Development) before Deploy Schema Changes. Development only creates a field once a
-      record held a value in it, so normal use alone leaves fields missing (#93). Current
+      record held a value in it, so normal use alone leaves fields missing. Current
       state: the initializer ran against Development, the Console check passed and the
       first production deploy was done on 2026-10-23. Re-run before every later deploy.
 - [ ] Finalize every `@Model` schema before the first production deploy: CloudKit's
       production schema is additive-only (no field removal or rename once users have data).
-- [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short
-      "not medical advice" note for the coach.
+- [x] Privacy policy written: `docs/PRIVACY.md` (public on GitHub; required for HealthKit).
+- [x] `NSHealthShareUsageDescription` says the values stay on the iPhone and are never stored
+      in iCloud or written to Apple Health.
+- [ ] A short "not medical advice" note for the coach (when the coach is built).
+- [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
+      "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
+      App Review is an early signal only (it's lighter than App Store review); full App
+      Store review is the real check. Record the reviewer's exact wording if 5.1.3 comes up.
 - [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
-      Until CloudKit is configured (`SteadyCloudKitEnabled` is `true` in both
-      `Runner/Info.plist`s, with the container and entitlement), the status reads
-      `notConfigured` and never blocks, so the screen isn't reachable on a real build.
+      Live now that CloudKit is configured: a signed-out device is redirected to it.
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
       metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
