@@ -92,8 +92,9 @@ TestFlight → Test Information:
   > No account is needed: Steady uses the device's iCloud account to sync the user's own
   > data between their iPhone and Mac (CloudKit private database; no servers). To see the
   > app working without a Cal AI export, tap **Import Cal AI PDF → Try a sample export →
-  > Import 7 days**: it imports seven made-up days from January 2025 and shows them in the
-  > history. The same sample file is at
+  > Import 7 days → Done**: it imports seven made-up days from January 2025 and shows them
+  > in the history. **Settings → Sample data → Remove sample days** removes them again.
+  > The same sample file is at
   > https://github.com/jnnabugwu/steady/blob/main/docs/sample/cal_ai_sample_export.pdf.
   > On iPhone, Steady asks to read steps and active/resting energy from Apple Health. These
   > are shown on the iPhone only: they are never stored in iCloud and never written back to

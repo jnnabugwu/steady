@@ -12,8 +12,9 @@ import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 
 /// "Try a sample export" end to end in the real app (macOS or iOS): the
-/// bundled asset, PDFium parsing, the preview, and the commit to the real
-/// SwiftData store (a separate `e2e` test store, never the user's data).
+/// bundled asset, PDFium parsing, the preview, the commit to the real
+/// SwiftData store (a separate `e2e` test store, never the user's data),
+/// then Settings' "Remove sample days", which must leave the store empty.
 /// Nothing is overridden except the store choice; the file picker throws if
 /// it's ever opened, so the bytes can only come from the bundled sample.
 ///
@@ -22,15 +23,15 @@ import 'package:steady/providers.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('"Try a sample export" imports the seven sample days', (
-    tester,
-  ) async {
+  testWidgets('"Try a sample export" imports the seven sample days, and '
+      'Settings removes them', (tester) async {
     configurePdfium();
     await DailyMetricsStoreTestControl.useStore('e2e');
     await DailyMetricsStoreTestControl.reset();
     addTearDown(() => DailyMetricsStoreTestControl.useStore(null));
 
-    // docs/sample/generate.py: Mon Jan 6 - Sun Jan 12 2025.
+    // docs/sample/generate.py: Mon Jan 6 - Sun Jan 12 2025. Spelled out
+    // rather than read from sampleExportDailyTotals, so this checks it too.
     final expected = {
       DateTime(2025, 1, 6): 1450,
       DateTime(2025, 1, 7): 1625,
@@ -74,6 +75,18 @@ void main() {
     await tester.tap(importButton);
     await tester.pumpAndSettle();
 
+    // A sample import stays on its confirmation, with the removal hint.
+    expect(find.text('Imported 7 days'), findsOneWidget);
+    expect(
+      find.text(
+        'These are sample days. Remove them anytime in '
+        'Settings → Sample data.',
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('pdfImport_doneButton')));
+    await tester.pumpAndSettle();
+
     expect(find.byType(PdfImportModule), findsNothing);
     expect(find.byType(MetricsHistoryModule), findsOneWidget);
     expect(find.textContaining('7 days'), findsOneWidget);
@@ -81,16 +94,44 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(SteadyApp)),
     );
-    final result = await container
-        .read(dailyMetricRepositoryProvider)
-        .getRange(DateTime(2000), DateTime(2100));
-    final stored = {
-      for (final m in (result as Ok<List<DailyMetric>>).value)
-        m.date: m.caloriesEaten,
-    };
+    Future<Map<DateTime, int?>> storedRows() async {
+      final result = await container
+          .read(dailyMetricRepositoryProvider)
+          .getRange(DateTime(2000), DateTime(2100));
+      return {
+        for (final m in (result as Ok<List<DailyMetric>>).value)
+          m.date: m.caloriesEaten,
+      };
+    }
+
+    final stored = await storedRows();
     expect(stored, expected);
     // Surfaced in the run log as evidence of what reached SwiftData.
     // ignore: avoid_print
     print('E2E sample: ${stored.length} days in SwiftData: $stored');
+
+    // Settings → Sample data → Remove sample days.
+    await tester.tap(find.byKey(const Key('openSettingsButton')));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('7 sample days from January 2025 are in your history.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('removeSampleDaysButton')));
+    for (var i = 0; i < 50; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+      if (find.byKey(const Key('sampleDataCard')).evaluate().isEmpty) break;
+    }
+    expect(find.byKey(const Key('sampleDataCard')), findsNothing);
+
+    final afterRemoval = await storedRows();
+    expect(afterRemoval, isEmpty);
+    // Run-log evidence that the removal reached SwiftData.
+    // ignore: avoid_print
+    print('E2E sample removed: ${afterRemoval.length} days left in SwiftData');
+
+    await tester.tap(find.byKey(const Key('settingsBackButton')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('7 days'), findsNothing);
   });
 }

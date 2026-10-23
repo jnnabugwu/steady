@@ -21,6 +21,7 @@ import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/sample_data_card.dart';
 
 part 'remote_changes.g.dart';
 
@@ -45,6 +46,11 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
 /// - `metricsHistoryControllerProvider` (the home screen's history),
 /// - every `checkInControllerProvider(date)` (check-in screens),
 /// - every `weekCardControllerProvider(weekStart)` (the share card).
+///
+/// Settings' "Sample data" count (`sampleDaysControllerProvider`) also
+/// reads the store, but isn't here: it calls this helper itself after a
+/// removal, and a provider can't invalidate itself through `ref`. A remote
+/// change re-counts it separately ([DailyMetricsRemoteRefresh]).
 ///
 /// Called on every remote change ([DailyMetricsRemoteRefresh]). Add a
 /// provider here when a new screen caches daily-metric reads. (Apple Health
@@ -87,9 +93,11 @@ class DailyMetricsRemoteRefresh extends _$DailyMetricsRemoteRefresh {
 
   /// Domain event: DailyMetricsSyncedIn.
   ///
-  /// Re-reads every screen showing daily metrics (see the class comment).
+  /// Re-reads every screen showing daily metrics (see the class comment),
+  /// including Settings' "Sample data" count.
   void refreshDailyMetricReaders() {
     invalidateDailyMetricReaders(ref);
+    ref.invalidate(sampleDaysControllerProvider);
     state++;
   }
 }

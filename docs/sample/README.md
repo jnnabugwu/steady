@@ -22,6 +22,16 @@ import).
 | Jan 11 | 1,610 | 3 |
 | Jan 12 | 1,070 | 2 |
 
+## Removing it
+
+Settings shows a **Sample data** card while any sample day is in the store,
+with **Remove sample days** (#105). The sample's identity is
+`sampleExportDailyTotals` in `pdf_import_domain`: a row counts as a sample row
+only if its date is one of the seven above **and** its `caloriesEaten` equals
+that day's total, so a real day on one of these dates is never touched. A
+sample row with nothing else on it is deleted; one that also has other data
+(e.g. a check-in) keeps it, and only its `caloriesEaten` is cleared.
+
 ## Files
 
 - `generate.py`: the meals, and the script that builds the other two files.
@@ -42,7 +52,9 @@ cp docs/sample/cal_ai_sample_export.pdf \
   features/pdf_import/pdf_import_presentation/assets/
 ```
 
-Then update the expected days in
+Then update `sampleExportDailyTotals`
+(`features/pdf_import/pdf_import_domain/lib/src/sample_export_days.dart`) and
+the expected days in
 `features/pdf_import/pdf_import_data/test/sample_export_test.dart` and
 `app/integration_test/sample_export_e2e_test.dart` if the meals changed. The
 data test also fails if the asset and this copy differ.
