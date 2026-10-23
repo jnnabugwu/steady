@@ -93,7 +93,10 @@ void main() {
       await pumpInScope(tester);
       await tester.pumpAndSettle();
 
-      expect(find.text('3 days · avg 1,665 kcal eaten'), findsOneWidget);
+      expect(
+        find.text('3 days · avg 1,665 kcal eaten · 2,100 burned · 9,500 steps'),
+        findsOneWidget,
+      );
       expect(find.text('Sat, Aug 15 2026'), findsOneWidget);
       expect(find.text('1,330 kcal eaten'), findsOneWidget);
       expect(find.text('2,100 kcal burned'), findsOneWidget);
@@ -101,9 +104,10 @@ void main() {
       expect(find.text('Fri, Aug 14 2026'), findsOneWidget);
       expect(find.text('2,000 kcal eaten'), findsOneWidget);
       expect(find.text('Thu, Aug 13 2026'), findsOneWidget);
-      // Burned and steps only render where the day has them.
-      expect(find.textContaining('kcal burned'), findsOneWidget);
-      expect(find.textContaining('steps'), findsOneWidget);
+      // Burned and steps chips only render where the day has them (the
+      // summary line, which also mentions both, doesn't match these).
+      expect(find.textContaining(RegExp(r'^\S+ kcal burned$')), findsOneWidget);
+      expect(find.textContaining(RegExp(r'^\S+ steps$')), findsOneWidget);
 
       final sat = tester.getTopLeft(find.text('Sat, Aug 15 2026')).dy;
       final fri = tester.getTopLeft(find.text('Fri, Aug 14 2026')).dy;
@@ -166,6 +170,44 @@ void main() {
           DailyMetric(date: DateTime(2026, 8, 14)),
         ]),
         '2 days · avg 1,000 kcal eaten',
+      );
+    });
+
+    test('summaryLine adds burned and steps when Health data is there', () {
+      expect(
+        summaryLine([
+          DailyMetric(
+            date: DateTime(2026, 8, 15),
+            caloriesEaten: 2000,
+            caloriesBurnedActive: 500,
+            caloriesBurnedBasal: 1700,
+            steps: 9000,
+          ),
+          DailyMetric(
+            date: DateTime(2026, 8, 14),
+            caloriesEaten: 1800,
+            caloriesBurnedActive: 300,
+            caloriesBurnedBasal: 1700,
+            steps: 5000,
+          ),
+          // Eaten only: doesn't drag the burned or steps averages down.
+          DailyMetric(date: DateTime(2026, 8, 13), caloriesEaten: 1900),
+        ]),
+        '3 days · avg 1,900 kcal eaten · 2,100 burned · 7,000 steps',
+      );
+      expect(
+        summaryLine([
+          DailyMetric(
+            date: DateTime(2026, 8, 15),
+            caloriesBurnedBasal: 1700,
+            steps: 1234,
+          ),
+        ]),
+        '1 day · avg 1,700 kcal burned · 1,234 steps',
+      );
+      expect(
+        summaryLine([DailyMetric(date: DateTime(2026, 8, 15), steps: 42)]),
+        '1 day · avg 42 steps',
       );
     });
   });

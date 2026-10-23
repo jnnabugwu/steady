@@ -221,3 +221,77 @@ final class NotificationSchedulerProvider
 
 String _$notificationSchedulerHash() =>
     r'1949c5df32c960e6f8b06613ee46d61ab425a93e';
+
+/// Apple Health's daily totals, or `null` where Health isn't read: macOS,
+/// and tests. `null` by default; [appProviderOverridesFor] binds the
+/// `steady/healthkit` channel on iOS only.
+///
+/// Declared here rather than in a feature package: `health_sync` is
+/// headless (no `*_presentation` package), like `notifications`.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(healthKitRepository)
+final healthKitRepositoryProvider = HealthKitRepositoryProvider._();
+
+/// Apple Health's daily totals, or `null` where Health isn't read: macOS,
+/// and tests. `null` by default; [appProviderOverridesFor] binds the
+/// `steady/healthkit` channel on iOS only.
+///
+/// Declared here rather than in a feature package: `health_sync` is
+/// headless (no `*_presentation` package), like `notifications`.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class HealthKitRepositoryProvider
+    extends
+        $FunctionalProvider<
+          HealthKitRepository?,
+          HealthKitRepository?,
+          HealthKitRepository?
+        >
+    with $Provider<HealthKitRepository?> {
+  /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
+  /// and tests. `null` by default; [appProviderOverridesFor] binds the
+  /// `steady/healthkit` channel on iOS only.
+  ///
+  /// Declared here rather than in a feature package: `health_sync` is
+  /// headless (no `*_presentation` package), like `notifications`.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  HealthKitRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'healthKitRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$healthKitRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<HealthKitRepository?> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  HealthKitRepository? create(Ref ref) {
+    return healthKitRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(HealthKitRepository? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<HealthKitRepository?>(value),
+    );
+  }
+}
+
+String _$healthKitRepositoryHash() =>
+    r'e8c8cdadc90ff969e3423a0b40941dc4a6d33f11';

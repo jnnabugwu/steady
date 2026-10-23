@@ -27,9 +27,17 @@
 /// stale copy) even though every isolated unit test still passes.
 /// `test/bootstrap_test.dart` guards this against [appProviderOverrides].
 ///
+/// **Apple Health is iOS only** (#74, #75): the iPhone is the one HealthKit
+/// reader and writer, and the Mac sees steps and burned calories through
+/// CloudKit. [healthKitRepositoryProvider] is bound only when
+/// [appProviderOverridesFor] is built with `isIOS: true`; everywhere else it
+/// stays `null`, and the Health sync (`health_sync.dart`) does nothing.
+///
 /// Nothing is wired for coach yet: `coach_domain` has no repository
 /// interface so far.
 library;
+
+import 'dart:io';
 
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
@@ -38,6 +46,8 @@ import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
+import 'package:health_sync_data/health_sync_data.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_data/notifications_data.dart';
@@ -96,10 +106,33 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 NotificationScheduler notificationScheduler(Ref ref) =>
     InMemoryNotificationScheduler();
 
+/// Apple Health's daily totals, or `null` where Health isn't read: macOS,
+/// and tests. `null` by default; [appProviderOverridesFor] binds the
+/// `steady/healthkit` channel on iOS only.
+///
+/// Declared here rather than in a feature package: `health_sync` is
+/// headless (no `*_presentation` package), like `notifications`.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+HealthKitRepository? healthKitRepository(Ref ref) => null;
+
 /// Binds every feature-declared repository provider to its `*_data`
-/// implementation. Passed to `ProviderScope` in `main.dart`, and used as-is
-/// by `test/bootstrap_test.dart`.
-final List<Override> appProviderOverrides = [
+/// implementation, for the current platform. Passed to `ProviderScope` in
+/// `main.dart`, and used as-is by `test/bootstrap_test.dart`.
+final List<Override> appProviderOverrides = appProviderOverridesFor(
+  isIOS: Platform.isIOS,
+);
+
+/// [appProviderOverrides] for a given platform. The one platform choice in
+/// it is Apple Health, bound only when [isIOS] (see the library comment).
+/// A function, not just the list, so tests can build the iOS wiring on any
+/// host.
+List<Override> appProviderOverridesFor({required bool isIOS}) => [
+  if (isIOS)
+    healthKitRepositoryProvider.overrideWith(
+      (ref) => MethodChannelHealthKitRepository(),
+    ),
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native
   // side answers `notConfigured`, which never blocks the app.

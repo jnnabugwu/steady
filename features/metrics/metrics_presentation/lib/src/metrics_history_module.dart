@@ -206,15 +206,29 @@ class _DayRow extends StatelessWidget {
   }
 }
 
-/// "N days · avg X kcal eaten", averaging only over days with a
-/// `caloriesEaten` value. Drops the average when no day has one.
+/// "N days · avg X kcal eaten · Y burned · Z steps": each average is over
+/// only the days that have that value, and is left out when no day has it.
+/// "avg" goes on the first average and "kcal" on the first calorie one, so
+/// the line stays short: "7 days · avg 1,950 kcal eaten · 2,400 burned ·
+/// 8,123 steps", or "7 days · avg 2,400 kcal burned" with no PDF import.
 @visibleForTesting
 String summaryLine(List<DailyMetric> days) {
-  final count = '${days.length} ${days.length == 1 ? 'day' : 'days'}';
-  final eaten = days.map((d) => d.caloriesEaten).whereType<int>().toList();
-  if (eaten.isEmpty) return count;
-  final avg = (eaten.reduce((a, b) => a + b) / eaten.length).round();
-  return '$count · avg ${formatThousands(avg)} kcal eaten';
+  final parts = ['${days.length} ${days.length == 1 ? 'day' : 'days'}'];
+  var kcalSaid = false;
+  void add(Iterable<int?> values, String label, {required bool kcal}) {
+    final present = values.whereType<int>().toList();
+    if (present.isEmpty) return;
+    final avg = (present.reduce((a, b) => a + b) / present.length).round();
+    final prefix = parts.length == 1 ? 'avg ' : '';
+    final unit = kcal && !kcalSaid ? 'kcal ' : '';
+    if (kcal) kcalSaid = true;
+    parts.add('$prefix${formatThousands(avg)} $unit$label');
+  }
+
+  add(days.map((d) => d.caloriesEaten), 'eaten', kcal: true);
+  add(days.map(caloriesBurned), 'burned', kcal: true);
+  add(days.map((d) => d.steps), 'steps', kcal: false);
+  return parts.join(' · ');
 }
 
 /// Active + basal calories burned, or `null` when neither is recorded.

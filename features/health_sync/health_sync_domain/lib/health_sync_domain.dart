@@ -6,3 +6,5 @@ library;
 export 'src/health_authorization_status.dart';
 export 'src/health_day_totals.dart';
 export 'src/health_kit_repository.dart';
+export 'src/health_sync_report.dart';
+export 'src/sync_health_days.dart';
