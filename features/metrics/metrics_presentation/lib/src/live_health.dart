@@ -23,11 +23,13 @@ part 'live_health.g.dart';
 /// How many days of Health the history reads, today included.
 const int healthHistoryDays = 30;
 
-/// The [healthHistoryDays]-day window ending on [now]'s calendar day, both
-/// ends at local midnight: the key to pass to [healthDayTotalsProvider], so
-/// every caller on the same day shares one provider.
+/// The [healthHistoryDays]-day window ending on [now]'s local calendar day,
+/// both ends at local midnight: the key to pass to
+/// [healthDayTotalsProvider], so every caller on the same day shares one
+/// provider. A UTC [now] is converted to local time first.
 ({DateTime start, DateTime end}) healthHistoryWindow(DateTime now) {
-  final end = DateTime(now.year, now.month, now.day);
+  final local = now.toLocal();
+  final end = DateTime(local.year, local.month, local.day);
   return (
     start: DateTime(end.year, end.month, end.day - (healthHistoryDays - 1)),
     end: end,
@@ -53,7 +55,9 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 
 /// Apple Health's totals for each day from [start] to [end] (inclusive,
 /// local midnights; build the key with [healthHistoryWindow]), keyed by
-/// local midnight. Days with no Health samples at all are left out.
+/// local midnight. Days where all of Health's values are unavailable (no
+/// samples, or read access not granted — HealthKit doesn't say which) are
+/// left out.
 ///
 /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
 /// Health error throws its [Failure] into `AsyncError`.

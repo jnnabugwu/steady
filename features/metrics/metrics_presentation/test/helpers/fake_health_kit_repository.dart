@@ -6,11 +6,14 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 ///
 /// [dailyTotals] answers from [days], one row per day of the range like the
 /// native side, or `Err(failure)` when [failure] is set. Records each call.
+/// Like the real repository, days are local calendar days: bounds and seeded
+/// dates are normalized to local midnight (a UTC `DateTime` converted
+/// first), mirroring `health_sync_data`'s `healthLocalDay`.
 class FakeHealthKitRepository implements HealthKitRepository {
   FakeHealthKitRepository({List<HealthDayTotals> days = const []})
     : days = {
         for (final d in days)
-          DateTime(d.date.year, d.date.month, d.date.day): d,
+          _localDay(d.date): d.copyWith(date: _localDay(d.date)),
       };
 
   final Map<DateTime, HealthDayTotals> days;
@@ -37,13 +40,19 @@ class FakeHealthKitRepository implements HealthKitRepository {
     dailyTotalsCalls.add((start, end));
     final failure = this.failure;
     if (failure != null) return Err(failure);
+    final last = _localDay(end);
     return Ok([
       for (
-        var d = start;
-        !d.isAfter(end);
+        var d = _localDay(start);
+        !d.isAfter(last);
         d = DateTime(d.year, d.month, d.day + 1)
       )
         days[d] ?? HealthDayTotals(date: d),
     ]);
   }
+}
+
+DateTime _localDay(DateTime date) {
+  final local = date.toLocal();
+  return DateTime(local.year, local.month, local.day);
 }

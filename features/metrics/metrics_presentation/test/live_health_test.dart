@@ -17,6 +17,16 @@ void main() {
       expect(window.start, DateTime(2026, 9, 24));
       expect(window.end.difference(window.start).inDays + 1, healthHistoryDays);
     });
+
+    test('takes the local calendar day of a UTC now', () {
+      final now = DateTime.utc(2026, 10, 23, 2);
+      final local = now.toLocal();
+      final window = healthHistoryWindow(now);
+      expect(window.end, DateTime(local.year, local.month, local.day));
+      expect(window.end.isUtc, isFalse);
+      expect(window.start.isUtc, isFalse);
+      expect(window.end.difference(window.start).inDays + 1, healthHistoryDays);
+    });
   });
 
   group('healthDayTotalsProvider', () {

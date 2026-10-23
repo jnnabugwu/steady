@@ -88,7 +88,9 @@ String _$metricsHealthKitRepositoryHash() =>
 
 /// Apple Health's totals for each day from [start] to [end] (inclusive,
 /// local midnights; build the key with [healthHistoryWindow]), keyed by
-/// local midnight. Days with no Health samples at all are left out.
+/// local midnight. Days where all of Health's values are unavailable (no
+/// samples, or read access not granted — HealthKit doesn't say which) are
+/// left out.
 ///
 /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
 /// Health error throws its [Failure] into `AsyncError`.
@@ -103,7 +105,9 @@ final healthDayTotalsProvider = HealthDayTotalsFamily._();
 
 /// Apple Health's totals for each day from [start] to [end] (inclusive,
 /// local midnights; build the key with [healthHistoryWindow]), keyed by
-/// local midnight. Days with no Health samples at all are left out.
+/// local midnight. Days where all of Health's values are unavailable (no
+/// samples, or read access not granted — HealthKit doesn't say which) are
+/// left out.
 ///
 /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
 /// Health error throws its [Failure] into `AsyncError`.
@@ -125,7 +129,9 @@ final class HealthDayTotalsProvider
         $FutureProvider<Map<DateTime, HealthDayTotals>> {
   /// Apple Health's totals for each day from [start] to [end] (inclusive,
   /// local midnights; build the key with [healthHistoryWindow]), keyed by
-  /// local midnight. Days with no Health samples at all are left out.
+  /// local midnight. Days where all of Health's values are unavailable (no
+  /// samples, or read access not granted — HealthKit doesn't say which) are
+  /// left out.
   ///
   /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
   /// Health error throws its [Failure] into `AsyncError`.
@@ -182,7 +188,9 @@ String _$healthDayTotalsHash() => r'57d9df55ec16ee634ab9535158b9ee00910ed9f6';
 
 /// Apple Health's totals for each day from [start] to [end] (inclusive,
 /// local midnights; build the key with [healthHistoryWindow]), keyed by
-/// local midnight. Days with no Health samples at all are left out.
+/// local midnight. Days where all of Health's values are unavailable (no
+/// samples, or read access not granted — HealthKit doesn't say which) are
+/// left out.
 ///
 /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
 /// Health error throws its [Failure] into `AsyncError`.
@@ -209,7 +217,9 @@ final class HealthDayTotalsFamily extends $Family
 
   /// Apple Health's totals for each day from [start] to [end] (inclusive,
   /// local midnights; build the key with [healthHistoryWindow]), keyed by
-  /// local midnight. Days with no Health samples at all are left out.
+  /// local midnight. Days where all of Health's values are unavailable (no
+  /// samples, or read access not granted — HealthKit doesn't say which) are
+  /// left out.
   ///
   /// Empty where [metricsHealthKitRepositoryProvider] is `null` (macOS). A
   /// Health error throws its [Failure] into `AsyncError`.
