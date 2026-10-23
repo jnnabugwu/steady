@@ -109,8 +109,17 @@ void main() {
 
     test('unavailable Health reads nothing', () async {
       health.status = HealthAuthorizationStatus.unavailable;
+      // A screen showing Health is listening, so a read would happen if the
+      // refresh invalidated it.
+      final totals = healthDayTotalsProvider(window.start, window.end);
+      container.listen(totals, (_, _) {});
+      await container.read(totals.future);
+      final before = health.dailyTotalsCalls;
+
       await refresh();
-      expect(health.dailyTotalsCalls, 0);
+      await container.read(totals.future);
+
+      expect(health.dailyTotalsCalls, before);
       expect(
         container.read(healthAccessControllerProvider).value,
         HealthAuthorizationStatus.unavailable,
