@@ -282,8 +282,11 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
       App Review is an early signal only (it's lighter than App Store review); full App
       Store review is the real check. Record the reviewer's exact wording if 5.1.3 comes up.
-- [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
-      Live now that CloudKit is configured: a signed-out device is redirected to it.
+- [x] Current state: iCloud is optional (§7). A device that isn't signed into iCloud (or has
+      iCloud restricted or temporarily unavailable) uses the app normally, with data kept on
+      the device; a dismissible banner on the home screen says it won't sync, with "Open
+      Settings". No sign-in screen or redirect. Decision record:
+      `docs/technical_decisions.md`, "iCloud is optional: a banner, not a gate".
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
       metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
