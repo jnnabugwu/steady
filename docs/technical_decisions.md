@@ -7,6 +7,67 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Pass 02: Native Glass (2026-10-23)
+
+**Decision:** the design tokens move to Pass 02, the "Native Glass" direction (design canvas
+artboards "A · Native Glass" and "A2 · Native Glass, stacked week"). The palette stays;
+shape, type and surfaces change. In `packages/shared/ui_kit`:
+
+- **Glass surfaces.** Cards and metric tiles use a translucent white fill
+  (`SteadyColors.glassFill`, `rgba(255,255,255,0.045)`), a 1px `glassBorder` (0.08) and a 1px
+  inner top highlight (`glassHighlight`, 0.06). The coach card swaps white glass for the teal
+  tint: `coachCardFill` = `accentTealTint(0.10)`, `coachCardBorder` = `accentTealTint(0.28)`.
+  Controls and the floating tab bar get `glassControlFill`, `glassControlBorder` and
+  `tabBarFill`. `SteadyCard` now renders the glass card, highlight included (a foreground
+  painter, since Flutter has no inset shadow).
+- **Radii.** `SteadyRadii.card` 18 → 28; new `tile` 22, `option` 20, `pill` 22, `tabBar` 32.
+  Pass 01's `control` (13) is gone; its one caller, `MetricAccentChip`, now uses `pill`.
+- **Type.** Screen title (`headline`) 34 / w700 / -0.8; `cardTitle` 20 / w600 / -0.3; new
+  `metricValue` 21 / w600 / -0.4 with tabular figures; new `eyebrow` 11 / w600 / 0.12em;
+  `body` line height 1.55 → 1.5. `label` stays as an alias of `eyebrow`, so feature code
+  compiles unchanged.
+- **Contrast fix.** `textMuted` `#6A7472` → `#7E8886`. The old value was 4.07:1 on
+  `bgScreen` and 3.73:1 on a glass card, failing WCAG AA (4.5:1) for the 11–13px labels and
+  eyebrows it colours. The new one is 5.37:1 on `bgScreen`, 4.93:1 on a glass card and 4.91:1
+  on `bgCard`. `ui_kit/test/design_tokens_test.dart` pins these numbers.
+- **shadcn radius multiplier.** `steadyTheme.radius` 1.125 → `22/12` (≈ 1.833). shadcn derives
+  every component radius from one multiplier (`radiusMd` = r × 12, `radiusXl` = r × 20, ...),
+  and Pass 02's radii (20, 22, 28, 32) aren't one scale, so one component has to win. Buttons
+  win: they're the shadcn component the feature screens use most (Primary, Outline, Ghost), and
+  `radiusMd` = 22 makes every one a full pill, which is Pass 02's button shape. Cards don't
+  need the multiplier because `SteadyCard` passes `SteadyRadii.card` explicitly, and no
+  feature uses a bare shadcn `Card`. Side effects, accepted: dialogs (`radiusXxl`) 44, Select
+  popups (`radiusLg`) 29.3, text fields pill-shaped, checkboxes (`radiusSm`) 14.7; none of the
+  last two are used yet. Pass 01's comment assumed cards read `radiusLg`; they read
+  `radiusXl`.
+
+**Why it came up:** Pass 01 shipped as flat opaque cards with 18px corners, and `text.muted`
+labels were measurably below AA. The Pass 02 design canvas ("Steady Redesign") explored three UI
+directions; Native Glass was picked, with the stacked-week ("cairn") variant A2 for the week
+card.
+
+**Rationale:** Native Glass follows the platform's own look (translucent layers, large rounded
+corners, pill buttons, a floating tab bar) without changing the colours the rest of the product
+already relies on: the status ladder stays single-hue and the metric colours stay the same.
+Keeping the palette also kept this ticket to `ui_kit`: feature screens pick up the new look
+through the tokens, with no code change.
+
+**Alternatives considered:**
+
+- *B · Ledger* and *C · Soft Bento*, the canvas's other two directions. Not picked: Native
+  Glass looks better, and it's the more ambitious build, which was itself a reason to pick it
+  (the challenge of doing glass well, translucent surfaces that stay fast and readable, was
+  wanted).
+- *A radius multiplier of 1.4,* which makes `radiusXl` = 28 (bare cards on the card radius) and
+  `radiusLg` ≈ 22. Rejected: buttons land on 16.8, which isn't a pill at shadcn's default 38px
+  button height or at Pass 02's 44px, and cards already get their radius from `SteadyCard`.
+- *Deprecating `SteadyType.label` and `SteadyRadii.control`.* `control` had no caller outside
+  `ui_kit`, so it was removed. `label` has many feature callers, and `@Deprecated` would add an
+  analyzer info to each; it stays as a plain alias until the screen-rebuild tickets move them
+  to `eyebrow`.
+
+---
+
 ## Feature screens are shadcn-only (2026-10-22)
 
 **Decision:** feature screens are built from `shadcn_flutter` and `ui_kit` widgets only, never

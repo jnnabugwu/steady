@@ -216,13 +216,23 @@ retrieval logic reusable and testable independent of Flutter.
 
 **Status:** designed, not yet built.
 
-## 10. Design Tokens (Claude Design handoff, Pass 01)
+## 10. Design Tokens (Pass 02, "Native Glass")
 
-Source: `Personal_health_coaching_app-handoff.zip` → `Health Coach App.dc.html`. This is a
-design **prototype** (HTML/CSS/JS from Claude Design), not production code — when building
-the real Flutter screens, recreate the visual output faithfully; don't port the HTML
-structure itself. Four screens were produced: Weekly view, Metrics history, Home/end-of-day
-check-in, Coach session chat — all validated against the product decisions in §6.
+Implemented in `packages/shared/ui_kit` (`SteadyColors`, `SteadyType`, `SteadyRadii`,
+`steadyTheme`, `SteadyCard`). Decision record: `docs/technical_decisions.md`, "Pass 02: Native
+Glass".
+
+**Sources.** Pass 01: `Personal_health_coaching_app-handoff.zip` → `Health Coach App.dc.html`
+(palette and layout of four screens: Weekly view, Metrics history, Home/end-of-day check-in,
+Coach session chat). Pass 02: the design canvas artboards "A · Native Glass" and "A2 · Native
+Glass, stacked week" (390×844 phone). Both are HTML **prototypes**, not production code: when
+building the Flutter screens, recreate the visual output faithfully; don't port the HTML
+structure.
+
+Pass 02 keeps Pass 01's palette (backgrounds, teal, metric colours, status ladder) and changes
+shape, type and surfaces: translucent glass cards, rounder corners, pill buttons, a floating
+tab bar, and a heavier screen title. The one palette change is `text.muted`, raised for
+contrast.
 
 ### Backgrounds
 
@@ -230,30 +240,49 @@ check-in, Coach session chat — all validated against the product decisions in 
 | --- | --- | --- |
 | `bg.base` | `#060807` | Outer canvas background |
 | `bg.screen` | `#0A0C0C` | In-device screen background |
-| `bg.card` | `#141817` | Card/panel fill |
+| `bg.card` | `#141817` | Opaque fill for popovers/dialogs. Pass 02 cards use `glass.fill` |
 | `bg.chip` | `#121615` | Small chip/legend fill |
 | `bg.input` | `#171C1B` | Chat bubble (coach) / message input fill |
-| `bg.inputAlt` | `#191E1D` | Secondary button / unselected option fill |
-| `border.subtle` | `rgba(255,255,255,0.06)` | Default card border |
-| `border.subtleStrong` | `rgba(255,255,255,0.07–0.08)` | Button/input border |
+| `bg.inputAlt` | `#191E1D` | Opaque secondary button / unselected option fill |
+| `border.subtle` | `rgba(255,255,255,0.06)` | Hairline border |
+| `border.subtleStrong` | `rgba(255,255,255,0.08)` | Button/input border |
 
-### Text
+### Glass surfaces (new in Pass 02)
 
 | Token | Value | Use |
 | --- | --- | --- |
-| `text.primary` | `#E9EDEC` | Headlines, primary values |
-| `text.secondary` | `#A9B2B0` | Body/secondary values |
-| `text.tertiary` | `#8A9391` | Descriptions, coach message text |
-| `text.muted` | `#6A7472` | Labels, uppercase eyebrows |
-| `text.disabled` | `#4E5756` | Unlogged/placeholder values |
+| `glass.fill` | `rgba(255,255,255,0.045)` | Card and metric-tile fill (≈ `#151717` over `bg.screen`) |
+| `glass.border` | `rgba(255,255,255,0.08)` | Card and tile border, 1px |
+| `glass.highlight` | `rgba(255,255,255,0.06)` | 1px inner top highlight on cards (`inset 0 1px 0`) |
+| `glass.controlFill` | `rgba(255,255,255,0.06)` | Round icon button, secondary pill button |
+| `glass.controlBorder` | `rgba(255,255,255,0.10)` | Control and tab-bar border |
+| `tabBar.fill` | `rgba(28,34,33,0.72)` | Floating tab bar, over a 28px backdrop blur |
+| `coach.fill` | `accent.teal.tint(0.10)` | Coach card fill (teal tint instead of white glass) |
+| `coach.border` | `accent.teal.tint(0.28)` | Coach card border |
+
+Cards also carry a 24px backdrop blur in the artboards; the tab bar adds a
+`0 12px 32px rgba(0,0,0,0.45)` drop shadow.
+
+### Text
+
+| Token | Value | Contrast on `bg.screen` / glass card | Use |
+| --- | --- | --- | --- |
+| `text.primary` | `#E9EDEC` | 16.6 / 15.3 | Headlines, primary values |
+| `text.secondary` | `#A9B2B0` | 9.0 / 8.3 | Body/secondary values |
+| `text.tertiary` | `#8A9391` | 6.2 / 5.7 | Descriptions, coach message text |
+| `text.muted` | `#7E8886` (Pass 01: `#6A7472`) | 5.4 / 4.9 | Labels, uppercase eyebrows |
+| `text.disabled` | `#4E5756` | 2.6 / 2.4 | Unlogged/placeholder values (decorative, below AA) |
+
+Pass 01's `#6A7472` was 4.07:1 on `bg.screen` and 3.73:1 on a glass card, failing WCAG AA
+(4.5:1) for the 11–13px labels it's used for.
 
 ### Accent — primary (coach & key actions)
 
 | Token | Value |
 | --- | --- |
 | `accent.teal` | `#6DA8A0` |
-| `accent.teal.hover` | `#8FC4BC` |
-| `accent.teal.tint` | `rgba(109,168,160, α)` — α ranges 0.14–0.6 depending on emphasis (selected states, borders, chat bubble fill) |
+| `accent.teal.hover` | `#8FC4BC` (also the date line, today's label, the selected tab) |
+| `accent.teal.tint` | `rgba(109,168,160, α)`. Pass 02 alphas: 0.10 coach fill, 0.16 selected option fill, 0.18 selected tab, 0.20 top-of-screen glow, 0.28 coach border, 0.65 selected option border, 0.75 today's dashed ring |
 
 ### Accent — metrics
 
@@ -277,20 +306,37 @@ Single-hue, no red/yellow/green (deliberate, per §1 non-goals).
 
 ### Typography
 
-- Font stack: `-apple-system, 'SF Pro Text', system-ui, sans-serif` (native iOS/macOS feel)
-- Headline (screen title): 27–34px, weight 600, tracking -0.4 to -0.6px
-- Card title/value: 19–24px, weight 500–600
-- Body: 15px, line-height 1.55
-- Labels/eyebrows: 11–13px, uppercase, tracking 0.1–0.14em, `text.muted`
+Font: Apple's system font, SF Pro (native iOS/macOS feel), named explicitly in `ui_kit`: SF Pro Display (`CupertinoSystemDisplay`) for the 34px screen title, SF Pro Text (`CupertinoSystemText`) for everything else, falling back to `-apple-system, 'SF Pro Text', system-ui`. Not shadcn's default Geist.
+
+| Style (`SteadyType`) | Size / weight / tracking | Notes |
+| --- | --- | --- |
+| Screen title (`headline`) | 34px / 700 / -0.8px, line height 1.05 | Pass 01: 30 / 600 / -0.5 |
+| Card title (`cardTitle`) | 20px / 600 / -0.3px | Pass 01: 21 / 600 |
+| Metric value (`metricValue`) | 21px / 600 / -0.4px, tabular figures | New |
+| Body (`body`) | 15px, line height 1.5 | Pass 01: 1.55 |
+| Eyebrow (`eyebrow`; `label` is the Pass 01 alias) | 11px / 600 / 0.12em, uppercase, `text.muted` | Pass 01: 12 / 500 / ~0.12em |
+
+Uppercase is applied to the string at the call site; Flutter's `TextStyle` has no
+text-transform.
 
 ### Shape
 
-- Cards/screens: 16–20px corner radius
-- Buttons/chips/options: 12–14px
-- Chat bubbles: asymmetric radius (`18px 18px 18px 6px` incoming / mirrored outgoing) for a tail effect
-- Small indicators (status dots, legend swatches): 3–8px
+| Token (`SteadyRadii`) | Radius | Use |
+| --- | --- | --- |
+| `card` | 28px | Glass cards (Pass 01: 18) |
+| `tile` | 22px | Metric tiles |
+| `option` | 20px | Check-in option buttons |
+| `pill` | 22px | Pill buttons (a full pill at 44px tall) and chips |
+| `tabBar` | 32px | Floating tab bar (64px tall) |
+| `chatBubble` | `18px 18px 18px 6px` incoming, mirrored outgoing | Unchanged |
+| `indicator` | 5px | Status dots, legend swatches. Unchanged |
 
-**Status:** Pass 01 complete (palette + layout, 4 screens). Not yet implemented in Flutter.
+`steadyTheme` sets shadcn's radius multiplier to `22/12`, so `radiusMd` (every shadcn button
+and text field) equals `pill`. Surfaces with their own radius, like `SteadyCard`, pass the token
+explicitly. The reasoning is in the Pass 02 decision record.
+
+**Status:** Pass 02 tokens implemented in `ui_kit`. The screens are rebuilt to the Pass 02
+layouts in follow-up tickets.
 
 ## 11. Open Design Decisions (not yet resolved)
 
