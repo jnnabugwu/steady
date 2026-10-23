@@ -78,7 +78,9 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        tile(const [10, 20, 15, 18, 12, null, null], futureFrom: 5),
+        // Logged values on the future days, so only the futureFrom branch
+        // (not the null branch) can dim them.
+        tile(const [10, 20, 15, 18, 12, 14, 16], futureFrom: 5),
       );
       expect(barColour(tester, 4), SteadyColors.caloriesEaten);
       expect(barColour(tester, 5), SteadyColors.caloriesEatenDimmed);
