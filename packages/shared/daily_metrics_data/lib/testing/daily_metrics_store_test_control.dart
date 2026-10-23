@@ -30,4 +30,15 @@ abstract final class DailyMetricsStoreTestControl {
     'row': row,
     'modifiedAtMillis': modifiedAt.millisecondsSinceEpoch,
   });
+
+  /// Inserts [row] through a second `ModelContext` under another author,
+  /// the way a CloudKit import lands, so the changes channel emits.
+  /// Refused on the real store.
+  static Future<void> simulateImport(
+    Map<String, Object?> row, {
+    required DateTime modifiedAt,
+  }) => _channel.invokeMethod<void>('simulateImportForTesting', {
+    'row': row,
+    'modifiedAtMillis': modifiedAt.millisecondsSinceEpoch,
+  });
 }
