@@ -15,10 +15,13 @@ Master SVGs for the Steady app icon. Geometry and colours are copied from the
 docs/design/icon/regenerate.sh
 ```
 
-This needs macOS and ImageMagick. It renders each master at 1024 with `render_svg.swift`,
-which uses the system's native SVG renderer. ImageMagick's built-in renderer drops the
-gradient and the rotated stones. The script then writes:
+This needs macOS and ImageMagick. It renders with `render_svg.swift`, which uses the
+system's native SVG renderer (ImageMagick's built-in renderer drops the gradient and the
+rotated stones), at two sizes:
 
-- iOS `AppIcon-{default,dark,tinted}-1024.png`, with no alpha channel.
-- macOS `app_icon_{16..1024}.png`, downscaled from the 1024 render with Lanczos.
-  Smaller sizes are scaled, not simplified.
+- The iOS masters (`cairn-{default,dark,tinted}.svg`) at **1024×1024**, written as iOS
+  `AppIcon-{default,dark,tinted}-1024.png` with no alpha channel.
+- The macOS source (`cairn-preview.svg`) at **824×824**, centred on a transparent
+  1024×1024 canvas. That 1024 image is downscaled with Lanczos to the macOS sizes
+  **16, 32, 64, 128, 256, 512 and 1024** (`app_icon_16.png` … `app_icon_1024.png`), which
+  the asset catalog maps to 16–512 @1x/@2x. Smaller sizes are scaled, not simplified.
