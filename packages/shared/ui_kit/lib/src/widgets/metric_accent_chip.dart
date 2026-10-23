@@ -40,7 +40,7 @@ class MetricAccentChip extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: SteadyColors.bgChip,
-        borderRadius: BorderRadius.circular(SteadyRadii.control),
+        borderRadius: BorderRadius.circular(SteadyRadii.pill),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
