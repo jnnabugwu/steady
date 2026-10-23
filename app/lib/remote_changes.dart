@@ -39,13 +39,27 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
       DailyMetricStore.swiftData => dailyMetricsRemoteChanges,
     };
 
-/// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
-/// and, on each event, invalidates every provider that holds data read
-/// from the shared `DailyMetric` store:
+/// Invalidates every provider that holds data read from the shared
+/// `DailyMetric` store:
 ///
 /// - `metricsHistoryControllerProvider` (the home screen's history),
 /// - every `checkInControllerProvider(date)` (check-in screens),
 /// - every `weekCardControllerProvider(weekStart)` (the share card).
+///
+/// Called on every remote change ([DailyMetricsRemoteRefresh]). Add a
+/// provider here when a new screen caches daily-metric reads. (Apple Health
+/// doesn't call it: Health values are read live and never written to the
+/// store, so a Health refresh invalidates `healthDayTotalsProvider`
+/// instead; see `health_access.dart`.)
+void invalidateDailyMetricReaders(Ref ref) {
+  ref
+    ..invalidate(metricsHistoryControllerProvider)
+    ..invalidate(checkInControllerProvider)
+    ..invalidate(weekCardControllerProvider);
+}
+
+/// Listens to [dailyMetricsRemoteChangeSource] for as long as the app runs
+/// and, on each event, calls [invalidateDailyMetricReaders].
 ///
 /// Providers nobody is watching are already disposed, so invalidating them
 /// costs nothing. A watched one re-reads, and keeps showing its previous
@@ -60,8 +74,6 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
 ///
 /// State: how many refreshes it has triggered, for tests and debugging.
 /// `keepAlive`: it must outlive every screen. `SteadyApp` starts it.
-///
-/// Add a provider here when a new screen caches daily-metric reads.
 @Riverpod(keepAlive: true)
 class DailyMetricsRemoteRefresh extends _$DailyMetricsRemoteRefresh {
   @override
@@ -77,10 +89,7 @@ class DailyMetricsRemoteRefresh extends _$DailyMetricsRemoteRefresh {
   ///
   /// Re-reads every screen showing daily metrics (see the class comment).
   void refreshDailyMetricReaders() {
-    ref
-      ..invalidate(metricsHistoryControllerProvider)
-      ..invalidate(checkInControllerProvider)
-      ..invalidate(weekCardControllerProvider);
+    invalidateDailyMetricReaders(ref);
     state++;
   }
 }

@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
+import 'package:steady/health_access.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
     ],
   );
   await _migrateInterimFileStore(container);
+  await _clearLegacyHealthFields(container);
   runApp(
     UncontrolledProviderScope(container: container, child: const SteadyApp()),
   );
@@ -66,6 +68,49 @@ Future<void> _migrateInterimFileStore(ProviderContainer container) async {
   }
 }
 
+/// Removes Apple Health values an older build stored in the iCloud-synced
+/// store (`clearLegacyHealthFields`; App Store 5.1.3(ii)). Runs on every
+/// launch, after the file migration so anything it copied is cleaned too:
+/// once the store is clean it's one range read and no writes. Only on the
+/// SwiftData store (iOS and macOS, CloudKit-backed); the in-memory store
+/// has nothing an older build could have left. Any failure is logged, not
+/// fatal, and the next launch retries.
+Future<void> _clearLegacyHealthFields(ProviderContainer container) async {
+  if (!Platform.isIOS && !Platform.isMacOS) return;
+  if (container.read(dailyMetricStoreProvider) != DailyMetricStore.swiftData) {
+    return;
+  }
+  final Result<int> result;
+  try {
+    result = await clearLegacyHealthFields(
+      container.read(dailyMetricRepositoryProvider),
+    );
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Clearing stored Apple Health values failed',
+      name: 'steady',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return;
+  }
+  switch (result) {
+    case Ok(value: 0):
+      break;
+    case Ok(:final value):
+      developer.log(
+        'Cleared stored Apple Health values from $value rows',
+        name: 'steady',
+      );
+    case Err(:final failure):
+      developer.log(
+        'Clearing stored Apple Health values failed: ${failure.message}',
+        name: 'steady',
+        error: failure.cause ?? failure,
+      );
+  }
+}
+
 /// Root widget. DI is wired by the `ProviderScope` in [main] (see
 /// `providers.dart`); routing comes from [routerProvider] (see
 /// `app_router.dart`).
@@ -78,6 +123,14 @@ Future<void> _migrateInterimFileStore(ProviderContainer container) async {
 ///
 /// It also starts [dailyMetricsRemoteRefreshProvider], so screens re-read
 /// the store when CloudKit syncs in another device's rows (#73).
+///
+/// It also refreshes Apple Health (iOS only, `health_access.dart`) once at
+/// launch and again on every return to the foreground: the first time it
+/// asks for read permission, and every time it makes the screens showing
+/// Health values read them live again, so today's steps stay current.
+/// Nothing is synced or stored. Fire-and-forget: it never blocks the first
+/// frame, and a failure is logged by the controller, not thrown. On macOS
+/// Health isn't bound, so the call is a no-op.
 class SteadyApp extends ConsumerStatefulWidget {
   /// Creates the root widget. Must sit under a `ProviderScope`.
   const SteadyApp({super.key});
@@ -95,11 +148,19 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
     // keepAlive, so one read keeps it listening for the app's lifetime.
     ref.read(dailyMetricsRemoteRefreshProvider);
     _lifecycle = AppLifecycleListener(
-      onResume: () => unawaited(
-        ref.read(accountStatusControllerProvider.notifier).recheckAccount(),
-      ),
+      onResume: () {
+        unawaited(
+          ref.read(accountStatusControllerProvider.notifier).recheckAccount(),
+        );
+        _refreshHealth();
+      },
     );
+    _refreshHealth();
   }
+
+  void _refreshHealth() => unawaited(
+    ref.read(healthAccessControllerProvider.notifier).refreshHealthData(),
+  );
 
   @override
   void dispose() {

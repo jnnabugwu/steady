@@ -11,6 +11,7 @@ import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health_sync_data/health_sync_data.dart';
 import 'package:metrics_domain/metrics_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_domain/notifications_domain.dart';
@@ -47,6 +48,25 @@ void main() {
       container.read(notificationSchedulerProvider),
       isA<NotificationScheduler>(),
     );
+  });
+
+  test("the history's live Health read is the app's one Health source, "
+      'bound on iOS only', () {
+    final health = InMemoryHealthKitRepository();
+    final ios = ProviderContainer.test(
+      overrides: [
+        // The iOS list binds the real channel; swap only that for a fake.
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(health),
+      ],
+    );
+    expect(ios.read(metricsHealthKitRepositoryProvider), same(health));
+    expect(
+      ProviderContainer.test(overrides: appProviderOverridesFor(isIOS: true))
+          .read(metricsHealthKitRepositoryProvider),
+      isA<MethodChannelHealthKitRepository>(),
+    );
+    expect(container.read(metricsHealthKitRepositoryProvider), isNull);
   });
 
   test('checkin and daily_metrics share the same underlying store', () async {

@@ -1,6 +1,8 @@
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
+import 'package:metrics_presentation/src/live_health.dart';
 import 'package:metrics_presentation/src/metrics_history_controller.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -16,6 +18,13 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
+///
+/// **Apple Health (iPhone only).** Steps and burned calories come from
+/// [healthDayTotalsProvider], read live for the last [healthHistoryDays]
+/// days and merged into the stored days in memory ([mergeLiveHealth]); a
+/// day with Health data but no stored row still shows. They're never
+/// written to the iCloud-synced store (App Store 5.1.3(ii)). Where there's
+/// no Health (macOS), or Health fails, the history shows without them.
 class MetricsHistoryModule extends ConsumerWidget {
   /// Creates the metrics history screen.
   const MetricsHistoryModule({
@@ -33,6 +42,12 @@ class MetricsHistoryModule extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(metricsHistoryControllerProvider);
+    final window = healthHistoryWindow(DateTime.now());
+    // `.value` is `null` while loading and on error: the stored days show
+    // without Health values rather than waiting on, or failing with, it.
+    final health =
+        ref.watch(healthDayTotalsProvider(window.start, window.end)).value ??
+        const <DateTime, HealthDayTotals>{};
 
     return Scaffold(
       headers: [
@@ -58,10 +73,12 @@ class MetricsHistoryModule extends ConsumerWidget {
       ],
       child: SafeArea(
         child: switch (history) {
-          AsyncData(:final value) when value.isEmpty => _EmptyState(
-            onImportRequested: onImportRequested,
-          ),
-          AsyncData(:final value) => _HistoryList(days: value),
+          AsyncData(:final value) => switch (mergeLiveHealth(value, health)) {
+            final days when days.isEmpty => _EmptyState(
+              onImportRequested: onImportRequested,
+            ),
+            final days => _HistoryList(days: days),
+          },
           AsyncError(:final error) => _ErrorState(
             message: error is Failure
                 ? 'Something went wrong: ${error.message}'
@@ -137,7 +154,8 @@ class _ErrorState extends StatelessWidget {
 class _HistoryList extends StatelessWidget {
   const _HistoryList({required this.days});
 
-  /// Newest first, non-empty.
+  /// Newest first, non-empty. In-memory merge of stored rows and live
+  /// Health values: display only.
   final List<DailyMetric> days;
 
   @override
@@ -206,15 +224,41 @@ class _DayRow extends StatelessWidget {
   }
 }
 
-/// "N days · avg X kcal eaten", averaging only over days with a
-/// `caloriesEaten` value. Drops the average when no day has one.
+/// "N days · avg X kcal eaten · last 30 days: avg Y burned · Z steps".
+///
+/// Each average is over only the days that have that value, and is left
+/// out when no day has it. The two halves have different denominators, so
+/// each says its own: calories eaten come from every stored day ("N
+/// days"), while burned calories and steps are read live from Apple Health
+/// for the last [healthHistoryDays] days only, so that half is labelled
+/// with its window. "kcal" goes on the first calorie average only, so the
+/// line stays short: "180 days · avg 1,950 kcal eaten · last 30 days: avg
+/// 2,400 burned · 8,123 steps", or "7 days · last 30 days: avg 2,400 kcal
+/// burned" with no PDF import.
 @visibleForTesting
 String summaryLine(List<DailyMetric> days) {
-  final count = '${days.length} ${days.length == 1 ? 'day' : 'days'}';
-  final eaten = days.map((d) => d.caloriesEaten).whereType<int>().toList();
-  if (eaten.isEmpty) return count;
-  final avg = (eaten.reduce((a, b) => a + b) / eaten.length).round();
-  return '$count · avg ${formatThousands(avg)} kcal eaten';
+  final parts = ['${days.length} ${days.length == 1 ? 'day' : 'days'}'];
+  int? average(Iterable<int?> values) {
+    final present = values.whereType<int>().toList();
+    if (present.isEmpty) return null;
+    return (present.reduce((a, b) => a + b) / present.length).round();
+  }
+
+  final eaten = average(days.map((d) => d.caloriesEaten));
+  if (eaten != null) parts.add('avg ${formatThousands(eaten)} kcal eaten');
+
+  final burned = average(days.map(caloriesBurned));
+  final steps = average(days.map((d) => d.steps));
+  final health = [
+    if (burned != null)
+      '${formatThousands(burned)} ${eaten == null ? 'kcal ' : ''}burned',
+    if (steps != null) '${formatThousands(steps)} steps',
+  ];
+  if (health.isNotEmpty) {
+    health[0] = 'last $healthHistoryDays days: avg ${health[0]}';
+    parts.addAll(health);
+  }
+  return parts.join(' · ');
 }
 
 /// Active + basal calories burned, or `null` when neither is recorded.

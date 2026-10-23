@@ -27,9 +27,20 @@
 /// stale copy) even though every isolated unit test still passes.
 /// `test/bootstrap_test.dart` guards this against [appProviderOverrides].
 ///
+/// **Apple Health is iOS only, and never stored** (#74, #75): the iPhone
+/// reads Health live and keeps the values in memory while they're shown;
+/// they're never written to the shared store, which is mirrored to iCloud
+/// (App Store guideline 5.1.3(ii)). The Mac and the coach have no Health
+/// data. [healthKitRepositoryProvider] is bound only when
+/// [appProviderOverridesFor] is built with `isIOS: true`; everywhere else it
+/// stays `null`, and Health reads (`metricsHealthKitRepositoryProvider`,
+/// `health_access.dart`) return nothing.
+///
 /// Nothing is wired for coach yet: `coach_domain` has no repository
 /// interface so far.
 library;
+
+import 'dart:io';
 
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
@@ -38,6 +49,8 @@ import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
+import 'package:health_sync_data/health_sync_data.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_data/notifications_data.dart';
@@ -96,10 +109,34 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 NotificationScheduler notificationScheduler(Ref ref) =>
     InMemoryNotificationScheduler();
 
+/// Apple Health's daily totals, or `null` where Health isn't read: macOS,
+/// and tests. `null` by default; [appProviderOverridesFor] binds the
+/// `steady/healthkit` channel on iOS only. The one Health source: features
+/// that read Health bind their own provider to this one.
+///
+/// Declared here rather than in a feature package: `health_sync` is
+/// headless (no `*_presentation` package), like `notifications`.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+HealthKitRepository? healthKitRepository(Ref ref) => null;
+
 /// Binds every feature-declared repository provider to its `*_data`
-/// implementation. Passed to `ProviderScope` in `main.dart`, and used as-is
-/// by `test/bootstrap_test.dart`.
-final List<Override> appProviderOverrides = [
+/// implementation, for the current platform. Passed to `ProviderScope` in
+/// `main.dart`, and used as-is by `test/bootstrap_test.dart`.
+final List<Override> appProviderOverrides = appProviderOverridesFor(
+  isIOS: Platform.isIOS,
+);
+
+/// [appProviderOverrides] for a given platform. The one platform choice in
+/// it is Apple Health, bound only when [isIOS] (see the library comment).
+/// A function, not just the list, so tests can build the iOS wiring on any
+/// host.
+List<Override> appProviderOverridesFor({required bool isIOS}) => [
+  if (isIOS)
+    healthKitRepositoryProvider.overrideWith(
+      (ref) => MethodChannelHealthKitRepository(),
+    ),
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native
   // side answers `notConfigured`, which never blocks the app.
@@ -127,5 +164,10 @@ final List<Override> appProviderOverrides = [
   // store's domain interface, so it binds straight to that store.
   exportDailyMetricRepositoryProvider.overrideWith(
     (ref) => ref.watch(dailyMetricRepositoryProvider),
+  ),
+  // The history's live Health read: the app's one Health source, so `null`
+  // (no Health) everywhere but iOS. Read only, never written anywhere.
+  metricsHealthKitRepositoryProvider.overrideWith(
+    (ref) => ref.watch(healthKitRepositoryProvider),
   ),
 ];

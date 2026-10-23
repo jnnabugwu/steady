@@ -5,7 +5,9 @@ import HealthKit
 /// `MethodChannelHealthKitRepository` in `features/health_sync/health_sync_data`
 /// (contract: `HealthKitChannel` in `health_kit_wire.dart`); change both
 /// together. There is no macOS twin on purpose: the iPhone is the only
-/// HealthKit reader, and the Mac sees the same values through CloudKit.
+/// HealthKit reader, and the Mac has no Health data. The Dart side shows
+/// these values live and never stores them in the iCloud-synced store (App
+/// Store guideline 5.1.3(ii)).
 ///
 /// Read-only. Steady asks to read step count, active energy and basal energy,
 /// and never asks to write anything to Health.

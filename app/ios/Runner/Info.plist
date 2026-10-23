@@ -27,7 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Steady reads your daily steps and active and resting energy from Apple Health to show how much you burned next to what you ate. Steady only reads these totals and never writes anything to Apple Health.</string>
+	<string>Steady reads your daily steps and active and resting energy from Apple Health to show how much you burned next to what you ate. These stay on this iPhone: Steady never stores them in iCloud and never writes anything to Apple Health.</string>
 	<key>SteadyCloudKitContainer</key>
 	<string>iCloud.com.jmagic.steady</string>
 	<key>SteadyCloudKitEnabled</key>

@@ -7,22 +7,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The settings screen, which today holds one thing: exporting the user's
-/// data as CSV or JSON through the system share sheet.
+/// The settings screen: exporting the user's data as CSV or JSON through
+/// the system share sheet, below any other [sections] the app layer adds
+/// (today the Apple Health card, which belongs to no feature package).
 ///
 /// Knows nothing about routing (CLAUDE.md §5): the back button calls
-/// [onBack], and the app layer decides where that goes. When a second
-/// setting arrives, split the export card out of this screen and compose
-/// the settings screen in the app layer.
+/// [onBack], and the app layer decides where that goes. It knows nothing
+/// about the other [sections] either: they're composed in the app layer.
+/// If settings outgrow one scrolling column, move this scaffold into the
+/// app layer and keep only the export card here.
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
 class DataExportModule extends ConsumerWidget {
   /// Creates the settings screen.
-  const DataExportModule({required this.onBack, super.key});
+  const DataExportModule({
+    required this.onBack,
+    this.sections = const [],
+    super.key,
+  });
 
   /// Called when the user taps the back button.
   final void Function() onBack;
+
+  /// Other settings, each usually a `SteadyCard`, shown above the export
+  /// card in order.
+  final List<Widget> sections;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,71 +61,86 @@ class DataExportModule extends ConsumerWidget {
             padding: const EdgeInsets.all(16),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
-              child: SteadyCard(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Export your data', style: SteadyType.cardTitle),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Steady keeps your data only in your iCloud account. '
-                      'Save a copy so you keep it even if you lose access '
-                      'to that account.',
-                      style: SteadyType.body,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Includes daily metrics and check-ins. Coach sessions '
-                      "aren't included yet.",
-                      style: SteadyType.body,
-                    ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final section in sections) ...[
+                    section,
                     const SizedBox(height: 16),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
+                  ],
+                  SteadyCard(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        for (final format in ExportFormat.values)
-                          _ExportButton(
-                            format: format,
-                            // Disabled while an export (or its share sheet)
-                            // is in flight; the controller also ignores
-                            // exports then.
-                            enabled: !export.isLoading,
-                            onExport: (origin) => unawaited(
-                              ref
-                                  .read(dataExportControllerProvider.notifier)
-                                  .exportData(
-                                    format,
-                                    sharePositionOrigin: origin,
-                                  ),
+                        const Text(
+                          'Export your data',
+                          style: SteadyType.cardTitle,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Steady keeps your data only in your iCloud account. '
+                          'Save a copy so you keep it even if you lose access '
+                          'to that account.',
+                          style: SteadyType.body,
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Includes daily metrics and check-ins. Coach '
+                          "sessions aren't included yet.",
+                          style: SteadyType.body,
+                        ),
+                        const SizedBox(height: 16),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final format in ExportFormat.values)
+                              _ExportButton(
+                                format: format,
+                                // Disabled while an export (or its share sheet)
+                                // is in flight; the controller also ignores
+                                // exports then.
+                                enabled: !export.isLoading,
+                                onExport: (origin) => unawaited(
+                                  ref
+                                      .read(
+                                        dataExportControllerProvider.notifier,
+                                      )
+                                      .exportData(
+                                        format,
+                                        sharePositionOrigin: origin,
+                                      ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        KeyedSubtree(
+                          key: const Key('exportStatus'),
+                          child: switch (export) {
+                            AsyncLoading() => const CircularProgressIndicator(),
+                            AsyncData(value: null) => const SizedBox.shrink(),
+                            AsyncData(:final value?) => Text(
+                              _receiptMessage(value),
+                              style: SteadyType.body,
                             ),
-                          ),
+                            AsyncError(error: final Failure failure) => Text(
+                              'Export failed: ${failure.message}. '
+                              'Nothing was exported.',
+                              style: SteadyType.body,
+                            ),
+                            AsyncError() => const Text(
+                              'Export failed. Nothing was exported.',
+                              style: SteadyType.body,
+                            ),
+                          },
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    KeyedSubtree(
-                      key: const Key('exportStatus'),
-                      child: switch (export) {
-                        AsyncLoading() => const CircularProgressIndicator(),
-                        AsyncData(value: null) => const SizedBox.shrink(),
-                        AsyncData(:final value?) => Text(
-                          _receiptMessage(value),
-                          style: SteadyType.body,
-                        ),
-                        AsyncError(error: final Failure failure) => Text(
-                          'Export failed: ${failure.message}. '
-                          'Nothing was exported.',
-                          style: SteadyType.body,
-                        ),
-                        AsyncError() => const Text(
-                          'Export failed. Nothing was exported.',
-                          style: SteadyType.body,
-                        ),
-                      },
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

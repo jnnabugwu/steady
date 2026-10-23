@@ -28,7 +28,10 @@ void main() {
     backCount = 0;
   });
 
-  Future<void> pumpModule(WidgetTester tester) => tester.pumpWidget(
+  Future<void> pumpModule(
+    WidgetTester tester, {
+    List<Widget> sections = const [],
+  }) => tester.pumpWidget(
     ProviderScope(
       overrides: [
         exportDailyMetricRepositoryProvider.overrideWithValue(repository),
@@ -37,7 +40,7 @@ void main() {
       ],
       child: ShadcnApp(
         theme: steadyTheme,
-        home: DataExportModule(onBack: () => backCount++),
+        home: DataExportModule(onBack: () => backCount++, sections: sections),
       ),
     ),
   );
@@ -52,6 +55,19 @@ void main() {
     ExportFormat.csv => tester.widget<PrimaryButton>(button(format)).onPressed,
     ExportFormat.json => tester.widget<OutlineButton>(button(format)).onPressed,
   };
+
+  testWidgets('shows the app-composed sections above the export', (
+    tester,
+  ) async {
+    await pumpModule(
+      tester,
+      sections: const [Text('Another setting', key: Key('otherSection'))],
+    );
+
+    final section = tester.getTopLeft(find.byKey(const Key('otherSection')));
+    final export = tester.getTopLeft(find.text('Export your data'));
+    expect(section.dy, lessThan(export.dy));
+  });
 
   testWidgets('starts idle with both export buttons enabled', (tester) async {
     await pumpModule(tester);

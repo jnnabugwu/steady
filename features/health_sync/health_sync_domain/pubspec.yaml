@@ -1,5 +1,5 @@
 name: health_sync_domain
-description: "Health sync (iOS only): Apple Health daily totals, read live through HealthKitRepository."
+description: "Health sync (iOS only): reading Apple Health daily totals, live and in memory only."
 version: 0.0.1
 homepage:
 publish_to: 'none'
