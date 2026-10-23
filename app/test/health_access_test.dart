@@ -198,7 +198,10 @@ void main() {
       expect(find.text('8,123 steps'), findsOneWidget);
       expect(find.text('4,000 steps'), findsOneWidget);
       expect(
-        find.text('2 days · avg 1,850 kcal eaten · 2,062 burned · 6,062 steps'),
+        find.text(
+          '2 days · avg 1,850 kcal eaten · '
+          'last 30 days: avg 2,062 burned · 6,062 steps',
+        ),
         findsOneWidget,
       );
 

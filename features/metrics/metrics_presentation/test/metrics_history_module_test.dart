@@ -145,7 +145,8 @@ void main() {
         // Today has Health data but no stored row, and still shows.
         expect(
           find.text(
-            '3 days · avg 1,900 kcal eaten · 1,850 burned · 6,750 steps',
+            '3 days · avg 1,900 kcal eaten · '
+            'last 30 days: avg 1,850 burned · 6,750 steps',
           ),
           findsOneWidget,
         );
@@ -171,7 +172,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.textContaining('No days yet'), findsNothing);
-        expect(find.text('1 day · avg 42 steps'), findsOneWidget);
+        expect(find.text('1 day · last 30 days: avg 42 steps'), findsOneWidget);
       });
 
       testWidgets('ignores Health fields an older build stored in the row', (
@@ -287,7 +288,8 @@ void main() {
           // Eaten only: doesn't drag the burned or steps averages down.
           DailyMetric(date: DateTime(2026, 8, 13), caloriesEaten: 1900),
         ]),
-        '3 days · avg 1,900 kcal eaten · 2,100 burned · 7,000 steps',
+        '3 days · avg 1,900 kcal eaten · '
+        'last 30 days: avg 2,100 burned · 7,000 steps',
       );
       expect(
         summaryLine([
@@ -297,11 +299,11 @@ void main() {
             steps: 1234,
           ),
         ]),
-        '1 day · avg 1,700 kcal burned · 1,234 steps',
+        '1 day · last 30 days: avg 1,700 kcal burned · 1,234 steps',
       );
       expect(
         summaryLine([DailyMetric(date: DateTime(2026, 8, 15), steps: 42)]),
-        '1 day · avg 42 steps',
+        '1 day · last 30 days: avg 42 steps',
       );
     });
   });
