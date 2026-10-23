@@ -5,8 +5,10 @@ import 'package:health_sync_domain/src/health_day_totals.dart';
 /// Reads daily totals from Apple Health. Read-only: Steady never writes to
 /// Health.
 ///
-/// iOS only. The iPhone is the one HealthKit reader; the Mac sees the same
-/// values through CloudKit, so nothing on macOS implements this.
+/// iOS only: nothing on macOS implements this, and the Mac has no Health
+/// data. What it returns is shown live and kept in memory only; it is never
+/// written to the iCloud-synced `DailyMetric` store (App Store guideline
+/// 5.1.3(ii)).
 abstract class HealthKitRepository {
   /// Whether Health is available on this device at all.
   ResultFuture<bool> isAvailable();

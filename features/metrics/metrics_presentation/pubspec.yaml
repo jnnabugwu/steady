@@ -16,6 +16,10 @@ dependencies:
   flutter:
     sdk: flutter
   flutter_riverpod: ^3.4.3
+  # Apple Health's live daily totals, shown in the history on iPhone. Domain
+  # only (CLAUDE.md §2): never health_sync_data.
+  health_sync_domain:
+    path: ../../health_sync/health_sync_domain
   metrics_domain:
     path: ../metrics_domain
   riverpod_annotation: ^4.0.7

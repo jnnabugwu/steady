@@ -12,13 +12,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_data/health_sync_data.dart';
-import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_domain/metrics_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:notifications_domain/notifications_domain.dart';
 import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
-import 'package:steady/health_sync.dart';
 import 'package:steady/providers.dart';
 
 /// Guards the DI wiring in `lib/providers.dart`, built from the **real**
@@ -52,32 +50,23 @@ void main() {
     );
   });
 
-  test('health_sync (iOS) writes into the same underlying store, leaving '
-      "pdf_import's calories alone", () async {
-    final day = DateTime(2026, 8, 24);
+  test("the history's live Health read is the app's one Health source, "
+      'bound on iOS only', () {
+    final health = InMemoryHealthKitRepository();
     final ios = ProviderContainer.test(
       overrides: [
         // The iOS list binds the real channel; swap only that for a fake.
         ...appProviderOverridesFor(isIOS: false),
-        healthKitRepositoryProvider.overrideWithValue(
-          InMemoryHealthKitRepository(
-            status: HealthAuthorizationStatus.requested,
-            days: [HealthDayTotals(date: day, steps: 6000)],
-          ),
-        ),
-        healthSyncClockProvider.overrideWithValue(() => DateTime(2026, 8, 25)),
+        healthKitRepositoryProvider.overrideWithValue(health),
       ],
     );
-    await ios.read(pdfImportRepositoryProvider).commitDailyTotals([
-      ParsedDay(date: day, caloriesEaten: 1850, foodEntries: const []),
-    ]);
-
-    await ios.read(healthSyncControllerProvider.notifier).syncHealthData();
-
-    final result = await ios.read(metricsRepositoryProvider).getRange(day, day);
-    final row = (result as Ok<List<DailyMetric>>).value.single;
-    expect(row.steps, 6000);
-    expect(row.caloriesEaten, 1850);
+    expect(ios.read(metricsHealthKitRepositoryProvider), same(health));
+    expect(
+      ProviderContainer.test(overrides: appProviderOverridesFor(isIOS: true))
+          .read(metricsHealthKitRepositoryProvider),
+      isA<MethodChannelHealthKitRepository>(),
+    );
+    expect(container.read(metricsHealthKitRepositoryProvider), isNull);
   });
 
   test('checkin and daily_metrics share the same underlying store', () async {

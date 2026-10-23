@@ -3,21 +3,25 @@ import 'dart:async';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
-import 'package:steady/health_sync.dart';
+import 'package:steady/health_access.dart';
 import 'package:steady/providers.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The "Apple Health" section of Settings (#75).
 ///
-/// On iOS: a status line and a "Connect Apple Health" (later "Sync now")
-/// button that asks for permission if needed and syncs. The status can
-/// never be "allowed" or "denied" outright, because HealthKit doesn't tell
-/// apps what the user chose for read access. After a sync that found no
-/// data at all, it says so and where to check the permission.
+/// On iOS: a status line and a "Connect Apple Health" (later "Refresh")
+/// button that asks for permission if needed and re-reads Health. The
+/// status can never be "allowed" or "denied" outright, because HealthKit
+/// doesn't tell apps what the user chose for read access; when Health
+/// returns nothing at all for the history's window, it says so and where to
+/// check the permission.
 ///
-/// Where Health isn't bound (macOS), it only says where the numbers come
-/// from: the iPhone, through iCloud.
+/// Health values are read live and never stored or synced (App Store
+/// 5.1.3(ii); `health_access.dart`), so nothing here claims they reach other
+/// devices. Where Health isn't bound (macOS), it says the numbers stay on
+/// the iPhone.
 ///
 /// In the app layer, not a feature package: `health_sync` is headless, and
 /// the settings screen takes it as one of its `sections`.
@@ -37,9 +41,8 @@ class AppleHealthCard extends ConsumerWidget {
             Text('Apple Health', style: SteadyType.cardTitle),
             SizedBox(height: 8),
             Text(
-              'Steps and burned calories come from your iPhone. Open '
-              'Steady there to bring in the latest from Apple Health; they '
-              'reach this Mac through iCloud.',
+              'Steps and burned calories come from Apple Health on your '
+              "iPhone and stay there; they don't sync to this Mac.",
               key: Key('appleHealthStatus'),
               style: SteadyType.body,
             ),
@@ -48,14 +51,21 @@ class AppleHealthCard extends ConsumerWidget {
       );
     }
 
-    final sync = ref.watch(healthSyncControllerProvider);
-    final (status, detail) = _describe(sync);
-    final authorization = sync.value?.authorization;
-    final canSync =
-        !sync.isLoading &&
-        authorization != HealthAuthorizationStatus.unavailable;
+    final access = ref.watch(healthAccessControllerProvider);
+    final authorization = access.value;
+    final AsyncValue<Map<DateTime, HealthDayTotals>>? totals;
+    if (authorization == HealthAuthorizationStatus.requested) {
+      final window = healthHistoryWindow(DateTime.now());
+      totals = ref.watch(healthDayTotalsProvider(window.start, window.end));
+    } else {
+      totals = null;
+    }
+    final (status, detail) = _describe(access, totals);
+    final busy = access.isLoading || (totals?.isLoading ?? false);
+    final canRefresh =
+        !busy && authorization != HealthAuthorizationStatus.unavailable;
     final buttonLabel = authorization == HealthAuthorizationStatus.requested
-        ? 'Sync now'
+        ? 'Refresh'
         : 'Connect Apple Health';
 
     return SteadyCard(
@@ -75,16 +85,16 @@ class AppleHealthCard extends ConsumerWidget {
             Text(detail, style: SteadyType.body),
           ],
           const SizedBox(height: 16),
-          if (sync.isLoading)
+          if (busy)
             const CircularProgressIndicator()
-          else if (canSync)
+          else if (canRefresh)
             PrimaryButton(
               key: const Key('connectAppleHealthButton'),
               leading: const Icon(LucideIcons.heartPulse),
               onPressed: () => unawaited(
                 ref
-                    .read(healthSyncControllerProvider.notifier)
-                    .syncHealthData(),
+                    .read(healthAccessControllerProvider.notifier)
+                    .refreshHealthData(),
               ),
               child: Text(buttonLabel),
             ),
@@ -93,15 +103,20 @@ class AppleHealthCard extends ConsumerWidget {
     );
   }
 
-  /// The status line and an optional explanation.
-  static (String, String?) _describe(AsyncValue<HealthSyncState> sync) {
-    if (sync case AsyncError(:final error)) {
-      final message = error is Failure ? error.message : '$error';
-      return ("Couldn't sync with Apple Health", message);
+  /// The status line and an optional explanation. [totals] is the live
+  /// read for the history's window, once permission has been asked.
+  static (String, String?) _describe(
+    AsyncValue<HealthAuthorizationStatus> access,
+    AsyncValue<Map<DateTime, HealthDayTotals>>? totals,
+  ) {
+    for (final value in [access, ?totals]) {
+      if (value case AsyncError(:final error)) {
+        final message = error is Failure ? error.message : '$error';
+        return ("Couldn't read Apple Health", message);
+      }
     }
-    final state = sync.value;
-    if (state == null) return ('Checking Apple Health…', null);
-    return switch (state.authorization) {
+    return switch (access.value) {
+      null => ('Checking Apple Health…', null),
       HealthAuthorizationStatus.unavailable => (
         'Unavailable',
         "Apple Health isn't available on this device.",
@@ -109,22 +124,25 @@ class AppleHealthCard extends ConsumerWidget {
       HealthAuthorizationStatus.notDetermined => (
         'Not connected',
         'Show your daily steps and burned calories next to what you ate. '
-            'Steady only reads them, and never writes to Apple Health.',
+            'Steady only reads them, on this iPhone: it never stores them in '
+            'iCloud and never writes to Apple Health.',
       ),
-      HealthAuthorizationStatus.requested => switch (state.lastSync) {
-        HealthSyncReport(daysWithData: 0) => (
+      HealthAuthorizationStatus.requested => switch (totals?.value) {
+        null => ('Connected', null),
+        final days when days.isEmpty => (
           'Not allowed, or no data yet',
           'Apple Health returned no steps or energy for the last '
-              "$healthSyncWindowDays days. If you didn't allow access, open "
+              "$healthHistoryDays days. If you didn't allow access, open "
               'the Health app, tap your profile picture, then Apps, then '
               'Steady, and turn on Steps, Active Energy and Resting Energy.',
         ),
-        HealthSyncReport() => (
+        _ => (
           'Connected',
-          'Steps and burned calories for the last $healthSyncWindowDays '
-              'days are up to date.',
+          'Steady reads your last $healthHistoryDays days of steps and '
+              'burned calories from Apple Health each time you open it, and '
+              "only shows them here: it doesn't store them or sync them to "
+              'your other devices.',
         ),
-        null => ('Connected', null),
       },
     };
   }

@@ -224,7 +224,8 @@ String _$notificationSchedulerHash() =>
 
 /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
 /// and tests. `null` by default; [appProviderOverridesFor] binds the
-/// `steady/healthkit` channel on iOS only.
+/// `steady/healthkit` channel on iOS only. The one Health source: features
+/// that read Health bind their own provider to this one.
 ///
 /// Declared here rather than in a feature package: `health_sync` is
 /// headless (no `*_presentation` package), like `notifications`.
@@ -236,7 +237,8 @@ final healthKitRepositoryProvider = HealthKitRepositoryProvider._();
 
 /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
 /// and tests. `null` by default; [appProviderOverridesFor] binds the
-/// `steady/healthkit` channel on iOS only.
+/// `steady/healthkit` channel on iOS only. The one Health source: features
+/// that read Health bind their own provider to this one.
 ///
 /// Declared here rather than in a feature package: `health_sync` is
 /// headless (no `*_presentation` package), like `notifications`.
@@ -253,7 +255,8 @@ final class HealthKitRepositoryProvider
     with $Provider<HealthKitRepository?> {
   /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
   /// and tests. `null` by default; [appProviderOverridesFor] binds the
-  /// `steady/healthkit` channel on iOS only.
+  /// `steady/healthkit` channel on iOS only. The one Health source: features
+  /// that read Health bind their own provider to this one.
   ///
   /// Declared here rather than in a feature package: `health_sync` is
   /// headless (no `*_presentation` package), like `notifications`.

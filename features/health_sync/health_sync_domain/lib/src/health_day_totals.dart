@@ -9,7 +9,8 @@ part 'health_day_totals.freezed.dart';
 /// day. `null` is "unknown", never "zero": HealthKit doesn't tell an app
 /// whether the user denied it read access, so a type the user didn't allow
 /// looks exactly like a type with no data. Field names match the
-/// `DailyMetric` fields of the same meaning.
+/// `DailyMetric` fields of the same meaning, but these values are only ever
+/// held in memory for display: they're never written to that store.
 @freezed
 abstract class HealthDayTotals with _$HealthDayTotals {
   /// Creates one day's totals.

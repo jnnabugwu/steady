@@ -1,6 +1,8 @@
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
+import 'package:metrics_presentation/src/live_health.dart';
 import 'package:metrics_presentation/src/metrics_history_controller.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -16,6 +18,13 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
+///
+/// **Apple Health (iPhone only).** Steps and burned calories come from
+/// [healthDayTotalsProvider], read live for the last [healthHistoryDays]
+/// days and merged into the stored days in memory ([mergeLiveHealth]); a
+/// day with Health data but no stored row still shows. They're never
+/// written to the iCloud-synced store (App Store 5.1.3(ii)). Where there's
+/// no Health (macOS), or Health fails, the history shows without them.
 class MetricsHistoryModule extends ConsumerWidget {
   /// Creates the metrics history screen.
   const MetricsHistoryModule({
@@ -33,6 +42,12 @@ class MetricsHistoryModule extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final history = ref.watch(metricsHistoryControllerProvider);
+    final window = healthHistoryWindow(DateTime.now());
+    // `.value` is `null` while loading and on error: the stored days show
+    // without Health values rather than waiting on, or failing with, it.
+    final health =
+        ref.watch(healthDayTotalsProvider(window.start, window.end)).value ??
+        const <DateTime, HealthDayTotals>{};
 
     return Scaffold(
       headers: [
@@ -58,10 +73,12 @@ class MetricsHistoryModule extends ConsumerWidget {
       ],
       child: SafeArea(
         child: switch (history) {
-          AsyncData(:final value) when value.isEmpty => _EmptyState(
-            onImportRequested: onImportRequested,
-          ),
-          AsyncData(:final value) => _HistoryList(days: value),
+          AsyncData(:final value) => switch (mergeLiveHealth(value, health)) {
+            final days when days.isEmpty => _EmptyState(
+              onImportRequested: onImportRequested,
+            ),
+            final days => _HistoryList(days: days),
+          },
           AsyncError(:final error) => _ErrorState(
             message: error is Failure
                 ? 'Something went wrong: ${error.message}'
@@ -137,7 +154,8 @@ class _ErrorState extends StatelessWidget {
 class _HistoryList extends StatelessWidget {
   const _HistoryList({required this.days});
 
-  /// Newest first, non-empty.
+  /// Newest first, non-empty. In-memory merge of stored rows and live
+  /// Health values: display only.
   final List<DailyMetric> days;
 
   @override

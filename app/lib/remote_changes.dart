@@ -46,10 +46,11 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
 /// - every `checkInControllerProvider(date)` (check-in screens),
 /// - every `weekCardControllerProvider(weekStart)` (the share card).
 ///
-/// Called on every remote change ([DailyMetricsRemoteRefresh]) and after an
-/// Apple Health sync that changed a day (`health_sync.dart`), so both
-/// refresh the same screens. Add a provider here when a new screen caches
-/// daily-metric reads.
+/// Called on every remote change ([DailyMetricsRemoteRefresh]). Add a
+/// provider here when a new screen caches daily-metric reads. (Apple Health
+/// doesn't call it: Health values are read live and never written to the
+/// store, so a Health refresh invalidates `healthDayTotalsProvider`
+/// instead; see `health_access.dart`.)
 void invalidateDailyMetricReaders(Ref ref) {
   ref
     ..invalidate(metricsHistoryControllerProvider)

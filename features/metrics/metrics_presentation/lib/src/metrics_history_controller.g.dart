@@ -62,7 +62,7 @@ final class MetricsHistoryControllerProvider
 }
 
 String _$metricsHistoryControllerHash() =>
-    r'3b8b1d46f3243bf28d5ec222747b18d2f52063f5';
+    r'07e7f21419df7c7552fc457f189c348f5665c300';
 
 /// Every imported day, newest first, for the metrics history screen.
 ///
