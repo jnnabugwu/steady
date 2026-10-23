@@ -152,9 +152,13 @@ check "Non-exempt encryption" "false" "$(info ITSAppUsesNonExemptEncryption)"
 # The whole array, so an iPhone+iPad build ([1,2]) can't pass.
 check "Device family"        "[1]" "$(plutil -extract UIDeviceFamily json -o - "$PLIST" 2>/dev/null || true)"
 check "iCloud sync enabled"  "true" "$(info SteadyCloudKitEnabled)"
-[ -n "$(info NSHealthShareUsageDescription)" ] \
-  && printf '  \033[32m✓\033[0m Health usage string present\n' \
-  || { printf '  \033[31m✗\033[0m Health usage string missing\n'; FAILED=1; }
+# App Store Connect rejects a HealthKit app missing either purpose string,
+# even one that never writes to Apple Health (ITMS-90683).
+for key in NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
+  [ -n "$(info "$key")" ] \
+    && printf '  \033[32m✓\033[0m %s present\n' "$key" \
+    || { printf '  \033[31m✗\033[0m %s missing\n' "$key"; FAILED=1; }
+done
 codesign -dv --verbose=2 "$APP" 2>&1 | grep -E 'Authority=Apple Distribution' | sed 's/^/  /' || true
 PROFILE=$(security cms -D -i "$APP/embedded.mobileprovision" 2>/dev/null \
           | plutil -extract Name raw -o - - 2>/dev/null || echo '?')
