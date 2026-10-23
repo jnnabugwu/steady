@@ -89,7 +89,14 @@ void main() {
 
     expect(find.byType(PdfImportModule), findsNothing);
     expect(find.byType(MetricsHistoryModule), findsOneWidget);
-    expect(find.textContaining('7 days'), findsOneWidget);
+    // The history's re-read goes over the store's platform channel, outside
+    // the fake clock, so pumpAndSettle can return before it lands.
+    final sevenDays = find.textContaining('7 days');
+    for (var i = 0; i < 50; i++) {
+      if (sevenDays.evaluate().isNotEmpty) break;
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(sevenDays, findsOneWidget);
 
     final container = ProviderScope.containerOf(
       tester.element(find.byType(SteadyApp)),
@@ -113,10 +120,14 @@ void main() {
     // Settings → Sample data → Remove sample days.
     await tester.tap(find.byKey(const Key('openSettingsButton')));
     await tester.pumpAndSettle();
-    expect(
-      find.text('7 sample days from January 2025 are in your history.'),
-      findsOneWidget,
+    final sampleCount = find.text(
+      '7 sample days from January 2025 are in your history.',
     );
+    for (var i = 0; i < 50; i++) {
+      if (sampleCount.evaluate().isNotEmpty) break;
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(sampleCount, findsOneWidget);
     await tester.tap(find.byKey(const Key('removeSampleDaysButton')));
     for (var i = 0; i < 50; i++) {
       await tester.pump(const Duration(milliseconds: 100));
@@ -132,6 +143,10 @@ void main() {
 
     await tester.tap(find.byKey(const Key('settingsBackButton')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('7 days'), findsNothing);
+    for (var i = 0; i < 50; i++) {
+      if (sevenDays.evaluate().isEmpty) break;
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(sevenDays, findsNothing);
   });
 }
