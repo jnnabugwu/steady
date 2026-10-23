@@ -12,6 +12,10 @@ part of 'remote_changes.dart';
 /// app's writes: the plugin's stream for the SwiftData store, and empty for
 /// the in-memory one (tests), which nothing else writes to. Tests override
 /// it with their own stream.
+///
+/// "Other than this app's writes" holds on iOS 18 / macOS 15+ only. On
+/// iOS 17 / macOS 14 the plugin can't tell its own saves apart, so it also
+/// fires after every write the app makes, costing an extra re-read each.
 
 @ProviderFor(dailyMetricsRemoteChangeSource)
 final dailyMetricsRemoteChangeSourceProvider =
@@ -21,6 +25,10 @@ final dailyMetricsRemoteChangeSourceProvider =
 /// app's writes: the plugin's stream for the SwiftData store, and empty for
 /// the in-memory one (tests), which nothing else writes to. Tests override
 /// it with their own stream.
+///
+/// "Other than this app's writes" holds on iOS 18 / macOS 15+ only. On
+/// iOS 17 / macOS 14 the plugin can't tell its own saves apart, so it also
+/// fires after every write the app makes, costing an extra re-read each.
 
 final class DailyMetricsRemoteChangeSourceProvider
     extends
@@ -34,6 +42,10 @@ final class DailyMetricsRemoteChangeSourceProvider
   /// app's writes: the plugin's stream for the SwiftData store, and empty for
   /// the in-memory one (tests), which nothing else writes to. Tests override
   /// it with their own stream.
+  ///
+  /// "Other than this app's writes" holds on iOS 18 / macOS 15+ only. On
+  /// iOS 17 / macOS 14 the plugin can't tell its own saves apart, so it also
+  /// fires after every write the app makes, costing an extra re-read each.
   DailyMetricsRemoteChangeSourceProvider._()
     : super(
         from: null,

@@ -2,9 +2,15 @@
 ///
 /// On a second device, CloudKit imports rows into the local SwiftData store
 /// in the background, after screens have already read it. The
-/// `daily_metrics_store` plugin reports those imports (and not this app's
-/// own writes) as events; [DailyMetricsRemoteRefresh] turns each one into
-/// a re-read of every screen that shows daily metrics.
+/// `daily_metrics_store` plugin reports those imports as events;
+/// [DailyMetricsRemoteRefresh] turns each one into a re-read of every
+/// screen that shows daily metrics.
+///
+/// Which saves emit depends on the OS. On iOS 18 / macOS 15+ the plugin
+/// filters out this app's own writes through SwiftData's persistent
+/// history, so only imports emit. On iOS 17 / macOS 14 there is no history
+/// API, so every save emits, the app's own included: each own write then
+/// costs one extra (harmless) re-read.
 ///
 /// This lives in `app/` because it touches several features' providers at
 /// once, which only the app layer may know about (CLAUDE.md §3, §5).
@@ -22,6 +28,10 @@ part 'remote_changes.g.dart';
 /// app's writes: the plugin's stream for the SwiftData store, and empty for
 /// the in-memory one (tests), which nothing else writes to. Tests override
 /// it with their own stream.
+///
+/// "Other than this app's writes" holds on iOS 18 / macOS 15+ only. On
+/// iOS 17 / macOS 14 the plugin can't tell its own saves apart, so it also
+/// fires after every write the app makes, costing an extra re-read each.
 @Riverpod(keepAlive: true)
 Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
     switch (ref.watch(dailyMetricStoreProvider)) {
