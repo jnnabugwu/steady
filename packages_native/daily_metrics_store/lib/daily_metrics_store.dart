@@ -35,6 +35,19 @@
 /// the real store is selected fails with `not_test_store` before the real
 /// store is opened.
 ///
+/// Debug builds only: `initializeCloudKitSchema` (no arguments) pushes every
+/// attribute of the SwiftData model to the CloudKit **development** schema
+/// through a throwaway store in the temp directory (never the real store),
+/// with `NSPersistentCloudKitContainer.initializeCloudKitSchema`, off the
+/// main thread; it can take tens of seconds (#93,
+/// `docs/cloudkit_schema.md`). Returns `{containerIdentifier, recordTypes:
+/// [{name, fields: [{name, type}]}]}` in CloudKit's names
+/// (`CD_DailyMetricRecord`, `CD_day`: `String`, ...). Fails with
+/// `cloudkit_disabled` (Info.plist has no CloudKit container),
+/// `schema_init_running` (a run is already in flight) or
+/// `schema_init_failed`. In release builds the method doesn't exist, so it
+/// fails with `MissingPluginException`.
+///
 /// Same-day duplicates are merged on read: per field, the non-null value
 /// from the record with the latest `modifiedAt` wins, equal timestamps
 /// broken by comparing the records' values (`MetricRow.outranks`), so every
@@ -42,7 +55,8 @@
 ///
 /// Failures come back as `PlatformException`s with one of these codes:
 /// `bad_args`, `store_unavailable`, `fetch_failed`, `save_failed`,
-/// `not_test_store`, or `unknown` (any other native error).
+/// `not_test_store`, `cloudkit_disabled`, `schema_init_running`,
+/// `schema_init_failed`, or `unknown` (any other native error).
 ///
 /// Remote changes, on the EventChannel [dailyMetricsStoreChangesChannelName]:
 /// while Dart listens, the plugin observes `NSPersistentStoreRemoteChange`

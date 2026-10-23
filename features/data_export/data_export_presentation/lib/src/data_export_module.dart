@@ -9,7 +9,8 @@ import 'package:ui_kit/ui_kit.dart';
 
 /// The settings screen: exporting the user's data as CSV or JSON through
 /// the system share sheet, below any other [sections] the app layer adds
-/// (today the Apple Health card, which belongs to no feature package).
+/// (today the Apple Health card and, in debug builds, the Developer card,
+/// neither of which belongs to a feature package).
 ///
 /// Knows nothing about routing (CLAUDE.md §5): the back button calls
 /// [onBack], and the app layer decides where that goes. It knows nothing

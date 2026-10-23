@@ -120,6 +120,14 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStre
             case "capabilities":
                 // Doesn't open the store: safe to call before `useStore`.
                 result(["historyFiltering": DailyMetricsStore.filtersOwnWrites])
+            case "initializeCloudKitSchema":
+                // Debug builds only; in release this falls through to
+                // `FlutterMethodNotImplemented` below.
+                #if DEBUG
+                    initializeCloudKitSchema(result: result)
+                #else
+                    result(FlutterMethodNotImplemented)
+                #endif
             case "useStore":
                 try useStore(args["name"])
                 result(nil)
@@ -151,6 +159,62 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStre
             result(FlutterError(code: "unknown", message: "\(error)", details: nil))
         }
     }
+
+    #if DEBUG
+        /// Set while `initializeCloudKitSchema` runs, so a second tap can't
+        /// start a second throwaway container.
+        private var schemaInitRunning = false
+
+        /// Debug builds only (#93): pushes the full model schema to the
+        /// CloudKit development environment through a throwaway store (see
+        /// `CloudKitSchemaInitializer`), off the main thread. Replies
+        /// `{containerIdentifier, recordTypes: [{name, fields: [{name, type}]}]}`, or a
+        /// `FlutterError` coded `cloudkit_disabled` (no CloudKit container
+        /// in Info.plist), `schema_init_running` (already running), or
+        /// `schema_init_failed`.
+        private func initializeCloudKitSchema(result: @escaping FlutterResult) {
+            guard
+                let containerId = DailyMetricsStore.cloudKitContainer(
+                    info: Bundle.main.infoDictionary)
+            else {
+                result(
+                    FlutterError(
+                        code: "cloudkit_disabled",
+                        message: "CloudKit is off: set \(DailyMetricsStore.cloudKitEnabledKey) "
+                            + "and \(DailyMetricsStore.cloudKitContainerKey) in Info.plist",
+                        details: nil))
+                return
+            }
+            guard !schemaInitRunning else {
+                result(
+                    FlutterError(
+                        code: "schema_init_running",
+                        message: "The CloudKit schema is already being initialized", details: nil))
+                return
+            }
+            schemaInitRunning = true
+            DispatchQueue.global(qos: .userInitiated).async {
+                let reply: Any
+                do {
+                    reply = [
+                        "containerIdentifier": containerId,
+                        "recordTypes": try CloudKitSchemaInitializer.run(
+                            containerIdentifier: containerId),
+                    ]
+                } catch let failure as CloudKitSchemaInitializer.Failure {
+                    reply = FlutterError(
+                        code: "schema_init_failed", message: failure.message, details: nil)
+                } catch {
+                    reply = FlutterError(
+                        code: "schema_init_failed", message: "\(error)", details: nil)
+                }
+                DispatchQueue.main.async {
+                    self.schemaInitRunning = false
+                    result(reply)
+                }
+            }
+        }
+    #endif
 
     /// The current store, opened on first use. `testOnly` refuses with
     /// `not_test_store` unless a test store from `useStore(name)` is

@@ -75,13 +75,18 @@ final class DailyMetricsStore {
     /// transactions after it, rather than the whole history.
     private let openedAt = Date()
 
+    /// Every SwiftData `@Model` in this store. The one list both the store's
+    /// `Schema` and the debug CloudKit schema initializer use, so a model
+    /// added here is always pushed by the initializer too.
+    static let modelTypes: [any PersistentModel.Type] = [DailyMetricRecord.self]
+
     /// Opens the real store (nil) or a separate local test store.
     init(testStoreName: String?, info: [String: Any]? = Bundle.main.infoDictionary) throws {
         self.testStoreName = testStoreName
         // Test stores never sync, whatever the flag says.
         cloudKitContainer = testStoreName == nil ? Self.cloudKitContainer(info: info) : nil
         do {
-            let schema = Schema([DailyMetricRecord.self])
+            let schema = Schema(Self.modelTypes)
             url = try Self.storeDirectory().appendingPathComponent(
                 testStoreName.map { "test-\($0).store" } ?? "steady.store")
             // `.none` is explicit on purpose: the default (`.automatic`)
