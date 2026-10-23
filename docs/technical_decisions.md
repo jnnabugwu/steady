@@ -7,6 +7,52 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Health data stays on the iPhone (App Store 5.1.3) (2026-10-23)
+
+**Decision:** Apple Health values (steps, active energy, basal energy) are read live from
+HealthKit on the iPhone and shown there. They are never written to Steady's CloudKit/iCloud
+store. The Mac shows calories eaten (from Cal AI PDFs) and check-ins only, and the coach
+(macOS) runs without Health data for now.
+
+**Why:**
+
+- App Store Review Guideline 5.1.3(ii): "Apps may not write false or inaccurate data into
+  HealthKit or any other medical research or health management apps, and may not store
+  personal health information in iCloud." Syncing Health-sourced steps and energy through
+  the CloudKit private database is storing them in iCloud.
+- The Mac has no Health data to read anyway. `HKHealthStore.isHealthDataAvailable()` returns
+  false on macOS 26.6.2 (checked), and Apple's documentation says Mac-class platforms can't
+  read or write HealthKit data. The earlier plan (CLAUDE.md §1) assumed HealthKit was native
+  on macOS 26; it isn't usable there.
+
+**Consequences:**
+
+- The Mac, and the coach that runs there, have no Health data. Burned energy and steps appear
+  only on the iPhone.
+- `DailyMetric`'s Health fields (`caloriesBurnedActive`, `caloriesBurnedBasal`, `steps`) stay
+  in the `DailyMetricRecord` CloudKit schema, because CloudKit's production schema is
+  additive-only and removing them now would only have to be undone if the decision changes.
+  Apple Health values aren't written to them in the synced store.
+- HealthKit is an iOS-only platform choice in `appProviderOverrides` (CLAUDE.md §9); macOS
+  gets no HealthKit datasource.
+- The privacy policy (`docs/PRIVACY.md`) says Health data is never stored in iCloud.
+
+**Alternatives considered:**
+
+- *Sync Health values through CloudKit,* so the Mac and the coach see them. Rejected: it's
+  what 5.1.3(ii) prohibits.
+- *A direct iPhone→Mac local handoff of Health context* for the coach, with nothing stored in
+  iCloud. Deferred (#97).
+- *Run the coach on the iPhone,* where Health data is available. Possible later; today the
+  coach is macOS-only by design (CLAUDE.md §11).
+
+**Open risk:** App Review may read "personal health information" broadly enough to include
+calories eaten and check-ins, which do sync through CloudKit. The early external TestFlight
+build goes through Beta App Review, which is the check (#98). If Apple objects, those fields
+need the same treatment as the Health values.
+
+---
+
 ## Pass 02: Native Glass (2026-10-23)
 
 **Decision:** the design tokens move to Pass 02, the "Native Glass" direction (design canvas
