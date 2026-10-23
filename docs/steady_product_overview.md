@@ -137,17 +137,13 @@ longer tied to the A17 Pro+ requirement that on-device LLM support otherwise imp
 see the Platform Requirement note in §2. Full consequences (nudge-card CTA differences,
 `notes`/RAG being implicitly macOS-scoped for its actual use) are in `CLAUDE.md` §11.
 
-**End-of-day check-in UX — hybrid.**
-An always-visible home-screen card is the default, zero-friction path for whenever the user
-is already in the app. A single local (on-device, no backend/APNs involved) notification at
-10pm fires *only* if nothing has been logged that day — a safety net for skip-days, not a
-daily nag. It's cancelled the instant a check-in is completed, so it can never fire on a day
-that's already logged. Kept deliberately separate from the coach persona — notifications are
-a neutral system mechanic, not "the coach checking in," so the coach stays something the user
-goes to, never something that chases them. Interface: `NotificationScheduler` in
-`notifications_domain` (`scheduleEndOfDayReminder(date)`, `cancelReminder(date)`), with
-`EndOfDayReminderPolicy` deciding whether to schedule. Only an in-memory scheduler exists so
-far; the real local-notification implementation isn't built yet.
+**End-of-day check-in UX — in-app only, no reminder.**
+An always-visible home-screen card is the zero-friction path for whenever the user is already
+in the app. Steady sends no end-of-day reminder notification: food logging happens in Cal AI,
+which has its own reminders, so a second nudge from Steady would add noise without value. The
+coach's nudge card on the check-in screen stays the in-app prompt, and the coach stays
+something the user goes to, never something that chases them. Decision record:
+`docs/technical_decisions.md`, "No end-of-day reminder".
 
 **Friday coach session structure — separate talks.**
 Logging-consistency and step-goal-consistency get their own distinct conversational threads

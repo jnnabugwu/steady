@@ -7,6 +7,40 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## No end-of-day reminder (2026-10-23)
+
+**Decision:** Steady sends no end-of-day reminder. The planned 10pm local notification (fired
+only if nothing was logged that day, cancelled on check-in) is dropped, not deferred.
+
+**Why:**
+
+- Food logging happens in Cal AI, and Cal AI has its own reminders. A second nudge from Steady
+  about the same habit adds noise without adding value.
+- Notification noise is a cost of its own: every extra notification trains the user to ignore
+  the ones that matter.
+- Jordan's experience shipping notifications in other apps: a reminder is easy to add and hard
+  to make worth its interruption, and this one wasn't.
+
+**Consequences:**
+
+- The `notifications` feature (`notifications_domain`, `notifications_data`) is removed. It
+  only ever held an in-memory placeholder scheduler, so no user-facing behavior changes.
+- `notificationSchedulerProvider` is gone from `app/lib/providers.dart`, and `CheckInRoute`
+  no longer cancels anything on completion: it passes a no-op `onCheckInCompleted`, and the
+  check-in screen stays up showing the logged status.
+- Typed routes stay required (CLAUDE.md §1, §5). `CheckInRoute` keeps its date-only codec and
+  the malformed-date redirect, because links into a specific day (a share card, a future
+  widget or shortcut) still need them.
+
+**Alternatives:**
+
+- **In-app nudge card on the check-in screen**, already planned with the coach (CLAUDE.md
+  §11: "Talk now" on macOS, "Continue on Mac" on iOS). Not an alternative to build instead so
+  much as the prompt that remains: it only shows when the user is already in the app.
+- **Keep the 10pm local notification** (the previous plan). Rejected for the reasons above.
+
+---
+
 ## iCloud is optional: a banner, not a gate (2026-10-23)
 
 **Decision:** Steady never blocks when the device isn't signed into iCloud. The `/sign-in`
@@ -237,9 +271,9 @@ the least it ever would. It's also deliberate practice on the freezed + Riverpod
 throw if not overridden. `app/lib/providers.dart` holds the one `appProviderOverrides` list that
 binds them to `*_data` implementations, and `main()` and tests share it. As built: checkin,
 metrics and pdf_import declare theirs in `lib/src/providers.dart`; `coach` declares none yet (no
-repository interface in `coach_domain`); `notificationSchedulerProvider` is declared directly in
+repository interface in `coach_domain`); `notificationSchedulerProvider` was declared directly in
 `app/lib/providers.dart`, since `notifications` is headless and has no `*_presentation` package to
-declare it in. *Rejected:* providers in
+declare it in (removed 2026-10-23, see "No end-of-day reminder"). *Rejected:* providers in
 `*_data` with presentation importing data (breaks the CLAUDE.md §3 layer rule), and keeping `get_it`
 for repositories alongside Riverpod for UI (two DI systems).
 

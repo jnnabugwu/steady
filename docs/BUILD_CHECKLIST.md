@@ -37,12 +37,11 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] Add `go_router` + `go_router_builder` to `app/pubspec.yaml` (`go_router` ^18.1.1,
       `go_router_builder` ^4.5.2).
-- [x] First typed route: `CheckInRoute(date: DateTime)` at `/checkin/:date` — the concrete
-      deep-link case (local notification → specific day's check-in from cold start). Path
+- [x] First typed route: `CheckInRoute(date: DateTime)` at `/checkin/:date` — a typed,
+      date-carrying link into a specific day's check-in, from a cold start too. Path
       encoding is date-only `yyyy-MM-dd`; decoding reads only the leading `yyyy-MM-dd`
       (time/offset ignored, impossible dates rejected), and a malformed `/checkin/<x>`
       redirects to `/`. Cold-start resolution is covered by `app/test/app_router_test.dart`.
-      The notification side (payload → route) isn't built; see Feature: notifications.
 - [x] `routerProvider`: `@Riverpod(keepAlive: true)` `GoRouter` in `app_router.dart`, passed
       to `ShadcnApp.router` in `main.dart`.
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
@@ -134,9 +133,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       functional check-in screen with Logged/Partial/Skipped buttons, built from
       `shadcn_flutter`/`ui_kit` widgets; no home card yet.)
 - [x] `CheckInModule` exposing `onCheckInCompleted` callback (see Routing above); called
-      only after a successful log. `CheckInRoute` wires it to cancel that day's reminder,
-      passing the midnight-normalized day (not the route's raw `date`) and reporting a
-      failed cancel via `FlutterError.reportError`.
+      only after a successful log. `CheckInRoute` passes a no-op: the screen stays up
+      showing the logged status.
 
 ## Feature: metrics
 
@@ -191,16 +189,11 @@ items land; don't let it drift into a change log — keep it a current-state che
       logging-status ladder — don't reintroduce red/yellow/green anywhere in this
       feature's UI).
 
-## Feature: notifications
+## Feature: notifications — dropped
 
-- [ ] `notifications_data`: single local 10pm notification, scheduled only if nothing
-      logged that day; cancelled the instant check-in completes.
-- [ ] Deep-link payload carries the date for `CheckInRoute` (see Routing above). The route
-      side exists and takes the date in the path as `yyyy-MM-dd` (`/checkin/2026-10-19`;
-      anything after the leading date, such as a time or UTC offset, is ignored). Nothing
-      yet turns a tapped notification into that route, and `NotificationScheduler` has
-      only an in-memory implementation.
-- [ ] Stays headless — no `notifications_presentation` package (CLAUDE.md §3).
+No end-of-day reminder notification. Cal AI owns food logging and has its own reminders,
+so the `notifications` packages were removed (`docs/technical_decisions.md`, "No end-of-day
+reminder"). The in-app nudge card on the check-in screen (Feature: coach) remains.
 
 ## Feature: notes (RAG) — "designed, not yet built" (product doc §8)
 

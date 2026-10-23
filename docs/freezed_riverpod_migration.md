@@ -4,6 +4,8 @@
 
 **Status (2026-10-22): steps 1–9 done; step 9 verified 2026-10-22 at `72e2eed` (codegen no diff, analyzer 0/0/88 with no new issues, 82 passed + 1 skipped, iOS simulator + macOS debug builds succeed; results in §4).** D1–D6 decided 2026-10-20, all as recommended (D1 = Option A, D5 = commit generated files), recorded in `docs/technical_decisions.md`. Steps 1–4 (run 1) merged in PR #20 from `refactor/freezed-riverpod`; step 5 (run 2, W5) merged in PR #22 from `refactor/riverpod-di`; Checkpoint B passed 2026-10-22 (Jordan approved the DI wiring, recorded on #13); the Checkpoint A decision merged in PR #23. Run 3 was built on the local branch `refactor/run3-checkin-routing` and reviewed as stacked PRs, one per unit: W6 (step 6) `4a8bb70` in #28, W7 (step 7) `3bd3224` in #29, W8 (step 8, docs reconciled with the code) `72e2eed` in #30, and W9 (step 9, verify; this commit records the results) in the PR stacked on #30. The run-3 review fixes followed on `fix/run3-review-fixes` (`ab51715`, `e2ecf19`, `5824624`: classic constructors, shadcn-only `CheckInModule`, normalized reminder cancel, date-only deep links); at `5824624`: 89 passed + 1 skipped, analyzer 0/0/62 (§4).
 
+*Note (2026-10-23): the end-of-day reminder and the `notifications` packages this history mentions were later removed; see `docs/technical_decisions.md`, "No end-of-day reminder".*
+
 **Why now:** the domain and data layers exist, but **no presentation layer has been written.** Every `*_presentation` package is a stub, and there are no Blocs to rewrite. Switching state management before the first screen costs the least it ever will. It's also a common production stack (Riverpod with code generation, freezed for models), so this is deliberate practice.
 
 ---
