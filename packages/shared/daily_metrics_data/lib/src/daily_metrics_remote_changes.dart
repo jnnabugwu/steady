@@ -16,10 +16,19 @@ import 'package:flutter/services.dart';
 ///
 /// - **No plugin** (unit tests, a platform without it): the native `listen`
 ///   call fails with `MissingPluginException`; that is logged and the
-///   stream closes, so it behaves as empty.
-/// - **A native error** (a `listen`/`cancel` failure or an error event) is
+///   stream closes, so it behaves as empty. No retry, no `cancel`.
+/// - **A failed native `listen`** is logged and retried while anyone is
+///   listening, with capped backoff (1 s, 2 s, 4 s, ... then every 60 s,
+///   unlimited attempts), so the app's lifetime subscription isn't left
+///   permanently deaf. Cancelling stops the retries.
+/// - **Other native errors** (a `cancel` failure or an error event) are
 ///   logged and swallowed. A missed refresh only leaves a screen stale until
 ///   its next read; it is never worth failing the app over.
+///
+/// Tearing down the Dart listener always sends the native `cancel`, even
+/// after the native side ended the stream or a `listen` failed, so the
+/// plugin never keeps its observer and event sink registered. Native
+/// `cancel` is idempotent.
 ///
 /// This speaks the EventChannel protocol directly rather than through
 /// `EventChannel.receiveBroadcastStream`, because that reports a failed
@@ -37,8 +46,36 @@ Stream<void> dailyMetricsRemoteChanges({BinaryMessenger? messenger}) {
   final methods = MethodChannel(name, codec, messenger);
 
   late final StreamController<void> controller;
+  // Bumped on every listen and cancel, so a `listen` that fails after its
+  // listener is gone (or replaced) schedules nothing.
+  var generation = 0;
+  Timer? retry;
+  var hasPlugin = true;
+
+  Future<void> activate(int listenGeneration, int attempt) async {
+    try {
+      await methods.invokeMethod<void>('listen');
+    } on MissingPluginException {
+      // No native store here, so nothing will ever change remotely.
+      hasPlugin = false;
+      binaryMessenger().setMessageHandler(name, null);
+      await controller.close();
+    } on Object catch (error) {
+      _log(
+        'Listening for remote changes failed (attempt ${attempt + 1})',
+        error,
+      );
+      if (listenGeneration != generation) return;
+      retry = Timer(_retryDelay(attempt), () {
+        retry = null;
+        unawaited(activate(listenGeneration, attempt + 1));
+      });
+    }
+  }
+
   controller = StreamController<void>.broadcast(
-    onListen: () async {
+    onListen: () {
+      final listenGeneration = ++generation;
       binaryMessenger().setMessageHandler(name, (data) async {
         if (data == null) {
           // The native side ended the stream.
@@ -53,19 +90,15 @@ Stream<void> dailyMetricsRemoteChanges({BinaryMessenger? messenger}) {
         }
         return null;
       });
-      try {
-        await methods.invokeMethod<void>('listen');
-      } on MissingPluginException {
-        // No native store here, so nothing will ever change remotely.
-        binaryMessenger().setMessageHandler(name, null);
-        await controller.close();
-      } on Object catch (error) {
-        _log('Listening for remote changes failed', error);
-      }
+      unawaited(activate(listenGeneration, 0));
     },
+    // Also runs once the stream has closed and its listeners are done.
     onCancel: () async {
+      generation++;
+      retry?.cancel();
+      retry = null;
       binaryMessenger().setMessageHandler(name, null);
-      if (controller.isClosed) return;
+      if (!hasPlugin) return;
       try {
         await methods.invokeMethod<void>('cancel');
       } on Object catch (error) {
@@ -75,6 +108,10 @@ Stream<void> dailyMetricsRemoteChanges({BinaryMessenger? messenger}) {
   );
   return controller.stream;
 }
+
+/// 1 s, 2 s, 4 s, ... capped at 60 s, for the 0-based [attempt] that failed.
+Duration _retryDelay(int attempt) =>
+    Duration(seconds: attempt >= 6 ? 60 : 1 << attempt);
 
 void _log(String message, Object error) =>
     developer.log(message, name: 'steady.daily_metrics', error: error);
