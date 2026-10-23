@@ -54,8 +54,10 @@ through the tokens, with no code change.
 
 **Alternatives considered:**
 
-- *B · Ledger* and *C · Soft Bento*, the canvas's other two directions. Not picked. (Why not:
-  to be filled in. The reasons weren't recorded with the canvas.)
+- *B · Ledger* and *C · Soft Bento*, the canvas's other two directions. Not picked: Native
+  Glass looks better, and it's the more ambitious build, which was itself a reason to pick it
+  (the challenge of doing glass well, translucent surfaces that stay fast and readable, was
+  wanted).
 - *A radius multiplier of 1.4,* which makes `radiusXl` = 28 (bare cards on the card radius) and
   `radiusLg` ≈ 22. Rejected: buttons land on 16.8, which isn't a pill at shadcn's default 38px
   button height or at Pass 02's 44px, and cards already get their radius from `SteadyCard`.
