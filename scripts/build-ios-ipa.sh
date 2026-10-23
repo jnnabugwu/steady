@@ -9,7 +9,7 @@
 #
 # Options:
 #   --pull        git pull --ff-only before building
-#   --clean       flutter clean + wipe this app's DerivedData first (slower, safest)
+#   --clean       flutter clean first (slower, safest)
 #   --bump        increment the +N build number in app/pubspec.yaml (not committed)
 #   --build N     set the build number to N (not committed)
 #   --check       run scripts/analyze.sh and scripts/test.sh --all first
@@ -44,7 +44,12 @@ while [ $# -gt 0 ]; do
     --pull)  PULL=1 ;;
     --clean) CLEAN=1 ;;
     --bump)  BUMP=1 ;;
-    --build) shift; SET_BUILD="${1:?--build needs a number}" ;;
+    --build)
+      shift; SET_BUILD="${1:?--build needs a number}"
+      case "$SET_BUILD" in
+        ''|*[!0-9]*) echo "--build needs a whole number, got: $SET_BUILD" >&2; exit 2 ;;
+      esac
+      ;;
     --check) CHECK=1 ;;
     --open)  OPEN=1 ;;
     -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
@@ -60,26 +65,35 @@ die()  { printf '\033[1;31mERROR: %s\033[0m\n' "$1" >&2; exit 1; }
 command -v flutter    >/dev/null || die "flutter is not on PATH"
 command -v xcodebuild >/dev/null || die "Xcode command line tools not found (xcode-select --install)"
 
-step "Repo state"
 cd "$ROOT"
-git log --oneline -1 || true
 if [ "$PULL" = 1 ]; then
   step "git pull --ff-only"
   git pull --ff-only
 fi
+step "Repo state"
+git log --oneline -1 || true
 [ -z "$(git status --porcelain)" ] || \
   warn "uncommitted changes in the working tree WILL be included in this build"
 
 # --- version / build number (app/pubspec.yaml) ---
 cd "$APP_DIR"
 VLINE=$(grep -E '^version:[[:space:]]' pubspec.yaml | head -1 | awk '{print $2}')
+case "$VLINE" in
+  *+*) ;;
+  *) die "app/pubspec.yaml version '$VLINE' has no +build number; use the form 1.0.0+1" ;;
+esac
 VNAME="${VLINE%%+*}"; VNUM="${VLINE##*+}"
+case "$VNUM" in
+  ''|*[!0-9]*) die "build number '$VNUM' in app/pubspec.yaml isn't a whole number" ;;
+esac
 if   [ -n "$SET_BUILD" ]; then VNUM="$SET_BUILD"
 elif [ "$BUMP" = 1 ];     then VNUM=$((VNUM + 1))
 fi
 if [ "$VLINE" != "$VNAME+$VNUM" ]; then
   step "app/pubspec.yaml version -> $VNAME+$VNUM (not committed)"
-  perl -0pi -e "s/^version:.*/version: $VNAME+$VNUM/m" pubspec.yaml
+  # The new version goes in through the environment, never into the Perl
+  # source, so nothing passed on the command line can run as code.
+  STEADY_VERSION="$VNAME+$VNUM" perl -0pi -e 's/^version:.*/version: $ENV{STEADY_VERSION}/m' pubspec.yaml
 fi
 echo "Building Steady $VNAME ($VNUM), team $TEAM_ID"
 
@@ -92,7 +106,6 @@ fi
 if [ "$CLEAN" = 1 ]; then
   step "flutter clean"
   flutter clean
-  rm -rf "$HOME/Library/Developer/Xcode/DerivedData"/Runner-* 2>/dev/null || true
 fi
 
 step "flutter pub get"
@@ -136,7 +149,8 @@ check "HealthKit"            "true" "$(ent com.apple.developer.healthkit)"
 check "iCloud container"     "$ICLOUD_CONTAINER" "$(ent com.apple.developer.icloud-container-identifiers:0)"
 check "iCloud service"       "CloudKit" "$(ent com.apple.developer.icloud-services:0)"
 check "Non-exempt encryption" "false" "$(info ITSAppUsesNonExemptEncryption)"
-check "Device family"        "1" "$(info UIDeviceFamily:0)"
+# The whole array, so an iPhone+iPad build ([1,2]) can't pass.
+check "Device family"        "[1]" "$(plutil -extract UIDeviceFamily json -o - "$PLIST" 2>/dev/null || true)"
 check "iCloud sync enabled"  "true" "$(info SteadyCloudKitEnabled)"
 [ -n "$(info NSHealthShareUsageDescription)" ] \
   && printf '  \033[32m✓\033[0m Health usage string present\n' \
