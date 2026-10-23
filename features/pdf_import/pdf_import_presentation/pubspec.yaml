@@ -34,6 +34,10 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
+  # The sample Cal AI export behind "Try a sample export" (a copy of
+  # docs/sample/cal_ai_sample_export.pdf; see docs/sample/README.md).
+  assets:
+    - assets/cal_ai_sample_export.pdf
 
   # To add assets to your package, add an assets section, like this:
   # assets:

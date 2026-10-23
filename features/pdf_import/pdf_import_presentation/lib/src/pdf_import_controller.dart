@@ -5,6 +5,7 @@ import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/src/pdf_file_picker.dart';
 import 'package:pdf_import_presentation/src/pdf_import_state.dart';
 import 'package:pdf_import_presentation/src/providers.dart';
+import 'package:pdf_import_presentation/src/sample_export.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'pdf_import_controller.g.dart';
@@ -23,8 +24,9 @@ class PdfImportController extends _$PdfImportController {
   @override
   PdfImportState build() => const PdfImportEmpty();
 
-  /// True while the file picker is open. Not a state of its own: the
-  /// screen looks the same until a file comes back.
+  /// True while the file picker is open or the sample export is loading.
+  /// Not a state of its own: the screen looks the same until the bytes come
+  /// back.
   bool _isPicking = false;
 
   bool get _isBusy =>
@@ -57,6 +59,31 @@ class PdfImportController extends _$PdfImportController {
       _isPicking = false;
     }
     if (bytes == null || !ref.mounted) return;
+    await parsePdf(bytes);
+  }
+
+  /// Domain event: SampleExportSelected.
+  ///
+  /// Loads the bundled sample export (seven made-up days, Jan 6-12 2025),
+  /// then parses it the same way as a chosen file ([parsePdf]), so the
+  /// preview and import that follow are the real flow. A load error becomes
+  /// [PdfImportParseFailed]. Ignored whenever [choosePdf] would be.
+  Future<void> chooseSamplePdf() async {
+    if (!ref.mounted || _isBusy) return;
+    _isPicking = true;
+    final Uint8List bytes;
+    try {
+      bytes = await ref.read(sampleExportLoaderProvider)();
+    } on Object catch (error) {
+      if (!ref.mounted) return;
+      state = PdfImportParseFailed(
+        UnknownFailure("Couldn't open the sample export.", cause: error),
+      );
+      return;
+    } finally {
+      _isPicking = false;
+    }
+    if (!ref.mounted) return;
     await parsePdf(bytes);
   }
 

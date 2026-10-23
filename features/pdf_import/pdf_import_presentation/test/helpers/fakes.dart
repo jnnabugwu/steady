@@ -57,6 +57,10 @@ class FakePdfFilePicker {
 
 final pdfBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46]); // "%PDF"
 
+/// Stands in for the bundled sample export; distinct from [pdfBytes] so a
+/// test can tell which path supplied the bytes.
+final sampleBytes = Uint8List.fromList([0x25, 0x50, 0x44, 0x46, 0x2D]); // %PDF-
+
 ParsedFoodEntry _entry(String name, int calories) => ParsedFoodEntry(
   name: name,
   calories: calories,

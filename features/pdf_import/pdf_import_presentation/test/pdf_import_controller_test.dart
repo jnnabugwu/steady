@@ -189,6 +189,73 @@ void main() {
     });
   });
 
+  group('chooseSamplePdf', () {
+    PdfImportController sampleNotifier(SampleExportLoader loader) {
+      final c = ProviderContainer.test(
+        overrides: [
+          pdfImportRepositoryProvider.overrideWithValue(repository),
+          pdfFilePickerProvider.overrideWithValue(picker.call),
+          sampleExportLoaderProvider.overrideWithValue(loader),
+        ],
+      );
+      return (c..listen(
+            pdfImportControllerProvider,
+            (_, next) => states.add(next),
+          ))
+          .read(pdfImportControllerProvider.notifier);
+    }
+
+    test('loads the sample then parses it, through to the preview', () async {
+      var loads = 0;
+      final n = sampleNotifier(() async {
+        loads++;
+        return sampleBytes;
+      });
+
+      await n.chooseSamplePdf();
+
+      expect(loads, 1);
+      expect(picker.calls, 0);
+      expect(repository.parseCalls, [sampleBytes]);
+      expect(states.last, isPreview());
+    });
+
+    test('a load error becomes a parse failure', () async {
+      final n = sampleNotifier(() async => throw Exception('missing asset'));
+
+      await n.chooseSamplePdf();
+
+      expect(
+        states.last,
+        isA<PdfImportParseFailed>().having(
+          (s) => s.failure.message,
+          'message',
+          "Couldn't open the sample export.",
+        ),
+      );
+      expect(repository.parseCalls, isEmpty);
+    });
+
+    test('a second tap while the sample is loading is ignored', () async {
+      final load = Completer<Uint8List>();
+      var loads = 0;
+      final n = sampleNotifier(() {
+        loads++;
+        return load.future;
+      });
+
+      final first = n.chooseSamplePdf();
+      await n.chooseSamplePdf();
+      await n.choosePdf();
+      load.complete(sampleBytes);
+      await first;
+
+      expect(loads, 1);
+      expect(picker.calls, 0);
+      expect(repository.parseCalls, hasLength(1));
+    });
+  });
+
   group('commitImport', () {
     setUp(() => notifier().parsePdf(pdfBytes));
 

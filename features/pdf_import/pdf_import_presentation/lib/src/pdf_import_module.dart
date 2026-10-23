@@ -7,7 +7,8 @@ import 'package:pdf_import_presentation/src/pdf_import_state.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The PDF import screen: pick a Cal AI export, review its days, import.
+/// The PDF import screen: pick a Cal AI export (or try the bundled sample),
+/// review its days, import.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): once the parsed days are
 /// committed it calls [onImportCompleted], and the app layer decides what
@@ -29,6 +30,7 @@ class PdfImportModule extends ConsumerWidget {
     final controller = ref.read(pdfImportControllerProvider.notifier);
 
     void choosePdf() => unawaited(controller.choosePdf());
+    void chooseSamplePdf() => unawaited(controller.chooseSamplePdf());
 
     Future<void> commit() async {
       await controller.commitImport();
@@ -50,9 +52,29 @@ class PdfImportModule extends ConsumerWidget {
                   'Choose a PDF exported from Cal AI. Steady reads each '
                   "day's calories on this device and shows them to you "
                   'before anything is saved.',
-              action: _ChooseButton(
-                label: 'Choose Cal AI PDF',
-                onPressed: choosePdf,
+              action: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _ChooseButton(
+                    label: 'Choose Cal AI PDF',
+                    onPressed: choosePdf,
+                  ),
+                  const SizedBox(height: 8),
+                  SecondaryButton(
+                    key: const Key('pdfImport_sampleButton'),
+                    onPressed: chooseSamplePdf,
+                    child: const Text('Try a sample export'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Seven made-up days from January 2025, to see how '
+                    'importing works.',
+                    style: SteadyType.body.copyWith(
+                      fontSize: 13,
+                      color: SteadyColors.textMuted,
+                    ),
+                  ),
+                ],
               ),
             ),
             PdfImportParsing() => const Center(

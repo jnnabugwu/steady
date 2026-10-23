@@ -69,7 +69,7 @@ final class PdfImportControllerProvider
 }
 
 String _$pdfImportControllerHash() =>
-    r'7f694e508d692fbafd1a18c644dbd3d47074c736';
+    r'7524ee14618c630dfb6670f907592a95b693c1bb';
 
 /// The PDF import flow: pick a Cal AI export, preview its days, commit.
 ///
