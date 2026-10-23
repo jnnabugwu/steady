@@ -21,7 +21,8 @@ check-in. This policy describes what the app does with your data.
 
 This data is stored on your device and in your own private iCloud storage (the CloudKit
 private database for your Apple ID), so your iPhone and Mac stay in sync. Only you can access
-your private iCloud data; the developer can't.
+your private iCloud data; the developer can't. If your device isn't signed into iCloud, your
+data stays only on that device until you sign in.
 
 ## Apple Health
 

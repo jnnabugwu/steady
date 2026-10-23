@@ -2,21 +2,27 @@ import 'package:account_domain/account_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('AccountStatus.requiresSignIn', () {
-    test('is true only for noAccount and restricted', () {
-      final blocking = AccountStatus.values.where((s) => s.requiresSignIn);
+  group('AccountStatus.blocksSync', () {
+    test(
+      'is true only for noAccount, restricted and temporarilyUnavailable',
+      () {
+        final notSyncing = AccountStatus.values.where((s) => s.blocksSync);
 
-      expect(blocking, [AccountStatus.noAccount, AccountStatus.restricted]);
-    });
+        expect(notSyncing, [
+          AccountStatus.noAccount,
+          AccountStatus.restricted,
+          AccountStatus.temporarilyUnavailable,
+        ]);
+      },
+    );
 
     for (final status in [
       AccountStatus.available,
-      AccountStatus.temporarilyUnavailable,
       AccountStatus.couldNotDetermine,
       AccountStatus.notConfigured,
     ]) {
-      test('${status.name} never requires sign-in', () {
-        expect(status.requiresSignIn, isFalse);
+      test('${status.name} does not block sync', () {
+        expect(status.blocksSync, isFalse);
       });
     }
   });

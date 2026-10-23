@@ -71,12 +71,12 @@ steady/
 │   └── macos/
 │
 ├── features/                      # One folder per feature; FFCA layer packages inside
-│   ├── account/                    # iCloud account status + sign-in screen (#53). No login:
+│   ├── account/                    # iCloud account status + non-blocking sync banner. No login:
 │   │   │                            # the Apple Account is the account (§1, §7)
 │   │   ├── account_domain/          # AccountStatus, AccountStatusRepository
 │   │   ├── account_data/            # `steady/account` channel datasource (Swift side in
 │   │   │                            # app/macos MainFlutterWindow, app/ios AppDelegate)
-│   │   └── account_presentation/    # AccountStatusController, SignInModule
+│   │   └── account_presentation/    # AccountStatusController, ICloudSyncBanner
 │   ├── metrics/                    # Weekly view + metrics history (reads the shared DailyMetric)
 │   │   ├── metrics_domain/          # Dart: entities, repository interfaces
 │   │   ├── metrics_data/            # Dart: SwiftData-channel datasource, repo impl
@@ -504,8 +504,8 @@ syncs only when Info.plist `SteadyCloudKitEnabled` is true *and* `SteadyCloudKit
 names the iCloud container; otherwise it opens with `cloudKitDatabase: .none` and never
 touches CloudKit. Both Info.plists set `SteadyCloudKitEnabled` to `true` and
 `SteadyCloudKitContainer` to `iCloud.com.jmagic.steady`, signed with team `UXZV3C926U`
-(iCloud/CloudKit and push entitlements on both targets), so the iCloud sign-in requirement
-below is enforced. Builds run from Xcode use the CloudKit development environment;
+(iCloud/CloudKit and push entitlements on both targets), so the iCloud banner below is
+live. Builds run from Xcode use the CloudKit development environment;
 TestFlight and App Store builds use production, which needs the schema deployed first
 (`docs/cloudkit_schema.md`). SwiftData set the
 deployment targets to iOS 17 / macOS 14. The interim JSON file store
@@ -556,10 +556,18 @@ the same moment, one write silently wins and the other's messages are lost, with
 surfaced. Given single-user, single-writer-at-a-time usage in practice, this edge case is
 accepted risk rather than a reason to model transcripts as an append-only child collection.
 
-**iCloud sign-in is a hard requirement — no local-only fallback mode.** Since CloudKit is
-the entire auth story (§1), a user who isn't signed into iCloud simply can't use the app.
-Building a signed-out/local-only degraded mode was considered and rejected: it would
-reintroduce exactly the session/auth complexity this architecture exists to avoid.
+**iCloud is optional: a banner, not a gate.** Steady never blocks on the iCloud account
+status. Signed out (or iCloud restricted or temporarily unavailable), the app works normally
+and SwiftData keeps the data on the device; CloudKit mirroring just doesn't sync. Once the
+user signs in, `NSPersistentCloudKitContainer` uploads what was saved locally. The home screen
+shows a dismissible `ICloudSyncBanner` (`account_presentation`) saying the data stays on this
+device and won't sync, with "Open Settings"; the status is re-checked on every return to the
+foreground, so the banner goes away after sign-in. There is no sign-in screen or redirect.
+Why: App Review guideline 5.1.1(v) pushes back on gating core features behind sign-in, and a
+reviewer device that isn't signed into iCloud would otherwise see only a sign-in screen. This
+replaces the earlier hard requirement (no local-only fallback); it adds no session or auth
+code, because "local-only" is just SwiftData without sync. Decision record:
+`docs/technical_decisions.md`, "iCloud is optional: a banner, not a gate".
 
 **Multiple users = one copy per person.** Friends install via TestFlight, each with their own
 iCloud private database; nothing in this section changes per user. Since other people's data is

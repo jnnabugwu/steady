@@ -17,14 +17,15 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 
 /// This device's iCloud [AccountStatus].
 ///
-/// **Lifetime: `keepAlive`.** The app router reads this on every
-/// navigation to decide whether to send the user to the sign-in screen, and
-/// listens to it so the redirect re-runs when the status changes. It's
-/// app-wide state, not screen state, and it isn't a family, so keeping it
-/// alive holds exactly one instance. Auto-dispose would only work because
-/// the router happens to listen; disposing it would also throw away the
-/// last known status and re-read the platform channel on the next
-/// navigation.
+/// Never gates the app (CLAUDE.md §7: iCloud is optional). It drives the
+/// non-blocking `ICloudSyncBanner` on the home screen, and the app root
+/// re-checks it on every return to the foreground.
+///
+/// **Lifetime: `keepAlive`.** It's app-wide state, not screen state: the
+/// app root re-checks it on resume whichever screen is showing, and it
+/// isn't a family, so keeping it alive holds exactly one instance.
+/// Disposing it whenever the home screen went away would throw away the
+/// last known status and re-read the platform channel on the way back.
 ///
 /// Repository errors arrive as a typed [Failure] and are surfaced without
 /// retrying; any other (unexpected) error goes through Riverpod's default
@@ -44,8 +45,8 @@ class AccountStatusController extends _$AccountStatusController {
 
   /// Domain event: AccountRechecked.
   ///
-  /// Reads the account status again, for "Check again" and for the app
-  /// returning to the foreground (the user may have just signed in from
+  /// Reads the account status again, for the app returning to the
+  /// foreground (the user may have just signed in from
   /// Settings). The state goes `AsyncLoading` (keeping the previous value)
   /// and then `AsyncData` with the new status, or `AsyncError` carrying the
   /// repository's [Failure].

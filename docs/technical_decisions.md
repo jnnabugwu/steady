@@ -7,6 +7,47 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## iCloud is optional: a banner, not a gate (2026-10-23)
+
+**Decision:** Steady never blocks when the device isn't signed into iCloud. The `/sign-in`
+route, `SignInModule` and the router's account redirect are gone. When the iCloud account
+status is `noAccount`, `restricted` or `temporarilyUnavailable` (`AccountStatus.blocksSync`),
+the home screen shows a dismissible banner: "Not signed into iCloud. Your data stays on this
+device and won't sync to your other devices." (the first sentence names the actual cause for
+`restricted` and `temporarilyUnavailable`), with "Open Settings". Dismissing hides it for the
+rest of the session; it comes back on the next launch if iCloud still isn't syncing. It isn't
+shown for `available`, `notConfigured` or `couldNotDetermine`.
+
+**Why:**
+
+- App Review guideline 5.1.1(v) pushes back on apps that gate core features behind sign-in
+  when the features don't need an account.
+- A review device that isn't signed into iCloud would have seen only the sign-in screen, so
+  the reviewer couldn't review the app.
+- Nothing technical needs the gate. SwiftData works locally without iCloud; CloudKit
+  mirroring just doesn't sync until there's an account.
+
+**Consequences:**
+
+- Data created while signed out stays on the device until the user signs in. Then
+  `NSPersistentCloudKitContainer` (under SwiftData) uploads it to the user's private
+  database.
+- Account switching (signing out, or into a different Apple Account) is handled by
+  `NSPersistentCloudKitContainer` itself; Steady adds no logic for it.
+- The account status is still read from the `steady/account` channel and re-checked on every
+  return to the foreground, so the banner disappears after the user signs in from Settings.
+- Until a signed-out user signs in, losing the device loses the data. The data export
+  (Settings) is the mitigation, as for account loss (CLAUDE.md §7).
+
+**Alternatives:**
+
+- **Hard gate: iCloud sign-in required, no local-only fallback** (the previous decision,
+  CLAUDE.md §7 until 2026-10-23). Superseded for the App Review reasons above. Its worry, that
+  a local-only mode would bring back session/auth complexity, didn't hold: local-only is just
+  SwiftData without sync, with no extra code path.
+
+---
+
 ## Health data stays on the iPhone (App Store 5.1.3) (2026-10-23)
 
 **Decision:** Apple Health values (steps, active energy, basal energy) are read live from

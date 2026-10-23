@@ -30,6 +30,7 @@ class MetricsHistoryModule extends ConsumerWidget {
   const MetricsHistoryModule({
     required this.onImportRequested,
     required this.onOpenSettings,
+    this.banner,
     super.key,
   });
 
@@ -38,6 +39,13 @@ class MetricsHistoryModule extends ConsumerWidget {
 
   /// Called when the user taps the settings (gear) button.
   final void Function() onOpenSettings;
+
+  /// Optional widget shown above the history, below the app bar.
+  ///
+  /// The app layer composes it in (CLAUDE.md §2: features don't import each
+  /// other), for example the account feature's iCloud sync banner. It owns
+  /// its own padding and may render nothing.
+  final Widget? banner;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -72,23 +80,37 @@ class MetricsHistoryModule extends ConsumerWidget {
         ),
       ],
       child: SafeArea(
-        child: switch (history) {
-          AsyncData(:final value) => switch (mergeLiveHealth(value, health)) {
-            final days when days.isEmpty => _EmptyState(
-              onImportRequested: onImportRequested,
-            ),
-            final days => _HistoryList(days: days),
-          },
-          AsyncError(:final error) => _ErrorState(
-            message: error is Failure
-                ? 'Something went wrong: ${error.message}'
-                : 'Something went wrong',
-            onRetry: () => ref.invalidate(metricsHistoryControllerProvider),
-          ),
-          AsyncLoading() => const Center(child: CircularProgressIndicator()),
-        },
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ?banner,
+            Expanded(child: _body(ref, history, health)),
+          ],
+        ),
       ),
     );
+  }
+
+  Widget _body(
+    WidgetRef ref,
+    AsyncValue<List<DailyMetric>> history,
+    Map<DateTime, HealthDayTotals> health,
+  ) {
+    return switch (history) {
+      AsyncData(:final value) => switch (mergeLiveHealth(value, health)) {
+        final days when days.isEmpty => _EmptyState(
+          onImportRequested: onImportRequested,
+        ),
+        final days => _HistoryList(days: days),
+      },
+      AsyncError(:final error) => _ErrorState(
+        message: error is Failure
+            ? 'Something went wrong: ${error.message}'
+            : 'Something went wrong',
+        onRetry: () => ref.invalidate(metricsHistoryControllerProvider),
+      ),
+      AsyncLoading() => const Center(child: CircularProgressIndicator()),
+    };
   }
 }
 

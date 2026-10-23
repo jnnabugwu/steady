@@ -30,8 +30,8 @@ import UIKit
 ///   `temporarilyUnavailable`, `couldNotDetermine`, `notConfigured`.
 /// - `openAccountSettings` opens Settings. iOS has no public URL for the Apple
 ///   Account screen, so this is `UIApplication.openSettingsURLString` (Steady's
-///   own page in Settings); the sign-in screen's copy tells the user where to
-///   go from there.
+///   own page in Settings), reached from the home screen's iCloud banner. The
+///   Apple Account is at the top of Settings' main list from there.
 ///
 /// **`SteadyCloudKitEnabled` (Info.plist, Bool).** `CKContainer.default()`
 /// crashes the app when there's no iCloud/CloudKit entitlement and container,

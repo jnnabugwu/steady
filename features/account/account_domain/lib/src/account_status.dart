@@ -2,8 +2,9 @@
 ///
 /// CloudKit is the whole auth story (CLAUDE.md §1): the Apple Account is the
 /// account, so there is no login, password or session here, only "is the
-/// device signed in to iCloud". iCloud is required, with no local-only
-/// fallback (CLAUDE.md §7).
+/// device signed in to iCloud". iCloud is optional (CLAUDE.md §7): when
+/// it can't be used, Steady keeps working and the data stays on this
+/// device until it can sync.
 ///
 /// The first five values mirror CloudKit's `CKAccountStatus`.
 /// [notConfigured] is Steady's own: the build has no CloudKit container or
@@ -28,16 +29,19 @@ enum AccountStatus {
   couldNotDetermine,
 
   /// This build has no CloudKit container or entitlement configured, so
-  /// the status isn't read. Never blocks the app, so local debug builds
-  /// stay usable until CloudKit is set up.
+  /// the status isn't read. Local debug builds stay quiet about it until
+  /// CloudKit is set up.
   notConfigured;
 
-  /// Whether this status definitively means the user must sign in (or lift
-  /// a restriction) before using Steady.
+  /// Whether iCloud is known not to be syncing this device's data, for a
+  /// reason the user can see (and usually fix) in Settings.
   ///
-  /// Only [noAccount] and [restricted] do. [temporarilyUnavailable],
-  /// [couldNotDetermine] and [notConfigured] never block: they're either
-  /// transient or not the user's to fix, and blocking on them would lock
-  /// someone out of their own data for no reason they can act on.
-  bool get requiresSignIn => this == noAccount || this == restricted;
+  /// True for [noAccount], [restricted] and [temporarilyUnavailable]. The
+  /// app never blocks on it (CLAUDE.md §7): data is kept on the device and
+  /// syncs once iCloud can be used. False for [available], for
+  /// [notConfigured] (the build has no CloudKit, which isn't the user's to
+  /// fix) and for [couldNotDetermine] (CloudKit didn't say, so there's
+  /// nothing definite to tell the user).
+  bool get blocksSync =>
+      this == noAccount || this == restricted || this == temporarilyUnavailable;
 }
