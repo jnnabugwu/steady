@@ -14,7 +14,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_data/health_sync_data.dart';
 import 'package:metrics_domain/metrics_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
-import 'package:notifications_domain/notifications_domain.dart';
 import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/providers.dart';
@@ -43,10 +42,6 @@ void main() {
     expect(
       container.read(pdfImportRepositoryProvider),
       isA<PdfImportRepository>(),
-    );
-    expect(
-      container.read(notificationSchedulerProvider),
-      isA<NotificationScheduler>(),
     );
   });
 

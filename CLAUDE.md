@@ -38,9 +38,10 @@
   See §6 for why the parsing algorithm differs from the original PyMuPDF-based design.
 - **go_router**, with **`go_router_builder` / `@TypedGoRoute`** — typed, class-based routes
   are **required** here, not optional like the generic starter's "reach for it when routes
-  get non-trivial" call. Reason: deep linking (see §5) needs typed route data to resolve
-  correctly from a cold start, and Steady already has a concrete deep-link case (local
-  notification → specific day's check-in) that needs this from day one.
+  get non-trivial" call. Reason: links into a specific day (`/checkin/<date>`, e.g. from
+  a share card or a future widget or shortcut) need typed, date-carrying route data that
+  resolves correctly from a cold start, and typed routes make route params
+  compile-checked instead of hand-parsed strings (see §5).
 - **Riverpod (code generation)** — `flutter_riverpod` + `riverpod_annotation` /
   `riverpod_generator`, for both DI and state management. Replaces the earlier
   `get_it` + Bloc plan before any screen was written; see §4, §9 and
@@ -99,9 +100,6 @@ steady/
 │   │   ├── pdf_import_domain/
 │   │   ├── pdf_import_data/         # CalAIParser lives here — see §6
 │   │   └── pdf_import_presentation/
-│   ├── notifications/              # Headless — no screens, just scheduling
-│   │   ├── notifications_domain/
-│   │   └── notifications_data/
 │   └── notes/                      # Planned (RAG) — headless for now, see docs §8
 │       ├── notes_domain/
 │       └── notes_data/              # Talks to RAGKitCore via rag_kit plugin (see §8)
@@ -172,9 +170,8 @@ Inside a feature, the same dependency rule as always: domain depends on nothing 
 the feature; data implements domain's repository interfaces; presentation depends on
 domain only, never on data.
 
-**Headless features** (`notifications`, `notes` for now) have no `presentation` package —
-just domain + data. `notifications` may never need one at all (it's pure scheduling
-logic). `notes` will grow a `notes_presentation` once the RAG import UI gets built (§8 of
+**Headless features** (`health_sync`, and `notes` for now) have no `presentation`
+package — just domain + data. `notes` will grow a `notes_presentation` once the RAG import UI gets built (§8 of
 the product doc); no structural change needed when that happens, just a new package.
 
 **The test for what's a feature vs. what's shared:** if a concept has its own screen(s)
@@ -300,7 +297,7 @@ copy:
 | --- | --- | --- |
 | `dailyMetricRepositoryProvider` | `keepAlive: true` | The shared store. Disposing it loses in-memory data and breaks the shared-store invariant (§9). |
 | Feature repository providers (checkin, metrics, pdf_import), overridden in `appProviderOverrides` | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
-| `notificationSchedulerProvider` (declared and built directly in `app/lib/providers.dart`, not overridden) | `keepAlive: true` | Same reason: cheap and stateless. `notifications` is headless, so the app layer declares it (§5, §9). |
+| `healthKitRepositoryProvider` (declared directly in `app/lib/providers.dart`; `null` except on iOS) | `keepAlive: true` | Same reason: cheap and stateless. `health_sync` is headless, so the app layer declares it (§9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
@@ -313,17 +310,13 @@ needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in
 
 ## 5. Routing: typed go_router routes + callback injection, for deep linking
 
-Typed routes are required here (see §1), and the concrete reason is concrete, not
-theoretical: the **local notification safety net** needs to deep-link straight into a
-specific day's check-in screen from a cold start when tapped — `CheckInRoute(date:
-DateTime)`, not a bare `/checkin` string a screen then has to figure out the date for
-separately.
-
-**What exists today:** the route side. `CheckInRoute` resolves `/checkin/<date>` from a
-cold start, and `app/test/app_router_test.dart` covers it. **What doesn't exist yet:**
-the notification side. `NotificationScheduler` (`notifications_domain`) has only an
-in-memory implementation, no local-notification plugin is wired, and nothing yet turns a
-tapped notification's payload into a route.
+Typed routes are required here (see §1): a link into a specific day's check-in (from a
+share card, or a future widget or shortcut) has to land on that day from a cold start —
+`CheckInRoute(date: DateTime)`, not a bare `/checkin` string a screen then has to figure
+out the date for separately — and typed routes make that date a compile-checked
+parameter. `CheckInRoute` resolves `/checkin/<date>` from a cold start today, and
+`app/test/app_router_test.dart` covers it. (There's no end-of-day reminder notification;
+it was dropped, see `docs/technical_decisions.md`.)
 
 Following FFCA's routing pattern, **features never import the router or each other's
 routes.** A feature's `presentation` Module exposes typed callbacks; the app layer wires
@@ -362,37 +355,11 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
+  // The app chooses what completion means. Today: nothing, so the screen stays up
+  // showing the logged status. Another route might pop, or go somewhere else.
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    final container = ProviderScope.containerOf(context, listen: false);
-    // The reminder is per calendar day, so cancel with the midnight day.
-    final day = DateTime(date.year, date.month, date.day);
-    return CheckInModule(
-      date: date,
-      onCheckInCompleted: () => unawaited(_cancelReminder(container, day)),
-    );
-  }
-
-  static Future<void> _cancelReminder(
-    ProviderContainer container,
-    DateTime day,
-  ) async {
-    final result = await container
-        .read(notificationSchedulerProvider)
-        .cancelReminder(day);
-    result.fold<void>(
-      (failure) => FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: failure,
-          library: 'steady app_router',
-          context: ErrorDescription(
-            'while cancelling the check-in reminder for $day',
-          ),
-        ),
-      ),
-      (_) {},
-    );
-  }
+  Widget build(BuildContext context, GoRouterState state) =>
+      CheckInModule(date: date, onCheckInCompleted: () {});
 }
 ```
 
@@ -416,14 +383,13 @@ Facts about that route worth knowing before adding the next one:
   (`redirectMalformedCheckIn`) sends a `/checkin/<segment>` with no valid leading date
   (e.g. `/checkin/garbage`, `/checkin/2026-02-30`) to `/`, so `CheckInRoute` is never
   built for it.
-- **Reminder cancel uses the normalized day.** `onCheckInCompleted` cancels with
-  `day` (midnight), not the route's raw `date`, and awaits `cancelReminder`. An `Err` is
-  reported via `FlutterError.reportError` (there's no UI for a failed cancel yet), not
-  dropped. `CheckInModule` also normalizes to midnight itself, for its provider key.
-- The container is read once in `build` with `listen: false`, and the callback closes
-  over it.
-- `notificationSchedulerProvider` is declared in `app/lib/providers.dart`, not in a
-  feature package, because `notifications` is headless (§3).
+- **`onCheckInCompleted` is a no-op today.** It stays on `CheckInModule` as the
+  feature's callback contract; the route passes `() {}`. `CheckInModule` normalizes
+  `date` to midnight itself, for its provider key.
+- When a callback does need a provider (e.g. `HomeRoute`'s import refresh), read the
+  container once in `build` with `ProviderScope.containerOf(context, listen: false)`
+  and close over it. An `Err` with no UI to show it in is reported via
+  `FlutterError.reportError`, not dropped.
 
 The `GoRouter` itself is `routerProvider`, a `@Riverpod(keepAlive: true)` provider in
 `app/lib/app_router.dart`, so redirects can read providers later without a second DI
@@ -431,9 +397,9 @@ path. Its one redirect today is `redirectMalformedCheckIn` (above). Its `initial
 only the fallback: on a cold start from a deep link the platform's initial route wins,
 because `overridePlatformDefaultLocation` is left `false`.
 
-The intended flow: the notification payload carries the date; the OS hands it to the app
-on tap; the typed route resolves it without any feature needing to know about deep
-linking at all. Only the last step is built (see "What exists today" above).
+Whatever opens the link (a share card, a widget, a shortcut) only has to produce
+`/checkin/<date>`; the typed route resolves it without any feature needing to know about
+deep linking at all.
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -689,8 +655,8 @@ the reasoning and what iOS shows instead.
   in-memory. `dailyMetricStoreProvider` picks the store: in-memory by default, so tests
   built from `appProviderOverrides` need no native plugin, and SwiftData in `main.dart`.
 - Providers for headless features have no `*_presentation` package to live in, so
-  they're declared directly in `app/lib/providers.dart` rather than overridden:
-  `notificationSchedulerProvider` (`InMemoryNotificationScheduler` today).
+  they're declared directly in `app/lib/providers.dart`: `healthKitRepositoryProvider`
+  (`null` by default, bound to the HealthKit channel on iOS only).
 - No `get_it`. It was removed in migration step 5 (W5, PR #22), along with
   `app/lib/bootstrap.dart`; the invariant test kept its name,
   `app/test/bootstrap_test.dart`. Don't reintroduce either.

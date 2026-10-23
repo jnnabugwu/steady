@@ -46,8 +46,7 @@ A **provider** is a lazily created, cached value that has an identity. A
 and makes it available. In tests, `ProviderContainer.test` creates it. Steady uses
 providers for two jobs:
 
-- **DI graph.** Repository providers, the shared store, the notification scheduler and
-  the router. They're created once and kept alive.
+- **DI graph.** Repository providers, the shared store and the router. They're created once and kept alive.
 - **State containers.** `AsyncNotifier`s that hold screen state as an `AsyncValue` and
   expose one method per domain event.
 
@@ -56,7 +55,7 @@ There are three ways to read a provider. Each has a fixed place:
 | Call | Meaning | Where Steady uses it |
 | --- | --- | --- |
 | `ref.watch(p)` | Read and subscribe. A change rebuilds the caller or re-runs its `build`. | Inside `build` methods and provider bodies only: `CheckInController.build` watches `checkInRepositoryProvider`; `CheckInModule.build` watches `checkInControllerProvider(day)`; `SteadyApp.build` watches `routerProvider`; the factory of every override in `appProviderOverrides` watches `dailyMetricRepositoryProvider`. |
-| `ref.read(p)` | One-off read, no subscription. | Inside event handlers and Notifier methods: `logCheckIn` reads the repository; the Module's `log()` reads `provider.notifier` and then the new state; `CheckInRoute` reads `notificationSchedulerProvider` in its callback. |
+| `ref.read(p)` | One-off read, no subscription. | Inside event handlers and Notifier methods: `logCheckIn` reads the repository; the Module's `log()` reads `provider.notifier` and then the new state; `HomeRoute` reads `accountStatusRepositoryProvider` in its "Open Settings" callback. |
 | `ref.listen` / `container.listen` | Callback on every change, no rebuild. | Tests use `container.listen(..., fireImmediately: true)` to record state sequences (§8). |
 
 The rule behind the table: **`watch` in `build`, `read` in callbacks.** A provider body
@@ -121,10 +120,10 @@ final List<Override> appProviderOverrides = [
 only package allowed to import both `*_presentation` and `*_data`, so it's the only place
 the two can meet.
 
-Two providers aren't overrides at all. `dailyMetricRepositoryProvider` and
-`notificationSchedulerProvider` are declared in `app/lib/providers.dart` and build their
-in-memory implementation in the provider body. The shared store belongs to no feature.
-`notifications` is headless, so it has no `*_presentation` package to declare an abstract
+Some providers aren't overrides at all. `dailyMetricRepositoryProvider` is declared in
+`app/lib/providers.dart` and builds its implementation in the provider body: the shared
+store belongs to no feature. `healthKitRepositoryProvider` is declared there too, because
+`health_sync` is headless and has no `*_presentation` package to declare an abstract
 provider in.
 
 When the real SwiftData datasource lands, only the body of `dailyMetricRepository`
@@ -171,7 +170,7 @@ provider in the repo:
 | Provider | Declared in | Lifetime | Why |
 | --- | --- | --- | --- |
 | `dailyMetricRepositoryProvider` | `app/lib/providers.dart` | `keepAlive` | The shared store. Disposing it loses the in-memory data and breaks the invariant above. |
-| `notificationSchedulerProvider` | `app/lib/providers.dart` | `keepAlive` | Stateful. `InMemoryNotificationScheduler` holds the scheduled reminder dates in a `Set`, so recreating it would drop pending reminders. (The provider's doc comment in `providers.dart` still says "cheap and stateless"; that's out of date.) |
+| `healthKitRepositoryProvider` | `app/lib/providers.dart` | `keepAlive` | Cheap and stateless. `null` except on iOS, where `appProviderOverridesFor` binds the HealthKit channel. |
 | `checkInRepositoryProvider` | `features/checkin/checkin_presentation/lib/src/providers.dart` | `keepAlive` | Cheap and stateless: the impl only wraps the shared store. Recreating it gains nothing. Overridden in `appProviderOverrides`. |
 | `metricsRepositoryProvider` | `features/metrics/metrics_presentation/lib/src/providers.dart` | `keepAlive` | Same reason as `checkInRepositoryProvider`. |
 | `pdfImportRepositoryProvider` | `features/pdf_import/pdf_import_presentation/lib/src/providers.dart` | `keepAlive` | Same reason (the impl holds the shared store and a stateless `CalAIParser`). |
@@ -379,6 +378,26 @@ meet:
 
 ```dart
 // app/lib/app_router.dart (trimmed)
+@TypedGoRoute<HomeRoute>(
+  path: '/',
+  routes: [TypedGoRoute<SettingsRoute>(path: 'settings')],
+)
+class HomeRoute extends GoRouteData with $HomeRoute {
+  const HomeRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return MetricsHistoryModule(
+      onImportRequested: () => unawaited(_import(context, container)),
+      onOpenSettings: () => const SettingsRoute().go(context),
+      banner: ICloudSyncBanner(
+        onOpenSettings: () => unawaited(_openAccountSettings(container)),
+      ),
+    );
+  }
+}
+
 @TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
 class CheckInRoute extends GoRouteData with $CheckInRoute {
   const CheckInRoute({required this.date});
@@ -386,15 +405,10 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
+  // Completion does nothing today: the screen stays up showing the status.
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    final container = ProviderScope.containerOf(context, listen: false);
-    final day = DateTime(date.year, date.month, date.day);
-    return CheckInModule(
-      date: date,
-      onCheckInCompleted: () => unawaited(_cancelReminder(container, day)),
-    );
-  }
+  Widget build(BuildContext context, GoRouterState state) =>
+      CheckInModule(date: date, onCheckInCompleted: () {});
 }
 ```
 
@@ -405,9 +419,9 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   so it uses `getElementForInheritedWidgetOfExactType` instead (`flutter_riverpod`
   3.4.3, `provider_scope.dart`). The container is captured once in `build`, and the
   closure reads from it.
-- `_cancelReminder` awaits the scheduler's `Result` and reports an `Err` through
-  `FlutterError.reportError` rather than dropping it (test: `a failed reminder cancel is
-  reported, not dropped`).
+- `_openAccountSettings` awaits the repository's `Result` and reports an `Err` through
+  `FlutterError.reportError` rather than dropping it (test: `a failed "Open Settings" is
+  reported, not dropped`, in `app/test/icloud_banner_test.dart`).
 - **The router is a provider.** `routerProvider` is `@Riverpod(keepAlive: true)` and
   `SteadyApp` (a `ConsumerStatefulWidget`, which also re-checks the account status on
   app resume) passes `ref.watch(routerProvider)` to `ShadcnApp.router(routerConfig:
@@ -516,11 +530,10 @@ Module and then an 18:00 one into the same container. It asserts that only the m
 exists and that `getStatus` was called once.
 
 **App tests use the real override list.** `app/test/app_router_test.dart` pumps
-`ProviderScope(overrides: [...appProviderOverrides,
-notificationSchedulerProvider.overrideWithValue(scheduler)])`. It's the real wiring, plus
-one recording fake for a provider that isn't in the list. It fetches the container with
+`ProviderScope(overrides: appProviderOverrides)`: the real wiring, with no fakes. It
+fetches the container with
 `ProviderScope.containerOf(tester.element(find.byType(SteadyApp)))`. It simulates a
-notification cold start with `tester.platformDispatcher.defaultRouteNameTestValue =
+deep-link cold start with `tester.platformDispatcher.defaultRouteNameTestValue =
 '/checkin/2026-10-19'`. When the question is "is the wiring right", start from
 `appProviderOverrides`. Hand-picked overrides can't catch the shared-store break (§3).
 
@@ -580,7 +593,7 @@ notification cold start with `tester.platformDispatcher.defaultRouteNameTestValu
    `appProviderOverrides`. If it touches daily metrics, pass
    `ref.watch(dailyMetricRepositoryProvider)`. Never construct a store.
 4. For a headless feature with no presentation package, declare a concrete `keepAlive`
-   provider directly in `app/lib/providers.dart`, like `notificationSchedulerProvider`.
+   provider directly in `app/lib/providers.dart`, like `healthKitRepositoryProvider`.
 5. Extend `app/test/bootstrap_test.dart`: read it in `every repository interface
    resolves`, add a cross-feature write → read test if it shares the store, and add it to
    the unbound check if it's feature-declared.

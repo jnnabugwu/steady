@@ -2,8 +2,8 @@
 /// router or each other's routes: a feature's `presentation` Module exposes
 /// typed callbacks, and this file wires those callbacks to real routes.
 ///
-/// [CheckInRoute] is the deep-link target for the local-notification safety
-/// net: a tapped reminder opens `/checkin/<date>` from a cold start.
+/// [CheckInRoute] (`/checkin/<date>`) is the typed, date-carrying link
+/// into one day's check-in, and works from a cold start too.
 ///
 /// There is no sign-in gate: iCloud is optional (CLAUDE.md §7). When it
 /// isn't syncing, the home screen shows the account feature's
@@ -27,7 +27,6 @@ import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
-import 'package:steady/providers.dart';
 import 'package:steady/sample_data_card.dart';
 
 part 'app_router.g.dart';
@@ -176,41 +175,11 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
+  /// Nothing happens on completion: the screen stays up showing the logged
+  /// status, with its "Share week" action still in reach.
   @override
-  Widget build(BuildContext context, GoRouterState state) {
-    final container = ProviderScope.containerOf(context, listen: false);
-    // The reminder is per calendar day, so cancel with the midnight day,
-    // not whatever time of day [date] carries.
-    final day = DateTime(date.year, date.month, date.day);
-    return CheckInModule(
-      date: date,
-      onCheckInCompleted: () => unawaited(_cancelReminder(container, day)),
-    );
-  }
-
-  /// Cancels [day]'s reminder. There is no UI for a failed cancel yet, so an
-  /// `Err` is reported through [FlutterError.reportError] rather than
-  /// dropped.
-  static Future<void> _cancelReminder(
-    ProviderContainer container,
-    DateTime day,
-  ) async {
-    final result = await container
-        .read(notificationSchedulerProvider)
-        .cancelReminder(day);
-    result.fold<void>(
-      (failure) => FlutterError.reportError(
-        FlutterErrorDetails(
-          exception: failure,
-          library: 'steady app_router',
-          context: ErrorDescription(
-            'while cancelling the check-in reminder for $day',
-          ),
-        ),
-      ),
-      (_) {},
-    );
-  }
+  Widget build(BuildContext context, GoRouterState state) =>
+      CheckInModule(date: date, onCheckInCompleted: () {});
 }
 
 /// Path encoder for [CheckInRoute.date].

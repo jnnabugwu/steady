@@ -139,96 +139,13 @@ final class DailyMetricRepositoryProvider
 String _$dailyMetricRepositoryHash() =>
     r'3c5db3eea70d0d9777f52576e6977ecc9ad0c35a';
 
-/// Schedules and cancels the end-of-day reminder.
-///
-/// Declared here rather than in a feature package: `notifications` is
-/// headless (no `*_presentation` package), and the app layer is what reads
-/// it, e.g. a route cancelling the reminder once a check-in completes
-/// (CLAUDE.md §5).
-///
-/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
-/// set of scheduled reminder dates, so disposing and recreating it would
-/// silently drop every pending reminder. The lifetime is about that state,
-/// not construction cost (D6).
-
-@ProviderFor(notificationScheduler)
-final notificationSchedulerProvider = NotificationSchedulerProvider._();
-
-/// Schedules and cancels the end-of-day reminder.
-///
-/// Declared here rather than in a feature package: `notifications` is
-/// headless (no `*_presentation` package), and the app layer is what reads
-/// it, e.g. a route cancelling the reminder once a check-in completes
-/// (CLAUDE.md §5).
-///
-/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
-/// set of scheduled reminder dates, so disposing and recreating it would
-/// silently drop every pending reminder. The lifetime is about that state,
-/// not construction cost (D6).
-
-final class NotificationSchedulerProvider
-    extends
-        $FunctionalProvider<
-          NotificationScheduler,
-          NotificationScheduler,
-          NotificationScheduler
-        >
-    with $Provider<NotificationScheduler> {
-  /// Schedules and cancels the end-of-day reminder.
-  ///
-  /// Declared here rather than in a feature package: `notifications` is
-  /// headless (no `*_presentation` package), and the app layer is what reads
-  /// it, e.g. a route cancelling the reminder once a check-in completes
-  /// (CLAUDE.md §5).
-  ///
-  /// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
-  /// set of scheduled reminder dates, so disposing and recreating it would
-  /// silently drop every pending reminder. The lifetime is about that state,
-  /// not construction cost (D6).
-  NotificationSchedulerProvider._()
-    : super(
-        from: null,
-        argument: null,
-        retry: null,
-        name: r'notificationSchedulerProvider',
-        isAutoDispose: false,
-        dependencies: null,
-        $allTransitiveDependencies: null,
-      );
-
-  @override
-  String debugGetCreateSourceHash() => _$notificationSchedulerHash();
-
-  @$internal
-  @override
-  $ProviderElement<NotificationScheduler> $createElement(
-    $ProviderPointer pointer,
-  ) => $ProviderElement(pointer);
-
-  @override
-  NotificationScheduler create(Ref ref) {
-    return notificationScheduler(ref);
-  }
-
-  /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(NotificationScheduler value) {
-    return $ProviderOverride(
-      origin: this,
-      providerOverride: $SyncValueProvider<NotificationScheduler>(value),
-    );
-  }
-}
-
-String _$notificationSchedulerHash() =>
-    r'1949c5df32c960e6f8b06613ee46d61ab425a93e';
-
 /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
 /// and tests. `null` by default; [appProviderOverridesFor] binds the
 /// `steady/healthkit` channel on iOS only. The one Health source: features
 /// that read Health bind their own provider to this one.
 ///
 /// Declared here rather than in a feature package: `health_sync` is
-/// headless (no `*_presentation` package), like `notifications`.
+/// headless (no `*_presentation` package).
 ///
 /// `keepAlive`: cheap and stateless (D6).
 
@@ -241,7 +158,7 @@ final healthKitRepositoryProvider = HealthKitRepositoryProvider._();
 /// that read Health bind their own provider to this one.
 ///
 /// Declared here rather than in a feature package: `health_sync` is
-/// headless (no `*_presentation` package), like `notifications`.
+/// headless (no `*_presentation` package).
 ///
 /// `keepAlive`: cheap and stateless (D6).
 
@@ -259,7 +176,7 @@ final class HealthKitRepositoryProvider
   /// that read Health bind their own provider to this one.
   ///
   /// Declared here rather than in a feature package: `health_sync` is
-  /// headless (no `*_presentation` package), like `notifications`.
+  /// headless (no `*_presentation` package).
   ///
   /// `keepAlive`: cheap and stateless (D6).
   HealthKitRepositoryProvider._()

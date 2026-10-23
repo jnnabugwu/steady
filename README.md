@@ -25,7 +25,7 @@ One Flutter codebase, two platform targets — iOS and macOS, not two separate a
 | Step / energy data | **HealthKit** on iOS only, read live and never stored in iCloud (App Store 5.1.3); no Health data on the Mac |
 | On-device coach LLM | Apple **Foundation Models** — **macOS only**; iOS shows read-only, CloudKit-synced session history instead of live inference |
 | PDF parsing | **`pdfrx_engine`** (pure Dart) — parses Cal AI weekly exports on-device, no backend at all |
-| Routing | **go_router** with `go_router_builder` / `@TypedGoRoute` — typed routes for deep linking (e.g. a check-in notification → a specific day's check-in screen) |
+| Routing | **go_router** with `go_router_builder` / `@TypedGoRoute` — typed, date-carrying routes for links into a specific day (e.g. `/checkin/<date>` from a cold start) |
 
 There is no backend, and no separate auth system — CloudKit's per-account private
 container already covers both. See [`CLAUDE.md`](CLAUDE.md) for the full reasoning
@@ -45,7 +45,6 @@ steady/
 │   ├── checkin/           # End-of-day logged/partial/skipped status
 │   ├── coach/              # macOS: live chat + weekly session. iOS: read-only history
 │   ├── pdf_import/          # Cal AI PDF upload + on-device parsing
-│   ├── notifications/        # Headless — check-in safety-net scheduling
 │   └── notes/                  # Planned (RAG) — journal notes for the coach to draw on
 ├── packages/
 │   └── shared/

@@ -53,8 +53,6 @@ import 'package:health_sync_data/health_sync_data.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
-import 'package:notifications_data/notifications_data.dart';
-import 'package:notifications_domain/notifications_domain.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -94,28 +92,13 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
       DailyMetricStore.swiftData => SwiftDataDailyMetricRepository(),
     };
 
-/// Schedules and cancels the end-of-day reminder.
-///
-/// Declared here rather than in a feature package: `notifications` is
-/// headless (no `*_presentation` package), and the app layer is what reads
-/// it, e.g. a route cancelling the reminder once a check-in completes
-/// (CLAUDE.md §5).
-///
-/// `keepAlive`: it holds state. `InMemoryNotificationScheduler` keeps the
-/// set of scheduled reminder dates, so disposing and recreating it would
-/// silently drop every pending reminder. The lifetime is about that state,
-/// not construction cost (D6).
-@Riverpod(keepAlive: true)
-NotificationScheduler notificationScheduler(Ref ref) =>
-    InMemoryNotificationScheduler();
-
 /// Apple Health's daily totals, or `null` where Health isn't read: macOS,
 /// and tests. `null` by default; [appProviderOverridesFor] binds the
 /// `steady/healthkit` channel on iOS only. The one Health source: features
 /// that read Health bind their own provider to this one.
 ///
 /// Declared here rather than in a feature package: `health_sync` is
-/// headless (no `*_presentation` package), like `notifications`.
+/// headless (no `*_presentation` package).
 ///
 /// `keepAlive`: cheap and stateless (D6).
 @Riverpod(keepAlive: true)
