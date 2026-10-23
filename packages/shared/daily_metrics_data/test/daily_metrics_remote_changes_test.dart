@@ -261,6 +261,49 @@ void main() {
       });
     });
 
+    test('a stale "no plugin" failure does not close a newer listener', () {
+      fakeAsync((async) {
+        final staleFailure = Completer<void>();
+        var listens = 0;
+        messenger().setMockMethodCallHandler(methods, (call) async {
+          if (call.method == 'listen' && ++listens == 1) {
+            await staleFailure.future;
+            throw MissingPluginException();
+          }
+          return null;
+        });
+        addTearDown(() => messenger().setMockMethodCallHandler(methods, null));
+
+        final stream = dailyMetricsRemoteChanges();
+        final first = stream.listen((_) {});
+        async.flushMicrotasks();
+        unawaited(first.cancel());
+        async.flushMicrotasks();
+
+        var count = 0;
+        var done = false;
+        final second = stream.listen((_) => count++, onDone: () => done = true);
+        async.flushMicrotasks();
+        staleFailure.complete();
+        async.flushMicrotasks();
+
+        expect(done, isFalse);
+        unawaited(
+          messenger().handlePlatformMessage(
+            methods.name,
+            methods.codec.encodeSuccessEnvelope(1),
+            (_) {},
+          ),
+        );
+        async.flushMicrotasks();
+        expect(count, 1);
+        expect(listens, 2);
+
+        unawaited(second.cancel());
+        async.flushMicrotasks();
+      });
+    });
+
     test('without the plugin: closes, no retry, no cancel', () {
       fakeAsync((async) {
         final calls = <String>[];

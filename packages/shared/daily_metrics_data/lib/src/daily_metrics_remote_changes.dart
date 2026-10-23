@@ -56,6 +56,9 @@ Stream<void> dailyMetricsRemoteChanges({BinaryMessenger? messenger}) {
     try {
       await methods.invokeMethod<void>('listen');
     } on MissingPluginException {
+      // A stale listen (its listener cancelled or replaced) must not tear
+      // down the handler or stream a newer listener now owns.
+      if (listenGeneration != generation) return;
       // No native store here, so nothing will ever change remotely.
       hasPlugin = false;
       binaryMessenger().setMessageHandler(name, null);
