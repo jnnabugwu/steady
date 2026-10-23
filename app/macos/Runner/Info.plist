@@ -28,7 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>SteadyCloudKitContainer</key>
+	<string>iCloud.com.jmagic.steady</string>
 	<key>SteadyCloudKitEnabled</key>
-	<false/>
+	<true/>
 </dict>
 </plist>
