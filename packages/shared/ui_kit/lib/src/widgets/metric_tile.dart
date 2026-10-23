@@ -141,8 +141,8 @@ class MetricTile extends StatelessWidget {
                 _Sparkline(
                   values: dailyValues,
                   futureFrom: futureFrom,
-                  color: _full(accent),
-                  dimmed: _dimmed(accent),
+                  color: accent.color,
+                  dimmed: accent.dimmedColor,
                 ),
               ],
             ),
@@ -151,18 +151,6 @@ class MetricTile extends StatelessWidget {
       ),
     );
   }
-
-  static Color _full(MetricAccent accent) => switch (accent) {
-    MetricAccent.caloriesEaten => SteadyColors.caloriesEaten,
-    MetricAccent.caloriesBurned => SteadyColors.caloriesBurned,
-    MetricAccent.steps => SteadyColors.steps,
-  };
-
-  static Color _dimmed(MetricAccent accent) => switch (accent) {
-    MetricAccent.caloriesEaten => SteadyColors.caloriesEatenDimmed,
-    MetricAccent.caloriesBurned => SteadyColors.caloriesBurnedDimmed,
-    MetricAccent.steps => SteadyColors.stepsDimmed,
-  };
 }
 
 class _Sparkline extends StatelessWidget {
