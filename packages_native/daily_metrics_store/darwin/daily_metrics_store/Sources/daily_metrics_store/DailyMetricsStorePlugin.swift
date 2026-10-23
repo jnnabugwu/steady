@@ -3,17 +3,32 @@
 #elseif os(macOS)
     import FlutterMacOS
 #endif
+import CoreData
 import Foundation
 
 /// Thin bridge from the `steady/daily_metrics` MethodChannel to
 /// `DailyMetricsStore`. Translation only: argument parsing, row maps, and
 /// `StoreError` to `FlutterError`. The contract is documented in
 /// `lib/daily_metrics_store.dart`.
-public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
+///
+/// Also the stream handler for `steady/daily_metrics/changes`: while Dart
+/// listens, it observes `NSPersistentStoreRemoteChange` for the open store,
+/// debounces, and emits an event when the store changed through something
+/// other than the channel itself (a CloudKit import), so screens re-read.
+public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStreamHandler {
     /// Opened on first use, so registering the plugin can't fail.
     private var store: DailyMetricsStore?
     /// The test store selected by `useStore`, or nil for the real one.
     private var testStoreName: String?
+
+    /// Set while Dart listens to the changes channel.
+    private var eventSink: FlutterEventSink?
+    private var remoteChangeObserver: NSObjectProtocol?
+    private var pendingCheck: DispatchWorkItem?
+    /// Counts emitted events; the payload, for logs.
+    private var changeCount = 0
+    /// CloudKit imports land as a burst of saves; one event per burst.
+    private static let debounce: DispatchTimeInterval = .milliseconds(400)
 
     public static func register(with registrar: FlutterPluginRegistrar) {
         #if os(iOS)
@@ -23,7 +38,63 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
         #endif
         let channel = FlutterMethodChannel(
             name: "steady/daily_metrics", binaryMessenger: messenger)
-        registrar.addMethodCallDelegate(DailyMetricsStorePlugin(), channel: channel)
+        let plugin = DailyMetricsStorePlugin()
+        registrar.addMethodCallDelegate(plugin, channel: channel)
+        FlutterEventChannel(name: "steady/daily_metrics/changes", binaryMessenger: messenger)
+            .setStreamHandler(plugin)
+    }
+
+    // MARK: - Changes channel
+
+    public func onListen(
+        withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink
+    ) -> FlutterError? {
+        eventSink = events
+        if remoteChangeObserver == nil {
+            // Posted on a background queue; hop to the main (platform)
+            // thread, where the store is used and events must be sent.
+            remoteChangeObserver = NotificationCenter.default.addObserver(
+                forName: .NSPersistentStoreRemoteChange, object: nil, queue: nil
+            ) { [weak self] notification in
+                let url = notification.userInfo?["storeURL"] as? URL
+                DispatchQueue.main.async { self?.storeDidChange(url: url) }
+            }
+        }
+        return nil
+    }
+
+    public func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        eventSink = nil
+        if let remoteChangeObserver {
+            NotificationCenter.default.removeObserver(remoteChangeObserver)
+        }
+        remoteChangeObserver = nil
+        pendingCheck?.cancel()
+        pendingCheck = nil
+        return nil
+    }
+
+    /// Main thread. Schedules one check per burst of notifications for the
+    /// open store; other stores (another app's, a released test store) are
+    /// ignored.
+    private func storeDidChange(url: URL?) {
+        guard let store, let url,
+            url.standardizedFileURL.resolvingSymlinksInPath()
+                == store.url.standardizedFileURL.resolvingSymlinksInPath()
+        else { return }
+        pendingCheck?.cancel()
+        let check = DispatchWorkItem { [weak self] in self?.emitIfForeign() }
+        pendingCheck = check
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.debounce, execute: check)
+    }
+
+    /// Main thread. Emits `changeCount` if the store changed through
+    /// something other than this channel since the last check.
+    private func emitIfForeign() {
+        pendingCheck = nil
+        guard let eventSink, let store, store.hasForeignChanges() else { return }
+        changeCount += 1
+        eventSink(changeCount)
     }
 
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -56,6 +127,14 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
                 let modifiedAt = Date(timeIntervalSince1970: millis.doubleValue / 1000)
                 let row = try MetricRow(channelMap: rowMap, modifiedAt: modifiedAt)
                 try openStore(testOnly: true).insertRecordForTesting(row)
+                result(nil)
+            case "simulateImportForTesting":
+                guard let rowMap = args["row"] as? [String: Any],
+                    let millis = args["modifiedAtMillis"] as? NSNumber
+                else { throw StoreError.badArgs("Expected {row, modifiedAtMillis}") }
+                let modifiedAt = Date(timeIntervalSince1970: millis.doubleValue / 1000)
+                let row = try MetricRow(channelMap: rowMap, modifiedAt: modifiedAt)
+                try openStore(testOnly: true).simulateImportForTesting(row)
                 result(nil)
             default:
                 result(FlutterMethodNotImplemented)
@@ -94,6 +173,8 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin {
             newName = string
         }
         store = nil  // Release the old container before opening the new one.
+        pendingCheck?.cancel()  // A check for the old store has nothing to read.
+        pendingCheck = nil
         testStoreName = newName
         if newName != nil { _ = try openStore() }
     }
