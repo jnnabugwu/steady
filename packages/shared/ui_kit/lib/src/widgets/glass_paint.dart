@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 // Internal painters shared by the Native Glass widgets. Not exported from
@@ -57,7 +59,12 @@ class OuterShadowPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
     final surface = RRect.fromRectAndRadius(rect, Radius.circular(radius));
-    final reach = shadow.blurRadius * 2 + shadow.offset.distance;
+    // How far past the surface the shadow can land: its blur, its offset,
+    // and any positive spread (a negative spread only pulls it in).
+    final reach =
+        shadow.blurRadius * 2 +
+        shadow.offset.distance +
+        math.max(0, shadow.spreadRadius);
     final outside = Path.combine(
       PathOperation.difference,
       Path()..addRect(rect.inflate(reach)),
