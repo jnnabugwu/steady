@@ -49,8 +49,31 @@ final class DailyMetricsStore {
     /// only.
     let cloudKitContainer: String?
 
+    /// The store file, so remote-change notifications can be matched to
+    /// it (`NSPersistentStoreRemoteChange` carries it as `storeURL`).
+    let url: URL
+
+    /// The author this store's own writes are tagged with in SwiftData's
+    /// persistent history (iOS 18 / macOS 15+), so `hasForeignChanges` can
+    /// tell them apart from CloudKit's imports.
+    static let channelAuthor = "steady.daily_metrics_channel"
+
+    /// Whether `hasForeignChanges` can tell this store's own writes apart
+    /// (persistent history, iOS 18 / macOS 15+). When false, every save
+    /// counts as foreign, own writes included.
+    static var filtersOwnWrites: Bool {
+        if #available(iOS 18, macOS 15, *) { return true }
+        return false
+    }
+
     private let container: ModelContainer
     private let context: ModelContext
+    /// The last history transaction `hasForeignChanges` looked at, typed
+    /// `Any` because `DefaultHistoryToken` needs iOS 18 / macOS 15.
+    private var lastHistoryToken: Any?
+    /// When this store was opened: the first history check only looks at
+    /// transactions after it, rather than the whole history.
+    private let openedAt = Date()
 
     /// Opens the real store (nil) or a separate local test store.
     init(testStoreName: String?, info: [String: Any]? = Bundle.main.infoDictionary) throws {
@@ -59,7 +82,7 @@ final class DailyMetricsStore {
         cloudKitContainer = testStoreName == nil ? Self.cloudKitContainer(info: info) : nil
         do {
             let schema = Schema([DailyMetricRecord.self])
-            let url = try Self.storeDirectory().appendingPathComponent(
+            url = try Self.storeDirectory().appendingPathComponent(
                 testStoreName.map { "test-\($0).store" } ?? "steady.store")
             // `.none` is explicit on purpose: the default (`.automatic`)
             // turns CloudKit on by itself whenever the entitlement exists.
@@ -74,6 +97,9 @@ final class DailyMetricsStore {
         }
         context = ModelContext(container)
         context.autosaveEnabled = false
+        if #available(iOS 18, macOS 15, *) {
+            context.author = Self.channelAuthor
+        }
     }
 
     /// The CloudKit container to sync through, or nil when CloudKit is off.
@@ -165,6 +191,60 @@ final class DailyMetricsStore {
         record.apply(row)
         context.insert(record)
         try save()
+    }
+
+    /// Test only: inserts `row` through a second `ModelContext` on the same
+    /// container, under another author. That is the path a CloudKit import
+    /// takes (the mirroring delegate saves through its own context), so a
+    /// test can check the remote-change event without CloudKit.
+    func simulateImportForTesting(_ row: MetricRow) throws {
+        guard testStoreName != nil else { throw StoreError.notTestStore }
+        let importer = ModelContext(container)
+        if #available(iOS 18, macOS 15, *) {
+            importer.author = "steady.test_import"
+        }
+        let record = DailyMetricRecord(day: row.day, modifiedAt: row.modifiedAt)
+        record.apply(row)
+        importer.insert(record)
+        do {
+            try importer.save()
+        } catch {
+            throw StoreError.saveFailed(error)
+        }
+    }
+
+    // MARK: - Remote changes
+
+    /// Whether the store changed, since the last call, through anything
+    /// other than this store's own context: in practice, a CloudKit import.
+    ///
+    /// `NSPersistentStoreRemoteChange` fires for every save, this app's
+    /// own channel writes included, so on iOS 18 / macOS 15+ this reads
+    /// SwiftData's persistent history and ignores transactions authored by
+    /// `channelAuthor`, and ones that changed no record (e.g. CloudKit
+    /// bookkeeping). Older systems have no history API, so every change
+    /// counts (the Dart side then re-reads after its own writes too, which
+    /// is harmless). A failed history read also counts, for the same
+    /// reason: a needless re-read is cheaper than a missed one.
+    func hasForeignChanges() -> Bool {
+        guard #available(iOS 18, macOS 15, *) else { return true }
+        var descriptor = HistoryDescriptor<DefaultHistoryTransaction>()
+        if let token = lastHistoryToken as? DefaultHistoryToken {
+            descriptor.predicate = #Predicate { $0.token > token }
+        } else {
+            let since = openedAt
+            descriptor.predicate = #Predicate { $0.timestamp > since }
+        }
+        let transactions: [DefaultHistoryTransaction]
+        do {
+            transactions = try context.fetchHistory(descriptor)
+        } catch {
+            return true
+        }
+        if let last = transactions.max(by: { $0.transactionIdentifier < $1.transactionIdentifier }) {
+            lastHistoryToken = last.token
+        }
+        return transactions.contains { $0.author != Self.channelAuthor && !$0.changes.isEmpty }
     }
 
     // MARK: - Helpers

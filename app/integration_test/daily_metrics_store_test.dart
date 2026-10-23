@@ -171,6 +171,84 @@ void main() {
     });
   });
 
+  group('remote changes (#73)', () {
+    Map<String, Object?> row(String date, int caloriesEaten) => {
+      'date': date,
+      'caloriesEaten': caloriesEaten,
+      'caloriesBurnedActive': null,
+      'caloriesBurnedBasal': null,
+      'steps': null,
+      'loggingStatus': null,
+    };
+
+    /// Collects change events until the returned function is called.
+    (List<void>, Future<void> Function()) listen() {
+      final events = <void>[];
+      final subscription = dailyMetricsRemoteChanges().listen(events.add);
+      return (events, subscription.cancel);
+    }
+
+    // Longer than the native 400 ms debounce plus the history check.
+    const settle = Duration(milliseconds: 1500);
+
+    testWidgets('a write through another context (how a CloudKit import '
+        'lands) emits one event, and the row reads back', (_) async {
+      final (events, cancel) = listen();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      await DailyMetricsStoreTestControl.simulateImport(
+        row('2026-08-24', 1850),
+        modifiedAt: DateTime(2026, 8, 24, 9),
+      );
+      await Future<void>.delayed(settle);
+      await cancel();
+
+      expect(events, hasLength(1));
+      expect(
+        (await read(SwiftDataDailyMetricRepository(), day))?.caloriesEaten,
+        1850,
+      );
+    });
+
+    testWidgets('a burst of imports emits a single event', (_) async {
+      final (events, cancel) = listen();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      for (var i = 1; i <= 5; i++) {
+        await DailyMetricsStoreTestControl.simulateImport(
+          row('2026-08-2$i', 1000 + i),
+          modifiedAt: DateTime(2026, 8, 20 + i),
+        );
+      }
+      await Future<void>.delayed(settle);
+      await cancel();
+
+      expect(events, hasLength(1));
+    });
+
+    testWidgets("the app's own writes emit nothing", (_) async {
+      if (!await DailyMetricsStoreTestControl.filtersOwnWrites()) {
+        // iOS 17 / macOS 14: no persistent history, so own writes emit too.
+        markTestSkipped(
+          'No persistent-history filtering here (needs iOS 18 / macOS 15): '
+          "the app's own writes emit by design",
+        );
+        return;
+      }
+      final (events, cancel) = listen();
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+
+      final repo = SwiftDataDailyMetricRepository();
+      await repo.upsert(day, caloriesEaten: 1850, steps: 8000);
+      await repo.clearFields(day, {DailyMetricField.steps});
+      await repo.delete(day);
+      await Future<void>.delayed(settle);
+      await cancel();
+
+      expect(events, isEmpty);
+    });
+  });
+
   testWidgets('test-only calls are refused on the real store, which is '
       'never opened', (_) async {
     // Where DailyMetricsStore puts the real store: path_provider's support
@@ -190,6 +268,20 @@ void main() {
     await expectLater(DailyMetricsStoreTestControl.reset(), refused);
     await expectLater(
       DailyMetricsStoreTestControl.insertRecord({
+        'date': '2026-08-24',
+        for (final field in const [
+          'caloriesEaten',
+          'caloriesBurnedActive',
+          'caloriesBurnedBasal',
+          'steps',
+          'loggingStatus',
+        ])
+          field: null,
+      }, modifiedAt: DateTime(2026, 8, 24)),
+      refused,
+    );
+    await expectLater(
+      DailyMetricsStoreTestControl.simulateImport({
         'date': '2026-08-24',
         for (final field in const [
           'caloriesEaten',

@@ -11,6 +11,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/remote_changes.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 Future<void> main() async {
@@ -74,6 +75,9 @@ Future<void> _migrateInterimFileStore(ProviderContainer container) async {
 /// lives at the app root rather than in `SignInModule`, so signing out
 /// while Steady is in the background is caught on any screen, and the
 /// router's redirect then moves the user.
+///
+/// It also starts [dailyMetricsRemoteRefreshProvider], so screens re-read
+/// the store when CloudKit syncs in another device's rows (#73).
 class SteadyApp extends ConsumerStatefulWidget {
   /// Creates the root widget. Must sit under a `ProviderScope`.
   const SteadyApp({super.key});
@@ -88,6 +92,8 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
   @override
   void initState() {
     super.initState();
+    // keepAlive, so one read keeps it listening for the app's lifetime.
+    ref.read(dailyMetricsRemoteRefreshProvider);
     _lifecycle = AppLifecycleListener(
       onResume: () => unawaited(
         ref.read(accountStatusControllerProvider.notifier).recheckAccount(),
