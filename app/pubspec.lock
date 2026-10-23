@@ -499,6 +499,20 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.2"
+  health_sync_data:
+    dependency: "direct main"
+    description:
+      path: "../features/health_sync/health_sync_data"
+      relative: true
+    source: path
+    version: "0.0.1"
+  health_sync_domain:
+    dependency: "direct main"
+    description:
+      path: "../features/health_sync/health_sync_domain"
+      relative: true
+    source: path
+    version: "0.0.1"
   hooks:
     dependency: transitive
     description:

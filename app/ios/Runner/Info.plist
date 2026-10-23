@@ -26,6 +26,8 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Steady reads your daily steps and active and resting energy from Apple Health to show how much you burned next to what you ate. Steady only reads these totals and never writes anything to Apple Health.</string>
 	<key>SteadyCloudKitContainer</key>
 	<string>iCloud.com.jmagic.steady</string>
 	<key>SteadyCloudKitEnabled</key>

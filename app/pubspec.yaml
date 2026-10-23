@@ -63,6 +63,10 @@ dependencies:
   flutter_riverpod: ^3.4.3
 
   go_router: ^18.1.1
+  health_sync_data:
+    path: ../features/health_sync/health_sync_data
+  health_sync_domain:
+    path: ../features/health_sync/health_sync_domain
   metrics_data:
     path: ../features/metrics/metrics_data
   metrics_domain:
