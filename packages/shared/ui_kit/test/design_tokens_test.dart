@@ -67,4 +67,18 @@ void main() {
     );
     expect(find.text('Tonight'), findsOneWidget);
   });
+
+  test('Pass 02 is set in SF Pro: Display for the screen title, Text '
+      'elsewhere, and the theme default is SF Pro Text', () {
+    expect(SteadyType.headline.fontFamily, 'CupertinoSystemDisplay');
+    for (final style in [
+      SteadyType.cardTitle,
+      SteadyType.metricValue,
+      SteadyType.body,
+      SteadyType.eyebrow,
+    ]) {
+      expect(style.fontFamily, 'CupertinoSystemText');
+    }
+    expect(steadyTheme.typography.sans.fontFamily, 'CupertinoSystemText');
+  });
 }

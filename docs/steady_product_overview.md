@@ -306,7 +306,7 @@ Single-hue, no red/yellow/green (deliberate, per §1 non-goals).
 
 ### Typography
 
-Font stack: `-apple-system, 'SF Pro Text', system-ui, sans-serif` (native iOS/macOS feel).
+Font: Apple's system font, SF Pro (native iOS/macOS feel), named explicitly in `ui_kit`: SF Pro Display (`CupertinoSystemDisplay`) for the 34px screen title, SF Pro Text (`CupertinoSystemText`) for everything else, falling back to `-apple-system, 'SF Pro Text', system-ui`. Not shadcn's default Geist.
 
 | Style (`SteadyType`) | Size / weight / tracking | Notes |
 | --- | --- | --- |

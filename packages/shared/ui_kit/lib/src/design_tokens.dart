@@ -138,7 +138,18 @@ abstract final class SteadyColors {
 
 /// Type scale from §10 (Pass 02).
 abstract final class SteadyType {
-  /// SF Pro on iOS and macOS; system UI font elsewhere.
+  /// SF Pro Text, Apple's system font (Pass 02 is set in it, like the
+  /// artboards). Flutter's engine maps this name to the system font on iOS
+  /// and macOS; elsewhere it falls back to the platform default. Named
+  /// explicitly so the font can't change if the theme's default does.
+  static const fontFamily = 'CupertinoSystemText';
+
+  /// SF Pro Display, the system font's cut for large sizes. Apple switches
+  /// to it at about 20pt; the engine's name for it is used for the screen
+  /// title.
+  static const displayFontFamily = 'CupertinoSystemDisplay';
+
+  /// Used if neither family name resolves.
   static const fontFamilyFallback = <String>[
     '-apple-system',
     'SF Pro Text',
@@ -147,6 +158,7 @@ abstract final class SteadyType {
 
   /// Screen title: 34px, weight 700, tracking -0.8px, line height 1.05.
   static const headline = TextStyle(
+    fontFamily: displayFontFamily,
     fontFamilyFallback: fontFamilyFallback,
     fontSize: 34,
     fontWeight: FontWeight.w700,
@@ -157,6 +169,7 @@ abstract final class SteadyType {
 
   /// Card title: 20px, weight 600, tracking -0.3px.
   static const cardTitle = TextStyle(
+    fontFamily: fontFamily,
     fontFamilyFallback: fontFamilyFallback,
     fontSize: 20,
     fontWeight: FontWeight.w600,
@@ -168,6 +181,7 @@ abstract final class SteadyType {
   /// 21px, weight 600, tracking -0.4px, tabular figures so digits line up
   /// and don't shift as values change.
   static const metricValue = TextStyle(
+    fontFamily: fontFamily,
     fontFamilyFallback: fontFamilyFallback,
     fontSize: 21,
     fontWeight: FontWeight.w600,
@@ -178,6 +192,7 @@ abstract final class SteadyType {
 
   /// Body: 15px, line height 1.5.
   static const body = TextStyle(
+    fontFamily: fontFamily,
     fontFamilyFallback: fontFamilyFallback,
     fontSize: 15,
     height: 1.5,
@@ -189,6 +204,7 @@ abstract final class SteadyType {
   /// uppercase; `TextStyle` has no text-transform, so uppercase the string
   /// at the call site.
   static const eyebrow = TextStyle(
+    fontFamily: fontFamily,
     fontFamilyFallback: fontFamilyFallback,
     fontSize: 11,
     fontWeight: FontWeight.w600,

@@ -57,6 +57,9 @@ const steadyTheme = ThemeData(
   // radiusXl.
   radius: SteadyRadii.pill / 12,
   typography: Typography.geist(
-    sans: TextStyle(fontFamilyFallback: SteadyType.fontFamilyFallback),
+    sans: TextStyle(
+      fontFamily: SteadyType.fontFamily,
+      fontFamilyFallback: SteadyType.fontFamilyFallback,
+    ),
   ),
 );
