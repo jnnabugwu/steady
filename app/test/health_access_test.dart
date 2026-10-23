@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
@@ -360,7 +362,62 @@ void main() {
 
       expect(status(tester), 'Not allowed, or no data yet');
     });
+
+    testWidgets('iOS: still reading Health says checking, not Connected', (
+      tester,
+    ) async {
+      final health = _HangingHealthKitRepository();
+      await pump(tester, [
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(health),
+      ]);
+      await tester.pump();
+      await tester.pump();
+
+      expect(health.dailyTotalsCalls, 1);
+      expect(status(tester), 'Checking Apple Health…');
+
+      health.reply.complete(const Ok([]));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('iOS: a failed read shows fixed copy, not the Failure', (
+      tester,
+    ) async {
+      final health = InMemoryHealthKitRepository(
+        status: HealthAuthorizationStatus.requested,
+      )..failure = const PlatformChannelFailure('raw native detail');
+      await pump(tester, [
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(health),
+      ]);
+      await tester.pumpAndSettle();
+
+      expect(
+        status(tester),
+        "Couldn't read Apple Health right now. Try Refresh.",
+      );
+      expect(find.textContaining('raw native detail'), findsNothing);
+      expect(find.text('Connect Apple Health'), findsOneWidget);
+    });
   });
+}
+
+/// Health that has been asked, whose `dailyTotals` waits on [reply].
+class _HangingHealthKitRepository extends InMemoryHealthKitRepository {
+  _HangingHealthKitRepository()
+    : super(status: HealthAuthorizationStatus.requested);
+
+  final Completer<Result<List<HealthDayTotals>>> reply = Completer();
+
+  @override
+  ResultFuture<List<HealthDayTotals>> dailyTotals(
+    DateTime start,
+    DateTime end,
+  ) {
+    dailyTotalsCalls++;
+    return reply.future;
+  }
 }
 
 /// The shared store, wrapped so every write is recorded and fails the test:

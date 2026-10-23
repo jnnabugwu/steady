@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,7 +57,21 @@ class AppleHealthCard extends ConsumerWidget {
     final AsyncValue<Map<DateTime, HealthDayTotals>>? totals;
     if (authorization == HealthAuthorizationStatus.requested) {
       final window = healthHistoryWindow(DateTime.now());
-      totals = ref.watch(healthDayTotalsProvider(window.start, window.end));
+      final provider = healthDayTotalsProvider(window.start, window.end);
+      // The card shows fixed copy for a failed read; the detail goes to
+      // the log, once per failure. (Access failures are logged by
+      // HealthAccessController.)
+      ref.listen(provider, (_, next) {
+        if (next case AsyncError(:final error, :final stackTrace)) {
+          developer.log(
+            'Apple Health read failed',
+            name: 'steady.health',
+            error: error is Failure ? (error.cause ?? error) : error,
+            stackTrace: stackTrace,
+          );
+        }
+      });
+      totals = ref.watch(provider);
     } else {
       totals = null;
     }
@@ -103,20 +118,22 @@ class AppleHealthCard extends ConsumerWidget {
     );
   }
 
+  static const _checking = 'Checking Apple Health…';
+
   /// The status line and an optional explanation. [totals] is the live
   /// read for the history's window, once permission has been asked.
   static (String, String?) _describe(
     AsyncValue<HealthAuthorizationStatus> access,
     AsyncValue<Map<DateTime, HealthDayTotals>>? totals,
   ) {
+    // Fixed copy, never the raw Failure message (logged instead).
     for (final value in [access, ?totals]) {
-      if (value case AsyncError(:final error)) {
-        final message = error is Failure ? error.message : '$error';
-        return ("Couldn't read Apple Health", message);
+      if (value case AsyncError()) {
+        return ("Couldn't read Apple Health right now. Try Refresh.", null);
       }
     }
     return switch (access.value) {
-      null => ('Checking Apple Health…', null),
+      null => (_checking, null),
       HealthAuthorizationStatus.unavailable => (
         'Unavailable',
         "Apple Health isn't available on this device.",
@@ -128,7 +145,9 @@ class AppleHealthCard extends ConsumerWidget {
             'iCloud and never writes to Apple Health.',
       ),
       HealthAuthorizationStatus.requested => switch (totals?.value) {
-        null => ('Connected', null),
+        // Still reading: the same copy as the access check, not a status
+        // the read hasn't confirmed yet.
+        null => (_checking, null),
         final days when days.isEmpty => (
           'Not allowed, or no data yet',
           'Apple Health returned no steps or energy for the last '
