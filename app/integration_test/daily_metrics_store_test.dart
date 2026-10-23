@@ -227,6 +227,14 @@ void main() {
     });
 
     testWidgets("the app's own writes emit nothing", (_) async {
+      if (!await DailyMetricsStoreTestControl.filtersOwnWrites()) {
+        // iOS 17 / macOS 14: no persistent history, so own writes emit too.
+        markTestSkipped(
+          'No persistent-history filtering here (needs iOS 18 / macOS 15): '
+          "the app's own writes emit by design",
+        );
+        return;
+      }
       final (events, cancel) = listen();
       await Future<void>.delayed(const Duration(milliseconds: 200));
 

@@ -9,6 +9,16 @@ import 'package:flutter/services.dart';
 abstract final class DailyMetricsStoreTestControl {
   static const _channel = MethodChannel(dailyMetricsStoreChannelName);
 
+  /// Whether the native store's changes channel leaves out this app's own
+  /// writes (persistent-history filtering, iOS 18 / macOS 15+). On older
+  /// systems every save emits, own writes included. Never opens a store.
+  static Future<bool> filtersOwnWrites() async {
+    final capabilities = await _channel.invokeMapMethod<String, Object?>(
+      'capabilities',
+    );
+    return capabilities?['historyFiltering'] == true;
+  }
+
   /// Reopens the native store on the local test store [name]
   /// (`[A-Za-z0-9_-]+`). Test stores never use CloudKit. Always reopens,
   /// even for the same name, so calling it again reads back what actually

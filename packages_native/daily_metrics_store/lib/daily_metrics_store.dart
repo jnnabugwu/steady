@@ -19,6 +19,10 @@
 /// | `put`    | row (full replace, nil = nil) | the stored row             |
 /// | `remove` | `{date}`                      | null                       |
 ///
+/// Info: `capabilities` (no arguments, never opens the store) returns
+/// `{historyFiltering: bool}`: whether the changes channel below can leave
+/// out this app's own writes (true on iOS 18 / macOS 15+).
+///
 /// Test-only: `useStore` (`{name}`) reopens the container on a separate
 /// local, never-CloudKit store file (`{name: null}` switches back to the
 /// real store); `reset` (test stores only) deletes every record in the
@@ -49,8 +53,10 @@
 /// listener just re-reads. Own channel writes are told apart through
 /// SwiftData's persistent history (author `steady.daily_metrics_channel`),
 /// which needs iOS 18 / macOS 15; on iOS 17 / macOS 14 every change emits,
-/// own writes included. Test stores are observed the same way; they never
-/// sync, so only `simulateImportForTesting` makes them emit.
+/// own writes included (`capabilities` reports which). Cancelling is
+/// idempotent: a `cancel` with no active listener is a no-op. Test stores
+/// are observed the same way; they never sync, so only
+/// `simulateImportForTesting` makes them emit.
 library;
 
 /// The MethodChannel the native store listens on.

@@ -58,6 +58,14 @@ final class DailyMetricsStore {
     /// tell them apart from CloudKit's imports.
     static let channelAuthor = "steady.daily_metrics_channel"
 
+    /// Whether `hasForeignChanges` can tell this store's own writes apart
+    /// (persistent history, iOS 18 / macOS 15+). When false, every save
+    /// counts as foreign, own writes included.
+    static var filtersOwnWrites: Bool {
+        if #available(iOS 18, macOS 15, *) { return true }
+        return false
+    }
+
     private let container: ModelContainer
     private let context: ModelContext
     /// The last history transaction `hasForeignChanges` looked at, typed

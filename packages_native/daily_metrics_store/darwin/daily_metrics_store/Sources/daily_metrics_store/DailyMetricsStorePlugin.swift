@@ -63,6 +63,9 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStre
         return nil
     }
 
+    /// Idempotent: Dart sends `cancel` whenever its listener is torn down,
+    /// even after the stream ended or a `listen` failed, so this must
+    /// tolerate having no active sink or observer.
     public func onCancel(withArguments arguments: Any?) -> FlutterError? {
         eventSink = nil
         if let remoteChangeObserver {
@@ -114,6 +117,9 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStre
             case "remove":
                 try openStore().remove(day: try dayString(args["date"], key: "date"))
                 result(nil)
+            case "capabilities":
+                // Doesn't open the store: safe to call before `useStore`.
+                result(["historyFiltering": DailyMetricsStore.filtersOwnWrites])
             case "useStore":
                 try useStore(args["name"])
                 result(nil)
