@@ -39,9 +39,9 @@
             }
         }
 
-        /// The SwiftData types whose schema is pushed. Must list every
-        /// `@Model` the store's `Schema` does.
-        static let modelTypes: [any PersistentModel.Type] = [DailyMetricRecord.self]
+        /// The SwiftData types whose schema is pushed: the store's own list,
+        /// so the two can't drift.
+        static var modelTypes: [any PersistentModel.Type] { DailyMetricsStore.modelTypes }
 
         /// Initializes the development schema in `containerIdentifier` and
         /// returns the record types it covers, each as

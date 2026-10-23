@@ -256,8 +256,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       field in `docs/cloudkit_schema.md` exists with the right type in CloudKit Console
       (Development) before Deploy Schema Changes. Development only creates a field once a
       record held a value in it, so normal use alone leaves fields missing (#93). Current
-      state: the initializer exists and ran against Development on 2026-10-23; the Console
-      check and the first production deploy are still to do.
+      state: the initializer ran against Development, the Console check passed and the
+      first production deploy was done on 2026-10-23. Re-run before every later deploy.
 - [ ] Finalize every `@Model` schema before the first production deploy: CloudKit's
       production schema is additive-only (no field removal or rename once users have data).
 - [ ] Privacy policy (required for HealthKit) and HealthKit usage strings; a short

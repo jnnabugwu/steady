@@ -55,7 +55,8 @@
 ///
 /// Failures come back as `PlatformException`s with one of these codes:
 /// `bad_args`, `store_unavailable`, `fetch_failed`, `save_failed`,
-/// `not_test_store`, or `unknown` (any other native error).
+/// `not_test_store`, `cloudkit_disabled`, `schema_init_running`,
+/// `schema_init_failed`, or `unknown` (any other native error).
 ///
 /// Remote changes, on the EventChannel [dailyMetricsStoreChangesChannelName]:
 /// while Dart listens, the plugin observes `NSPersistentStoreRemoteChange`

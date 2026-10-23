@@ -52,8 +52,9 @@ to `CloudKitSchemaInitializer.modelTypes` (or their own store's equivalent).
    CloudKit schema**. Wait for the spinner (a few seconds to tens of seconds). It shows the
    record types and fields it pushed, or the error code (`cloudkit_disabled`,
    `schema_init_running`, `schema_init_failed`) and message.
-   - Headless alternative: `flutter test integration_test/cloudkit_schema_init_test.dart -d
-     macos --dart-define=RUN_CLOUDKIT_SCHEMA_INIT=true`.
+   - Headless alternative, from the repo root: `cd app && flutter test
+     integration_test/cloudkit_schema_init_test.dart -d macos
+     --dart-define=RUN_CLOUDKIT_SCHEMA_INIT=true`.
 3. Open [CloudKit Console](https://icloud.developer.apple.com/) →
    `iCloud.com.jmagic.steady` → **Development** → Schema → Record Types →
    `CD_DailyMetricRecord`. Confirm every field in the table above exists with that type.

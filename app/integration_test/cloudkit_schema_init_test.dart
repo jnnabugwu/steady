@@ -33,6 +33,7 @@ void main() {
             // ignore: avoid_print
             print('  $type');
           }
+          expect(value.containerIdentifier, 'iCloud.com.jmagic.steady');
           expect(value.recordTypes.map((t) => t.name), [
             'CD_DailyMetricRecord',
           ]);

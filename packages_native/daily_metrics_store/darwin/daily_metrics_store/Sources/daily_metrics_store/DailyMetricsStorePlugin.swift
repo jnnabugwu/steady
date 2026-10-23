@@ -168,7 +168,7 @@ public final class DailyMetricsStorePlugin: NSObject, FlutterPlugin, FlutterStre
         /// Debug builds only (#93): pushes the full model schema to the
         /// CloudKit development environment through a throwaway store (see
         /// `CloudKitSchemaInitializer`), off the main thread. Replies
-        /// `{recordTypes: [{name, fields: [{name, type}]}]}`, or a
+        /// `{containerIdentifier, recordTypes: [{name, fields: [{name, type}]}]}`, or a
         /// `FlutterError` coded `cloudkit_disabled` (no CloudKit container
         /// in Info.plist), `schema_init_running` (already running), or
         /// `schema_init_failed`.
