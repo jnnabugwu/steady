@@ -1,8 +1,10 @@
 # TestFlight: first external build
 
 Steps to get Steady 1.0 (build 1) to external testers through Beta App Review. The point of
-going external early is the 5.1.3(ii) answer (see `docs/technical_decisions.md`, "Health data
-stays on the iPhone (App Store 5.1.3)"). Contact details (feedback email, phone) are entered
+going external early is an early read on 5.1.3(ii) (see `docs/technical_decisions.md`, "Health
+data stays on the iPhone (App Store 5.1.3)"). Beta App Review is usually lighter than full
+App Store review, so a pass is a good sign, not a guarantee. If a reviewer mentions 5.1.3 or
+iCloud, copy their exact wording into issue #98. Contact details (feedback email, phone) are entered
 in App Store Connect only, never in this repo, since it's public.
 
 ## 0. Before you archive

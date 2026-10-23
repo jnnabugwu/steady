@@ -49,8 +49,12 @@ store. The Mac shows calories eaten (from Cal AI PDFs) and check-ins only, and t
 
 **Open risk:** App Review may read "personal health information" broadly enough to include
 calories eaten and check-ins, which do sync through CloudKit. The early external TestFlight
-build goes through Beta App Review, which is the check (#98). If Apple objects, those fields
-need the same treatment as the Health values.
+build's Beta App Review (#98) is an **early signal, not a clearance**: it is usually lighter
+than full App Store review, so a pass means "not rejected yet". Full App Store review is the
+real check, and an App Review consultation (Apple's "Meet with Apple" sessions) is a way to
+ask before building more on this. If Apple flags 5.1.3 at either review, record the
+reviewer's exact wording; those fields would then need the same treatment as the Health
+values.
 
 ---
 

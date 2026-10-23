@@ -278,8 +278,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [ ] `NSHealthShareUsageDescription` (lands with the HealthKit work; not in the Info.plist
       yet). A short "not medical advice" note for the coach.
 - [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
-      "personal health information" (5.1.3(ii)); the first external TestFlight build's Beta
-      App Review is the check.
+      "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
+      App Review is an early signal only (it's lighter than App Store review); full App
+      Store review is the real check. Record the reviewer's exact wording if 5.1.3 comes up.
 - [x] Friendly "sign in to iCloud" screen for signed-out users (iCloud stays required, §7).
       Live now that CloudKit is configured: a signed-out device is redirected to it.
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
