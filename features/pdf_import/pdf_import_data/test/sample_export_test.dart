@@ -39,6 +39,15 @@ void main() {
     expect(days.map((d) => d.foodEntries.length), [3, 4, 4, 1, 3, 3, 2]);
   });
 
+  test('matches sampleExportDailyTotals, the sample identity removal uses', () {
+    expect(
+      {for (final day in days) day.date: day.caloriesEaten},
+      sampleExportDailyTotals,
+      reason:
+          'update sampleExportDailyTotals (pdf_import_domain) with the asset',
+    );
+  });
+
   test("each day's TOTAL equals the sum of its entries", () {
     for (final day in days) {
       final sum = day.foodEntries.fold<int>(0, (s, e) => s + e.calories);
