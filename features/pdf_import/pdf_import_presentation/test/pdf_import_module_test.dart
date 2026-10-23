@@ -227,8 +227,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repository.commitCalls, [sampleDays]);
-    expect(completedCount, 1);
+    // The confirmation stays up with the removal hint until Done.
+    expect(completedCount, 0);
     expect(find.text('Imported 2 days'), findsOneWidget);
+    expect(
+      find.text(
+        'These are sample days. Remove them anytime in '
+        'Settings → Sample data.',
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const Key('pdfImport_doneButton')));
+    await tester.pump();
+
+    expect(completedCount, 1);
+  });
+
+  testWidgets('a chosen file gets no sample hint and completes at once', (
+    tester,
+  ) async {
+    await pump(tester);
+    await tester.tap(chooseButton);
+    await tester.pumpAndSettle();
+    await tester.tap(importButton);
+    await tester.pumpAndSettle();
+
+    expect(completedCount, 1);
+    expect(find.byKey(const Key('pdfImport_sampleHint')), findsNothing);
+    expect(find.byKey(const Key('pdfImport_doneButton')), findsNothing);
   });
 
   testWidgets('the real loader reads the bundled PDF asset', (tester) async {

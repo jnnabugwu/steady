@@ -220,6 +220,22 @@ void main() {
       expect(states.last, isPreview());
     });
 
+    test('marks the preview and the commit as the sample', () async {
+      final n = sampleNotifier(() async => sampleBytes);
+
+      await n.chooseSamplePdf();
+      expect(
+        states.last,
+        isA<PdfImportPreview>().having((s) => s.isSample, 'isSample', true),
+      );
+
+      await n.commitImport();
+      expect(
+        states.last,
+        isA<PdfImportCommitted>().having((s) => s.isSample, 'isSample', true),
+      );
+    });
+
     test('a load error becomes a parse failure', () async {
       final n = sampleNotifier(() async => throw Exception('missing asset'));
 
@@ -266,7 +282,9 @@ void main() {
 
       expect(states, [
         isPreview(isCommitting: true),
-        isA<PdfImportCommitted>().having((s) => s.days, 'days', sampleDays),
+        isA<PdfImportCommitted>()
+            .having((s) => s.days, 'days', sampleDays)
+            .having((s) => s.isSample, 'isSample', false),
       ]);
       expect(repository.commitCalls, [sampleDays]);
     });

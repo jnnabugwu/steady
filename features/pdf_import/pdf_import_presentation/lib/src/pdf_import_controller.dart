@@ -84,7 +84,7 @@ class PdfImportController extends _$PdfImportController {
       _isPicking = false;
     }
     if (!ref.mounted) return;
-    await parsePdf(bytes);
+    await _parse(bytes, isSample: true);
   }
 
   /// Domain event: PdfParsed.
@@ -92,7 +92,11 @@ class PdfImportController extends _$PdfImportController {
   /// Parses [bytes] as a Cal AI export. Goes [PdfImportParsing], then
   /// [PdfImportPreview] (possibly with no days) or [PdfImportParseFailed].
   /// Ignored while a parse or commit is in flight, or once committed.
-  Future<void> parsePdf(Uint8List bytes) async {
+  Future<void> parsePdf(Uint8List bytes) => _parse(bytes, isSample: false);
+
+  /// [parsePdf], marking the preview as the sample export's when
+  /// [isSample].
+  Future<void> _parse(Uint8List bytes, {required bool isSample}) async {
     if (!ref.mounted || _isBusy) return;
     state = const PdfImportParsing();
     Result<List<ParsedDay>> result;
@@ -105,7 +109,7 @@ class PdfImportController extends _$PdfImportController {
     }
     if (!ref.mounted) return;
     state = switch (result) {
-      Ok(:final value) => PdfImportPreview(value),
+      Ok(:final value) => PdfImportPreview(value, isSample: isSample),
       Err(:final failure) => PdfImportParseFailed(failure),
     };
   }
@@ -125,8 +129,8 @@ class PdfImportController extends _$PdfImportController {
         current.days.isEmpty) {
       return;
     }
-    final days = current.days;
-    state = PdfImportPreview(days, isCommitting: true);
+    final PdfImportPreview(:days, :isSample) = current;
+    state = PdfImportPreview(days, isCommitting: true, isSample: isSample);
     Result<Unit> result;
     try {
       result = await ref
@@ -137,8 +141,12 @@ class PdfImportController extends _$PdfImportController {
     }
     if (!ref.mounted) return;
     state = switch (result) {
-      Ok() => PdfImportCommitted(days),
-      Err(:final failure) => PdfImportPreview(days, commitFailure: failure),
+      Ok() => PdfImportCommitted(days, isSample: isSample),
+      Err(:final failure) => PdfImportPreview(
+        days,
+        commitFailure: failure,
+        isSample: isSample,
+      ),
     };
   }
 }
