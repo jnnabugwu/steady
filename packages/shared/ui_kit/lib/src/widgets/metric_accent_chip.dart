@@ -2,17 +2,23 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'package:ui_kit/src/design_tokens.dart';
 
-/// Which of §10's three metric accent colors a [MetricAccentChip] uses.
+/// Which of §10's three metric accent colors a metric widget uses (e.g.
+/// [MetricAccentChip], `MetricTile`).
 enum MetricAccent { caloriesEaten, caloriesBurned, steps }
 
-extension on MetricAccent {
-  Color get full => switch (this) {
+/// The one place a [MetricAccent] maps to its §10 colours, so every metric
+/// widget agrees on them.
+extension MetricAccentColors on MetricAccent {
+  /// The accent's full colour, e.g. [SteadyColors.caloriesEaten].
+  Color get color => switch (this) {
     MetricAccent.caloriesEaten => SteadyColors.caloriesEaten,
     MetricAccent.caloriesBurned => SteadyColors.caloriesBurned,
     MetricAccent.steps => SteadyColors.steps,
   };
 
-  Color get dimmed => switch (this) {
+  /// The accent's ~35%-alpha variant for future or unlogged days, e.g.
+  /// [SteadyColors.caloriesEatenDimmed].
+  Color get dimmedColor => switch (this) {
     MetricAccent.caloriesEaten => SteadyColors.caloriesEatenDimmed,
     MetricAccent.caloriesBurned => SteadyColors.caloriesBurnedDimmed,
     MetricAccent.steps => SteadyColors.stepsDimmed,
@@ -36,7 +42,7 @@ class MetricAccentChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = dimmed ? accent.dimmed : accent.full;
+    final color = dimmed ? accent.dimmedColor : accent.color;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: SteadyColors.bgChip,
