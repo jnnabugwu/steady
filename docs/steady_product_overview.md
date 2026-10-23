@@ -41,16 +41,16 @@ Apple-only), each with their own private copy of their data.*
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer for HealthKit (+ Foundation Models on macOS only) |
+| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit on iOS only; Foundation Models on macOS only) |
 | On-device LLM | Apple **Foundation Models** framework — **macOS only** (26 "Tahoe"+, Apple Silicon) | The coach is a deliberate, sit-down macOS experience, not a pocket-moment feature — see `CLAUDE.md` §11. iOS shows read-only session history (synced via CloudKit) but never runs inference. Decouples iOS's hardware floor from the A17 Pro+ requirement that on-device LLM support would otherwise impose. |
 | Sync | **CloudKit** (via SwiftData's CloudKit integration) | Single-user, Apple-only devices — CloudKit handles cross-device sync **and auth** (Apple ID) with no custom sync protocol, backend, or separate login system needed |
 | PDF parsing | **`pdfrx_engine`** (pure Dart), on-device | No backend at all — validated against real Cal AI exports (see `CLAUDE.md` §6 for the parsing algorithm and validation results) |
 | Local storage | **SwiftData** (CloudKit-backed) | Session memory for the coach, daily metrics cache — same store syncs automatically across iPhone and Mac |
-| Step/energy data | **HealthKit** via Flutter `health` package | iOS: long-standing native support. macOS: newly-native as of macOS 26 Tahoe (previously Catalyst-only) — confirmed shipping (referenced in Tahoe 26.6 release notes), but recent enough to expect some rough edges in tooling/plugin maturity |
+| Step/energy data | **HealthKit** via a `steady/healthkit` platform channel, **iOS only** | Read live on the iPhone and never stored in iCloud (App Store 5.1.3(ii); see `docs/technical_decisions.md`). The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` is `false` on macOS (checked on 26.6.2) |
 | Food data source | Cal AI PDF export (user-uploaded, either device) | Cal AI is the food log; this app doesn't replace it, it visualizes + coaches on top of it |
 
 **Platform requirement note:** macOS needs 26 Tahoe+/Apple Silicon for Foundation Models
-and native HealthKit. iOS's floor is **no longer tied to A17 Pro+** now that the coach
+(HealthKit isn't available on the Mac). iOS's floor is **no longer tied to A17 Pro+** now that the coach
 doesn't run there — that requirement existed specifically for on-device LLM support (see
 `CLAUDE.md` §11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need,
 which is meaningfully lower; the exact iOS minimum is an open decision, not yet resolved.
@@ -76,9 +76,9 @@ support Intel hardware at all).
 │  └────────┬──────────┘            │        │  └────────┬──────────┘            │
 │           │                      │        │           │                      │
 │  ┌────────┴──────┐                │        │  ┌────────┴──────┐  ┌───────────┐│
-│  │  HealthKit      │               │        │  │  HealthKit      │  │Foundation ││
-│  │  (platform      │               │        │  │  (native as of  │  │ Models    ││
-│  │   channel)      │               │        │  │   macOS 26)     │  │(platform  ││
+│  │  HealthKit      │               │        │  │  (no HealthKit  │  │Foundation ││
+│  │  (platform      │               │        │  │   on the Mac)   │  │ Models    ││
+│  │   channel)      │               │        │  │                 │  │(platform  ││
 │  └─────────────────┘               │        │  └─────────────────┘  │ channel)  ││
 │                                    │        │                        └───────────┘│
 └───────────┬──────────────────────┘        └───────────┬──────────────────────┘
@@ -104,9 +104,9 @@ support Intel hardware at all).
 daily_metrics(
   date,
   calories_eaten,           -- parsed from Cal AI PDF
-  calories_burned_active,   -- HealthKit: activeEnergyBurned
-  calories_burned_basal,    -- HealthKit: basalEnergyBurned (BMR fallback if missing)
-  steps,                     -- HealthKit: stepCount
+  calories_burned_active,   -- not written from HealthKit (5.1.3); Health is read live on iPhone
+  calories_burned_basal,    -- not written from HealthKit (5.1.3)
+  steps,                     -- not written from HealthKit (5.1.3)
   logging_status             -- 'logged' | 'partial' | 'skipped' (self-reported, end-of-day)
 )
 ```

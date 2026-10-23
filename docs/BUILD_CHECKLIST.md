@@ -265,13 +265,11 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not live data".
 
-- [ ] Apple Developer Program membership, real bundle ID, signing — before any CloudKit
-      schema is deployed to production.
 - [ ] Before **every** production schema deploy: run the CloudKit schema initializer on a
       debug build (Settings → Developer → Initialize CloudKit schema), then confirm every
       field in `docs/cloudkit_schema.md` exists with the right type in CloudKit Console
       (Development) before Deploy Schema Changes. Development only creates a field once a
-      record held a value in it, so normal use alone leaves fields missing (#93). Current
+      record held a value in it, so normal use alone leaves fields missing. Current
       state: the initializer ran against Development, the Console check passed and the
       first production deploy was done on 2026-10-23. Re-run before every later deploy.
 - [ ] Finalize every `@Model` schema before the first production deploy: CloudKit's

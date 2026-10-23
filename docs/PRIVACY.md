@@ -63,4 +63,5 @@ effective date.
 
 ## Contact
 
-Questions or requests: open an issue at <https://github.com/jnnabugwu/steady/issues>.
+Privacy questions or data requests: email **jordannnabugwu@gmail.com**. Please don't post personal
+details in public GitHub issues. Other questions about the app: <https://github.com/jnnabugwu/steady/issues>.

@@ -30,8 +30,9 @@ store. The Mac shows calories eaten (from Cal AI PDFs) and check-ins only, and t
 - The Mac, and the coach that runs there, have no Health data. Burned energy and steps appear
   only on the iPhone.
 - `DailyMetric`'s Health fields (`caloriesBurnedActive`, `caloriesBurnedBasal`, `steps`) stay
-  in the `DailyMetricRecord` CloudKit schema, because CloudKit's production schema is
-  additive-only and removing them now would only have to be undone if the decision changes.
+  in the `DailyMetricRecord` CloudKit schema. CloudKit's production schema is additive-only, so
+  a field removed now could never be re-added under the same name if this decision is
+  reversed (for example, by the iPhone→Mac handoff).
   Apple Health values aren't written to them in the synced store.
 - HealthKit is an iOS-only platform choice in `appProviderOverrides` (CLAUDE.md §9); macOS
   gets no HealthKit datasource.
