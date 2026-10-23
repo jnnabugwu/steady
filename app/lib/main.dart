@@ -117,9 +117,10 @@ Future<void> _clearLegacyHealthFields(ProviderContainer container) async {
 ///
 /// Also re-checks the iCloud account status whenever the app returns to the
 /// foreground: the user may have just signed in (or out) in Settings. This
-/// lives at the app root rather than in `SignInModule`, so signing out
-/// while Steady is in the background is caught on any screen, and the
-/// router's redirect then moves the user.
+/// lives at the app root rather than in the banner, so a change made while
+/// Steady is in the background is caught on any screen. The status never
+/// redirects (CLAUDE.md §7); it only shows or hides the home screen's
+/// iCloud sync banner.
 ///
 /// It also starts [dailyMetricsRemoteRefreshProvider], so screens re-read
 /// the store when CloudKit syncs in another device's rows (#73).

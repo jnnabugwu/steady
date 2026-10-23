@@ -1,5 +1,5 @@
 name: account_presentation
-description: "Account feature presentation: the account status controller and the iCloud sign-in screen."
+description: "Account feature presentation: the account status controller and the non-blocking iCloud sync banner."
 version: 0.0.1
 homepage:
 publish_to: 'none'

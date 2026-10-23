@@ -28,6 +28,7 @@ void main() {
   Future<void> pumpInScope(
     WidgetTester tester, {
     HealthKitRepository? health,
+    Widget? banner,
   }) => tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -40,12 +41,30 @@ void main() {
         home: MetricsHistoryModule(
           onImportRequested: () => importRequests++,
           onOpenSettings: () => settingsRequests++,
+          banner: banner,
         ),
       ),
     ),
   );
 
   group('MetricsHistoryModule', () {
+    testWidgets('shows the banner slot above the history', (tester) async {
+      await pumpInScope(
+        tester,
+        banner: const SizedBox(key: Key('testBanner'), height: 40),
+      );
+      await tester.pumpAndSettle();
+
+      final banner = find.byKey(const Key('testBanner'));
+      expect(banner, findsOneWidget);
+      expect(
+        tester.getTopLeft(banner).dy,
+        lessThan(
+          tester.getTopLeft(find.byKey(const Key('importButton_empty'))).dy,
+        ),
+      );
+    });
+
     testWidgets('shows a spinner while loading', (tester) async {
       final completer = Completer<Result<List<DailyMetric>>>();
       repository.onGetRange = (_, _) => completer.future;
