@@ -80,7 +80,7 @@ final class CheckInControllerProvider
   }
 }
 
-String _$checkInControllerHash() => r'26d86a431d230d21bc9490c1809a72fa24771226';
+String _$checkInControllerHash() => r'6a45bd754ca3d5d76fa45d6a1c37d3463632dcc8';
 
 /// One calendar day's check-in status.
 ///

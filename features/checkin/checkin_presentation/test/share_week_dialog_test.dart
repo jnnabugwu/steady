@@ -67,7 +67,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // The screen's own cairn spins while the week loads, so a pending
+    // week never settles.
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
     await tapShareWeek(tester, settle: settle);
   }
 
@@ -268,7 +274,13 @@ void main() {
 
       await openDialog(tester);
 
-      expect(find.text("Couldn't load this week: store down"), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ShareWeekDialog),
+          matching: find.text("Couldn't load this week: store down"),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(WeekCard), findsNothing);
       expect(shareButton(tester).onPressed, isNull);
     });
@@ -279,7 +291,13 @@ void main() {
 
       await openDialog(tester, settle: false);
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ShareWeekDialog),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(WeekCard), findsNothing);
       expect(shareButton(tester).onPressed, isNull);
 

@@ -40,3 +40,14 @@ MetricsRepository weekMetricsRepository(Ref ref) =>
 /// never holds the PNG; bytes are passed per call and dropped after.
 @Riverpod(keepAlive: true)
 WeekCardSharer weekCardSharer(Ref ref) => shareViaSystemSheet;
+
+/// The current time, as the check-in screen reads it.
+typedef CheckInClock = DateTime Function();
+
+/// The clock the check-in screen reads "now" from, to tell which day of the
+/// week's cairn is today (and so which days are still to come). Defaults to
+/// [DateTime.now]; tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+CheckInClock checkInClock(Ref ref) => DateTime.now;

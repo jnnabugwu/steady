@@ -9,6 +9,7 @@ import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
+import 'package:ui_kit/ui_kit.dart';
 
 void main() {
   /// Pumps the real app, with the real override list. If
@@ -66,12 +67,14 @@ void main() {
 
         expect(find.byType(CheckInModule), findsOneWidget);
         expect(moduleDay(tester), day);
-        expect(find.text('Not checked in yet'), findsOneWidget);
+        StatusOptionTile logged() =>
+            tester.widget(find.byKey(const Key('checkInButton_logged')));
+        expect(logged().selected, isFalse);
 
         await tester.tap(find.byKey(const Key('checkInButton_logged')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Status: Logged'), findsOneWidget);
+        expect(logged().selected, isTrue);
         expect(await storedStatus(container, day), LoggingStatus.logged);
       },
     );
