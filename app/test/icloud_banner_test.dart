@@ -129,7 +129,10 @@ void main() {
     });
 
     test('there is no /sign-in route', () {
-      final paths = $appRoutes.whereType<GoRoute>().map((r) => r.path);
+      // Every route, including those inside the app shell's branches.
+      Iterable<RouteBase> all(Iterable<RouteBase> routes) =>
+          routes.expand((r) => [r, ...all(r.routes)]);
+      final paths = all($appRoutes).whereType<GoRoute>().map((r) => r.path);
 
       expect(paths, isNot(contains('/sign-in')));
       expect(paths, contains('/'));
