@@ -198,6 +198,20 @@ void main() {
       expect(container.read(checkInTodayProvider), today);
     });
 
+    test('reads a UTC clock as the local calendar date', () {
+      final local = DateTime(2026, 10, 22, 23, 30);
+      now = local.toUtc();
+      final utcContainer = ProviderContainer.test(
+        overrides: [checkInClockProvider.overrideWithValue(() => now)],
+      );
+
+      expect(utcContainer.read(checkInTodayProvider), today);
+      expect(
+        utcContainer.read(checkInTodayProvider.notifier).untilNextMidnight(),
+        const Duration(minutes: 30),
+      );
+    });
+
     test('untilNextMidnight counts to the next local midnight', () {
       expect(
         container.read(checkInTodayProvider.notifier).untilNextMidnight(),

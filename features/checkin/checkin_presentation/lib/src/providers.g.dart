@@ -285,7 +285,8 @@ String _$checkInClockHash() => r'0e8e9089716c792c9e7aeab6f7ee8efd6817c2fd';
 
 /// Today's date (local midnight), as the check-in and cairn cards and the
 /// app's Today screen read it. Built from [checkInClockProvider], so tests
-/// pin it through the clock.
+/// pin it through the clock. The clock's value is read in local time, so a
+/// UTC clock still gives the local calendar date.
 ///
 /// **Rolls over at midnight** through [refreshToday]: the app root calls it
 /// from a timer set for the next local midnight ([untilNextMidnight]) and on
@@ -302,7 +303,8 @@ final checkInTodayProvider = CheckInTodayProvider._();
 
 /// Today's date (local midnight), as the check-in and cairn cards and the
 /// app's Today screen read it. Built from [checkInClockProvider], so tests
-/// pin it through the clock.
+/// pin it through the clock. The clock's value is read in local time, so a
+/// UTC clock still gives the local calendar date.
 ///
 /// **Rolls over at midnight** through [refreshToday]: the app root calls it
 /// from a timer set for the next local midnight ([untilNextMidnight]) and on
@@ -317,7 +319,8 @@ final class CheckInTodayProvider
     extends $NotifierProvider<CheckInToday, DateTime> {
   /// Today's date (local midnight), as the check-in and cairn cards and the
   /// app's Today screen read it. Built from [checkInClockProvider], so tests
-  /// pin it through the clock.
+  /// pin it through the clock. The clock's value is read in local time, so a
+  /// UTC clock still gives the local calendar date.
   ///
   /// **Rolls over at midnight** through [refreshToday]: the app root calls it
   /// from a timer set for the next local midnight ([untilNextMidnight]) and on
@@ -355,11 +358,12 @@ final class CheckInTodayProvider
   }
 }
 
-String _$checkInTodayHash() => r'327be222adbf1e7bcb71ec2c4567c30fe75a4e01';
+String _$checkInTodayHash() => r'b327da59413234c941e99468ba9b71d09f0c5deb';
 
 /// Today's date (local midnight), as the check-in and cairn cards and the
 /// app's Today screen read it. Built from [checkInClockProvider], so tests
-/// pin it through the clock.
+/// pin it through the clock. The clock's value is read in local time, so a
+/// UTC clock still gives the local calendar date.
 ///
 /// **Rolls over at midnight** through [refreshToday]: the app root calls it
 /// from a timer set for the next local midnight ([untilNextMidnight]) and on
