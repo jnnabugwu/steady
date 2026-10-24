@@ -135,6 +135,9 @@ class _CheckInCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // The last saved status: loading and error states carry it over (see
+    // `CheckInController.logCheckIn`), so a write in flight or a failed
+    // change keeps the saved tile selected, matching the cairn.
     final current = checkIn.value;
     final eyebrow = isToday
         ? "Tonight's check-in"
@@ -271,12 +274,12 @@ class _WeekCard extends StatelessWidget {
   Widget _cairn(WeekCardData data) {
     // This screen's own controller is the fresher source for [day]: it
     // changes the moment a check-in is logged, before the week re-reads.
-    final dayStatus = switch (checkIn) {
-      AsyncData(:final value) => (
-        value: value == null ? null : _loggingStatus(value),
-      ),
-      _ => null,
-    };
+    // Its last saved status counts while a write is in flight or after one
+    // failed, the same value the check-in card shows.
+    final saved = checkIn.value;
+    final dayStatus = checkIn.hasValue
+        ? (value: saved == null ? null : _loggingStatus(saved))
+        : null;
     // Days after today have no stone yet. A deep link to a later day of
     // the week makes that day the cairn's top, so its stone still shows.
     final focus = day.isAfter(today) ? day : today;

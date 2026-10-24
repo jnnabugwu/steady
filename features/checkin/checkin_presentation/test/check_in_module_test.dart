@@ -121,6 +121,42 @@ void main() {
       expect(find.text('Something went wrong: write failed'), findsOneWidget);
       expect(completedCount, 0);
     });
+
+    testWidgets('a failed change keeps the previous selection', (tester) async {
+      repository.onGetStatus = (_) => const Ok(CheckInStatus.logged);
+      metrics.onGetRange = (_, _) => Ok([
+        DailyMetric(date: midnight, loggingStatus: LoggingStatus.logged),
+      ]);
+      final write = Completer<Result<Unit>>();
+      repository.onLogCheckIn = (_, _) => write.future;
+
+      await pumpInScope(tester, midnight);
+      await tester.pumpAndSettle();
+      expect(selected(tester), CheckInStatus.logged);
+
+      await tester.tap(find.byKey(const Key('checkInButton_skipped')));
+      await tester.pump();
+
+      // While the write is in flight, the saved status stays selected.
+      expect(find.byKey(const Key('checkInProgress')), findsOneWidget);
+      expect(selected(tester), CheckInStatus.logged);
+      expect(title(tester), 'Added to this week’s stack');
+
+      write.complete(const Err(UnknownFailure('write failed')));
+      await tester.pumpAndSettle();
+
+      // After it fails: the error shows, and the tile, the title and the
+      // cairn all still show the last saved status.
+      expect(find.text('Something went wrong: write failed'), findsOneWidget);
+      expect(selected(tester), CheckInStatus.logged);
+      expect(title(tester), 'Added to this week’s stack');
+      final monday = cairn(tester).days.singleWhere((d) => d.label == 'M');
+      expect(monday.status, LoggingStatus.logged);
+      expect(completedCount, 0);
+      // The tiles are enabled again, so the change can be retried.
+      expect(tile(tester, CheckInStatus.skipped).onPressed, isNotNull);
+    });
+
     testWidgets(
       'rapid taps while a write is in flight log once and complete once',
       (tester) async {

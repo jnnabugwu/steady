@@ -90,6 +90,12 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
   /// fixed size.
   static const _previewWidth = 288.0;
 
+  /// The card's corner radius in its own logical size, so that once the
+  /// preview scales it down to [_previewWidth] it shows as
+  /// [SteadyRadii.tile]. The PNG renders it at [WeekCard.pixelRatio].
+  static final double _cardRadius =
+      SteadyRadii.tile * WeekCard.logicalSize.width / _previewWidth;
+
   /// The barrier behind the dialog: the screen background, mostly opaque.
   static final Color _barrierColor = SteadyColors.bgBase.withValues(alpha: 0.8);
 
@@ -135,18 +141,21 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
                     const Text('Share your week', style: SteadyType.cardTitle),
                   ],
                 ),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(SteadyRadii.tile),
-                  child: SizedBox(
-                    width: _previewWidth,
-                    height:
-                        _previewWidth *
-                        WeekCard.logicalSize.height /
-                        WeekCard.logicalSize.width,
-                    child: switch (week) {
-                      AsyncData(:final value) => FittedBox(
-                        child: RepaintBoundary(
-                          key: _cardKey,
+                SizedBox(
+                  width: _previewWidth,
+                  height:
+                      _previewWidth *
+                      WeekCard.logicalSize.height /
+                      WeekCard.logicalSize.width,
+                  child: switch (week) {
+                    AsyncData(:final value) => FittedBox(
+                      child: RepaintBoundary(
+                        key: _cardKey,
+                        // The rounding is inside the captured boundary, so
+                        // the shared PNG has the preview's corners
+                        // (transparent outside them), not a square card.
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(_cardRadius),
                           child: SizedBox.fromSize(
                             size: WeekCard.logicalSize,
                             child: WeekCard(
@@ -156,18 +165,19 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
                           ),
                         ),
                       ),
-                      AsyncError(error: final Failure failure) => _Message(
+                    ),
+                    AsyncError(error: final Failure failure) => _Placeholder(
+                      child: _Message(
                         "Couldn't load this week: ${failure.message}",
                       ),
-                      AsyncError() => const _Message(
-                        "Couldn't load this week.",
-                      ),
-                      AsyncLoading() => const ColoredBox(
-                        color: StatusOptionTile.unselectedFill,
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                    },
-                  ),
+                    ),
+                    AsyncError() => const _Placeholder(
+                      child: _Message("Couldn't load this week."),
+                    ),
+                    AsyncLoading() => const _Placeholder(
+                      child: CircularProgressIndicator(),
+                    ),
+                  },
                 ),
                 Switch(
                   key: const Key('shareWeekNumbersSwitch'),
@@ -262,20 +272,32 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
   }
 }
 
-/// A load error in the preview's place, on the faint glass tile fill.
+/// The preview's place while the week loads or fails to: the faint glass
+/// tile fill, rounded like the card, with [child] centred on it.
+class _Placeholder extends StatelessWidget {
+  const _Placeholder({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: StatusOptionTile.unselectedFill,
+      borderRadius: BorderRadius.circular(SteadyRadii.tile),
+    ),
+    child: Center(child: child),
+  );
+}
+
+/// A load error's text, for a [_Placeholder].
 class _Message extends StatelessWidget {
   const _Message(this.text);
 
   final String text;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: StatusOptionTile.unselectedFill,
-    child: Center(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Text(text, textAlign: TextAlign.center, style: SteadyType.body),
-      ),
-    ),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Text(text, textAlign: TextAlign.center, style: SteadyType.body),
   );
 }
