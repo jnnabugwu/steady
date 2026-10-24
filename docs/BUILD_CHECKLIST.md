@@ -229,9 +229,11 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       turns the feature on; `/craving` (`CravingRoute`) redirects home on macOS.
 - [x] No notifications, scores, streaks, resisted counts, calories or praise anywhere in
       the flow (a widget test checks the copy).
-- [ ] Not in v1: cravings in the data export; excluding the file from iOS device backups
-      (native); the soft help pointer after a week of frequent strong cravings; the Mac
-      weekly review's craving reflection (needs the iPhone→Mac handoff).
+- [x] The craving file stays in the user's own iOS device backup on purpose (a restored phone
+      keeps its history); the Settings text and PRIVACY.md say so.
+- [ ] Not in v1: cravings in the data export; the soft help pointer after a week of frequent
+      strong cravings; the Mac weekly review's craving reflection (needs the iPhone→Mac
+      handoff).
 - [ ] Not yet run on a physical iPhone (VoiceOver announcements, reduced motion, the help
       link opening Safari).
 

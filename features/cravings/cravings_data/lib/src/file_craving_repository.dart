@@ -13,10 +13,10 @@ import 'package:failures/failures.dart';
 /// data, and App Store 5.1.3(ii) says apps may not store personal health
 /// information in iCloud, so this is deliberately not SwiftData/CloudKit
 /// and nothing here syncs. The app keeps the file in the application
-/// support directory. Steady never sends it anywhere; like any app's local
-/// files, it can still be part of the person's own iOS device backup if
-/// they have one turned on (excluding it from backups is a follow-up, and
-/// needs native code).
+/// support directory. Steady never sends it anywhere. Like any app's local
+/// files it is part of the person's own iOS device backup if they have
+/// iCloud Backup on; that's deliberate (a restored phone keeps its craving
+/// history), and the Settings text and PRIVACY.md say so.
 ///
 /// Same pattern as `FileDailyMetricRepository` (`daily_metrics_data`):
 ///

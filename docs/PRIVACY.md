@@ -32,11 +32,14 @@ end, what you said was behind it (for example bored or tired), whether you took 
 minute, and how it ended (having it, it passed, not sure, or hungry). It doesn't record what
 food it was, calories, your location or any notes.
 
-- Craving check-ins are stored **only on that iPhone**, in the app's own storage. Steady
-  doesn't put them in iCloud or sync them to your other devices, and the Mac app doesn't
-  have them.
+- Craving check-ins are stored **on that iPhone**, in the app's own storage. Steady doesn't
+  put them in iCloud storage or sync them to your other devices, and the Mac app doesn't
+  have them. If your iPhone backs up to iCloud (Settings → [your name] → iCloud → iCloud
+  Backup), iOS includes them in that device backup like any other app data, so they come
+  back if you restore your phone from it.
 - You can delete them at any time in Steady's Settings → Cravings → "Delete craving
-  history". Deleting the app also removes them.
+  history". Deleting the app also removes them from the iPhone; an earlier iCloud Backup of
+  the phone may still contain them until that backup is replaced or deleted.
 - They aren't included in the data export.
 
 ## Apple Health

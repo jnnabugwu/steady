@@ -96,8 +96,9 @@ class _CravingSettingsCardState extends ConsumerState<CravingSettingsCard> {
           const Text('Cravings', style: SteadyType.cardTitle),
           const SizedBox(height: 8),
           const Text(
-            "Craving check-ins stay on this iPhone. They aren't synced or "
-            'backed up to iCloud by Steady.',
+            "Craving check-ins stay on this iPhone. Steady doesn't sync them. "
+            "If your iPhone backs up to iCloud, they're included in that "
+            'backup, like other app data.',
             key: Key('cravingStorageLine'),
             style: SteadyType.body,
           ),

@@ -65,8 +65,9 @@ void main() {
     expect(find.text('Cravings'), findsOneWidget);
     expect(
       find.text(
-        "Craving check-ins stay on this iPhone. They aren't synced or "
-        'backed up to iCloud by Steady.',
+        "Craving check-ins stay on this iPhone. Steady doesn't sync them. "
+        "If your iPhone backs up to iCloud, they're included in that "
+        'backup, like other app data.',
       ),
       findsOneWidget,
     );
