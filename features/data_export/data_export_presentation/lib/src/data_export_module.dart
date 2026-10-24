@@ -18,6 +18,10 @@ import 'package:ui_kit/ui_kit.dart';
 /// If settings outgrow one scrolling column, move this scaffold into the
 /// app layer and keep only the export card here.
 ///
+/// Pass 02 ("Native Glass", issue #68): a round glass back button over the
+/// 34px title, and the export on a [GlassCard] with a teal CSV pill and a
+/// glass JSON pill.
+///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
 class DataExportModule extends ConsumerWidget {
@@ -40,26 +44,13 @@ class DataExportModule extends ConsumerWidget {
     final export = ref.watch(dataExportControllerProvider);
 
     return Scaffold(
-      headers: [
-        AppBar(
-          title: const Text('Settings'),
-          leading: [
-            Semantics(
-              label: 'Back',
-              button: true,
-              child: IconButton.ghost(
-                key: const Key('settingsBackButton'),
-                icon: const Icon(LucideIcons.arrowLeft),
-                onPressed: onBack,
-              ),
-            ),
-          ],
-        ),
-      ],
+      headers: [_Header(onBack: onBack)],
       child: SafeArea(
-        child: Center(
+        top: false,
+        child: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 480),
               child: Column(
@@ -68,13 +59,18 @@ class DataExportModule extends ConsumerWidget {
                 children: [
                   for (final section in sections) ...[
                     section,
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 12),
                   ],
-                  SteadyCard(
+                  GlassCard(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(
+                          'Your data'.toUpperCase(),
+                          style: SteadyType.eyebrow,
+                        ),
+                        const SizedBox(height: 4),
                         const Text(
                           'Export your data',
                           style: SteadyType.cardTitle,
@@ -87,22 +83,25 @@ class DataExportModule extends ConsumerWidget {
                           style: SteadyType.body,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Includes daily metrics and check-ins. Coach '
                           "sessions aren't included yet.",
-                          style: SteadyType.body,
+                          style: SteadyType.body.copyWith(
+                            fontSize: 13,
+                            color: SteadyColors.textMuted,
+                          ),
                         ),
                         const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            for (final format in ExportFormat.values)
+                            for (final format in ExportFormat.values) ...[
+                              if (format.index > 0) const SizedBox(height: 8),
                               _ExportButton(
                                 format: format,
-                                // Disabled while an export (or its share sheet)
-                                // is in flight; the controller also ignores
-                                // exports then.
+                                // Disabled while an export (or its share
+                                // sheet) is in flight; the controller also
+                                // ignores exports then.
                                 enabled: !export.isLoading,
                                 onExport: (origin) => unawaited(
                                   ref
@@ -115,26 +114,26 @@ class DataExportModule extends ConsumerWidget {
                                       ),
                                 ),
                               ),
+                            ],
                           ],
                         ),
-                        const SizedBox(height: 16),
                         KeyedSubtree(
                           key: const Key('exportStatus'),
                           child: switch (export) {
-                            AsyncLoading() => const CircularProgressIndicator(),
-                            AsyncData(value: null) => const SizedBox.shrink(),
-                            AsyncData(:final value?) => Text(
-                              _receiptMessage(value),
-                              style: SteadyType.body,
+                            AsyncLoading() => const Padding(
+                              padding: EdgeInsets.only(top: 14),
+                              child: CircularProgressIndicator(),
                             ),
-                            AsyncError(error: final Failure failure) => Text(
+                            AsyncData(value: null) => const SizedBox.shrink(),
+                            AsyncData(:final value?) => _Status(
+                              _receiptMessage(value),
+                            ),
+                            AsyncError(error: final Failure failure) => _Status(
                               'Export failed: ${failure.message}. '
                               'Nothing was exported.',
-                              style: SteadyType.body,
                             ),
-                            AsyncError() => const Text(
+                            AsyncError() => const _Status(
                               'Export failed. Nothing was exported.',
-                              style: SteadyType.body,
                             ),
                           },
                         ),
@@ -160,8 +159,72 @@ class DataExportModule extends ConsumerWidget {
       };
 }
 
-/// One "Export CSV" / "Export JSON" button. Reports its own global rect so
-/// the share sheet's popover anchors to it on macOS and iPad.
+/// The Pass 02 screen header: a round glass back button above the 34px
+/// title.
+class _Header extends StatelessWidget {
+  const _Header({required this.onBack});
+
+  final void Function() onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GlassIconButton(
+              key: const Key('settingsBackButton'),
+              icon: LucideIcons.arrowLeft,
+              semanticLabel: 'Back',
+              onPressed: onBack,
+            ),
+            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text('Settings', style: SteadyType.headline),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The result of the last export, under the buttons.
+class _Status extends StatelessWidget {
+  const _Status(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Text(message, style: SteadyType.body),
+    );
+  }
+}
+
+/// Pill button labels: 15px, weight 600, as on the Pass 02 artboard.
+const _pillLabel = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
+
+/// The Pass 02 secondary pill ("Not tonight" on the artboard): shadcn's
+/// secondary button on the glass control fill and border.
+final AbstractButtonStyle _glassPillStyle = const ButtonStyle.secondary()
+    .withBackgroundColor(
+      color: SteadyColors.glassControlFill,
+      hoverColor: SteadyColors.glassControlBorder,
+    )
+    .withBorder(border: Border.all(color: SteadyColors.glassControlBorder));
+
+/// One "Export CSV" / "Export JSON" button, a 44px pill: CSV is the teal
+/// primary ([PrimaryButton], teal and pill-shaped via `steadyTheme`), JSON
+/// the glass secondary. Reports its own global rect so the share sheet's
+/// popover anchors to it on macOS and iPad.
 class _ExportButton extends StatelessWidget {
   const _ExportButton({
     required this.format,
@@ -175,24 +238,36 @@ class _ExportButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = Text('Export ${format.name.toUpperCase()}');
-    const icon = Icon(LucideIcons.download);
+    // The icon sits right beside the centred label, not pinned to the
+    // pill's left edge as a `leading` widget would be.
+    final label = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(LucideIcons.download, size: 16),
+        const SizedBox(width: 8),
+        Text('Export ${format.name.toUpperCase()}', style: _pillLabel),
+      ],
+    );
     final onPressed = enabled ? () => onExport(_globalRect(context)) : null;
     final key = Key('exportButton_${format.name}');
-    return switch (format) {
-      ExportFormat.csv => PrimaryButton(
-        key: key,
-        onPressed: onPressed,
-        leading: icon,
-        child: label,
-      ),
-      ExportFormat.json => OutlineButton(
-        key: key,
-        onPressed: onPressed,
-        leading: icon,
-        child: label,
-      ),
-    };
+    return SizedBox(
+      height: 44,
+      child: switch (format) {
+        ExportFormat.csv => PrimaryButton(
+          key: key,
+          onPressed: onPressed,
+          alignment: Alignment.center,
+          child: label,
+        ),
+        ExportFormat.json => Button(
+          key: key,
+          style: _glassPillStyle,
+          onPressed: onPressed,
+          alignment: Alignment.center,
+          child: label,
+        ),
+      },
+    );
   }
 
   static Rect? _globalRect(BuildContext context) {

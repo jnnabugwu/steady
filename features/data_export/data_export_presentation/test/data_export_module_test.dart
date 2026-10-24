@@ -48,13 +48,12 @@ void main() {
   Finder button(ExportFormat format) =>
       find.byKey(Key('exportButton_${format.name}'));
 
-  VoidCallback? onPressed(
-    WidgetTester tester,
-    ExportFormat format,
-  ) => switch (format) {
-    ExportFormat.csv => tester.widget<PrimaryButton>(button(format)).onPressed,
-    ExportFormat.json => tester.widget<OutlineButton>(button(format)).onPressed,
-  };
+  VoidCallback? onPressed(WidgetTester tester, ExportFormat format) =>
+      switch (format) {
+        ExportFormat.csv =>
+          tester.widget<PrimaryButton>(button(format)).onPressed,
+        ExportFormat.json => tester.widget<Button>(button(format)).onPressed,
+      };
 
   testWidgets('shows the app-composed sections above the export', (
     tester,
