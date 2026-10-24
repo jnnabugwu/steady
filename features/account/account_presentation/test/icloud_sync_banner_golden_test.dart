@@ -38,17 +38,22 @@ Future<void> pumpBannerGolden(WidgetTester tester, AccountStatus status) async {
 }
 
 void main() {
-  group('ICloudSyncBanner goldens', skip: goldenSkip, () {
+  group('ICloudSyncBanner goldens', () {
     for (final status in [
       AccountStatus.noAccount,
       AccountStatus.temporarilyUnavailable,
     ]) {
-      testWidgets(status.name, (tester) async {
-        await pumpBannerGolden(tester, status);
-        await expectLater(
-          find.byType(Scaffold),
-          matchesGoldenFile('goldens/icloud_sync_banner_${status.name}.png'),
-        );
+      final name = 'icloud_sync_banner_${status.name}';
+      // A group per golden so its skip reason is reported (testWidgets'
+      // `skip` is a bool).
+      group(status.name, skip: goldenSkip(name), () {
+        testWidgets('matches goldens/$name.png', (tester) async {
+          await pumpBannerGolden(tester, status);
+          await expectLater(
+            find.byType(Scaffold),
+            matchesGoldenFile('goldens/$name.png'),
+          );
+        });
       });
     }
   });

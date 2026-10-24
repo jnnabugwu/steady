@@ -119,8 +119,11 @@ void main() {
     expect(openSettingsCount, 1);
   });
 
+  // No tester.ensureSemantics(): testWidgets enables semantics by default
+  // (semanticsEnabled) and owns that handle, so nothing leaks when an
+  // expectation fails. A handle of our own can't be disposed via
+  // addTearDown: the undisposed-handle check runs before tear-downs.
   testWidgets('the dismiss button is announced as "Dismiss"', (tester) async {
-    final handle = tester.ensureSemantics();
     repository.onAccountStatus = () => const Ok(AccountStatus.noAccount);
     await pump(tester);
 
@@ -136,7 +139,6 @@ void main() {
         hasFocusAction: true,
       ),
     );
-    handle.dispose();
   });
 
   testWidgets('dismissing hides it for the session, even after a re-check', (
