@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:checkin_presentation/checkin_presentation.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
+
+import 'helpers/goldens.dart';
 
 void main() {
   final weekStart = DateTime(2026, 8, 21);
@@ -152,54 +151,29 @@ void main() {
     });
   });
 
-  // Goldens follow ui_kit's convention (packages/shared/ui_kit/test/
-  // helpers/harness.dart): made and compared on macOS only, because
-  // anti-aliased rounded and rotated edges rasterise slightly differently
-  // elsewhere. They draw with shadcn_flutter's bundled Geist standing in for
-  // SF Pro. Each golden is the card's 360×450 logical layout at 1x; the
-  // share flow renders that same layout at WeekCard.pixelRatio (1080×1350).
-  group(
-    'WeekCard goldens',
-    skip: Platform.isMacOS
-        ? null
-        : 'Goldens are macOS-only: pixel output differs on '
-              '${Platform.operatingSystem}.',
-    () {
-      setUp(_loadGoldenFonts);
+  // Goldens: macOS only, and only once their PNGs exist (see goldenSkip in
+  // helpers/goldens.dart). They draw with shadcn_flutter's bundled Geist
+  // standing in for SF Pro. Each golden is the card's 360×450 logical
+  // layout at 1x; the share flow renders that same layout at
+  // WeekCard.pixelRatio (1080×1350). Regenerate on a Mac with
+  // `flutter test --update-goldens test/week_card_test.dart`.
+  group('WeekCard goldens', () {
+    setUp(loadGoldenFonts);
 
-      testWidgets('statuses only', (tester) async {
-        await tester.pumpWidget(cardApp(data));
-        await expectLater(
-          find.byKey(const ValueKey('golden')),
-          matchesGoldenFile('goldens/week_card.png'),
-        );
-      });
+    testGolden('statuses only', 'goldens/week_card.png', (tester) async {
+      await tester.pumpWidget(cardApp(data));
+      await expectLater(
+        find.byKey(const ValueKey('golden')),
+        matchesGoldenFile('goldens/week_card.png'),
+      );
+    });
 
-      testWidgets('with numbers', (tester) async {
-        await tester.pumpWidget(cardApp(data, showNumbers: true));
-        await expectLater(
-          find.byKey(const ValueKey('golden')),
-          matchesGoldenFile('goldens/week_card_numbers.png'),
-        );
-      });
-    },
-  );
-}
-
-/// Registers shadcn_flutter's bundled Geist under the app's system font
-/// names, as ui_kit's goldens do, so text draws as glyphs, not boxes.
-Future<void> _loadGoldenFonts() async {
-  const fonts = 'packages/shadcn_flutter/lib/fonts';
-  FontLoader geistAs(String family) {
-    final loader = FontLoader(family);
-    for (final weight in ['Regular', 'Medium', 'SemiBold', 'Bold']) {
-      loader.addFont(rootBundle.load('$fonts/Geist-$weight.otf'));
-    }
-    return loader;
-  }
-
-  await Future.wait([
-    geistAs(SteadyType.fontFamily).load(),
-    geistAs(SteadyType.displayFontFamily).load(),
-  ]);
+    testGolden('with numbers', 'goldens/week_card_numbers.png', (tester) async {
+      await tester.pumpWidget(cardApp(data, showNumbers: true));
+      await expectLater(
+        find.byKey(const ValueKey('golden')),
+        matchesGoldenFile('goldens/week_card_numbers.png'),
+      );
+    });
+  });
 }
