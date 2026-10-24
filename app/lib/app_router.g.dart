@@ -18,6 +18,11 @@ RouteBase get $homeRoute => GoRouteData.$route(
       hasOverriddenOnExit: false,
       factory: $SettingsRoute._fromState,
     ),
+    GoRouteData.$route(
+      path: 'craving',
+      hasOverriddenOnExit: false,
+      factory: $CravingRoute._fromState,
+    ),
   ],
 );
 
@@ -46,6 +51,26 @@ mixin $SettingsRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CravingRoute on GoRouteData {
+  static CravingRoute _fromState(GoRouterState state) => const CravingRoute();
+
+  @override
+  String get location => GoRouteData.$location('/craving');
 
   @override
   void go(BuildContext context) => context.go(location);

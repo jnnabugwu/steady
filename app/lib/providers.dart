@@ -36,6 +36,15 @@
 /// stays `null`, and Health reads (`metricsHealthKitRepositoryProvider`,
 /// `health_access.dart`) return nothing.
 ///
+/// **Craving support is iOS only, and device-only** (#109): the iPhone
+/// stores craving check-ins in a JSON file in its application support
+/// directory ([cravingStoreFile]), never in SwiftData/CloudKit, so they
+/// never reach iCloud (App Store 5.1.3(ii); CLAUDE.md §7). Like Apple
+/// Health, it's bound only when [appProviderOverridesFor] is built with
+/// `isIOS: true`, which also sets `cravingSupportAvailableProvider`; on
+/// macOS the repository stays unbound and every craving surface renders
+/// nothing.
+///
 /// Nothing is wired for coach yet: `coach_domain` has no repository
 /// interface so far.
 library;
@@ -46,6 +55,8 @@ import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:cravings_data/cravings_data.dart';
+import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
@@ -53,6 +64,7 @@ import 'package:health_sync_data/health_sync_data.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -111,15 +123,25 @@ final List<Override> appProviderOverrides = appProviderOverridesFor(
   isIOS: Platform.isIOS,
 );
 
-/// [appProviderOverrides] for a given platform. The one platform choice in
-/// it is Apple Health, bound only when [isIOS] (see the library comment).
-/// A function, not just the list, so tests can build the iOS wiring on any
-/// host.
+/// The device-only craving file: `cravings.json` in the application
+/// support directory. Looked up on first use, not at launch.
+Future<File> cravingStoreFile() async =>
+    File('${(await getApplicationSupportDirectory()).path}/cravings.json');
+
+/// [appProviderOverrides] for a given platform. The platform choices in it
+/// are Apple Health and craving support, both bound only when [isIOS] (see
+/// the library comment). A function, not just the list, so tests can build
+/// the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
-  if (isIOS)
+  if (isIOS) ...[
     healthKitRepositoryProvider.overrideWith(
       (ref) => MethodChannelHealthKitRepository(),
     ),
+    cravingSupportAvailableProvider.overrideWithValue(true),
+    cravingRepositoryProvider.overrideWith(
+      (ref) => FileCravingRepository.locatedBy(cravingStoreFile),
+    ),
+  ],
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native
   // side answers `notConfigured`, which never blocks the app.

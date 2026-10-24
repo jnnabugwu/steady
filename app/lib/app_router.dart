@@ -10,14 +10,17 @@
 /// [ICloudSyncBanner] above the history instead.
 ///
 /// [ImportRoute] is pushed from the home screen's import action.
-/// [SettingsRoute] (`/settings`) hosts Apple Health, "Sample data" and the
-/// data export (and, in debug builds, the Developer card).
+/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" (iPhone),
+/// "Sample data" and the data export (and, in debug builds, the Developer
+/// card). [CravingRoute] (`/craving`, iPhone only) is the craving flow,
+/// pushed from the home screen's "Having a craving?" button.
 library;
 
 import 'dart:async';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,9 +61,16 @@ GoRouter router(Ref ref) {
 /// ([ICloudSyncBanner]) composed in above it. The banner hides itself
 /// unless iCloud isn't syncing; "Open Settings" goes through the account
 /// repository's platform channel.
+///
+/// Below the history, the cravings feature's [CravingHomeSection]: the
+/// "Having a craving?" button and the weekly line, on iPhone only (it
+/// renders nothing on macOS).
 @TypedGoRoute<HomeRoute>(
   path: '/',
-  routes: [TypedGoRoute<SettingsRoute>(path: 'settings')],
+  routes: [
+    TypedGoRoute<SettingsRoute>(path: 'settings'),
+    TypedGoRoute<CravingRoute>(path: 'craving'),
+  ],
 )
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
@@ -75,7 +85,20 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       banner: ICloudSyncBanner(
         onOpenSettings: () => unawaited(_openAccountSettings(container)),
       ),
+      footer: CravingHomeSection(
+        onCravingRequested: () => unawaited(_craving(context, container)),
+      ),
     );
+  }
+
+  /// Opens the craving flow, then refreshes the weekly line however it
+  /// closes (the flow may have saved a check-in after its own refresh).
+  static Future<void> _craving(
+    BuildContext context,
+    ProviderContainer container,
+  ) async {
+    await const CravingRoute().push<void>(context);
+    container.invalidate(cravingWeekControllerProvider);
   }
 
   /// Opens the iCloud settings. There is no UI for a failure, so an `Err`
@@ -110,7 +133,8 @@ class HomeRoute extends GoRouteData with $HomeRoute {
 }
 
 /// `/settings`: the settings screen (`DataExportModule`), with the Apple
-/// Health section ([AppleHealthCard]), "Sample data" ([SampleDataCard],
+/// Health section ([AppleHealthCard]), "Cravings" ([CravingSettingsCard],
+/// iPhone only), "Sample data" ([SampleDataCard],
 /// shown only while the sample export's days are in the store) and the
 /// debug-only Developer card
 /// ([developerSettingsSections]) composed in above the export.
@@ -127,10 +151,39 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
         context.canPop() ? context.pop() : const HomeRoute().go(context),
     sections: [
       const AppleHealthCard(),
+      // Renders nothing on macOS.
+      const CravingSettingsCard(),
       const SampleDataCard(),
       ...developerSettingsSections(),
     ],
   );
+}
+
+/// `/craving`: the craving flow ([CravingFlowModule]), iPhone only.
+///
+/// Nested under [HomeRoute], so home is always beneath it, even on a cold
+/// start straight to `/craving`, and closing or finishing returns there.
+/// Where craving support isn't offered (macOS) it redirects to `/`, so the
+/// flow can't open where its repository isn't bound.
+class CravingRoute extends GoRouteData with $CravingRoute {
+  /// Creates the craving route.
+  const CravingRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(cravingSupportAvailableProvider)
+      ? null
+      : const HomeRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    void leave() =>
+        context.canPop() ? context.pop() : const HomeRoute().go(context);
+    return CravingFlowModule(onClosed: leave, onFinished: leave);
+  }
 }
 
 /// `/import`: the Cal AI PDF import flow.
