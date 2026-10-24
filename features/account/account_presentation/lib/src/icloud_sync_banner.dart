@@ -23,6 +23,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// [onOpenSettings] does. It carries its own outer padding, so a hidden
 /// banner takes no space.
 ///
+/// Pass 02 ("Native Glass", issue #68): a [GlassCard] with a teal
+/// cloud-off badge, an eyebrow, the headline and body, a glass "Open
+/// Settings" pill and a round [GlassIconButton] to dismiss. This banner is
+/// the whole iCloud UI: there's no sign-in screen (CLAUDE.md §7).
+///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only.
 class ICloudSyncBanner extends ConsumerWidget {
   /// Creates the iCloud sync banner.
@@ -43,43 +48,74 @@ class ICloudSyncBanner extends ConsumerWidget {
 
     return Padding(
       key: const Key('iCloudBanner'),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-      child: Alert(
-        leading: const Icon(LucideIcons.cloudOff),
-        title: Text(
-          _headline(status),
-          key: const Key('iCloudBanner_title'),
-          style: SteadyType.cardTitle,
-        ),
-        content: Column(
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 4),
+      child: GlassCard(
+        padding: const EdgeInsets.fromLTRB(18, 14, 10, 16),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
           children: [
-            const SizedBox(height: 4),
-            const Text(
-              "Your data stays on this device and won't sync to your other "
-              'devices.',
-              key: Key('iCloudBanner_body'),
-              style: SteadyType.body,
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: _CloudBadge(),
             ),
-            const SizedBox(height: 12),
-            OutlineButton(
-              key: const Key('iCloudBannerButton_openSettings'),
-              onPressed: onOpenSettings,
-              child: const Text('Open Settings'),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('iCloud sync'.toUpperCase(), style: SteadyType.eyebrow),
+                  const SizedBox(height: 4),
+                  Text(
+                    _headline(status),
+                    key: const Key('iCloudBanner_title'),
+                    style: const TextStyle(
+                      fontFamily: SteadyType.fontFamily,
+                      fontFamilyFallback: SteadyType.fontFamilyFallback,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: SteadyColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    "Your data stays on this device and won't sync to your "
+                    'other devices.',
+                    key: const Key('iCloudBanner_body'),
+                    style: SteadyType.body.copyWith(
+                      fontSize: 14,
+                      color: SteadyColors.textTertiary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 36,
+                    child: Button(
+                      key: const Key('iCloudBannerButton_openSettings'),
+                      style: _glassPillStyle,
+                      onPressed: onOpenSettings,
+                      child: const Text(
+                        'Open Settings',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 4),
+            GlassIconButton(
+              key: const Key('iCloudBannerButton_dismiss'),
+              icon: LucideIcons.x,
+              semanticLabel: 'Dismiss',
+              onPressed: () => ref
+                  .read(iCloudBannerDismissalProvider.notifier)
+                  .dismissICloudBanner(),
             ),
           ],
-        ),
-        trailing: Semantics(
-          label: 'Dismiss',
-          button: true,
-          child: IconButton.ghost(
-            key: const Key('iCloudBannerButton_dismiss'),
-            icon: const Icon(LucideIcons.x),
-            onPressed: () => ref
-                .read(iCloudBannerDismissalProvider.notifier)
-                .dismissICloudBanner(),
-          ),
         ),
       ),
     );
@@ -92,4 +128,40 @@ class ICloudSyncBanner extends ConsumerWidget {
     AccountStatus.temporarilyUnavailable => "iCloud isn't available right now.",
     _ => 'Not signed into iCloud.',
   };
+}
+
+/// The Pass 02 secondary pill ("Not tonight" on the artboard): shadcn's
+/// secondary button on the glass control fill and border.
+final AbstractButtonStyle _glassPillStyle = const ButtonStyle.secondary()
+    .withBackgroundColor(
+      color: SteadyColors.glassControlFill,
+      hoverColor: SteadyColors.glassControlBorder,
+    )
+    .withBorder(border: Border.all(color: SteadyColors.glassControlBorder));
+
+/// A 32px round badge holding the cloud-off glyph, tinted teal like the
+/// coach avatar on the Pass 02 artboard. Decorative: the title says it.
+class _CloudBadge extends StatelessWidget {
+  const _CloudBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: SteadyColors.accentTealTint(0.16),
+          shape: BoxShape.circle,
+          border: Border.all(color: SteadyColors.coachCardBorder),
+        ),
+        child: const SizedBox.square(
+          dimension: 32,
+          child: Icon(
+            LucideIcons.cloudOff,
+            size: 16,
+            color: SteadyColors.accentTealHover,
+          ),
+        ),
+      ),
+    );
+  }
 }

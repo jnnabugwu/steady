@@ -119,6 +119,26 @@ void main() {
     expect(openSettingsCount, 1);
   });
 
+  testWidgets('the dismiss button is announced as "Dismiss"', (tester) async {
+    final handle = tester.ensureSemantics();
+    repository.onAccountStatus = () => const Ok(AccountStatus.noAccount);
+    await pump(tester);
+
+    expect(
+      tester.getSemantics(find.byKey(const Key('iCloudBannerButton_dismiss'))),
+      matchesSemantics(
+        label: 'Dismiss',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
+    handle.dispose();
+  });
+
   testWidgets('dismissing hides it for the session, even after a re-check', (
     tester,
   ) async {
