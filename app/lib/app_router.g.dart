@@ -6,25 +6,57 @@ part of 'app_router.dart';
 // GoRouterGenerator
 // **************************************************************************
 
-List<RouteBase> get $appRoutes => [$homeRoute, $importRoute, $checkInRoute];
+List<RouteBase> get $appRoutes => [$appShellRoute, $importRoute];
 
-RouteBase get $homeRoute => GoRouteData.$route(
-  path: '/',
-  hasOverriddenOnExit: false,
-  factory: $HomeRoute._fromState,
-  routes: [
-    GoRouteData.$route(
-      path: 'settings',
-      hasOverriddenOnExit: false,
-      factory: $SettingsRoute._fromState,
+RouteBase get $appShellRoute => StatefulShellRouteData.$route(
+  factory: $AppShellRouteExtension._fromState,
+  branches: [
+    StatefulShellBranchData.$branch(
+      routes: [
+        GoRouteData.$route(
+          path: '/',
+          hasOverriddenOnExit: false,
+          factory: $HomeRoute._fromState,
+          routes: [
+            GoRouteData.$route(
+              path: 'checkin/:date',
+              hasOverriddenOnExit: false,
+              factory: $CheckInRoute._fromState,
+            ),
+            GoRouteData.$route(
+              path: 'craving',
+              hasOverriddenOnExit: false,
+              parentNavigatorKey: CravingRoute.$parentNavigatorKey,
+              factory: $CravingRoute._fromState,
+            ),
+          ],
+        ),
+      ],
     ),
-    GoRouteData.$route(
-      path: 'craving',
-      hasOverriddenOnExit: false,
-      factory: $CravingRoute._fromState,
+    StatefulShellBranchData.$branch(
+      routes: [
+        GoRouteData.$route(
+          path: '/week',
+          hasOverriddenOnExit: false,
+          factory: $WeekRoute._fromState,
+        ),
+      ],
+    ),
+    StatefulShellBranchData.$branch(
+      routes: [
+        GoRouteData.$route(
+          path: '/settings',
+          hasOverriddenOnExit: false,
+          factory: $SettingsRoute._fromState,
+        ),
+      ],
     ),
   ],
 );
+
+extension $AppShellRouteExtension on AppShellRoute {
+  static AppShellRoute _fromState(GoRouterState state) => const AppShellRoute();
+}
 
 mixin $HomeRoute on GoRouteData {
   static HomeRoute _fromState(GoRouterState state) => const HomeRoute();
@@ -46,11 +78,17 @@ mixin $HomeRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
-mixin $SettingsRoute on GoRouteData {
-  static SettingsRoute _fromState(GoRouterState state) => const SettingsRoute();
+mixin $CheckInRoute on GoRouteData {
+  static CheckInRoute _fromState(GoRouterState state) => CheckInRoute(
+    date: DateTime.parse(decodeCheckInDate(state.pathParameters['date']!)),
+  );
+
+  CheckInRoute get _self => this as CheckInRoute;
 
   @override
-  String get location => GoRouteData.$location('/settings');
+  String get location => GoRouteData.$location(
+    '/checkin/${Uri.encodeComponent(encodeCheckInDate(_self.date.toString()))}',
+  );
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -86,17 +124,11 @@ mixin $CravingRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
-RouteBase get $importRoute => GoRouteData.$route(
-  path: '/import',
-  hasOverriddenOnExit: false,
-  factory: $ImportRoute._fromState,
-);
-
-mixin $ImportRoute on GoRouteData {
-  static ImportRoute _fromState(GoRouterState state) => const ImportRoute();
+mixin $WeekRoute on GoRouteData {
+  static WeekRoute _fromState(GoRouterState state) => const WeekRoute();
 
   @override
-  String get location => GoRouteData.$location('/import');
+  String get location => GoRouteData.$location('/week');
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -112,23 +144,37 @@ mixin $ImportRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
-RouteBase get $checkInRoute => GoRouteData.$route(
-  path: '/checkin/:date',
-  hasOverriddenOnExit: false,
-  factory: $CheckInRoute._fromState,
-);
-
-mixin $CheckInRoute on GoRouteData {
-  static CheckInRoute _fromState(GoRouterState state) => CheckInRoute(
-    date: DateTime.parse(decodeCheckInDate(state.pathParameters['date']!)),
-  );
-
-  CheckInRoute get _self => this as CheckInRoute;
+mixin $SettingsRoute on GoRouteData {
+  static SettingsRoute _fromState(GoRouterState state) => const SettingsRoute();
 
   @override
-  String get location => GoRouteData.$location(
-    '/checkin/${Uri.encodeComponent(encodeCheckInDate(_self.date.toString()))}',
-  );
+  String get location => GoRouteData.$location('/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $importRoute => GoRouteData.$route(
+  path: '/import',
+  hasOverriddenOnExit: false,
+  factory: $ImportRoute._fromState,
+);
+
+mixin $ImportRoute on GoRouteData {
+  static ImportRoute _fromState(GoRouterState state) => const ImportRoute();
+
+  @override
+  String get location => GoRouteData.$location('/import');
 
   @override
   void go(BuildContext context) => context.go(location);
@@ -227,4 +273,4 @@ final class RouterProvider
   }
 }
 
-String _$routerHash() => r'0089ba9ad4bf2ad4871b31ab83f507dd4e9f9adc';
+String _$routerHash() => r'46fcb91068f13a2a20b7eec93ead6d81ac970d4c';

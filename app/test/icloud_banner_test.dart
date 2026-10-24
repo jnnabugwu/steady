@@ -129,10 +129,26 @@ void main() {
     });
 
     test('there is no /sign-in route', () {
-      final paths = $appRoutes.whereType<GoRoute>().map((r) => r.path);
+      // Every route's full path, including those inside the app shell's
+      // branches. Child paths are relative, so each is joined onto its
+      // nearest GoRoute ancestor's path.
+      String join(String parent, String child) {
+        if (child.startsWith('/')) return child;
+        final base = parent.endsWith('/') ? parent : '$parent/';
+        return '$base$child';
+      }
+
+      Iterable<String> fullPaths(Iterable<RouteBase> routes, String parent) =>
+          routes.expand((r) {
+            final path = r is GoRoute ? join(parent, r.path) : parent;
+            return [if (r is GoRoute) path, ...fullPaths(r.routes, path)];
+          });
+      final paths = fullPaths($appRoutes, '/').toList();
 
       expect(paths, isNot(contains('/sign-in')));
+      expect(paths.where((p) => p.endsWith('sign-in')), isEmpty);
       expect(paths, contains('/'));
+      expect(paths, contains('/checkin/:date'));
     });
 
     testWidgets('signing out while on the pushed import screen stays there', (

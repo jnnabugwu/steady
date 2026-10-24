@@ -9,7 +9,22 @@
 /// isn't syncing, the home screen shows the account feature's
 /// [ICloudSyncBanner] above the history instead.
 ///
-/// [ImportRoute] is pushed from the home screen's import action.
+/// **The shell** ([AppShellRoute], issue #66) is a typed
+/// `StatefulShellRoute` with one branch per tab of the floating
+/// [GlassTabBar] (`app_shell.dart`): Today (`/`, [HomeRoute]), Week
+/// (`/week`, [WeekRoute]) and Settings (`/settings`, [SettingsRoute]). Each
+/// branch keeps its own navigation stack. The Coach tab joins once the
+/// coach screen exists.
+///
+/// [CheckInRoute] (`/checkin/<date>`) is nested under [HomeRoute] in the
+/// Today branch: a cold start from a deep link lands on Today with the
+/// day's check-in on top and the tab bar still showing, and tapping Today
+/// returns to it. [CravingRoute] (`/craving`) is nested under [HomeRoute]
+/// too, so home is beneath it on a cold start, but it's a focused flow, so
+/// it's presented on the root navigator, over the shell and its bar.
+/// [ImportRoute] (`/import`) stays top-level, on the root navigator over
+/// the shell, pushed from the import actions.
+///
 /// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" (iPhone),
 /// "Sample data" and the data export (and, in debug builds, the Developer
 /// card). [CravingRoute] (`/craving`, iPhone only) is the craving flow,
@@ -28,11 +43,17 @@ import 'package:go_router/go_router.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:steady/app_shell.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
 import 'package:steady/sample_data_card.dart';
+import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
 
 part 'app_router.g.dart';
+
+/// The root navigator, above the shell. Routes that present over the shell
+/// and its tab bar ([CravingRoute]) name it as their `$parentNavigatorKey`.
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
 /// The app's single [GoRouter].
 ///
@@ -49,6 +70,7 @@ part 'app_router.g.dart';
 @Riverpod(keepAlive: true)
 GoRouter router(Ref ref) {
   final router = GoRouter(
+    navigatorKey: _rootNavigatorKey,
     initialLocation: '/',
     routes: $appRoutes,
     redirect: (_, state) => redirectMalformedCheckIn(state.uri),
@@ -57,7 +79,60 @@ GoRouter router(Ref ref) {
   return router;
 }
 
-/// `/`: the home screen, the metrics history, with the iCloud sync banner
+/// The app shell: the tab branches under the floating [GlassTabBar]
+/// ([AppShell]). Branch order is tab order ([appShellTabs]).
+@TypedStatefulShellRoute<AppShellRoute>(
+  branches: [
+    TypedStatefulShellBranch<TodayBranch>(
+      routes: [
+        TypedGoRoute<HomeRoute>(
+          path: '/',
+          routes: [
+            TypedGoRoute<CheckInRoute>(path: 'checkin/:date'),
+            TypedGoRoute<CravingRoute>(path: 'craving'),
+          ],
+        ),
+      ],
+    ),
+    TypedStatefulShellBranch<WeekBranch>(
+      routes: [TypedGoRoute<WeekRoute>(path: '/week')],
+    ),
+    TypedStatefulShellBranch<SettingsBranch>(
+      routes: [TypedGoRoute<SettingsRoute>(path: '/settings')],
+    ),
+  ],
+)
+class AppShellRoute extends StatefulShellRouteData {
+  /// Creates the shell route.
+  const AppShellRoute();
+
+  @override
+  Widget builder(
+    BuildContext context,
+    GoRouterState state,
+    StatefulNavigationShell navigationShell,
+  ) => AppShell(navigationShell: navigationShell);
+}
+
+/// The Today tab's branch: [HomeRoute] and what's pushed on it.
+class TodayBranch extends StatefulShellBranchData {
+  /// Creates the Today branch.
+  const TodayBranch();
+}
+
+/// The Week tab's branch: [WeekRoute].
+class WeekBranch extends StatefulShellBranchData {
+  /// Creates the Week branch.
+  const WeekBranch();
+}
+
+/// The Settings tab's branch: [SettingsRoute].
+class SettingsBranch extends StatefulShellBranchData {
+  /// Creates the Settings branch.
+  const SettingsBranch();
+}
+
+/// `/`, the Today tab: the home screen, the metrics history, with the iCloud sync banner
 /// ([ICloudSyncBanner]) composed in above it. The banner hides itself
 /// unless iCloud isn't syncing; "Open Settings" goes through the account
 /// repository's platform channel.
@@ -65,13 +140,6 @@ GoRouter router(Ref ref) {
 /// Below the history, the cravings feature's [CravingHomeSection]: the
 /// "Having a craving?" button and the weekly line, on iPhone only (it
 /// renders nothing on macOS).
-@TypedGoRoute<HomeRoute>(
-  path: '/',
-  routes: [
-    TypedGoRoute<SettingsRoute>(path: 'settings'),
-    TypedGoRoute<CravingRoute>(path: 'craving'),
-  ],
-)
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -81,6 +149,7 @@ class HomeRoute extends GoRouteData with $HomeRoute {
     final container = ProviderScope.containerOf(context, listen: false);
     return MetricsHistoryModule(
       onImportRequested: () => unawaited(_import(context, container)),
+      // Switches to the Settings tab.
       onOpenSettings: () => const SettingsRoute().go(context),
       banner: ICloudSyncBanner(
         onOpenSettings: () => unawaited(_openAccountSettings(container)),
@@ -132,15 +201,33 @@ class HomeRoute extends GoRouteData with $HomeRoute {
   }
 }
 
-/// `/settings`: the settings screen (`DataExportModule`), with the Apple
+/// `/week`, the Week tab: the metrics history ([MetricsHistoryModule]) on
+/// its own, without Today's iCloud banner and cravings section. A
+/// placeholder for the week view proper; it shares the history's import and
+/// settings actions with Today.
+class WeekRoute extends GoRouteData with $WeekRoute {
+  /// Creates the Week route.
+  const WeekRoute();
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return MetricsHistoryModule(
+      onImportRequested: () => unawaited(HomeRoute._import(context, container)),
+      onOpenSettings: () => const SettingsRoute().go(context),
+    );
+  }
+}
+
+/// `/settings`, the Settings tab: the settings screen (`DataExportModule`), with the Apple
 /// Health section ([AppleHealthCard]), "Cravings" ([CravingSettingsCard],
 /// iPhone only), "Sample data" ([SampleDataCard],
 /// shown only while the sample export's days are in the store) and the
 /// debug-only Developer card
 /// ([developerSettingsSections]) composed in above the export.
 ///
-/// Nested under [HomeRoute], so the home screen is always beneath it, even
-/// on a cold start straight to `/settings`, and back returns home.
+/// The root of its own tab, so there's nothing to pop: back switches to
+/// the Today tab, on a cold start straight to `/settings` too.
 class SettingsRoute extends GoRouteData with $SettingsRoute {
   /// Creates the settings route.
   const SettingsRoute();
@@ -163,11 +250,17 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
 ///
 /// Nested under [HomeRoute], so home is always beneath it, even on a cold
 /// start straight to `/craving`, and closing or finishing returns there.
+/// Presented on the root navigator, over the shell and its tab bar: it's a
+/// focused flow with its own close action.
 /// Where craving support isn't offered (macOS) it redirects to `/`, so the
 /// flow can't open where its repository isn't bound.
 class CravingRoute extends GoRouteData with $CravingRoute {
   /// Creates the craving route.
   const CravingRoute();
+
+  /// Presents the flow over the shell rather than inside the Today tab.
+  static final GlobalKey<NavigatorState> $parentNavigatorKey =
+      _rootNavigatorKey;
 
   @override
   String? redirect(BuildContext context, GoRouterState state) =>
@@ -187,6 +280,9 @@ class CravingRoute extends GoRouteData with $CravingRoute {
 }
 
 /// `/import`: the Cal AI PDF import flow.
+///
+/// Top-level, outside the shell, so it's presented on the root navigator
+/// over the shell and its tab bar.
 @TypedGoRoute<ImportRoute>(path: '/import')
 class ImportRoute extends GoRouteData with $ImportRoute {
   /// Creates the import route.
@@ -219,7 +315,11 @@ class ImportRoute extends GoRouteData with $ImportRoute {
 /// it, so `/checkin/2026-10-19`, `/checkin/2026-10-19T21:30:00` and
 /// `/checkin/2026-10-19T23:30:00-05:00` all resolve to local midnight on the
 /// 19th. [CheckInModule] normalizes to midnight itself.
-@TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
+///
+/// Nested under [HomeRoute] in the Today branch (path `checkin/:date`
+/// under `/`, so the location is still `/checkin/<date>`): Today is
+/// beneath it, even on a cold start, and the tab bar stays up, so tapping
+/// Today returns there.
 class CheckInRoute extends GoRouteData with $CheckInRoute {
   /// Creates the check-in route for [date].
   const CheckInRoute({required this.date});
