@@ -64,7 +64,8 @@ ResultFuture<Uint8List> renderWeekCardPng(
   }
 }
 
-/// Previews the week's share card and shares it.
+/// Previews the week's share card and shares it, in a Pass 02 [GlassCard]
+/// dialog (§10).
 ///
 /// Calories and steps are off by default and opt-in per share through the
 /// switch. The preview is the very [RepaintBoundary] that gets rendered, so
@@ -89,6 +90,15 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
   /// fixed size.
   static const _previewWidth = 288.0;
 
+  /// The card's corner radius in its own logical size, so that once the
+  /// preview scales it down to [_previewWidth] it shows as
+  /// [SteadyRadii.tile]. The PNG renders it at [WeekCard.pixelRatio].
+  static final double _cardRadius =
+      SteadyRadii.tile * WeekCard.logicalSize.width / _previewWidth;
+
+  /// The barrier behind the dialog: the screen background, mostly opaque.
+  static final Color _barrierColor = SteadyColors.bgBase.withValues(alpha: 0.8);
+
   final GlobalKey _cardKey = GlobalKey();
   final GlobalKey _shareButtonKey = GlobalKey();
 
@@ -102,85 +112,123 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
     final week = ref.watch(weekCardControllerProvider(widget.weekStart));
     final loaded = week is AsyncData<WeekCardData>;
 
-    return AlertDialog(
-      title: const Text('Share your week'),
-      content: SizedBox(
-        width: _previewWidth,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: _previewWidth,
-              height:
-                  _previewWidth *
-                  WeekCard.logicalSize.height /
-                  WeekCard.logicalSize.width,
-              child: switch (week) {
-                AsyncData(:final value) => FittedBox(
-                  child: RepaintBoundary(
-                    key: _cardKey,
-                    child: SizedBox.fromSize(
-                      size: WeekCard.logicalSize,
-                      child: WeekCard(data: value, showNumbers: _showNumbers),
-                    ),
-                  ),
-                ),
-                AsyncError(error: final Failure failure) => Center(
-                  child: Text(
-                    "Couldn't load this week: ${failure.message}",
-                    style: SteadyType.body,
-                  ),
-                ),
-                AsyncError() => const Center(
-                  child: Text(
-                    "Couldn't load this week.",
-                    style: SteadyType.body,
-                  ),
-                ),
-                AsyncLoading() => const Center(
-                  child: CircularProgressIndicator(),
-                ),
-              },
-            ),
-            const SizedBox(height: 16),
-            Switch(
-              key: const Key('shareWeekNumbersSwitch'),
-              value: _showNumbers,
-              onChanged: loaded && !_sharing
-                  ? (value) => setState(() => _showNumbers = value)
-                  : null,
-              trailing: const Text('Include calories and steps'),
-            ),
-            if (_shareFailure case final failure?) ...[
-              const SizedBox(height: 12),
-              Text(
-                "Couldn't share: ${failure.message}",
-                style: SteadyType.body,
-              ),
-            ],
-          ],
-        ),
+    return ModalBackdrop(
+      theme: ModalBackdropTheme(
+        borderRadius: BorderRadius.circular(SteadyRadii.card),
+        barrierColor: _barrierColor,
       ),
-      actions: [
-        OutlineButton(
-          key: const Key('shareWeekCancelButton'),
-          // Disabled while a share is in flight, so the dialog isn't torn
-          // down under the render or the share sheet.
-          onPressed: _sharing
-              ? null
-              : () => unawaited(closeOverlay<void>(context)),
-          child: const Text('Cancel'),
+      // A glass card alone is see-through over the screen behind the
+      // barrier, so it sits on an opaque card-coloured base of the same
+      // shape.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: SteadyColors.bgCard,
+          borderRadius: BorderRadius.circular(SteadyRadii.card),
         ),
-        KeyedSubtree(
-          key: _shareButtonKey,
-          child: PrimaryButton(
-            key: const Key('shareWeekConfirmButton'),
-            onPressed: loaded && !_sharing ? () => unawaited(_share()) : null,
-            child: Text(_sharing ? 'Sharing…' : 'Share'),
+        child: GlassCard(
+          child: SizedBox(
+            width: _previewWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              spacing: 14,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 4,
+                  children: [
+                    Text('Share card'.toUpperCase(), style: SteadyType.eyebrow),
+                    const Text('Share your week', style: SteadyType.cardTitle),
+                  ],
+                ),
+                SizedBox(
+                  width: _previewWidth,
+                  height:
+                      _previewWidth *
+                      WeekCard.logicalSize.height /
+                      WeekCard.logicalSize.width,
+                  child: switch (week) {
+                    AsyncData(:final value) => FittedBox(
+                      child: RepaintBoundary(
+                        key: _cardKey,
+                        // The rounding is inside the captured boundary, so
+                        // the shared PNG has the preview's corners
+                        // (transparent outside them), not a square card.
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(_cardRadius),
+                          child: SizedBox.fromSize(
+                            size: WeekCard.logicalSize,
+                            child: WeekCard(
+                              data: value,
+                              showNumbers: _showNumbers,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    AsyncError(error: final Failure failure) => _Placeholder(
+                      child: _Message(
+                        "Couldn't load this week: ${failure.message}",
+                      ),
+                    ),
+                    AsyncError() => const _Placeholder(
+                      child: _Message("Couldn't load this week."),
+                    ),
+                    AsyncLoading() => const _Placeholder(
+                      child: CircularProgressIndicator(),
+                    ),
+                  },
+                ),
+                Switch(
+                  key: const Key('shareWeekNumbersSwitch'),
+                  value: _showNumbers,
+                  onChanged: loaded && !_sharing
+                      ? (value) => setState(() => _showNumbers = value)
+                      : null,
+                  trailing: const Text(
+                    'Include calories and steps',
+                    style: SteadyType.body,
+                  ),
+                ),
+                if (_shareFailure case final failure?)
+                  Text(
+                    "Couldn't share: ${failure.message}",
+                    style: SteadyType.body,
+                  ),
+                // The Pass 02 button pair: the primary action fills the
+                // row, the secondary one hugs its label.
+                Row(
+                  spacing: 8,
+                  children: [
+                    OutlineButton(
+                      key: const Key('shareWeekCancelButton'),
+                      // Disabled while a share is in flight, so the dialog
+                      // isn't torn down under the render or the share sheet.
+                      onPressed: _sharing
+                          ? null
+                          : () => unawaited(closeOverlay<void>(context)),
+                      child: const Text('Cancel'),
+                    ),
+                    Expanded(
+                      child: KeyedSubtree(
+                        key: _shareButtonKey,
+                        child: PrimaryButton(
+                          key: const Key('shareWeekConfirmButton'),
+                          onPressed: loaded && !_sharing
+                              ? () => unawaited(_share())
+                              : null,
+                          alignment: Alignment.center,
+                          child: Text(_sharing ? 'Sharing…' : 'Share'),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-      ],
+      ),
     );
   }
 
@@ -222,4 +270,34 @@ class _ShareWeekDialogState extends ConsumerState<ShareWeekDialog> {
     if (box is! RenderBox || !box.hasSize) return null;
     return box.localToGlobal(Offset.zero) & box.size;
   }
+}
+
+/// The preview's place while the week loads or fails to: the faint glass
+/// tile fill, rounded like the card, with [child] centred on it.
+class _Placeholder extends StatelessWidget {
+  const _Placeholder({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      color: StatusOptionTile.unselectedFill,
+      borderRadius: BorderRadius.circular(SteadyRadii.tile),
+    ),
+    child: Center(child: child),
+  );
+}
+
+/// A load error's text, for a [_Placeholder].
+class _Message extends StatelessWidget {
+  const _Message(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.all(16),
+    child: Text(text, textAlign: TextAlign.center, style: SteadyType.body),
+  );
 }

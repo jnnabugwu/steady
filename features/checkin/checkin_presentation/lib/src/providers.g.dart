@@ -224,3 +224,61 @@ final class WeekCardSharerProvider
 }
 
 String _$weekCardSharerHash() => r'f541e8cf01b63a21af285437c74963169e2162ba';
+
+/// The clock the check-in screen reads "now" from, to tell which day of the
+/// week's cairn is today (and so which days are still to come). Defaults to
+/// [DateTime.now]; tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(checkInClock)
+final checkInClockProvider = CheckInClockProvider._();
+
+/// The clock the check-in screen reads "now" from, to tell which day of the
+/// week's cairn is today (and so which days are still to come). Defaults to
+/// [DateTime.now]; tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CheckInClockProvider
+    extends $FunctionalProvider<CheckInClock, CheckInClock, CheckInClock>
+    with $Provider<CheckInClock> {
+  /// The clock the check-in screen reads "now" from, to tell which day of the
+  /// week's cairn is today (and so which days are still to come). Defaults to
+  /// [DateTime.now]; tests pin it.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CheckInClockProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'checkInClockProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$checkInClockHash();
+
+  @$internal
+  @override
+  $ProviderElement<CheckInClock> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  CheckInClock create(Ref ref) {
+    return checkInClock(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CheckInClock value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CheckInClock>(value),
+    );
+  }
+}
+
+String _$checkInClockHash() => r'0e8e9089716c792c9e7aeab6f7ee8efd6817c2fd';

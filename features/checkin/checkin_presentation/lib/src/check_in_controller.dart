@@ -36,6 +36,11 @@ class CheckInController extends _$CheckInController {
   /// `AsyncError` carrying the thrown [Failure], or an [UnknownFailure]
   /// wrapping anything else, so the next call can retry.
   ///
+  /// The loading and error states keep the last saved status as their
+  /// `value` (Riverpod's notifier `state` setter carries the previous value
+  /// over), so the screen can keep showing it while a change is in flight
+  /// and after one fails.
+  ///
   /// Ignored while the state is loading (the initial read or another write
   /// still in flight), so rapid taps can't start concurrent writes, and
   /// after the provider has been disposed.

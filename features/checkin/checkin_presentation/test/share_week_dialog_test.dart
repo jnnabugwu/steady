@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'dart:ui' as ui;
 
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
@@ -16,6 +17,20 @@ import 'helpers/fake_metrics_repository.dart';
 (int, int) _pngSize(Uint8List png) {
   final header = ByteData.sublistView(png);
   return (header.getUint32(16), header.getUint32(20));
+}
+
+/// Decodes [png] and returns the alpha of the pixel at ([x], [y]).
+Future<int> _alphaAt(Uint8List png, int x, int y) async {
+  final codec = await ui.instantiateImageCodec(png);
+  final frame = await codec.getNextFrame();
+  final image = frame.image;
+  try {
+    final rgba = await image.toByteData();
+    return rgba!.getUint8((y * image.width + x) * 4 + 3);
+  } finally {
+    image.dispose();
+    codec.dispose();
+  }
 }
 
 void main() {
@@ -67,7 +82,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    // The screen's own cairn spins while the week loads, so a pending
+    // week never settles.
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
     await tapShareWeek(tester, settle: settle);
   }
 
@@ -180,6 +201,30 @@ void main() {
       expect(find.text('Share your week'), findsNothing);
     });
 
+    testWidgets('the shared PNG has the rounded corners the preview shows', (
+      tester,
+    ) async {
+      await openDialog(tester);
+      await share(tester);
+
+      final png = sharer.calls.single.png;
+      final alphas = await tester.runAsync(
+        () => Future.wait([
+          // Each corner pixel is outside the rounding: transparent.
+          _alphaAt(png, 0, 0),
+          _alphaAt(png, 1079, 0),
+          _alphaAt(png, 0, 1349),
+          _alphaAt(png, 1079, 1349),
+          // Inside the card, and along its straight edges: opaque.
+          _alphaAt(png, 540, 675),
+          _alphaAt(png, 540, 0),
+          _alphaAt(png, 0, 675),
+        ]),
+      );
+
+      expect(alphas, [0, 0, 0, 0, 255, 255, 255]);
+    });
+
     testWidgets('the shared PNG changes when calories and steps are on', (
       tester,
     ) async {
@@ -268,7 +313,13 @@ void main() {
 
       await openDialog(tester);
 
-      expect(find.text("Couldn't load this week: store down"), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ShareWeekDialog),
+          matching: find.text("Couldn't load this week: store down"),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(WeekCard), findsNothing);
       expect(shareButton(tester).onPressed, isNull);
     });
@@ -279,7 +330,13 @@ void main() {
 
       await openDialog(tester, settle: false);
 
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(ShareWeekDialog),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsOneWidget,
+      );
       expect(find.byType(WeekCard), findsNothing);
       expect(shareButton(tester).onPressed, isNull);
 

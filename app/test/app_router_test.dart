@@ -81,12 +81,14 @@ void main() {
 
         expect(find.byType(CheckInModule), findsOneWidget);
         expect(moduleDay(tester), day);
-        expect(find.text('Not checked in yet'), findsOneWidget);
+        StatusOptionTile logged() =>
+            tester.widget(find.byKey(const Key('checkInButton_logged')));
+        expect(logged().selected, isFalse);
 
         await tester.tap(find.byKey(const Key('checkInButton_logged')));
         await tester.pumpAndSettle();
 
-        expect(find.text('Status: Logged'), findsOneWidget);
+        expect(logged().selected, isTrue);
         expect(await storedStatus(container, day), LoggingStatus.logged);
       },
     );

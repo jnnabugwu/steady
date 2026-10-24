@@ -118,6 +118,30 @@ void main() {
         ),
       ]);
     });
+
+    test(
+      'loading and error keep the last saved status as their value',
+      () async {
+        repository.onGetStatus = (_) => const Ok(CheckInStatus.logged);
+        listen();
+        await container.read(checkInControllerProvider(day).future);
+        states.clear();
+
+        final completer = Completer<Result<Unit>>();
+        repository.onLogCheckIn = (_, _) => completer.future;
+        final pending = container
+            .read(checkInControllerProvider(day).notifier)
+            .logCheckIn(CheckInStatus.skipped);
+
+        expect(states.single.value, CheckInStatus.logged);
+        completer.complete(const Err(UnknownFailure('write failed')));
+        await pending;
+
+        expect(states, [_isLoading(), _isError(isA<UnknownFailure>())]);
+        expect(states.last.value, CheckInStatus.logged);
+      },
+    );
+
     test(
       'a throwing write ends in an error and a later write still runs',
       () async {
