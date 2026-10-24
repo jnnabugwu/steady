@@ -29,6 +29,7 @@ void main() {
     WidgetTester tester, {
     HealthKitRepository? health,
     Widget? banner,
+    Widget? footer,
   }) => tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -42,6 +43,7 @@ void main() {
           onImportRequested: () => importRequests++,
           onOpenSettings: () => settingsRequests++,
           banner: banner,
+          footer: footer,
         ),
       ),
     ),
@@ -61,6 +63,23 @@ void main() {
         tester.getTopLeft(banner).dy,
         lessThan(
           tester.getTopLeft(find.byKey(const Key('importButton_empty'))).dy,
+        ),
+      );
+    });
+
+    testWidgets('pins the footer slot below the history', (tester) async {
+      await pumpInScope(
+        tester,
+        footer: const SizedBox(key: Key('testFooter'), height: 52),
+      );
+      await tester.pumpAndSettle();
+
+      final footer = find.byKey(const Key('testFooter'));
+      expect(footer, findsOneWidget);
+      expect(
+        tester.getTopLeft(footer).dy,
+        greaterThan(
+          tester.getBottomLeft(find.byKey(const Key('importButton_empty'))).dy,
         ),
       );
     });
