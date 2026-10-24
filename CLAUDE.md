@@ -64,10 +64,13 @@ steady/
 ├── app/                          # The Flutter app — iOS + macOS targets, one codebase
 │   ├── lib/
 │   │   ├── app_router.dart        # routerProvider + typed routes, wires feature callbacks (§5)
+│   │   ├── app_shell.dart          # AppShell: the tab branches under the floating GlassTabBar (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
-│   │   ├── design_system_preview.dart # Current home screen, served at `/` by HomeRoute
+│   │   ├── today_screen.dart       # TodayScreen, served at `/` by HomeRoute: composes the
+│   │   │                            # features' Today cards (§5)
 │   │   └── main.dart               # ProviderScope + ShadcnApp.router
-│   ├── test/                      # bootstrap_test (shared-store invariant), app_router_test
+│   ├── test/                      # bootstrap_test (shared-store invariant), app_router_test,
+│   │                                # today_screen_test
 │   ├── ios/
 │   └── macos/
 │
@@ -353,7 +356,8 @@ class CheckInModule extends ConsumerWidget {
 
 ```dart
 // app/lib/app_router.dart — the app layer, where features are allowed to meet.
-@TypedGoRoute<CheckInRoute>(path: '/checkin/:date')
+// Declared as `TypedGoRoute<CheckInRoute>(path: 'checkin/:date')`, nested under
+// HomeRoute in AppShellRoute's Today branch, so its location is `/checkin/<date>`.
 class CheckInRoute extends GoRouteData with $CheckInRoute {
   const CheckInRoute({required this.date});
 
@@ -398,13 +402,34 @@ Facts about that route worth knowing before adding the next one:
 
 The `GoRouter` itself is `routerProvider`, a `@Riverpod(keepAlive: true)` provider in
 `app/lib/app_router.dart`, so redirects can read providers later without a second DI
-path. Its one redirect today is `redirectMalformedCheckIn` (above). Its `initialLocation` is `/` (`HomeRoute`, currently `DesignSystemPreview`). That's
-only the fallback: on a cold start from a deep link the platform's initial route wins,
+path. Its one redirect today is `redirectMalformedCheckIn` (above). Its `initialLocation`
+is `/` (`HomeRoute`, the Today screen). That's only the fallback: on a cold start from a deep link the platform's initial route wins,
 because `overridePlatformDefaultLocation` is left `false`.
 
 Whatever opens the link (a share card, a widget, a shortcut) only has to produce
 `/checkin/<date>`; the typed route resolves it without any feature needing to know about
 deep linking at all.
+
+**Tabs.** `AppShellRoute` is a typed `StatefulShellRoute` (`app/lib/app_router.dart`),
+laid out by `AppShell` (`app/lib/app_shell.dart`) with the floating `GlassTabBar` over
+its content. Three branches, one per tab, each with its own navigation stack: Today
+(`/`, `HomeRoute`), Week (`/week`, `WeekRoute`, the metrics history) and Settings
+(`/settings`, `SettingsRoute`). The Coach tab joins once a coach screen exists.
+`CheckInRoute` (`/checkin/<date>`) and `CravingRoute` (`/craving`, iPhone only) are nested
+under `HomeRoute`, so Today is beneath them even on a cold start; the check-in keeps the
+tab bar, while `CravingRoute` is presented on the root navigator over the shell.
+`ImportRoute` (`/import`) is top-level, on the root navigator over the shell. The shell
+raises `MediaQuery.padding.bottom` to clear the bar: a screen that should scroll under it
+(Today) pads its scroll content by `MediaQuery.paddingOf(context).bottom` instead of
+wrapping itself in a bottom `SafeArea`.
+
+**Today (`/`).** `TodayScreen` (`app/lib/today_screen.dart`) only composes cards each
+feature's `*_presentation` package exports: the account feature's `ICloudSyncBanner`,
+checkin's `CheckInCard` and `CairnWeekCard`, metrics' `TodayMetricTiles`, and the cravings
+feature's `CravingHomeSection` (iPhone only). Its header holds the date, a time-of-day
+greeting and the import button. "Today" comes from checkin's `checkInClockProvider`, so
+tests pin it there. The coach nudge (§11) has a slot, `TodayScreen.coachNudge`, that stays
+empty until `coach_presentation` has something to say.
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -412,9 +437,10 @@ ref.watch(routerProvider))` and adds no Material localizations delegate. **Decid
 Material.** No `package:flutter/material.dart` import in any feature or app `lib/` (the
 only one left is the `rag_kit` plugin's generated example app). Steady's tokens reach a
 screen through `steadyTheme` and `ui_kit` widgets; a Material widget reads neither.
-`CheckInModule` is built this way: shadcn `Scaffold` + `AppBar`,
-`SteadyCard`, `OutlineButton` with a `LoggingStatusIndicator` leading each status, and
-shadcn `CircularProgressIndicator`. It needs a `ShadcnApp` ancestor and no Material ones;
+`CheckInModule` is built this way: shadcn `Scaffold` + `AppBar` around checkin's
+`CheckInCard` (a `GlassCard` with a `StatusOptionTile` per status) and `CairnWeekCard`
+(a `GlassCard` with the week's `CairnWeek` and `CairnLegend`), and shadcn
+`CircularProgressIndicator` while loading. It needs a `ShadcnApp` ancestor and no Material ones;
 its widget tests wrap it in `ShadcnApp(theme: steadyTheme)`. Decision record:
 `docs/technical_decisions.md`, "Feature screens are shadcn-only".
 
@@ -530,7 +556,7 @@ accepted risk rather than a reason to model transcripts as an append-only child 
 **iCloud is optional: a banner, not a gate.** Steady never blocks on the iCloud account
 status. Signed out (or iCloud restricted or temporarily unavailable), the app works normally
 and SwiftData keeps the data on the device; CloudKit mirroring just doesn't sync. Once the
-user signs in, `NSPersistentCloudKitContainer` uploads what was saved locally. The home screen
+user signs in, `NSPersistentCloudKitContainer` uploads what was saved locally. The Today screen
 shows a dismissible `ICloudSyncBanner` (`account_presentation`) saying the data stays on this
 device and won't sync, with "Open Settings"; the status is re-checked on every return to the
 foreground, so the banner goes away after sign-in. There is no sign-in screen or redirect.

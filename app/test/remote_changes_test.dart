@@ -8,10 +8,11 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart'
-    show CircularProgressIndicator;
+    show CircularProgressIndicator, Key;
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
+import 'package:ui_kit/ui_kit.dart' show MetricTile;
 
 /// #73: a remote-change event (CloudKit importing another device's rows)
 /// makes every screen that shows daily metrics re-read the store.
@@ -44,7 +45,10 @@ void main() {
           .upsert(today, caloriesEaten: caloriesEaten);
 
   group('the history screen', () {
+    // The history is the Week tab (`/week`); Today is checked below.
     Future<ProviderContainer> pumpApp(WidgetTester tester) async {
+      tester.platformDispatcher.defaultRouteNameTestValue = '/week';
+      addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
       await tester.pumpWidget(
         ProviderScope(overrides: overrides(), child: const SteadyApp()),
       );
@@ -90,6 +94,26 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('2,100 kcal eaten'), findsOneWidget);
     });
+  });
+
+  testWidgets("Today's metric tiles show a synced-in row", (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(overrides: overrides(), child: const SteadyApp()),
+    );
+    await tester.pumpAndSettle();
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(SteadyApp)),
+    );
+    expect(find.byKey(const Key('todayTile_eaten')), findsNothing);
+
+    await importRow(container, 1850);
+    changes.add(null);
+    await tester.pumpAndSettle();
+
+    expect(
+      tester.widget<MetricTile>(find.byKey(const Key('todayTile_eaten'))).value,
+      '1,850',
+    );
   });
 
   group('the check-in and week card controllers', () {
@@ -141,6 +165,18 @@ void main() {
         after.days.singleWhere((d) => d.date == today).caloriesEaten,
         1850,
       );
+    });
+
+    test("Today's metric tiles re-read their week", () async {
+      final provider = todayMetricsProvider(today);
+      container.listen(provider, (_, _) {});
+      expect(await container.read(provider.future), isEmpty);
+
+      await importRow(container, 1850);
+      await deliver();
+
+      final after = await container.read(provider.future);
+      expect(after.single.caloriesEaten, 1850);
     });
 
     test('the in-memory store has no change source of its own', () async {

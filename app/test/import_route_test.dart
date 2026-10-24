@@ -1,10 +1,10 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/today_screen.dart';
 
 void main() {
   Future<void> pumpApp(WidgetTester tester) async {
@@ -23,7 +23,7 @@ void main() {
     expect(find.byType(PdfImportModule), findsOneWidget);
   });
 
-  testWidgets('completing an import returns to the history screen', (
+  testWidgets('completing an import returns to the Today screen', (
     tester,
   ) async {
     await pumpApp(tester);
@@ -36,6 +36,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(PdfImportModule), findsNothing);
-    expect(find.byType(MetricsHistoryModule), findsOneWidget);
+    expect(find.byType(TodayScreen), findsOneWidget);
   });
 }

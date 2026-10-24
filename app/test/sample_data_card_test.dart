@@ -74,6 +74,7 @@ void main() {
     final jan6 = DateTime(2025, 1, 6);
     final container = await pumpApp(
       tester,
+      coldStartLocation: '/week',
       seed: (c) async {
         await importSample(c);
         await c
@@ -105,8 +106,16 @@ void main() {
       DailyMetric(date: jan6, loggingStatus: LoggingStatus.logged),
     ]);
 
-    // The history under Settings was re-read, not left showing the sample.
+    // The history was re-read, not left showing the sample. Back from
+    // Settings goes to Today; the history is the Week tab.
     await tester.tap(find.byKey(const Key('settingsBackButton')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.descendant(
+        of: find.byKey(const Key('appTabBar')),
+        matching: find.text('Week'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.byType(MetricsHistoryModule), findsOneWidget);
     expect(find.textContaining('7 days'), findsNothing);
