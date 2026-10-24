@@ -86,6 +86,11 @@ steady/
 │   │   ├── checkin_domain/
 │   │   ├── checkin_data/
 │   │   └── checkin_presentation/
+│   ├── cravings/                   # iPhone only: the guided craving flow. Device-only
+│   │   │                            # storage, never synced (see §7)
+│   │   ├── cravings_domain/         # CravingEvent, CravingRepository, weekly summary
+│   │   ├── cravings_data/           # FileCravingRepository: JSON file in app support
+│   │   └── cravings_presentation/   # Flow module, home section, Settings card
 │   ├── coach/                      # macOS: live chat + weekly session (Foundation Models).
 │   │   │                            # iOS: read-only session history only, synced via
 │   │   │                            # CloudKit — no inference, no Foundation Models channel.
@@ -130,8 +135,8 @@ steady/
 ```
 
 Each `*_presentation` package that needs a repository declares its providers in
-`lib/src/providers.dart` (§9): `checkin_presentation`, `metrics_presentation` and
-`pdf_import_presentation` today. `coach_presentation` has none yet, because
+`lib/src/providers.dart` (§9): `checkin_presentation`, `cravings_presentation`,
+`metrics_presentation` and `pdf_import_presentation` today. `coach_presentation` has none yet, because
 `coach_domain` has no repository interface. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
@@ -458,7 +463,7 @@ no separate system to build here, now or foreseeably.
 ## 7. Persistence & sync: SwiftData + CloudKit
 
 Every feature's `_data` package that needs persistence talks to SwiftData, marked
-CloudKit-backed, so sync across iPhone and Mac happens automatically — no custom sync
+CloudKit-backed (one deliberate exception: cravings, below), so sync across iPhone and Mac happens automatically — no custom sync
 protocol, no conflict resolution code, no backend involvement (see `steady_product_overview.md`
 §2 for why this was chosen over building sync through FastAPI).
 
@@ -543,6 +548,13 @@ sheet. It covers daily metrics and check-in statuses; coach sessions aren't incl
 (`coach_domain` has no repository to read them from), and the JSON's `schemaVersion` leaves room
 to add them. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
 private database has no separate backup.
+
+**Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
+one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in
+the iPhone's app support directory, never synced. They read as health data, and App Store
+5.1.3(ii) says apps may not store personal health information in iCloud. Don't move them into
+the synced store; the Mac sees them only once the iPhone→Mac local handoff (#97) exists.
+Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
 (`share_plus`), built inside the owning feature's `_presentation` package. The card reads

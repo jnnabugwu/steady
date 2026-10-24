@@ -18,8 +18,12 @@ Apple-only), each with their own private copy of their data.*
   steps), each with its own mini chart, matching the same 7-day window.
 - A daily **end-of-day check-in** (logged fully / partial / skipped) — the real signal for
   "how's my tracking going," since it's self-reported rather than inferred.
-- An on-device **coach** (not "therapist") for craving support and a weekly 15-minute
-  check-in session, focused on tracking consistency and behavior — not calorie prescriptions.
+- **Craving support on iPhone**: a one-tap "Having a craving?" flow (strength, what's behind
+  it, an optional guided minute of imagery, "Still want it?") with equally neutral endings, no
+  scores or streaks, and "eating something is a good call" when you're hungry. Stored only on
+  the iPhone, never in iCloud (see `technical_decisions.md`).
+- An on-device **coach** (not "therapist") for a weekly 15-minute check-in session (macOS),
+  focused on tracking consistency and behavior — not calorie prescriptions.
 - **Share cards**: share an image of your week (check-in statuses by default; calories and
   steps only if you choose) to Messages, Instagram, or anywhere the share sheet reaches.
   Friends never see each other's data inside the app (see `technical_decisions.md`).

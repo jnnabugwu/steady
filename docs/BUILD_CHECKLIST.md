@@ -209,6 +209,32 @@ reminder"). The in-app nudge card on the check-in screen (Feature: coach) remain
 - [ ] `notes_presentation` package added once the import/entry UI is actually built — no
       structural change needed beyond adding the package (CLAUDE.md §3).
 
+## Feature: cravings (iPhone only, device-only storage)
+
+Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided,
+device-only". Evidence and wording rules: `docs/research/craving_support.md` §4, §6.
+
+- [x] `cravings_domain`: `CravingEvent` (id, start/end time, strength 1–5 before and after,
+      reasons, took the minute, outcome), `CravingRepository`, and the weekly summary
+      (`summarizeCravingWeek`: count plus the majority time of day, never outcomes).
+- [x] `cravings_data`: `FileCravingRepository`, a JSON file in the app support directory on
+      the iPhone (atomic writes, one operation at a time, a corrupt file is an `Err` and is
+      never overwritten). Not SwiftData/CloudKit; never synced.
+- [x] `cravings_presentation`: `CravingFlowModule` (strength → reasons → hungry ending or the
+      offered 75-second guided imagery minute → "Still want it?" → a neutral ending),
+      `CravingHomeSection` (home's "Having a craving?" button and weekly line) and
+      `CravingSettingsCard` (where the data lives, "Delete craving history" with a
+      confirmation, the ANAD helpline link). Reduced motion gives a still circle.
+- [x] Wired on iOS only: `appProviderOverridesFor(isIOS: true)` binds the repository and
+      turns the feature on; `/craving` (`CravingRoute`) redirects home on macOS.
+- [x] No notifications, scores, streaks, resisted counts, calories or praise anywhere in
+      the flow (a widget test checks the copy).
+- [ ] Not in v1: cravings in the data export; excluding the file from iOS device backups
+      (native); the soft help pointer after a week of frequent strong cravings; the Mac
+      weekly review's craving reflection (needs the iPhone→Mac handoff).
+- [ ] Not yet run on a physical iPhone (VoiceOver announcements, reduced motion, the help
+      link opening Safari).
+
 ## HealthKit (CLAUDE.md §1/§7/§8)
 
 - [x] Decided: Health data stays on the iPhone (App Store guideline 5.1.3(ii), no personal
