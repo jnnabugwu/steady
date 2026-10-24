@@ -7,7 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:metrics_presentation/src/metrics_history_module.dart'
-    show formatDay, formatThousands, summaryLine;
+    show
+        averageCoverage,
+        formatDay,
+        formatShortDay,
+        formatThousands,
+        latestWeek,
+        summaryLine;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -142,11 +148,42 @@ void main() {
       expect(find.text('Thu, Aug 13 2026'), findsOneWidget);
       expect(find.text('No calories logged'), findsOneWidget);
 
+      // One week tile, for the only metric there is (no Health here).
+      expect(find.text('LATEST 7 DAYS · AUG 9 – AUG 15'), findsOneWidget);
+      // Two of the week's days have calories: the tile says so.
+      expect(
+        find.bySemanticsLabel('Avg eaten, 1,665 kcal, avg of 2 days'),
+        findsOneWidget,
+      );
+      expect(find.text('avg of 2 days'), findsOneWidget);
+      expect(find.byKey(const Key('historyTile_burned')), findsNothing);
+      expect(find.byKey(const Key('historyTile_steps')), findsNothing);
+
       final sat = tester.getTopLeft(find.text('Sat, Aug 15 2026')).dy;
       final fri = tester.getTopLeft(find.text('Fri, Aug 14 2026')).dy;
       final thu = tester.getTopLeft(find.text('Thu, Aug 13 2026')).dy;
       expect(sat, lessThan(fri));
       expect(fri, lessThan(thu));
+    });
+
+    testWidgets('a full week of a metric shows no coverage caption', (
+      tester,
+    ) async {
+      repository.onGetRange = (_, _) => Ok([
+        for (var i = 0; i < 7; i++)
+          DailyMetric(date: DateTime(2026, 8, 15 - i), caloriesEaten: 2000),
+      ]);
+
+      await pumpInScope(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('Avg eaten, 2,000 kcal'), findsOneWidget);
+      expect(find.byKey(const Key('historyTileCoverage_eaten')), findsNothing);
+    });
+
+    test('averageCoverage counts the days averaged', () {
+      expect(averageCoverage(1), 'avg of 1 day');
+      expect(averageCoverage(6), 'avg of 6 days');
     });
 
     group('live Apple Health', () {
@@ -193,6 +230,31 @@ void main() {
         expect(find.text('1,600 kcal burned'), findsOneWidget);
         expect(find.text('4,000 steps'), findsOneWidget);
         expect(find.text(formatDay(today)), findsOneWidget);
+        // A week tile per metric, ending today, averaged over the days
+        // that have the metric.
+        final tiles = tester.widgetList<MetricTile>(find.byType(MetricTile));
+        expect(
+          [for (final t in tiles) (t.label, t.value, t.accent)],
+          [
+            ('Avg eaten', '1,900', MetricAccent.caloriesEaten),
+            ('Avg burned', '1,850', MetricAccent.caloriesBurned),
+            ('Avg steps', '6,750', MetricAccent.steps),
+          ],
+        );
+        // Each metric covers two of the seven days, and each tile says so.
+        for (final metric in ['eaten', 'burned', 'steps']) {
+          final caption = find.byKey(Key('historyTileCoverage_$metric'));
+          expect(tester.widget<Text>(caption).data, 'avg of 2 days');
+        }
+        expect(tiles.last.dailyValues, [
+          null,
+          null,
+          null,
+          null,
+          null,
+          9500,
+          4000,
+        ]);
         // The window is the last healthHistoryDays days, ending today.
         final window = healthHistoryWindow(now);
         expect(health.dailyTotalsCalls, [(window.start, window.end)]);
@@ -285,6 +347,24 @@ void main() {
     test('formatDay', () {
       expect(formatDay(DateTime(2026, 8, 15)), 'Sat, Aug 15 2026');
       expect(formatDay(DateTime(2026, 1, 5)), 'Mon, Jan 5 2026');
+    });
+
+    test('formatShortDay', () {
+      expect(formatShortDay(DateTime(2026, 8, 9)), 'Aug 9');
+    });
+
+    test('latestWeek is the seven days ending on the newest day', () {
+      final week = latestWeek([
+        DailyMetric(date: DateTime(2026, 3, 2), caloriesEaten: 1),
+        DailyMetric(date: DateTime(2026, 2, 27), caloriesEaten: 2),
+        DailyMetric(date: DateTime(2026, 1, 31), caloriesEaten: 3),
+      ]);
+      expect(week.start, DateTime(2026, 2, 24));
+      expect(week.end, DateTime(2026, 3, 2));
+      expect(
+        [for (final d in week.days) d?.caloriesEaten],
+        [null, null, null, 2, null, null, 1],
+      );
     });
 
     test('formatThousands', () {
