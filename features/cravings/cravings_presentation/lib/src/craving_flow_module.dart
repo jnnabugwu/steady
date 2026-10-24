@@ -21,8 +21,9 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// Never shows a score, a streak, calories or praise for not eating
 /// (docs/research/craving_support.md §4, §6). Calm and roomy: one question
-/// per screen, the answers at the bottom within thumb reach, every target
-/// at least 44pt.
+/// per screen, every target at least 44pt. Most steps pin their answers to
+/// the bottom, within thumb reach; the two rating steps keep them right under
+/// the question, so the screen doesn't open on an empty middle.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): the close button calls
 /// [onClosed] (nothing is recorded), and "Done" at an ending calls
@@ -116,6 +117,10 @@ class CravingFlowModule extends ConsumerWidget {
 Widget _tall(Widget button) => SizedBox(height: 52, child: button);
 
 /// A question at the top, its answers at the bottom, within thumb reach.
+///
+/// With [actionsFollowBody], the answers sit right under the question
+/// instead, for steps whose answers are short enough that pinning them to
+/// the bottom would leave an empty middle.
 class _StepLayout extends StatelessWidget {
   const _StepLayout({
     required this.title,
@@ -123,6 +128,7 @@ class _StepLayout extends StatelessWidget {
     this.subtitle,
     this.body,
     this.titleStyle = SteadyType.headline,
+    this.actionsFollowBody = false,
   });
 
   final String title;
@@ -130,9 +136,16 @@ class _StepLayout extends StatelessWidget {
   final String? subtitle;
   final Widget? body;
   final List<Widget> actions;
+  final bool actionsFollowBody;
 
   @override
   Widget build(BuildContext context) {
+    final actionColumn = [
+      for (final (i, action) in actions.indexed) ...[
+        if (i > 0) const SizedBox(height: 12),
+        action,
+      ],
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -151,14 +164,17 @@ class _StepLayout extends StatelessWidget {
                   const SizedBox(height: 28),
                   body,
                 ],
+                if (actionsFollowBody && actions.isNotEmpty) ...[
+                  const SizedBox(height: 28),
+                  ...actionColumn,
+                ],
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        for (final (i, action) in actions.indexed) ...[
-          if (i > 0) const SizedBox(height: 12),
-          action,
+        if (!actionsFollowBody && actions.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          ...actionColumn,
         ],
       ],
     );
@@ -174,13 +190,12 @@ class _IntensityStep extends StatelessWidget {
   Widget build(BuildContext context) => _StepLayout(
     title: 'Having a craving?',
     subtitle: 'How strong is it?',
-    actions: [
-      CravingIntensityPicker(
-        keyPrefix: 'cravingIntensityBefore',
-        selected: null,
-        onSelected: onRated,
-      ),
-    ],
+    body: CravingIntensityPicker(
+      keyPrefix: 'cravingIntensityBefore',
+      selected: null,
+      onSelected: onRated,
+    ),
+    actions: const [],
   );
 }
 
@@ -286,6 +301,7 @@ class _StillWantStep extends StatelessWidget {
       selected: intensityAfter,
       onSelected: onRated,
     ),
+    actionsFollowBody: true,
     actions: [
       for (final outcome in _outcomes)
         _tall(
