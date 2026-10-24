@@ -17,6 +17,10 @@ void main() {
   final now = DateTime(2026, 10, 22, 21);
   final today = DateTime(2026, 10, 22);
 
+  /// What the pinned clock says; a test moves it to cross midnight.
+  late DateTime clock;
+  setUp(() => clock = now);
+
   /// The real app at `/`, with the real override list and the clock pinned.
   Future<ProviderContainer> pumpApp(
     WidgetTester tester, {
@@ -25,7 +29,7 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         ...appProviderOverrides,
-        checkInClockProvider.overrideWithValue(() => now),
+        checkInClockProvider.overrideWithValue(() => clock),
       ],
     );
     addTearDown(container.dispose);
@@ -117,6 +121,53 @@ void main() {
       );
       expect(find.text('Added to this week’s stack'), findsOneWidget);
       expect(find.text('1 of 1 day logged'), findsOneWidget);
+    });
+
+    testWidgets('left open across midnight, it moves to the new day', (
+      tester,
+    ) async {
+      clock = DateTime(2026, 10, 22, 23, 30);
+      await pumpApp(tester);
+      expect(find.text('Thursday, Oct 22'), findsOneWidget);
+      expect(tester.widget<CheckInCard>(find.byType(CheckInCard)).date, today);
+
+      // The root's midnight timer fires 30 minutes later.
+      clock = DateTime(2026, 10, 23, 0, 0, 1);
+      await tester.pump(const Duration(minutes: 30));
+      await tester.pumpAndSettle();
+
+      final friday = DateTime(2026, 10, 23);
+      expect(find.text('Friday, Oct 23'), findsOneWidget);
+      expect(tester.widget<CheckInCard>(find.byType(CheckInCard)).date, friday);
+      expect(
+        tester.widget<CairnWeekCard>(find.byType(CairnWeekCard)).date,
+        friday,
+      );
+      expect(
+        tester.widget<TodayMetricTiles>(find.byType(TodayMetricTiles)).date,
+        friday,
+      );
+      // Friday starts a new Friday-Thursday week.
+      expect(find.text('No days checked in yet'), findsOneWidget);
+    });
+
+    testWidgets('returning to the foreground on a later day moves to it', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+
+      clock = DateTime(2026, 10, 24, 8);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Saturday, Oct 24'), findsOneWidget);
+      expect(find.text('Good morning'), findsOneWidget);
+      expect(
+        tester.widget<CheckInCard>(find.byType(CheckInCard)).date,
+        DateTime(2026, 10, 24),
+      );
     });
 
     testWidgets('the header import button opens the import flow', (

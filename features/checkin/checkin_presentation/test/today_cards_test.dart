@@ -182,4 +182,87 @@ void main() {
       expect(metrics.getRangeCalls, hasLength(2));
     });
   });
+
+  group('checkInTodayProvider', () {
+    late DateTime now;
+    late ProviderContainer container;
+
+    setUp(() {
+      now = DateTime(2026, 10, 22, 21);
+      container = ProviderContainer.test(
+        overrides: [checkInClockProvider.overrideWithValue(() => now)],
+      );
+    });
+
+    test("is the clock's local midnight", () {
+      expect(container.read(checkInTodayProvider), today);
+    });
+
+    test('untilNextMidnight counts to the next local midnight', () {
+      expect(
+        container.read(checkInTodayProvider.notifier).untilNextMidnight(),
+        const Duration(hours: 3),
+      );
+    });
+
+    test('refreshToday moves to the new day only once the date changes', () {
+      final changes = <DateTime>[];
+      container.listen(checkInTodayProvider, (_, next) => changes.add(next));
+      final notifier = container.read(checkInTodayProvider.notifier);
+
+      now = DateTime(2026, 10, 22, 23, 59);
+      notifier.refreshToday();
+      expect(container.read(checkInTodayProvider), today);
+
+      now = DateTime(2026, 10, 23, 0, 0, 1);
+      notifier.refreshToday();
+      expect(container.read(checkInTodayProvider), DateTime(2026, 10, 23));
+      expect(changes, [DateTime(2026, 10, 23)]);
+    });
+
+    testWidgets('the cards follow the day across midnight', (tester) async {
+      final container = ProviderContainer.test(
+        overrides: [
+          checkInClockProvider.overrideWithValue(() => now),
+          checkInRepositoryProvider.overrideWithValue(repository),
+          weekMetricsRepositoryProvider.overrideWithValue(metrics),
+        ],
+      );
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: ShadcnApp(
+            theme: steadyTheme,
+            home: Consumer(
+              builder: (context, ref, _) {
+                final day = ref.watch(checkInTodayProvider);
+                return Column(
+                  children: [
+                    CheckInCard(date: day),
+                    CairnWeekCard(date: day),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text("TONIGHT'S CHECK-IN"), findsOneWidget);
+      expect(cairn(tester).days.last.isToday, isTrue);
+
+      // Past midnight into Friday: a new Friday-Thursday week starts.
+      now = DateTime(2026, 10, 23, 0, 0, 1);
+      container.read(checkInTodayProvider.notifier).refreshToday();
+      await tester.pumpAndSettle();
+
+      expect(find.text("TONIGHT'S CHECK-IN"), findsOneWidget);
+      expect(repository.getStatusCalls.last, DateTime(2026, 10, 23));
+      expect(metrics.getRangeCalls.last, (
+        DateTime(2026, 10, 23),
+        DateTime(2026, 10, 29),
+      ));
+      expect(cairn(tester).days.first.isToday, isTrue);
+    });
+  });
 }

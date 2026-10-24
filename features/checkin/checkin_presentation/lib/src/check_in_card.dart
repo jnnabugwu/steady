@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/src/check_in_controller.dart';
 import 'package:checkin_presentation/src/check_in_format.dart';
+import 'package:checkin_presentation/src/date_labels.dart';
 import 'package:checkin_presentation/src/providers.dart';
 import 'package:checkin_presentation/src/week_card_controller.dart';
 import 'package:checkin_presentation/src/week_card_data.dart';
@@ -21,7 +22,8 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// A [GlassCard] with no outer padding, so a host screen lays it out: the
 /// check-in screen (`CheckInModule`) and the app's Today screen both do.
-/// Today is read from [checkInClockProvider].
+/// Today is read from [checkInTodayProvider], so the eyebrow follows the
+/// date across midnight.
 ///
 /// Logging a status fires the CheckInLogged / CheckInPartial /
 /// CheckInSkipped domain event (`CheckInController.logCheckIn`). On success
@@ -47,8 +49,7 @@ class CheckInCard extends ConsumerWidget {
     final day = DateTime(date.year, date.month, date.day);
     final provider = checkInControllerProvider(day);
     final checkIn = ref.watch(provider);
-    final now = ref.watch(checkInClockProvider)();
-    final isToday = day == DateTime(now.year, now.month, now.day);
+    final isToday = day == ref.watch(checkInTodayProvider);
 
     Future<void> log(CheckInStatus status) async {
       await ref.read(provider.notifier).logCheckIn(status);

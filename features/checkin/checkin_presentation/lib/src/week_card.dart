@@ -1,3 +1,4 @@
+import 'package:checkin_presentation/src/date_labels.dart';
 import 'package:checkin_presentation/src/week_card_data.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -47,8 +48,8 @@ class WeekCard extends StatelessWidget {
     final cairnDays = [
       for (final day in data.days)
         CairnDay(
-          label: _weekdayLetters[day.date.weekday - 1],
-          fullName: _weekdayNames[day.date.weekday - 1],
+          label: weekdayLetter(day.date),
+          fullName: fullWeekday(day.date),
           status: day.status,
         ),
     ];
@@ -187,34 +188,9 @@ class WeekCard extends StatelessWidget {
 
   static final TextStyle _headline = SteadyType.headline.copyWith(fontSize: 28);
 
-  static const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  static const _weekdayLetters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const _weekdayNames = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
-  static const _months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-
+  /// E.g. "Fri Oct 16": the card's date range, without a comma.
   static String _dayAndDate(DateTime date) =>
-      '${_weekdays[date.weekday - 1]} ${_months[date.month - 1]} ${date.day}';
+      '${shortWeekday(date)} ${shortMonth(date)} ${date.day}';
 
   /// `1850` → `1,850`.
   static String _thousands(int n) {

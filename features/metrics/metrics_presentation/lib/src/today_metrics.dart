@@ -86,6 +86,9 @@ class TodayMetricTiles extends ConsumerWidget {
         text: error is Failure
             ? "Couldn't load today's metrics: ${error.message}"
             : "Couldn't load today's metrics.",
+        // A Failure isn't retried automatically, so a transient store
+        // error would otherwise stay up until something else invalidates.
+        onRetry: () => ref.invalidate(todayMetricsProvider(day)),
       ),
       AsyncValue(:final value?) => _tiles(day, mergeLiveHealth(value, health)),
       _ => const Padding(
@@ -164,15 +167,48 @@ enum _TodayMetric {
   };
 }
 
-/// A one-line glass card in place of the tiles.
+/// A short glass card in place of the tiles, with a Retry pill when
+/// [onRetry] is given.
 class _Message extends StatelessWidget {
-  const _Message({required this.text, super.key});
+  const _Message({required this.text, this.onRetry, super.key});
 
   final String text;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) => GlassCard(
     padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-    child: Text(text, style: SteadyType.body),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 14,
+      children: [
+        Text(text, style: SteadyType.body),
+        if (onRetry case final onRetry?)
+          SizedBox(
+            height: 44,
+            child: Button(
+              key: const Key('todayMetricsRetry'),
+              style: _glassPillStyle,
+              alignment: Alignment.center,
+              onPressed: onRetry,
+              child: const Text(
+                'Retry',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ),
+      ],
+    ),
   );
+
+  /// The Pass 02 secondary pill, as on the history's error state.
+  static final AbstractButtonStyle _glassPillStyle =
+      const ButtonStyle.secondary()
+          .withBackgroundColor(
+            color: SteadyColors.glassControlFill,
+            hoverColor: SteadyColors.glassControlBorder,
+          )
+          .withBorder(
+            border: Border.all(color: SteadyColors.glassControlBorder),
+          );
 }

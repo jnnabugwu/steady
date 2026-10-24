@@ -30,9 +30,12 @@ import 'package:ui_kit/ui_kit.dart';
 
 /// The Today screen. See the library comment for its sections.
 ///
-/// "Today" comes from checkin's [checkInClockProvider], the same clock the
-/// check-in and cairn cards read, so every card agrees on the day and tests
-/// can pin it.
+/// "Today" comes from checkin's [checkInTodayProvider], the same day the
+/// check-in and cairn cards read, so every card agrees on it, and tests pin
+/// it through `checkInClockProvider`. It moves to the new day at local
+/// midnight and on returning to the foreground (the app root calls
+/// `refreshToday`, see `main.dart`), so a screen left open overnight shows
+/// the new date and its date-keyed cards re-key on it.
 ///
 /// **Scrolls under the tab bar.** The shell raises the bottom padding to
 /// clear its floating bar (`AppShell`); this screen pads its scroll content
@@ -70,8 +73,10 @@ class TodayScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final now = ref.watch(checkInClockProvider)();
-    final today = DateTime(now.year, now.month, now.day);
+    // Rebuilds when the day rolls over (see the class comment); the
+    // greeting reads the clock's time on each build.
+    final today = ref.watch(checkInTodayProvider);
+    final now = ref.read(checkInClockProvider)();
     final padding = MediaQuery.paddingOf(context);
 
     return Scaffold(

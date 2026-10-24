@@ -1,6 +1,7 @@
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/src/check_in_controller.dart';
 import 'package:checkin_presentation/src/check_in_format.dart';
+import 'package:checkin_presentation/src/date_labels.dart';
 import 'package:checkin_presentation/src/providers.dart';
 import 'package:checkin_presentation/src/week_card_controller.dart';
 import 'package:checkin_presentation/src/week_card_data.dart';
@@ -18,7 +19,7 @@ import 'package:ui_kit/ui_kit.dart';
 /// day's own stone comes from `checkInControllerProvider(day)`, the fresher
 /// source: it changes the moment a check-in is logged, before the week
 /// re-reads. Today (the cairn's top stone) is read from
-/// [checkInClockProvider].
+/// [checkInTodayProvider].
 ///
 /// A [GlassCard] with no outer padding, so a host screen lays it out: the
 /// check-in screen and the app's Today screen both do.
@@ -42,8 +43,7 @@ class CairnWeekCard extends ConsumerWidget {
     final checkIn = ref.watch(checkInControllerProvider(day));
     // One range read keyed on the normalized week start.
     final week = ref.watch(weekCardControllerProvider(weekCardStart(day)));
-    final now = ref.watch(checkInClockProvider)();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = ref.watch(checkInTodayProvider);
 
     return GlassCard(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
@@ -92,7 +92,7 @@ class CairnWeekCard extends ConsumerWidget {
     final days = [
       for (final d in data.days)
         CairnDay(
-          label: fullWeekday(d.date).substring(0, 1),
+          label: weekdayLetter(d.date),
           fullName: fullWeekday(d.date),
           status: d.date == day && dayStatus != null
               ? dayStatus.value

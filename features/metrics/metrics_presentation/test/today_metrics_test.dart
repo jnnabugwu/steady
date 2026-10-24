@@ -144,5 +144,27 @@ void main() {
         findsOneWidget,
       );
     });
+
+    testWidgets('Retry re-reads the week after a failure', (tester) async {
+      repository.onGetRange = (_, _) =>
+          const Err(PlatformChannelFailure('store down'));
+      await pump(tester);
+      expect(repository.getRangeCalls, hasLength(1));
+
+      repository.onGetRange = (_, _) =>
+          Ok([DailyMetric(date: today, caloriesEaten: 1840)]);
+      await tester.tap(find.byKey(const Key('todayMetricsRetry')));
+      await tester.pumpAndSettle();
+
+      expect(repository.getRangeCalls, hasLength(2));
+      expect(find.byKey(const Key('todayMetricsError')), findsNothing);
+      expect(tile(tester, 'eaten').value, '1,840');
+    });
+
+    testWidgets('the empty state has no Retry', (tester) async {
+      await pump(tester);
+
+      expect(find.byKey(const Key('todayMetricsRetry')), findsNothing);
+    });
   });
 }

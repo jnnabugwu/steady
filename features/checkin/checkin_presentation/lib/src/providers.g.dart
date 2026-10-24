@@ -282,3 +282,109 @@ final class CheckInClockProvider
 }
 
 String _$checkInClockHash() => r'0e8e9089716c792c9e7aeab6f7ee8efd6817c2fd';
+
+/// Today's date (local midnight), as the check-in and cairn cards and the
+/// app's Today screen read it. Built from [checkInClockProvider], so tests
+/// pin it through the clock.
+///
+/// **Rolls over at midnight** through [refreshToday]: the app root calls it
+/// from a timer set for the next local midnight ([untilNextMidnight]) and on
+/// every return to the foreground (a timer can fire late while the device
+/// sleeps). A screen left open overnight then moves to the new day, and the
+/// date-keyed families its watchers key on (`checkInControllerProvider`,
+/// `weekCardControllerProvider`, ...) move with it. The timer lives in the
+/// widget tree, not here, so it ends with the app's root widget.
+///
+/// `keepAlive`: one value for the whole app.
+
+@ProviderFor(CheckInToday)
+final checkInTodayProvider = CheckInTodayProvider._();
+
+/// Today's date (local midnight), as the check-in and cairn cards and the
+/// app's Today screen read it. Built from [checkInClockProvider], so tests
+/// pin it through the clock.
+///
+/// **Rolls over at midnight** through [refreshToday]: the app root calls it
+/// from a timer set for the next local midnight ([untilNextMidnight]) and on
+/// every return to the foreground (a timer can fire late while the device
+/// sleeps). A screen left open overnight then moves to the new day, and the
+/// date-keyed families its watchers key on (`checkInControllerProvider`,
+/// `weekCardControllerProvider`, ...) move with it. The timer lives in the
+/// widget tree, not here, so it ends with the app's root widget.
+///
+/// `keepAlive`: one value for the whole app.
+final class CheckInTodayProvider
+    extends $NotifierProvider<CheckInToday, DateTime> {
+  /// Today's date (local midnight), as the check-in and cairn cards and the
+  /// app's Today screen read it. Built from [checkInClockProvider], so tests
+  /// pin it through the clock.
+  ///
+  /// **Rolls over at midnight** through [refreshToday]: the app root calls it
+  /// from a timer set for the next local midnight ([untilNextMidnight]) and on
+  /// every return to the foreground (a timer can fire late while the device
+  /// sleeps). A screen left open overnight then moves to the new day, and the
+  /// date-keyed families its watchers key on (`checkInControllerProvider`,
+  /// `weekCardControllerProvider`, ...) move with it. The timer lives in the
+  /// widget tree, not here, so it ends with the app's root widget.
+  ///
+  /// `keepAlive`: one value for the whole app.
+  CheckInTodayProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'checkInTodayProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$checkInTodayHash();
+
+  @$internal
+  @override
+  CheckInToday create() => CheckInToday();
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(DateTime value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<DateTime>(value),
+    );
+  }
+}
+
+String _$checkInTodayHash() => r'327be222adbf1e7bcb71ec2c4567c30fe75a4e01';
+
+/// Today's date (local midnight), as the check-in and cairn cards and the
+/// app's Today screen read it. Built from [checkInClockProvider], so tests
+/// pin it through the clock.
+///
+/// **Rolls over at midnight** through [refreshToday]: the app root calls it
+/// from a timer set for the next local midnight ([untilNextMidnight]) and on
+/// every return to the foreground (a timer can fire late while the device
+/// sleeps). A screen left open overnight then moves to the new day, and the
+/// date-keyed families its watchers key on (`checkInControllerProvider`,
+/// `weekCardControllerProvider`, ...) move with it. The timer lives in the
+/// widget tree, not here, so it ends with the app's root widget.
+///
+/// `keepAlive`: one value for the whole app.
+
+abstract class _$CheckInToday extends $Notifier<DateTime> {
+  DateTime build();
+  @$mustCallSuper
+  @override
+  WhenComplete runBuild() {
+    final ref = this.ref as $Ref<DateTime, DateTime>;
+    final element =
+        ref.element
+            as $ClassProviderElement<
+              AnyNotifier<DateTime, DateTime>,
+              DateTime,
+              Object?,
+              Object?
+            >;
+    return element.handleCreate(ref, build);
+  }
+}

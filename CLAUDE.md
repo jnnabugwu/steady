@@ -427,8 +427,11 @@ wrapping itself in a bottom `SafeArea`.
 feature's `*_presentation` package exports: the account feature's `ICloudSyncBanner`,
 checkin's `CheckInCard` and `CairnWeekCard`, metrics' `TodayMetricTiles`, and the cravings
 feature's `CravingHomeSection` (iPhone only). Its header holds the date, a time-of-day
-greeting and the import button. "Today" comes from checkin's `checkInClockProvider`, so
-tests pin it there. The coach nudge (§11) has a slot, `TodayScreen.coachNudge`, that stays
+greeting and the import button. "Today" is checkin's `checkInTodayProvider` (local
+midnight of `checkInClockProvider`, which tests pin). The app root (`SteadyApp` in
+`main.dart`) calls its `refreshToday` from a timer set for the next local midnight and on
+every resume, so a screen left open overnight moves to the new day and its date-keyed
+cards re-key. The coach nudge (§11) has a slot, `TodayScreen.coachNudge`, that stays
 empty until `coach_presentation` has something to say.
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
