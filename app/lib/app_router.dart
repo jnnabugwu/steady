@@ -6,8 +6,8 @@
 /// into one day's check-in, and works from a cold start too.
 ///
 /// There is no sign-in gate: iCloud is optional (CLAUDE.md §7). When it
-/// isn't syncing, the home screen shows the account feature's
-/// [ICloudSyncBanner] above the history instead.
+/// isn't syncing, the Today screen shows the account feature's
+/// [ICloudSyncBanner] under its header instead.
 ///
 /// **The shell** ([AppShellRoute], issue #66) is a typed
 /// `StatefulShellRoute` with one branch per tab of the floating
@@ -28,7 +28,7 @@
 /// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" (iPhone),
 /// "Sample data" and the data export (and, in debug builds, the Developer
 /// card). [CravingRoute] (`/craving`, iPhone only) is the craving flow,
-/// pushed from the home screen's "Having a craving?" button.
+/// pushed from the Today screen's "Having a craving?" button.
 library;
 
 import 'dart:async';
@@ -47,6 +47,7 @@ import 'package:steady/app_shell.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
 import 'package:steady/sample_data_card.dart';
+import 'package:steady/today_screen.dart';
 import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
 
 part 'app_router.g.dart';
@@ -132,14 +133,15 @@ class SettingsBranch extends StatefulShellBranchData {
   const SettingsBranch();
 }
 
-/// `/`, the Today tab: the home screen, the metrics history, with the iCloud sync banner
-/// ([ICloudSyncBanner]) composed in above it. The banner hides itself
-/// unless iCloud isn't syncing; "Open Settings" goes through the account
-/// repository's platform channel.
+/// `/`, the Today tab: the [TodayScreen] (issue #70). The app layer only
+/// composes it from the features' cards (CLAUDE.md §2–3) and wires their
+/// callbacks here: the header's import button opens [ImportRoute], the
+/// iCloud banner's "Open Settings" goes through the account repository's
+/// platform channel, and "Having a craving?" (iPhone only) opens
+/// [CravingRoute].
 ///
-/// Below the history, the cravings feature's [CravingHomeSection]: the
-/// "Having a craving?" button and the weekly line, on iPhone only (it
-/// renders nothing on macOS).
+/// The coach nudge slot stays empty: `coach_presentation` has nothing to
+/// say yet, and the nudge is hidden until it does.
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -147,16 +149,10 @@ class HomeRoute extends GoRouteData with $HomeRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) {
     final container = ProviderScope.containerOf(context, listen: false);
-    return MetricsHistoryModule(
+    return TodayScreen(
       onImportRequested: () => unawaited(_import(context, container)),
-      // Switches to the Settings tab.
-      onOpenSettings: () => const SettingsRoute().go(context),
-      banner: ICloudSyncBanner(
-        onOpenSettings: () => unawaited(_openAccountSettings(container)),
-      ),
-      footer: CravingHomeSection(
-        onCravingRequested: () => unawaited(_craving(context, container)),
-      ),
+      onOpenAccountSettings: () => unawaited(_openAccountSettings(container)),
+      onCravingRequested: () => unawaited(_craving(context, container)),
     );
   }
 
@@ -188,23 +184,31 @@ class HomeRoute extends GoRouteData with $HomeRoute {
     );
   }
 
-  /// Opens the import flow, then refreshes the history however it closes.
-  /// Refreshing on return rather than on completion also covers leaving
-  /// mid-commit, when the days are written but the import screen is gone
-  /// before it can report completion.
+  /// Opens the import flow, then refreshes what shows imported days however
+  /// it closes. Refreshing on return rather than on completion also covers
+  /// leaving mid-commit, when the days are written but the import screen is
+  /// gone before it can report completion.
   static Future<void> _import(
     BuildContext context,
     ProviderContainer container,
   ) async {
     await const ImportRoute().push<void>(context);
-    container.invalidate(metricsHistoryControllerProvider);
+    _invalidateImportReaders(container);
   }
 }
 
-/// `/week`, the Week tab: the metrics history ([MetricsHistoryModule]) on
-/// its own, without Today's iCloud banner and cravings section. A
-/// placeholder for the week view proper; it shares the history's import and
-/// settings actions with Today.
+/// Re-reads everything that shows imported (Cal AI) days: the Week tab's
+/// history, Today's metric tiles, and the week cards (the share card's
+/// opt-in calories).
+void _invalidateImportReaders(ProviderContainer container) => container
+  ..invalidate(metricsHistoryControllerProvider)
+  ..invalidate(todayMetricsProvider)
+  ..invalidate(weekCardControllerProvider);
+
+/// `/week`, the Week tab: the metrics history ([MetricsHistoryModule]), every
+/// imported day with the latest week's tiles. A placeholder for the week
+/// view proper. Its header has the import button (shared with Today) and
+/// the gear, which switches to the Settings tab.
 class WeekRoute extends GoRouteData with $WeekRoute {
   /// Creates the Week route.
   const WeekRoute();
@@ -294,11 +298,11 @@ class ImportRoute extends GoRouteData with $ImportRoute {
     return PdfImportModule(
       onImportCompleted: () {
         if (context.canPop()) {
-          // HomeRoute refreshes the history once this route pops.
+          // The pushing screen refreshes once this route pops.
           context.pop();
         } else {
-          // Cold start straight into /import: no history under us yet.
-          container.invalidate(metricsHistoryControllerProvider);
+          // Cold start straight into /import: nothing under us yet.
+          _invalidateImportReaders(container);
           const HomeRoute().go(context);
         }
       },

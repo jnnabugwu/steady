@@ -43,9 +43,12 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
 /// Invalidates every provider that holds data read from the shared
 /// `DailyMetric` store:
 ///
-/// - `metricsHistoryControllerProvider` (the home screen's history),
-/// - every `checkInControllerProvider(date)` (check-in screens),
-/// - every `weekCardControllerProvider(weekStart)` (the share card).
+/// - `metricsHistoryControllerProvider` (the Week tab's history),
+/// - every `todayMetricsProvider(day)` (Today's metric tiles),
+/// - every `checkInControllerProvider(date)` (Today's and the check-in
+///   screens' check-in cards),
+/// - every `weekCardControllerProvider(weekStart)` (the cairn week card and
+///   the share card).
 ///
 /// Settings' "Sample data" count (`sampleDaysControllerProvider`) also
 /// reads the store, but isn't here: it calls this helper itself after a
@@ -60,6 +63,7 @@ Stream<void> Function() dailyMetricsRemoteChangeSource(Ref ref) =>
 void invalidateDailyMetricReaders(Ref ref) {
   ref
     ..invalidate(metricsHistoryControllerProvider)
+    ..invalidate(todayMetricsProvider)
     ..invalidate(checkInControllerProvider)
     ..invalidate(weekCardControllerProvider);
 }

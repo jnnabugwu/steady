@@ -8,11 +8,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/today_screen.dart';
 
 /// iCloud is optional (CLAUDE.md §7): a banner, not a gate. End to end with
 /// the real [appProviderOverrides] (so the real
@@ -59,7 +59,7 @@ void main() {
     return ProviderScope.containerOf(tester.element(find.byType(SteadyApp)));
   }
 
-  final home = find.byType(MetricsHistoryModule);
+  final home = find.byType(TodayScreen);
   final importScreen = find.byType(PdfImportModule);
   final banner = find.byKey(const Key('iCloudBanner'));
   final dismiss = find.byKey(const Key('iCloudBannerButton_dismiss'));
