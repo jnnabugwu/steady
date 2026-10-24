@@ -7,6 +7,58 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Craving support: iPhone, guided, device-only (2026-10-23)
+
+**Decision:** Craving support ships on the iPhone only, as a short guided flow with no AI in
+the moment: "Having a craving?" → strength 1–5 → what's behind it (optional: hungry, bored,
+stressed, tired, habit / saw it, not sure) → an offered, never imposed, 75-second guided
+imagery minute → "Still want it?" (a second rating, then Having it / It passed / Not sure,
+each with an equally neutral line). Picking "hungry" ends the flow at "Sounds like you might
+actually be hungry. Eating something is a good call." Each finished check-in is stored **only
+on that iPhone**, in a JSON file in the app's support directory (`cravings_data`'s
+`FileCravingRepository`), never in SwiftData/CloudKit. In-app only: no notifications. Home
+shows a gentle weekly line ("3 cravings this week, mostly in the evening"); Settings has
+"Delete craving history" and a static pointer to ANAD's helpline.
+
+**Why:**
+
+- **The research** (`docs/research/craving_support.md`): a short visual task is the
+  best-supported in-the-moment technique (moderate lab evidence), hunger should never be
+  waited out, and success/failure framing, resisted counts and streaks make eating worse and
+  add eating-disorder risk. The flow, its copy and its stored fields follow §4 and §6 there.
+- **App Store 5.1.3(ii)**: craving events with an intensity and a reason like "stressed" read
+  as health data, and apps "may not store personal health information in iCloud". Keeping
+  them on the device avoids widening the open 5.1.3 risk Steady already has for calories and
+  check-ins ("Health data stays on the iPhone" below). A separate store from day one also
+  means no CloudKit schema to migrate if this changes (production schema is additive-only).
+- **Speed**: a craving is a moment on the phone. A one-tap entry on home, one question per
+  screen and no AI round-trip keep it under two minutes.
+
+**Consequences:**
+
+- The Mac review (and the coach that runs there) can't see cravings until the iPhone→Mac
+  local handoff (#97) exists. Nothing goes through iCloud in the meantime.
+- Craving data isn't in the data export in v1, and deleting the app deletes it. Like any
+  app's local files it can be part of the person's own iOS device backup; excluding the file
+  from backups needs native code and is a follow-up.
+- `cravingSupportAvailableProvider` and `cravingRepositoryProvider` are bound only by
+  `appProviderOverridesFor(isIOS: true)`. On macOS the home entry point and Settings card
+  render nothing and `/craving` redirects home.
+
+**Alternatives considered (all rejected for v1):**
+
+- *An AI chat in the moment* (Foundation Models). The coach is macOS-only (CLAUDE.md §11), a
+  live model can drift into calorie or diet advice (the NEDA "Tessa" failure the research
+  cites), and a chat is slower than tapping through four questions.
+- *A puzzle game* as the visual task. Similar evidence to guided imagery, much more to build
+  and tune, and a game invites "winning" framing. Guided imagery needs no game.
+- *A "check back in a bit?" notification* after the minute. The research rates the timing
+  evidence weak, unrequested craving notifications are on its "don't" list, and Steady just
+  dropped its only other notification ("No end-of-day reminder" below). "Not sure" says "You
+  can check back in anytime" instead.
+
+---
+
 ## No end-of-day reminder (2026-10-23)
 
 **Decision:** Steady sends no end-of-day reminder. The planned 10pm local notification (fired

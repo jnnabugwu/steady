@@ -1,0 +1,24 @@
+name: cravings_data
+description: "Craving support: the device-only JSON file store for craving check-ins (never synced)."
+version: 0.0.1
+homepage:
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  cravings_domain:
+    path: ../cravings_domain
+  failures:
+    path: ../../../packages/shared/failures
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  very_good_analysis: ^11.0.0
+
+flutter:

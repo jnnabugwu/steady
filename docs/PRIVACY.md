@@ -24,6 +24,21 @@ private database for your Apple ID), so your iPhone and Mac stay in sync. Only y
 your private iCloud data; the developer can't. If your device isn't signed into iCloud, your
 data stays only on that device until you sign in.
 
+## Craving check-ins
+
+On iPhone, when you use "Having a craving?", Steady records each finished check-in: when it
+started and ended, how strong the craving was (1 to 5) at the start and, if you said, at the
+end, what you said was behind it (for example bored or tired), whether you took the guided
+minute, and how it ended (having it, it passed, not sure, or hungry). It doesn't record what
+food it was, calories, your location or any notes.
+
+- Craving check-ins are stored **only on that iPhone**, in the app's own storage. Steady
+  doesn't put them in iCloud or sync them to your other devices, and the Mac app doesn't
+  have them.
+- You can delete them at any time in Steady's Settings → Cravings → "Delete craving
+  history". Deleting the app also removes them.
+- They aren't included in the data export.
+
 ## Apple Health
 
 On iPhone, with your permission, Steady reads your daily steps, active energy and resting
@@ -53,7 +68,8 @@ where you send it through the system share sheet. Steady doesn't send it anywher
 ## Your data, your control
 
 - **Export:** in Steady's Settings you can export your data as CSV or JSON.
-- **Delete:** deleting the app removes its data from that device. To delete the copy in
+- **Delete:** deleting the app removes its data from that device. Craving check-ins can also
+  be deleted on their own in Settings → Cravings. To delete the copy in
   iCloud, go to Settings → [your name] → iCloud → Manage Storage (on Mac: System Settings →
   [your name] → iCloud → Manage) and delete Steady's data.
 

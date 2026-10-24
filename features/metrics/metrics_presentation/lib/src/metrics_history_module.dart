@@ -31,6 +31,7 @@ class MetricsHistoryModule extends ConsumerWidget {
     required this.onImportRequested,
     required this.onOpenSettings,
     this.banner,
+    this.footer,
     super.key,
   });
 
@@ -46,6 +47,14 @@ class MetricsHistoryModule extends ConsumerWidget {
   /// other), for example the account feature's iCloud sync banner. It owns
   /// its own padding and may render nothing.
   final Widget? banner;
+
+  /// Optional widget pinned below the history, at the bottom of the screen
+  /// within thumb reach.
+  ///
+  /// Composed in by the app layer like [banner], for example the cravings
+  /// feature's "Having a craving?" button on iPhone. It owns its own
+  /// padding and may render nothing.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -85,6 +94,7 @@ class MetricsHistoryModule extends ConsumerWidget {
           children: [
             ?banner,
             Expanded(child: _body(ref, history, health)),
+            ?footer,
           ],
         ),
       ),
