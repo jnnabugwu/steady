@@ -17,6 +17,11 @@ final goldenSteps = <(String, Future<void> Function(WidgetTester))>[
     (tester) async {
       await tester.tap(find.byKey(const Key('exportButton_csv')));
       await tester.pumpAndSettle();
+      // The export ran: the golden shows the receipt, not the idle screen.
+      expect(
+        find.text('Exported 2 days to steady-export-2026-10-22.csv.'),
+        findsOneWidget,
+      );
     },
   ),
 ];
@@ -51,15 +56,19 @@ Future<void> pumpGoldenScreen(WidgetTester tester) async {
 }
 
 void main() {
-  group('DataExportModule goldens', skip: goldenSkip, () {
+  group('DataExportModule goldens', () {
     for (final (name, step) in goldenSteps) {
-      testWidgets(name, (tester) async {
-        await pumpGoldenScreen(tester);
-        await step(tester);
-        await expectLater(
-          find.byType(DataExportModule),
-          matchesGoldenFile('goldens/$name.png'),
-        );
+      // A group per golden so its skip reason is reported (testWidgets'
+      // `skip` is a bool).
+      group(name, skip: goldenSkip(name), () {
+        testWidgets('matches goldens/$name.png', (tester) async {
+          await pumpGoldenScreen(tester);
+          await step(tester);
+          await expectLater(
+            find.byType(DataExportModule),
+            matchesGoldenFile('goldens/$name.png'),
+          );
+        });
       });
     }
   });
