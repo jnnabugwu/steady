@@ -171,7 +171,7 @@ void main() {
 
     expect(find.text('Importing…'), findsOneWidget);
     expect(tester.widget<PrimaryButton>(importButton).onPressed, isNull);
-    expect(tester.widget<OutlineButton>(chooseAgainButton).onPressed, isNull);
+    expect(tester.widget<Button>(chooseAgainButton).onPressed, isNull);
     await tester.tap(importButton, warnIfMissed: false);
 
     commit.complete(const Ok(unit));

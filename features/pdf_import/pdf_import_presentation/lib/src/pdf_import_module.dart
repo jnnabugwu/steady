@@ -15,6 +15,10 @@ import 'package:ui_kit/ui_kit.dart';
 /// happens next. After a sample import it first stays on the confirmation,
 /// which says how to remove the sample days, until the user taps Done.
 ///
+/// Pass 02 ("Native Glass", issue #68): each step sits on a [GlassCard],
+/// with a teal pill for the primary action and a glass pill for the
+/// secondary one.
+///
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
 class PdfImportModule extends ConsumerWidget {
@@ -47,12 +51,14 @@ class PdfImportModule extends ConsumerWidget {
     }
 
     return Scaffold(
-      headers: const [AppBar(title: Text('Import from Cal AI'))],
+      headers: const [_Header()],
       child: SafeArea(
+        top: false,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
           child: switch (state) {
             PdfImportEmpty() => _Message(
+              eyebrow: 'Step 1 · Pick',
               title: 'Import a Cal AI export',
               body:
                   'Choose a PDF exported from Cal AI. Steady reads each '
@@ -66,12 +72,12 @@ class PdfImportModule extends ConsumerWidget {
                     onPressed: choosePdf,
                   ),
                   const SizedBox(height: 8),
-                  SecondaryButton(
-                    key: const Key('pdfImport_sampleButton'),
+                  _GlassPill(
+                    buttonKey: const Key('pdfImport_sampleButton'),
                     onPressed: chooseSamplePdf,
-                    child: const Text('Try a sample export'),
+                    label: 'Try a sample export',
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Text(
                     'Seven made-up days from January 2025, to see how '
                     'importing works.',
@@ -84,16 +90,19 @@ class PdfImportModule extends ConsumerWidget {
               ),
             ),
             PdfImportParsing() => const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Reading your PDF…', style: SteadyType.body),
-                ],
+              child: GlassCard(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 14),
+                    Text('Reading your PDF…', style: SteadyType.body),
+                  ],
+                ),
               ),
             ),
             PdfImportParseFailed(:final failure) => _Message(
+              eyebrow: 'Step 1 · Pick',
               title: "Couldn't read that PDF",
               body: failure.message,
               action: _ChooseButton(
@@ -102,6 +111,7 @@ class PdfImportModule extends ConsumerWidget {
               ),
             ),
             PdfImportPreview(:final days) when days.isEmpty => _Message(
+              eyebrow: 'Step 1 · Pick',
               title: 'No days found',
               body: 'No days found in this PDF — is it a Cal AI export?',
               action: _ChooseButton(
@@ -127,27 +137,26 @@ class PdfImportModule extends ConsumerWidget {
                       ),
                       const SizedBox(height: 12),
                     ],
-                    PrimaryButton(
-                      key: const Key('pdfImport_importButton'),
+                    _TealPill(
+                      buttonKey: const Key('pdfImport_importButton'),
                       onPressed: isCommitting
                           ? null
                           : () => unawaited(commit()),
-                      child: Text(
-                        isCommitting
-                            ? 'Importing…'
-                            : 'Import ${_dayCount(days.length)}',
-                      ),
+                      label: isCommitting
+                          ? 'Importing…'
+                          : 'Import ${_dayCount(days.length)}',
                     ),
                     const SizedBox(height: 8),
-                    OutlineButton(
-                      key: const Key('pdfImport_chooseAgainButton'),
+                    _GlassPill(
+                      buttonKey: const Key('pdfImport_chooseAgainButton'),
                       onPressed: isCommitting ? null : choosePdf,
-                      child: const Text('Choose a different PDF'),
+                      label: 'Choose a different PDF',
                     ),
                   ],
                 ),
               ),
             PdfImportCommitted(:final days, :final isSample) => _Message(
+              eyebrow: 'All set',
               title: 'Imported ${_dayCount(days.length)}',
               body: "Each day's calories are now in Steady.",
               action: isSample
@@ -162,11 +171,11 @@ class PdfImportModule extends ConsumerWidget {
                             color: SteadyColors.textMuted,
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        PrimaryButton(
-                          key: const Key('pdfImport_doneButton'),
+                        const SizedBox(height: 14),
+                        _TealPill(
+                          buttonKey: const Key('pdfImport_doneButton'),
                           onPressed: onImportCompleted,
-                          child: const Text('Done'),
+                          label: 'Done',
                         ),
                       ],
                     )
@@ -179,10 +188,50 @@ class PdfImportModule extends ConsumerWidget {
   }
 }
 
-/// A centered card with a title, body text and an optional action.
-class _Message extends StatelessWidget {
-  const _Message({required this.title, required this.body, this.action});
+/// The Pass 02 screen header: the 34px title under a small teal line.
+class _Header extends StatelessWidget {
+  const _Header();
 
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(22, 16, 22, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'On this device',
+              style: TextStyle(
+                fontFamily: SteadyType.fontFamily,
+                fontFamilyFallback: SteadyType.fontFamilyFallback,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: SteadyColors.accentTealHover,
+              ),
+            ),
+            SizedBox(height: 4),
+            Text('Import from Cal AI', style: SteadyType.headline),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A centered glass card: an eyebrow, a title, body text and an optional
+/// action.
+class _Message extends StatelessWidget {
+  const _Message({
+    required this.eyebrow,
+    required this.title,
+    required this.body,
+    this.action,
+  });
+
+  final String eyebrow;
   final String title;
   final String body;
   final Widget? action;
@@ -190,19 +239,23 @@ class _Message extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: SteadyCard(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(title, style: SteadyType.cardTitle),
-            const SizedBox(height: 8),
-            Text(body, style: SteadyType.body),
-            if (action case final action?) ...[
-              const SizedBox(height: 16),
-              action,
+      child: SingleChildScrollView(
+        child: GlassCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(eyebrow.toUpperCase(), style: SteadyType.eyebrow),
+              const SizedBox(height: 4),
+              Text(title, style: SteadyType.cardTitle),
+              const SizedBox(height: 8),
+              Text(body, style: SteadyType.body),
+              if (action case final action?) ...[
+                const SizedBox(height: 16),
+                action,
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -217,15 +270,83 @@ class _ChooseButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PrimaryButton(
-      key: const Key('pdfImport_chooseButton'),
+    return _TealPill(
+      buttonKey: const Key('pdfImport_chooseButton'),
       onPressed: onPressed,
-      child: Text(label),
+      label: label,
     );
   }
 }
 
-/// The parsed days: a summary, a scrollable per-day list, then [footer].
+/// Pill button labels: 15px, weight 600, as on the Pass 02 artboard.
+const _pillLabel = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
+
+/// A full-width 44px teal pill: shadcn's [PrimaryButton], which
+/// `steadyTheme` already colours teal and rounds to a full pill. A null
+/// [onPressed] disables it.
+class _TealPill extends StatelessWidget {
+  const _TealPill({
+    required this.buttonKey,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: PrimaryButton(
+        key: buttonKey,
+        onPressed: onPressed,
+        alignment: Alignment.center,
+        child: Text(label, style: _pillLabel),
+      ),
+    );
+  }
+}
+
+/// A full-width 44px secondary pill ("Not tonight" on the Pass 02
+/// artboard): shadcn's secondary [Button] on the glass control fill and
+/// border. A null [onPressed] disables it.
+class _GlassPill extends StatelessWidget {
+  const _GlassPill({
+    required this.buttonKey,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String label;
+  final VoidCallback? onPressed;
+
+  static final AbstractButtonStyle _style = const ButtonStyle.secondary()
+      .withBackgroundColor(
+        color: SteadyColors.glassControlFill,
+        hoverColor: SteadyColors.glassControlBorder,
+      )
+      .withBorder(border: Border.all(color: SteadyColors.glassControlBorder));
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: Button(
+        key: buttonKey,
+        style: _style,
+        onPressed: onPressed,
+        alignment: Alignment.center,
+        child: Text(label, style: _pillLabel),
+      ),
+    );
+  }
+}
+
+/// The parsed days: a summary, a glass card listing each day (tap one to
+/// see its food entries), then [footer].
 class _Preview extends StatelessWidget {
   const _Preview({required this.days, required this.footer});
 
@@ -242,13 +363,27 @@ class _Preview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('${_dayCount(days.length)} found', style: SteadyType.cardTitle),
-        const SizedBox(height: 4),
-        Text(range, style: SteadyType.body),
-        const SizedBox(height: 16),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Step 2 · Review'.toUpperCase(), style: SteadyType.eyebrow),
+              const SizedBox(height: 4),
+              Text(
+                '${_dayCount(days.length)} found',
+                style: SteadyType.cardTitle,
+              ),
+              const SizedBox(height: 2),
+              Text(range, style: SteadyType.body),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
         Expanded(
           child: SingleChildScrollView(
-            child: SteadyCard(
+            child: GlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 6),
               child: Accordion(
                 items: [
                   for (final day in days)
@@ -271,7 +406,7 @@ class _Preview extends StatelessWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 14),
         footer,
       ],
     );
@@ -291,13 +426,20 @@ class _DayRow extends StatelessWidget {
         Expanded(
           child: Text(
             _formatDay(day.date),
-            style: SteadyType.body.copyWith(color: SteadyColors.textPrimary),
+            style: SteadyType.body.copyWith(
+              color: SteadyColors.textPrimary,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         Text(
           '${_formatCalories(day.caloriesEaten)} kcal · '
           '$entries ${entries == 1 ? 'entry' : 'entries'}',
-          style: SteadyType.body.copyWith(color: SteadyColors.caloriesEaten),
+          style: SteadyType.body.copyWith(
+            fontSize: 13,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color: SteadyColors.caloriesEaten,
+          ),
         ),
       ],
     );
