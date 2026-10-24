@@ -370,16 +370,55 @@ class _Overview extends StatelessWidget {
     ];
     final present = values.whereType<int>().toList();
     final average = (present.reduce((a, b) => a + b) / present.length).round();
-    return MetricTile(
+    final value = formatThousands(average);
+    final unit = metric.unit == null ? '' : ' ${metric.unit}';
+    // The average divides by the days that have the metric, not by seven,
+    // so a partial week says how many days it covers.
+    final coverage = present.length < 7
+        ? averageCoverage(present.length)
+        : null;
+    final tile = MetricTile(
       key: Key('historyTile_${metric.name}'),
       label: metric.label,
-      value: formatThousands(average),
+      value: value,
       unit: metric.unit,
       accent: metric.accent,
       dailyValues: values,
+      semanticLabel: coverage == null
+          ? null
+          : '${metric.label}, $value$unit, $coverage',
+    );
+    if (coverage == null) return tile;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        tile,
+        const SizedBox(height: 6),
+        ExcludeSemantics(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              coverage,
+              key: Key('historyTileCoverage_${metric.name}'),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: SteadyType.body.copyWith(
+                fontSize: 12,
+                color: SteadyColors.textTertiary,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
+
+/// How many days a week tile's average covers, for a tile built from
+/// fewer than seven days: "avg of 3 days".
+@visibleForTesting
+String averageCoverage(int days) =>
+    'avg of $days ${days == 1 ? 'day' : 'days'}';
 
 /// The metrics the history's week tiles show, in the artboard's order.
 enum _WeekMetric {

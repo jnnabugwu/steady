@@ -7,7 +7,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:metrics_presentation/src/metrics_history_module.dart'
-    show formatDay, formatShortDay, formatThousands, latestWeek, summaryLine;
+    show
+        averageCoverage,
+        formatDay,
+        formatShortDay,
+        formatThousands,
+        latestWeek,
+        summaryLine;
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -144,7 +150,12 @@ void main() {
 
       // One week tile, for the only metric there is (no Health here).
       expect(find.text('LATEST 7 DAYS · AUG 9 – AUG 15'), findsOneWidget);
-      expect(find.bySemanticsLabel('Avg eaten, 1,665 kcal'), findsOneWidget);
+      // Two of the week's days have calories: the tile says so.
+      expect(
+        find.bySemanticsLabel('Avg eaten, 1,665 kcal, avg of 2 days'),
+        findsOneWidget,
+      );
+      expect(find.text('avg of 2 days'), findsOneWidget);
       expect(find.byKey(const Key('historyTile_burned')), findsNothing);
       expect(find.byKey(const Key('historyTile_steps')), findsNothing);
 
@@ -153,6 +164,26 @@ void main() {
       final thu = tester.getTopLeft(find.text('Thu, Aug 13 2026')).dy;
       expect(sat, lessThan(fri));
       expect(fri, lessThan(thu));
+    });
+
+    testWidgets('a full week of a metric shows no coverage caption', (
+      tester,
+    ) async {
+      repository.onGetRange = (_, _) => Ok([
+        for (var i = 0; i < 7; i++)
+          DailyMetric(date: DateTime(2026, 8, 15 - i), caloriesEaten: 2000),
+      ]);
+
+      await pumpInScope(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.bySemanticsLabel('Avg eaten, 2,000 kcal'), findsOneWidget);
+      expect(find.byKey(const Key('historyTileCoverage_eaten')), findsNothing);
+    });
+
+    test('averageCoverage counts the days averaged', () {
+      expect(averageCoverage(1), 'avg of 1 day');
+      expect(averageCoverage(6), 'avg of 6 days');
     });
 
     group('live Apple Health', () {
@@ -210,6 +241,11 @@ void main() {
             ('Avg steps', '6,750', MetricAccent.steps),
           ],
         );
+        // Each metric covers two of the seven days, and each tile says so.
+        for (final metric in ['eaten', 'burned', 'steps']) {
+          final caption = find.byKey(Key('historyTileCoverage_$metric'));
+          expect(tester.widget<Text>(caption).data, 'avg of 2 days');
+        }
         expect(tiles.last.dailyValues, [
           null,
           null,

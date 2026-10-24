@@ -48,21 +48,25 @@ Widget _scene(MetricsRepository repository) => ProviderScope(
 );
 
 void main() {
-  group('MetricsHistoryModule goldens', skip: goldenSkip, () {
+  group('MetricsHistoryModule goldens', () {
     for (final (name, scene) in [
       ('metrics_history', historyScene),
       ('metrics_history_empty', emptyScene),
       ('metrics_history_error', errorScene),
     ]) {
-      testWidgets(name, (tester) async {
-        await loadGoldenFonts();
-        useGoldenSurface(tester);
-        await tester.pumpWidget(scene());
-        await tester.pumpAndSettle();
-        await expectLater(
-          find.byType(MetricsHistoryModule),
-          matchesGoldenFile('goldens/$name.png'),
-        );
+      // A group per golden so its skip reason is reported (testWidgets'
+      // `skip` is a bool).
+      group(name, skip: goldenSkip(name), () {
+        testWidgets('matches goldens/$name.png', (tester) async {
+          await loadGoldenFonts();
+          useGoldenSurface(tester);
+          await tester.pumpWidget(scene());
+          await tester.pumpAndSettle();
+          await expectLater(
+            find.byType(MetricsHistoryModule),
+            matchesGoldenFile('goldens/$name.png'),
+          );
+        });
       });
     }
   });
