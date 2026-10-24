@@ -24,8 +24,9 @@ const appShellTabs = <GlassTabItem>[
 ///
 /// **Content scrolls under the bar.** The branch fills the whole screen, so
 /// the bar's backdrop blur has the content behind it. Below the bar, the
-/// shell raises `MediaQuery.padding.bottom` (and `viewPadding.bottom`) by
-/// the bar's footprint, [bottomInset], the same contract as a Material
+/// shell raises `MediaQuery.padding.bottom` (and `viewPadding.bottom`) to
+/// [bottomInset]: the bar's footprint plus the [contentGap] above it. Same
+/// contract as a Material
 /// `Scaffold` with `extendBody`: a screen that wraps itself in `SafeArea`
 /// keeps its last card's buttons above the bar, and a scroll view that
 /// pads its end by `MediaQuery.paddingOf(context).bottom` scrolls under it
@@ -43,9 +44,9 @@ class AppShell extends StatelessWidget {
   /// Breathing room between the bar's top and the end of the content.
   static const double contentGap = 16;
 
-  /// The space the bar takes up from the bottom of a screen whose system
-  /// bottom inset (the home indicator) is [systemBottom]. Also the bottom
-  /// padding the shell hands its content.
+  /// The bottom padding the shell hands its content on a screen whose system
+  /// bottom inset (the home indicator) is [systemBottom]: the space the bar
+  /// takes up from the bottom, plus [contentGap] above it.
   static double bottomInset(double systemBottom) =>
       _barBottom(systemBottom) + GlassTabBar.height + contentGap;
 

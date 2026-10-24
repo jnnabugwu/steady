@@ -129,13 +129,16 @@ void main() {
       expect(await storedStatus(container, day), LoggingStatus.skipped);
     });
 
-    for (final location in ['/checkin/garbage', '/checkin/2026-02-30']) {
-      testWidgets('malformed $location redirects to the home screen', (
+    for (final path in ['/checkin/garbage', '/checkin/2026-02-30']) {
+      testWidgets('malformed $path redirects to Today in the shell', (
         tester,
       ) async {
-        await pumpApp(tester, coldStartLocation: location);
+        final container = await pumpApp(tester, coldStartLocation: path);
 
         expect(tester.takeException(), isNull);
+        expect(location(container), '/');
+        expect(tabBar, findsOneWidget);
+        expect(selectedTab(tester), 0);
         expect(find.byType(MetricsHistoryModule), findsOneWidget);
         expect(find.byType(CheckInModule), findsNothing);
       });
@@ -261,21 +264,6 @@ void main() {
       expect(find.byType(MetricsHistoryModule), findsOneWidget);
       expect(location(container), '/');
     });
-
-    for (final location in ['/checkin/garbage', '/checkin/2026-02-30']) {
-      testWidgets('malformed $location redirects to Today in the shell', (
-        tester,
-      ) async {
-        final container = await pumpApp(tester, coldStartLocation: location);
-
-        expect(tester.takeException(), isNull);
-        expect(container.read(routerProvider).state.matchedLocation, '/');
-        expect(tabBar, findsOneWidget);
-        expect(selectedTab(tester), 0);
-        expect(find.byType(MetricsHistoryModule), findsOneWidget);
-        expect(find.byType(CheckInModule), findsNothing);
-      });
-    }
   });
 
   group('settings', () {
