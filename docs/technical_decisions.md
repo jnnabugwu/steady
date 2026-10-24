@@ -37,10 +37,15 @@ shows a gentle weekly line ("3 cravings this week, mostly in the evening"); Sett
 **Consequences:**
 
 - The Mac review (and the coach that runs there) can't see cravings until the iPhone→Mac
-  local handoff (#97) exists. Nothing goes through iCloud in the meantime.
-- Craving data isn't in the data export in v1, and deleting the app deletes it. Like any
-  app's local files it can be part of the person's own iOS device backup; excluding the file
-  from backups needs native code and is a follow-up.
+  local handoff (#97) exists. Steady puts nothing in iCloud storage in the meantime.
+- Craving data isn't in the data export in v1, and deleting the app deletes it from the
+  iPhone. Like any app's local files it is part of the person's own iOS device backup
+  (iCloud Backup, if on). **Decided (2026-10-23): keep it in backups** so a restored phone
+  keeps its history, and say so plainly in Settings and PRIVACY.md. The alternative,
+  excluding the file from backups with a native flag, was rejected: the history would be
+  lost on a new or restored phone. Device backups are made by iOS for the whole device, not
+  an iCloud store the app writes to, so this reads as outside 5.1.3(ii); still a question
+  for the App Review consultation.
 - `cravingSupportAvailableProvider` and `cravingRepositoryProvider` are bound only by
   `appProviderOverridesFor(isIOS: true)`. On macOS the home entry point and Settings card
   render nothing and `/craving` redirects home.

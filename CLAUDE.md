@@ -553,7 +553,9 @@ private database has no separate backup.
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in
 the iPhone's app support directory, never synced. They read as health data, and App Store
 5.1.3(ii) says apps may not store personal health information in iCloud. Don't move them into
-the synced store; the Mac sees them only once the iPhone→Mac local handoff (#97) exists.
+the synced store; the Mac sees them only once the iPhone→Mac local handoff (#97) exists. The
+file is deliberately **left in the user's own iOS device backup** (iCloud Backup, if they use
+it), so a restored phone keeps its history; the Settings text and PRIVACY.md say so plainly.
 Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
