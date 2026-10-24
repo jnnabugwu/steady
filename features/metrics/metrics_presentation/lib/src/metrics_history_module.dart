@@ -8,7 +8,12 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The metrics history screen: every imported day, newest first. It's the
-/// home screen, so its app bar also holds the settings (gear) button.
+/// home screen, so its header also holds the settings (gear) button.
+///
+/// Pass 02 ("Native Glass", issue #68): a 34px title with round glass
+/// import and settings buttons, a [MetricTile] per metric for the seven
+/// days ending on the newest day (sparklines in the metric colours), then
+/// one glass card per day.
 ///
 /// Knows nothing about routing, PDF import or settings (CLAUDE.md §5): when
 /// the user asks to import a Cal AI PDF it calls [onImportRequested], and
@@ -68,27 +73,13 @@ class MetricsHistoryModule extends ConsumerWidget {
 
     return Scaffold(
       headers: [
-        AppBar(
-          title: const Text('Steady'),
-          trailing: [
-            PrimaryButton(
-              key: const Key('importButton_header'),
-              onPressed: onImportRequested,
-              child: const Text('Import Cal AI PDF'),
-            ),
-            Semantics(
-              label: 'Settings',
-              button: true,
-              child: IconButton.ghost(
-                key: const Key('openSettingsButton'),
-                icon: const Icon(LucideIcons.settings),
-                onPressed: onOpenSettings,
-              ),
-            ),
-          ],
+        _Header(
+          onImportRequested: onImportRequested,
+          onOpenSettings: onOpenSettings,
         ),
       ],
       child: SafeArea(
+        top: false,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -124,6 +115,93 @@ class MetricsHistoryModule extends ConsumerWidget {
   }
 }
 
+/// The Pass 02 screen header: the 34px title, then the round glass import
+/// and settings buttons.
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.onImportRequested,
+    required this.onOpenSettings,
+  });
+
+  final void Function() onImportRequested;
+  final void Function() onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(22, 16, 18, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'History',
+                    style: TextStyle(
+                      fontFamily: SteadyType.fontFamily,
+                      fontFamilyFallback: SteadyType.fontFamilyFallback,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: SteadyColors.accentTealHover,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text('Steady', style: SteadyType.headline),
+                ],
+              ),
+            ),
+            GlassIconButton(
+              key: const Key('importButton_header'),
+              icon: LucideIcons.arrowDownToLine,
+              semanticLabel: 'Import Cal AI PDF',
+              onPressed: onImportRequested,
+            ),
+            const SizedBox(width: 8),
+            GlassIconButton(
+              key: const Key('openSettingsButton'),
+              icon: LucideIcons.settings,
+              semanticLabel: 'Settings',
+              onPressed: onOpenSettings,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A full-width 44px teal pill: shadcn's [PrimaryButton], which
+/// `steadyTheme` already colours teal and rounds to a full pill.
+class _TealPill extends StatelessWidget {
+  const _TealPill({
+    required this.buttonKey,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final Key buttonKey;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 44,
+      child: PrimaryButton(
+        key: buttonKey,
+        onPressed: onPressed,
+        alignment: Alignment.center,
+        child: Text(label, style: _pillLabel),
+      ),
+    );
+  }
+}
+
 class _EmptyState extends StatelessWidget {
   const _EmptyState({required this.onImportRequested});
 
@@ -132,23 +210,27 @@ class _EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'No days yet — import a Cal AI PDF to get started',
-              style: SteadyType.body,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            PrimaryButton(
-              key: const Key('importButton_empty'),
-              onPressed: onImportRequested,
-              child: const Text('Import Cal AI PDF'),
-            ),
-          ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: GlassCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text('Get started'.toUpperCase(), style: SteadyType.eyebrow),
+              const SizedBox(height: 4),
+              const Text(
+                'No days yet — import a Cal AI PDF to get started',
+                style: SteadyType.cardTitle,
+              ),
+              const SizedBox(height: 14),
+              _TealPill(
+                buttonKey: const Key('importButton_empty'),
+                onPressed: onImportRequested,
+                label: 'Import Cal AI PDF',
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -164,24 +246,44 @@ class _ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(message, style: SteadyType.body, textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            OutlineButton(
-              key: const Key('retryButton'),
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
-          ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
+        child: GlassCard(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(message, style: SteadyType.body),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 44,
+                child: Button(
+                  key: const Key('retryButton'),
+                  style: _glassPillStyle,
+                  alignment: Alignment.center,
+                  onPressed: onRetry,
+                  child: const Text('Retry', style: _pillLabel),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+/// Pill button labels: 15px, weight 600, as on the Pass 02 artboard.
+const _pillLabel = TextStyle(fontSize: 15, fontWeight: FontWeight.w600);
+
+/// The Pass 02 secondary pill ("Not tonight" on the artboard): shadcn's
+/// secondary button on the glass control fill and border.
+final AbstractButtonStyle _glassPillStyle = const ButtonStyle.secondary()
+    .withBackgroundColor(
+      color: SteadyColors.glassControlFill,
+      hoverColor: SteadyColors.glassControlBorder,
+    )
+    .withBorder(border: Border.all(color: SteadyColors.glassControlBorder));
 
 class _HistoryList extends StatelessWidget {
   const _HistoryList({required this.days});
@@ -193,21 +295,128 @@ class _HistoryList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 18),
       itemCount: days.length + 1,
       separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return Text(
-            summaryLine(days),
-            key: const Key('historySummary'),
-            style: SteadyType.body,
-          );
-        }
+        if (index == 0) return _Overview(days: days);
         return _DayRow(day: days[index - 1]);
       },
     );
   }
+}
+
+/// The week at the top of the history: one [MetricTile] per metric for the
+/// seven days ending on the newest day, then the all-history summary line.
+class _Overview extends StatelessWidget {
+  const _Overview({required this.days});
+
+  /// Newest first, non-empty.
+  final List<DailyMetric> days;
+
+  @override
+  Widget build(BuildContext context) {
+    final week = latestWeek(days);
+    final tiles = [
+      for (final metric in _WeekMetric.values)
+        if (week.days.any((d) => d != null && metric.read(d) != null))
+          _tile(metric, week),
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (tiles.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              'Latest 7 days · ${formatShortDay(week.start)} – '
+                      '${formatShortDay(week.end)}'
+                  .toUpperCase(),
+              key: const Key('historyWeekLabel'),
+              style: SteadyType.eyebrow,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < 3; i++) ...[
+                if (i > 0) const SizedBox(width: 8),
+                Expanded(child: i < tiles.length ? tiles[i] : const SizedBox()),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            summaryLine(days),
+            key: const Key('historySummary'),
+            style: SteadyType.body.copyWith(
+              fontSize: 13,
+              color: SteadyColors.textTertiary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _tile(_WeekMetric metric, HistoryWeek week) {
+    final values = [
+      for (final d in week.days)
+        if (d == null) null else metric.read(d),
+    ];
+    final present = values.whereType<int>().toList();
+    final average = (present.reduce((a, b) => a + b) / present.length).round();
+    return MetricTile(
+      key: Key('historyTile_${metric.name}'),
+      label: metric.label,
+      value: formatThousands(average),
+      unit: metric.unit,
+      accent: metric.accent,
+      dailyValues: values,
+    );
+  }
+}
+
+/// The metrics the history's week tiles show, in the artboard's order.
+enum _WeekMetric {
+  eaten('Avg eaten', 'kcal', MetricAccent.caloriesEaten),
+  burned('Avg burned', 'kcal', MetricAccent.caloriesBurned),
+  steps('Avg steps', null, MetricAccent.steps);
+
+  _WeekMetric(this.label, this.unit, this.accent);
+
+  final String label;
+  final String? unit;
+  final MetricAccent accent;
+
+  int? read(DailyMetric day) => switch (this) {
+    _WeekMetric.eaten => day.caloriesEaten,
+    _WeekMetric.burned => caloriesBurned(day),
+    _WeekMetric.steps => day.steps,
+  };
+}
+
+/// Seven consecutive calendar days, `start` to `end`, oldest first: each
+/// day's stored (and Health-merged) row, or `null` when there's none.
+typedef HistoryWeek = ({DateTime start, DateTime end, List<DailyMetric?> days});
+
+/// The seven calendar days ending on the newest day in [days] (newest
+/// first, non-empty), oldest first, each the stored day or `null`.
+@visibleForTesting
+HistoryWeek latestWeek(List<DailyMetric> days) {
+  final newest = days.first.date;
+  final end = DateTime(newest.year, newest.month, newest.day);
+  final byDay = {
+    for (final d in days) DateTime(d.date.year, d.date.month, d.date.day): d,
+  };
+  final week = [
+    for (var i = 6; i >= 0; i--) DateTime(end.year, end.month, end.day - i),
+  ];
+  return (start: week.first, end: end, days: [for (final d in week) byDay[d]]);
 }
 
 class _DayRow extends StatelessWidget {
@@ -221,12 +430,22 @@ class _DayRow extends StatelessWidget {
     final burned = caloriesBurned(day);
     final steps = day.steps;
 
-    return SteadyCard(
+    return GlassCard(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(formatDay(day.date), style: SteadyType.cardTitle),
-          const SizedBox(height: 8),
+          Text(
+            formatDay(day.date),
+            style: const TextStyle(
+              fontFamily: SteadyType.fontFamily,
+              fontFamilyFallback: SteadyType.fontFamilyFallback,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: SteadyColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -323,6 +542,11 @@ const _months = [
 String formatDay(DateTime date) =>
     '${_weekdays[date.weekday - 1]}, ${_months[date.month - 1]} '
     '${date.day} ${date.year}';
+
+/// Formats [date] as e.g. "Aug 16", for the week label.
+@visibleForTesting
+String formatShortDay(DateTime date) =>
+    '${_months[date.month - 1]} ${date.day}';
 
 /// Formats [value] with comma thousands separators, e.g. 1330 -> "1,330".
 @visibleForTesting
