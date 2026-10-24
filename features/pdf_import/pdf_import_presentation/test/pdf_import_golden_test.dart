@@ -56,15 +56,19 @@ Future<void> pumpGoldenScreen(WidgetTester tester) async {
 }
 
 void main() {
-  group('PdfImportModule goldens', skip: goldenSkip, () {
+  group('PdfImportModule goldens', () {
     for (final (name, step) in goldenSteps) {
-      testWidgets(name, (tester) async {
-        await pumpGoldenScreen(tester);
-        await step(tester);
-        await expectLater(
-          find.byType(PdfImportModule),
-          matchesGoldenFile('goldens/$name.png'),
-        );
+      // A group per golden so its skip reason is reported (testWidgets'
+      // `skip` is a bool).
+      group(name, skip: goldenSkip(name), () {
+        testWidgets('matches goldens/$name.png', (tester) async {
+          await pumpGoldenScreen(tester);
+          await step(tester);
+          await expectLater(
+            find.byType(PdfImportModule),
+            matchesGoldenFile('goldens/$name.png'),
+          );
+        });
       });
     }
   });

@@ -4,15 +4,29 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// Pass as a golden test's `skip:`. Goldens run on macOS only, like
-/// ui_kit's (packages/shared/ui_kit/test/helpers/harness.dart): rasterising
-/// differs between macOS and Linux, so CI's ubuntu runner skips them.
+/// Pass as the `skip:` of the golden test comparing against
+/// `goldens/<name>.png` (relative to the test file).
+///
+/// Goldens run on macOS only, like ui_kit's
+/// (packages/shared/ui_kit/test/helpers/harness.dart): rasterising differs
+/// between macOS and Linux, so CI's ubuntu runner skips them. On macOS, a
+/// golden whose reference PNG hasn't been generated yet is skipped too,
+/// unless the run is `flutter test --update-goldens`, which creates it.
 /// After an intentional visual change, regenerate them on a Mac with
 /// `flutter test --update-goldens` and commit the PNGs.
-final Object? goldenSkip = Platform.isMacOS
-    ? null
-    : 'Goldens are macOS-only: pixel output differs on '
-          '${Platform.operatingSystem} (see test/helpers/golden.dart).';
+Object? goldenSkip(String name) {
+  if (!Platform.isMacOS) {
+    return 'Goldens are macOS-only: pixel output differs on '
+        '${Platform.operatingSystem} (see test/helpers/golden.dart).';
+  }
+  // `flutter test` runs with the package root as its working directory.
+  final path = 'test/goldens/$name.png';
+  if (!autoUpdateGoldenFiles && !File(path).existsSync()) {
+    return 'Golden $path not generated yet: run '
+        'flutter test --update-goldens on macOS';
+  }
+  return null;
+}
 
 /// The phone-sized surface goldens render at (the Pass 02 artboard).
 const goldenSize = Size(390, 844);
