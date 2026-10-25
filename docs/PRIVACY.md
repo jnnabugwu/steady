@@ -47,10 +47,14 @@ food it was, calories, your location or any notes.
 On iPhone, with your permission, Steady reads your daily steps, active energy and resting
 energy from Apple Health and shows them in the app. Steady:
 
-- reads them fresh from Apple Health and doesn't save them, so they are never stored in
-  iCloud;
+- reads them fresh from Apple Health and doesn't keep its own copy, and never stores them
+  in iCloud. The one exception is the coach on iPhone: its conversations can mention them,
+  and those conversations are kept only on your iPhone (part of the phone's own iCloud
+  Backup if you use it, like all app data);
 - never writes anything to Apple Health;
-- never shares them itself with anyone, and never uses them for advertising.
+- never shares them with anyone, and never uses them for advertising. An export you make
+  yourself (Settings → Export) includes a short summary of each coach session, and a
+  summary may mention a number the coach discussed.
 
 You can turn off Steady's access at any time in the Health app or in Settings → Privacy &
 Security → Health. The Mac app doesn't use Apple Health.

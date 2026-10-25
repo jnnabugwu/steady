@@ -96,8 +96,9 @@ minimum is an open decision, not yet resolved. The Mac app has no coach and no H
                          └───────────────────┘
 
   No backend. Health values, cravings and coach transcripts are never stored in Steady's
-  CloudKit container (App Store 5.1.3) and stay on the iPhone. Today only daily metrics
-  and check-ins sync; whether journal notes (§8, planned) sync is still open.
+  CloudKit container (App Store 5.1.3). They stay on the iPhone, though like any app data
+  they're part of the phone's own iCloud Backup if that's on. Today only daily metrics and
+  check-ins sync; whether journal notes (§8, planned) sync is still open.
 ```
 
 ## 4. Data Model (current)
