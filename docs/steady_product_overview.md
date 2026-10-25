@@ -96,7 +96,8 @@ minimum is an open decision, not yet resolved. The Mac app has no coach and no H
                          └───────────────────┘
 
   No backend. Health values, cravings and coach transcripts never leave the iPhone
-  (App Store 5.1.3); only daily metrics and check-ins sync.
+  (App Store 5.1.3). Today only daily metrics and check-ins sync; journal notes (§8,
+  planned) will sync the same way.
 ```
 
 ## 4. Data Model (current)

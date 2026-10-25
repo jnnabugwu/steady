@@ -23,7 +23,7 @@ One Flutter codebase, two platform targets — iOS and macOS, not two separate a
 | Client | Flutter — iOS + macOS |
 | Local persistence, sync, and auth | **SwiftData (CloudKit-backed)** — Apple ID is the entire auth story, no separate login system |
 | Step / energy data | **HealthKit** on iOS only, read live and never stored in iCloud (App Store 5.1.3); no Health data on the Mac |
-| On-device coach LLM | Apple **Foundation Models** — **macOS only**; iOS shows read-only, CloudKit-synced session history instead of live inference |
+| On-device coach LLM | Apple **Foundation Models** — **iPhone only**, where Health data and cravings live; transcripts stay on the device. The Mac has no coach |
 | PDF parsing | **`pdfrx_engine`** (pure Dart) — parses Cal AI weekly exports on-device, no backend at all |
 | Routing | **go_router** with `go_router_builder` / `@TypedGoRoute` — typed, date-carrying routes for links into a specific day (e.g. `/checkin/<date>` from a cold start) |
 
@@ -43,7 +43,7 @@ steady/
 ├── features/
 │   ├── metrics/          # Weekly view + metrics history
 │   ├── checkin/           # End-of-day logged/partial/skipped status
-│   ├── coach/              # macOS: live chat + weekly session. iOS: read-only history
+│   ├── coach/              # iPhone only: weekly session + chat (Foundation Models)
 │   ├── pdf_import/          # Cal AI PDF upload + on-device parsing
 │   └── notes/                  # Planned (RAG) — journal notes for the coach to draw on
 ├── packages/
@@ -67,8 +67,8 @@ its `data` or `presentation`).
   platform/stack rationale, architecture diagram, data model, resolved design decisions,
   and the design token handoff.
 - [`CLAUDE.md`](CLAUDE.md) — architecture reference: monorepo conventions, state
-  management (Riverpod), routing, PDF parsing, persistence/sync, and why the coach is
-  macOS-only.
+  management (Riverpod), routing, PDF parsing, persistence/sync, and why the coach runs on
+  the iPhone.
 - [`docs/cal_ai_parser_tradeoffs.md`](docs/cal_ai_parser_tradeoffs.md) — Cal AI PDF
   parsing algorithm tradeoffs.
 - [`docs/BUILD_CHECKLIST.md`](docs/BUILD_CHECKLIST.md) — build checklist.
@@ -83,5 +83,5 @@ flutter pub get
 flutter run
 ```
 
-Requires macOS 26 "Tahoe"+ on Apple Silicon for Foundation Models on the Mac target; iOS's minimum OS version is not yet finalized (see
+The coach needs iOS 26+ on an iPhone that supports Apple Intelligence (checked at runtime; the rest of the app runs without it). iOS's minimum OS version is not yet finalized (see
 [`docs/steady_product_overview.md`](docs/steady_product_overview.md) §2).

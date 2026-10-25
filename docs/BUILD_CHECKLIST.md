@@ -182,7 +182,9 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       `Failure`s for each unavailable reason (no Apple Intelligence, turned off, model not
       ready). No macOS implementation at all.
 - [ ] Transcripts and summaries in a device-only store, like `cravings_data`: never in
-      the CloudKit store (5.1.3), so no `@Model` for coach sessions.
+      the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
+      coach history.
+- [ ] Data export includes each session's date, kind and summary (not the transcript).
 - [ ] `coach_presentation`: weekly 15-minute session + chat on the iPhone, with the
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
@@ -235,8 +237,7 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [x] The craving file stays in the user's own iOS device backup on purpose (a restored phone
       keeps its history); the Settings text and PRIVACY.md say so.
 - [ ] Not in v1: cravings in the data export; the soft help pointer after a week of frequent
-      strong cravings; the Mac weekly review's craving reflection (needs the iPhone→Mac
-      handoff).
+      strong cravings. The coach's weekly session reflects on cravings on the iPhone (#81).
 - [ ] Not yet run on a physical iPhone (VoiceOver announcements, reduced motion, the help
       link opening Safari).
 
@@ -248,7 +249,7 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       the iPhone (App Store 5.1.3)".
 - [x] Current state: Apple Health values are read live on iPhone and never
       stored in the iCloud-synced store (App Store 5.1.3(ii)); the Mac has no Health
-      data; the coach reads it on the iPhone (§11). The history merges them in memory (`healthDayTotalsProvider` in
+      data. The history merges them in memory (`healthDayTotalsProvider` in
       `metrics_presentation`); `app/test/health_access_test.dart` fails if any Health
       path writes the shared store. The week/share card and the data export carry no
       Health values. Values an older build stored are removed at launch
@@ -256,8 +257,8 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [x] Platform channels live directly in `app/ios` runner-adjacent code (no macOS
       implementation) — deliberately not extracted into a native package like `RAGKitCore`
       (less shared logic to isolate; mostly "call the native API, marshal the result").
-- [~] ~~iPhone→Mac local handoff of Health context for the coach~~ (#97): not needed
-      now that the coach runs on the iPhone.
+- [ ] The coach reads Health totals on the iPhone, through `health_sync_domain` (§11);
+      no Health data goes to the Mac.
 
 ## Error handling (CLAUDE.md §9)
 
@@ -277,8 +278,8 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       only).
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
-- [ ] Entitlements: HealthKit (iOS only), Foundation Models (macOS only). CloudKit container
-      entitlement is set.
+- [ ] Entitlements: HealthKit (iOS only); check whether Foundation Models needs one on iOS
+      (#79). CloudKit container entitlement is set.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:

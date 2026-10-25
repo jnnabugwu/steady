@@ -159,6 +159,10 @@ dependencies:
     path: ../../metrics/metrics_domain
   checkin_domain:                # coach reads check-in history the same way
     path: ../../checkin/checkin_domain
+  cravings_domain:               # and the week's cravings (§11)
+    path: ../../cravings/cravings_domain
+  health_sync_domain:            # and the day's Health totals, read live on the iPhone
+    path: ../../health_sync/health_sync_domain
   # no metrics_data, no checkin_data, no metrics_presentation — coach never sees
   # another feature's data layer or screens directly.
 ```
@@ -192,7 +196,8 @@ naming convention rather than judgment. Since Claude Code is doing a large share
 actual implementation here, across many separate sessions over time, that predictability
 matters even without a multi-person team: a fresh agent session dropped into
 `features/coach/coach_presentation/` can see from the pubspec alone that it's allowed to
-read `metrics_domain` and `checkin_domain` and nothing else, without reasoning over the
+read `metrics_domain`, `checkin_domain`, `cravings_domain` and `health_sync_domain` and
+nothing else, without reasoning over the
 whole repo first.
 
 ---
@@ -569,9 +574,10 @@ code, because "local-only" is just SwiftData without sync. Decision record:
 iCloud private database; nothing in this section changes per user. Since other people's data is
 now involved, the account-loss mitigation is a user-triggered data export (CSV/JSON) rather
 than any backend copy: Settings → Export (`features/data_export`), handed to the system share
-sheet. It covers daily metrics and check-in statuses; coach sessions aren't included yet
-(`coach_domain` has no repository to read them from), and the JSON's `schemaVersion` leaves room
-to add them. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
+sheet. It covers daily metrics and check-in statuses, and (once the coach exists) each coach
+session's date, kind and summary, not the full transcript (decided 2026-10-24). A summary may
+mention Health numbers the coach discussed; that's accepted, since the export is a file the
+user chooses to share, not iCloud storage. The JSON's `schemaVersion` marks the change. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
 private database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
