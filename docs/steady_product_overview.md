@@ -22,7 +22,7 @@ Apple-only), each with their own private copy of their data.*
   it, an optional guided minute of imagery, "Still want it?") with equally neutral endings, no
   scores or streaks, and "eating something is a good call" when you're hungry. Stored only on
   the iPhone, never in iCloud (see `technical_decisions.md`).
-- An on-device **coach** (not "therapist") for a weekly 15-minute check-in session (iPhone),
+- An on-device **coach** (not "therapist") for a weekly 5-minute check-in session (iPhone),
   focused on tracking consistency and behavior — not calorie prescriptions.
 - **Share cards**: share an image of your week (check-in statuses by default; calories and
   steps only if you choose) to Messages, Instagram, or anywhere the share sheet reaches.
@@ -129,13 +129,13 @@ against real exported data but are **not** part of the active build — parked p
 ## 6. Resolved Design Decisions
 
 **Coach availability — iPhone only (2026-10-24; replaces "macOS only").**
-The coach's 15-minute weekly session and chat run on the iPhone via Foundation Models. Its
+The coach's 5-minute weekly session and chat run on the iPhone via Foundation Models. Its
 context lives there: steps and burned energy come from HealthKit, which works only on the
 iPhone and can't sync through iCloud (App Store 5.1.3), and craving check-ins are
 device-only. A Mac coach would have seen only calories eaten and check-ins, which leaves
 the Friday session's step thread (below) with nothing to discuss. Transcripts stay on the
-iPhone too, since they quote that data. The session is still meant as a deliberate
-sit-down, just on the phone. Full consequences are in `CLAUDE.md` §11; decision record:
+iPhone too, since they quote that data. The session is a deliberate 5 minutes (decided 2026-10-25), sized for the phone and for
+the on-device model's small context window. Full consequences are in `CLAUDE.md` §11; decision record:
 `docs/technical_decisions.md`, "The coach runs on the iPhone".
 
 **End-of-day check-in UX — in-app only, no reminder.**

@@ -185,7 +185,7 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
       coach history.
 - [ ] Data export includes each session's date, kind and summary (not the transcript).
-- [ ] `coach_presentation`: weekly 15-minute session + chat on the iPhone, with the
+- [ ] `coach_presentation`: weekly 5-minute session + chat on the iPhone, with the
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
       isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
