@@ -63,6 +63,10 @@ abstract class CoachSession with _$CoachSession {
   const factory CoachSession({
     /// Identity, unique per session. Saving a session with an `id` that's
     /// already stored replaces it.
+    ///
+    /// Opaque (e.g. a UUID): never built from what was said, the summary,
+    /// or a Health value. [toString] prints it, so a log line or error dump
+    /// can say which session it's about without saying anything about it.
     required String id,
 
     /// Chat or the weekly session.
@@ -85,7 +89,8 @@ abstract class CoachSession with _$CoachSession {
 
   const CoachSession._();
 
-  /// Shape only, never [messages] or [summary] — see the class doc.
+  /// Shape only, never [messages] or [summary] — see the class doc. [id]
+  /// is printed because it's opaque (see its doc).
   @override
   String toString() =>
       'CoachSession(id: $id, kind: $kind, startedAt: $startedAt, '

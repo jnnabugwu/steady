@@ -284,6 +284,10 @@ mixin _$CoachSession {
 
 /// Identity, unique per session. Saving a session with an `id` that's
 /// already stored replaces it.
+///
+/// Opaque (e.g. a UUID): never built from what was said, the summary,
+/// or a Health value. [toString] prints it, so a log line or error dump
+/// can say which session it's about without saying anything about it.
  String get id;/// Chat or the weekly session.
  CoachSessionKind get kind;/// When the session started. Sessions are listed newest first by it.
  DateTime get startedAt;/// The transcript, in the order it was said. Empty until the first
@@ -493,6 +497,10 @@ class _CoachSession extends CoachSession {
 
 /// Identity, unique per session. Saving a session with an `id` that's
 /// already stored replaces it.
+///
+/// Opaque (e.g. a UUID): never built from what was said, the summary,
+/// or a Health value. [toString] prints it, so a log line or error dump
+/// can say which session it's about without saying anything about it.
 @override final  String id;
 /// Chat or the weekly session.
 @override final  CoachSessionKind kind;
