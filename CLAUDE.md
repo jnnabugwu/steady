@@ -137,9 +137,9 @@ steady/
 ```
 
 Each `*_presentation` package that needs a repository declares its providers in
-`lib/src/providers.dart` (§9): `checkin_presentation`, `cravings_presentation`,
-`metrics_presentation` and `pdf_import_presentation` today. `coach_presentation` has none yet, because
-`coach_domain` has no repository interface. Generated files (`*.g.dart`,
+`lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation` (the
+on-device model, bound on iOS only), `cravings_presentation`, `metrics_presentation` and
+`pdf_import_presentation` today. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
 
@@ -746,11 +746,19 @@ just happens on the phone.
   a session. Nothing on the Mac. The card itself needs check-in data, not inference.
 - **Context stays compact:** a short 7-day summary built from `metrics_domain`,
   `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history. The
-  on-device model's context window is small, so a long session summarises its older turns.
+  on-device model's context window is small (4,096 tokens on iOS 26, for instructions,
+  data, prompts and replies together; read at runtime as `CoachModelInfo.contextSize`), so
+  a long session summarises its older turns.
+- **The model channel** (#79): `steady/coach` in `app/ios/Runner/CoachChannel.swift`,
+  behind `CoachModel` (`coach_domain`). Replies stream as cumulative snapshots (the whole
+  reply so far), and each unavailable reason (device not eligible, Apple Intelligence off,
+  model not ready, iOS older than 26) is its own typed `Failure`. The on-device model needs
+  no entitlement. Steady never uses Apple's server model (`PrivateCloudComputeLanguageModel`).
 - **Guardrails (#82):** coach, not therapist. It never originates calorie targets, weight
   goals or diet prescriptions, including from craving data (the NEDA "Tessa" failure in
-  `docs/research/craving_support.md`). The instructions live in one place, with tests
-  that assert the constraints are present.
+  `docs/research/craving_support.md`). The instructions live in one place
+  (`CoachInstructions` in `coach_domain`, with the "not medical advice" and help-line copy
+  in `CoachCopy`), and `coach_instructions_test.dart` asserts each constraint is present.
 - **`notes` (RAG) feeds the iPhone coach.** Retrieval into the coach's context runs on the
   iPhone, so `RAGKitCore` has to build for iOS.
 

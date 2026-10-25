@@ -82,8 +82,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] Each `*_presentation` package declares its repository providers (throw unless
       overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
-      checkin, metrics, pdf_import. `coach_presentation` has none (no repository interface
-      in `coach_domain` yet).
+      checkin, metrics, pdf_import, cravings, and coach (the on-device model,
+      `coachModelProvider`, bound on iOS only).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -178,9 +178,15 @@ items land; don't let it drift into a change log — keep it a current-state che
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
 "The coach runs on the iPhone").
 
-- [ ] `coach_data`: Apple Foundation Models channel in `app/ios` only, with typed
-      `Failure`s for each unavailable reason (no Apple Intelligence, turned off, model not
-      ready). No macOS implementation at all.
+- [x] `coach_data`: Apple Foundation Models channel in `app/ios` only
+      (`CoachChannel.swift`, `MethodChannelCoachModel`), with typed `Failure`s for each
+      unavailable reason (device not eligible, Apple Intelligence off, model not ready, iOS
+      older than 26) and for failed replies. Replies stream as cumulative snapshots. Context
+      limit: 4,096 tokens on iOS 26 (`CoachModelChannel.defaultContextSize`; the device
+      reports its own at runtime). No macOS implementation at all (#79).
+- [ ] The #79 "done when" on hardware: a debug build on a supported iPhone streams a
+      reply, and an unsupported iPhone (or Apple Intelligence off) shows a clear message.
+      The message needs the coach UI (#81).
 - [ ] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
       coach history.
@@ -189,10 +195,13 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
       isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
-- [ ] Tone constraints from the product doc: coach, not therapist; never prescribes
-      calorie targets; no streaks/shame visuals (already reflected in the single-hue
-      logging-status ladder — don't reintroduce red/yellow/green anywhere in this
-      feature's UI).
+- [x] Tone and safety instructions in one place: `CoachInstructions` in `coach_domain`
+      (coach, not therapist; never originates calorie targets, weight goals, deficits or
+      diets, including from craving data; no streaks or shame; points to ANAD and 988 and
+      doesn't coach through disordered eating or a crisis), with a test per constraint (#82).
+- [ ] UI review of coach screens against the no-shame rules: no streaks/shame visuals
+      (already reflected in the single-hue logging-status ladder — don't reintroduce
+      red/yellow/green anywhere in this feature's UI). Waits for the coach screens (#82).
 
 ## Feature: notifications — dropped
 
@@ -278,8 +287,10 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       only).
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
-- [ ] Entitlements: HealthKit (iOS only); check whether Foundation Models needs one on iOS
-      (#79). CloudKit container entitlement is set.
+- [ ] Entitlements: HealthKit (iOS only). Foundation Models needs none on iOS: checked
+      against the iOS 27.1 SDK (#79); only Apple's server model,
+      `PrivateCloudComputeLanguageModel`, needs a managed entitlement, and Steady doesn't use
+      it. CloudKit container entitlement is set.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
@@ -302,7 +313,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [x] Privacy policy written: `docs/PRIVACY.md` (public on GitHub; required for HealthKit).
 - [x] `NSHealthShareUsageDescription` says the values stay on the iPhone and are never stored
       in iCloud or written to Apple Health.
-- [ ] A short "not medical advice" note for the coach (when the coach is built).
+- [ ] A short "not medical advice" note for the coach: the copy is `CoachCopy.notMedicalAdvice`
+      and it's in `docs/PRIVACY.md`; showing it waits for the coach screens (#82).
 - [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
       "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
       App Review is an early signal only (it's lighter than App Store review); full App

@@ -45,8 +45,12 @@
 /// macOS the repository stays unbound and every craving surface renders
 /// nothing.
 ///
-/// Nothing is wired for coach yet: `coach_domain` has no repository
-/// interface so far.
+/// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
+/// (`coachModelProvider`, Apple Foundation Models through the
+/// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
+/// built with `isIOS: true`. On macOS it stays unbound, and there's no
+/// coach code in `app/macos/` at all. Whether the model can actually run
+/// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
 library;
 
 import 'dart:io';
@@ -55,6 +59,8 @@ import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_data/coach_data.dart';
+import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_data/cravings_data.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -129,7 +135,8 @@ Future<File> cravingStoreFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/cravings.json');
 
 /// [appProviderOverrides] for a given platform. The platform choices in it
-/// are Apple Health and craving support, both bound only when [isIOS] (see
+/// are Apple Health, craving support and the coach's model, all bound only
+/// when [isIOS] (see
 /// the library comment). A function, not just the list, so tests can build
 /// the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
@@ -141,6 +148,7 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     cravingRepositoryProvider.overrideWith(
       (ref) => FileCravingRepository.locatedBy(cravingStoreFile),
     ),
+    coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
   ],
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native

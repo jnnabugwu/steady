@@ -3,3 +3,5 @@
 library;
 
 export 'src/coach_instructions.dart';
+export 'src/coach_model.dart';
+export 'src/coach_model_failures.dart';
