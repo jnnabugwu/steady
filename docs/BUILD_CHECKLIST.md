@@ -207,6 +207,9 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [ ] UI review of coach screens against the no-shame rules: no streaks/shame visuals
       (already reflected in the single-hue logging-status ladder — don't reintroduce
       red/yellow/green anywhere in this feature's UI). Waits for the coach screens (#81).
+- [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
+      coach summaries all in one release), drop the "The coach isn't in Steady yet"
+      paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.
 
 ## Feature: notifications — dropped
 
