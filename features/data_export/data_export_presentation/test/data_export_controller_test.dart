@@ -300,17 +300,84 @@ void main() {
       expect(contents, isNot(contains('Steps were steady')));
     });
 
-    test('a coach read Err fails the export, and nothing is shared', () async {
-      const failure = CoachHistoryUnreadableFailure('unreadable');
-      coach.onList = () => const Err(failure);
+    test(
+      'the receipt says nothing was left out when the coach reads',
+      () async {
+        await export(ExportFormat.json);
 
+        expect(
+          withCoach
+              .read(dataExportControllerProvider)
+              .value
+              ?.coachHistoryLeftOut,
+          isFalse,
+        );
+      },
+    );
+
+    test('no sessions yet: coachSessions is [] and nothing was left '
+        'out', () async {
+      coach.onList = () => const Ok([]);
       await export(ExportFormat.json);
 
+      final json = jsonDecode(
+        sharer.sharedFiles.single.contents,
+      ) as Map<String, Object?>;
+      expect(json['coachSessions'], isEmpty);
       expect(
-        withCoach.read(dataExportControllerProvider),
-        _isError(same(failure)),
+        withCoach.read(dataExportControllerProvider).value?.coachHistoryLeftOut,
+        isFalse,
       );
-      expect(sharer.sharedFiles, isEmpty);
+    });
+
+    group('a coach read Err', () {
+      setUp(() {
+        coach.onList = () =>
+            const Err(CoachHistoryUnreadableFailure('unreadable'));
+      });
+
+      test('still exports the JSON, with every day and coachSessions null, '
+          'and the receipt says the coach was left out', () async {
+        await export(ExportFormat.json);
+
+        final json = jsonDecode(
+          sharer.sharedFiles.single.contents,
+        ) as Map<String, Object?>;
+        expect(json['dailyMetrics'], hasLength(rows.length));
+        expect(json.containsKey('coachSessions'), isTrue);
+        expect(json['coachSessions'], isNull);
+        expect(
+          withCoach.read(dataExportControllerProvider),
+          _isData(
+            const ExportReceipt(
+              format: ExportFormat.json,
+              fileName: 'steady-export-2026-10-22.json',
+              dayCount: 2,
+              outcome: ExportShareOutcome.shared,
+              coachHistoryLeftOut: true,
+            ),
+          ),
+        );
+      });
+
+      test('leaves the CSV as it always is, with nothing left out', () async {
+        await export(ExportFormat.csv);
+
+        expect(
+          sharer.sharedFiles.single.contents,
+          ExportBundle(
+            exportedAt: now,
+            dailyMetrics: rows,
+          ).toFile(ExportFormat.csv).contents,
+        );
+        expect(
+          withCoach
+              .read(dataExportControllerProvider)
+              .value
+              ?.coachHistoryLeftOut,
+          isFalse,
+        );
+      });
     });
   });
 }

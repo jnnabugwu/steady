@@ -583,9 +583,14 @@ model can't be held to that every time, so the docs don't promise it. That's acc
 the guideline bars storing health information in iCloud, and the invariant it protects —
 Health values are never written to the synced store or Steady's CloudKit container — still
 holds. An export is a local file the user chooses to share, so those numbers leave the phone
-only by their own hand. The JSON's `schemaVersion` (2) marks the change. Data the user hasn't
-exported is still lost with the Apple ID, because CloudKit's private database has no separate
-backup.
+only by their own hand. The JSON's `schemaVersion` (2) marks the change. An export is never
+partial: a failed read of the daily rows fails it, and no file is shared. **The one exception
+is coach history** (decided 2026-10-25): if `coach_sessions.json` can't be read, the export
+still goes ahead with every daily row, the JSON's `coachSessions` is `null` (distinct from `[]`,
+no sessions, and from the key being absent, no coach on this device), and the screen says
+"Coach history couldn't be read, so it was left out. You can delete it in Settings → Coach."
+The CSV is unaffected. Data the user hasn't exported is still lost with the Apple ID, because
+CloudKit's private database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in

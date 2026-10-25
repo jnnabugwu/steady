@@ -233,6 +233,44 @@ void main() {
       expect(decode(bundle([fullDay])).containsKey('coachSessions'), isFalse);
     });
 
+    final unreadable = ExportBundle(
+      exportedAt: exportedAt,
+      dailyMetrics: [fullDay],
+      coachHistoryUnreadable: true,
+    );
+
+    test('JSON: unreadable coach history is null, distinct from [] and '
+        'absent, and the daily rows are all there', () {
+      final json = decode(unreadable);
+      expect(json.containsKey('coachSessions'), isTrue);
+      expect(json['coachSessions'], isNull);
+      expect(json['schemaVersion'], 2);
+      expect(json['dailyMetrics'], decode(bundle([fullDay]))['dailyMetrics']);
+
+      final states = [
+        decode(withCoach(const []))['coachSessions'],
+        json['coachSessions'],
+        decode(withCoach(null)).containsKey('coachSessions'),
+      ];
+      expect(states, [isEmpty, isNull, isFalse]);
+    });
+
+    test('CSV is unchanged by unreadable coach history', () {
+      expect(unreadable.encodeCsv(), bundle([fullDay]).encodeCsv());
+    });
+
+    test('unreadable coach history carries no sessions', () {
+      expect(
+        () => ExportBundle(
+          exportedAt: exportedAt,
+          dailyMetrics: const [],
+          coachSessions: const [],
+          coachHistoryUnreadable: true,
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
     test('CSV is unchanged by coach sessions: one row per day', () {
       expect(
         withCoach([weekly, chat]).encodeCsv(),

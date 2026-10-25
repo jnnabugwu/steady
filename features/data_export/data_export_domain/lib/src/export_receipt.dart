@@ -35,5 +35,10 @@ abstract class ExportReceipt with _$ExportReceipt {
 
     /// What the user did with the share sheet.
     required ExportShareOutcome outcome,
+
+    /// `true` when the file is JSON and the coach history couldn't be read,
+    /// so it was left out (`ExportBundle.coachHistoryUnreadable`). Always
+    /// `false` for CSV, which never holds coach sessions.
+    @Default(false) bool coachHistoryLeftOut,
   }) = _ExportReceipt;
 }

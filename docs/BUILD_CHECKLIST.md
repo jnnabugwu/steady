@@ -188,7 +188,9 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       `appProviderOverridesFor(isIOS: true)`. Settings → Coach → "Delete coach history".
 - [x] Data export includes each session's date, kind and summary (not the transcript):
       the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
-      per day.
+      per day. Coach history that can't be read doesn't block the export (decided
+      2026-10-25): `coachSessions` is `null` and the screen says it was left out; it's
+      the one exception to "an export is never partial".
 - [ ] Coach summary prompt (#79/#82): asks for tracking habits and next week's plan,
       leaving out cravings and exact numbers (cravings aren't in the export). A model
       can't be held to that every time, so a summary may still mention a Health number or
@@ -324,7 +326,8 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       `docs/technical_decisions.md`, "iCloud is optional: a banner, not a gate".
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
       metrics and check-ins, and on the iPhone each coach session's date, kind and summary
-      (JSON only).
+      (JSON only). Never partial, except that unreadable coach history is left out (and
+      the screen says so) rather than failing the export.
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.
 - [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English

@@ -159,12 +159,20 @@ class DataExportModule extends ConsumerWidget {
 
   static String _receiptMessage(ExportReceipt receipt) =>
       switch (receipt.outcome) {
-        ExportShareOutcome.shared =>
+        ExportShareOutcome.shared => [
           'Exported ${receipt.dayCount} '
               '${receipt.dayCount == 1 ? 'day' : 'days'} '
               'to ${receipt.fileName}.',
+          if (receipt.coachHistoryLeftOut) coachHistoryLeftOutMessage,
+        ].join(' '),
         ExportShareOutcome.dismissed => 'Export cancelled. Nothing was saved.',
       };
+
+  /// Added to the receipt when a JSON export left out coach history that
+  /// couldn't be read.
+  static const coachHistoryLeftOutMessage =
+      "Coach history couldn't be read, so it was left out. You can delete "
+      'it in Settings → Coach.';
 }
 
 /// The Pass 02 screen header: a round glass back button above the 34px

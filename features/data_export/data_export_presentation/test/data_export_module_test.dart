@@ -198,4 +198,81 @@ void main() {
 
     expect(backCount, 1);
   });
+
+  group('coach history in the export (iPhone)', () {
+    final session = CoachSession(
+      id: 'w1',
+      kind: CoachSessionKind.weekly,
+      startedAt: DateTime(2026, 10, 23, 19),
+      summary: 'Calm week.',
+    );
+    const leftOut =
+        "Coach history couldn't be read, so it was left out. You can delete "
+        'it in Settings → Coach.';
+
+    testWidgets('sessions read: the receipt is the usual one', (tester) async {
+      await pumpModule(
+        tester,
+        coach: FakeCoachRepository(onList: () => Ok([session])),
+      );
+      await tester.tap(button(ExportFormat.json));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Exported 2 days to steady-export-2026-10-22.json.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('left out'), findsNothing);
+    });
+
+    testWidgets('no sessions yet: the receipt is the usual one', (
+      tester,
+    ) async {
+      await pumpModule(tester, coach: FakeCoachRepository());
+      await tester.tap(button(ExportFormat.json));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Exported 2 days to steady-export-2026-10-22.json.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('unreadable: the JSON is still shared, and the screen says '
+        'the coach was left out and where to delete it', (tester) async {
+      await pumpModule(
+        tester,
+        coach: FakeCoachRepository(
+          onList: () => const Err(CoachHistoryUnreadableFailure('corrupt')),
+        ),
+      );
+      await tester.tap(button(ExportFormat.json));
+      await tester.pumpAndSettle();
+
+      expect(sharer.sharedFiles, hasLength(1));
+      expect(
+        find.text('Exported 2 days to steady-export-2026-10-22.json. $leftOut'),
+        findsOneWidget,
+      );
+      expect(DataExportModule.coachHistoryLeftOutMessage, leftOut);
+    });
+
+    testWidgets('unreadable, CSV: nothing to leave out, so no note', (
+      tester,
+    ) async {
+      await pumpModule(
+        tester,
+        coach: FakeCoachRepository(
+          onList: () => const Err(CoachHistoryUnreadableFailure('corrupt')),
+        ),
+      );
+      await tester.tap(button(ExportFormat.csv));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Exported 2 days to steady-export-2026-10-22.csv.'),
+        findsOneWidget,
+      );
+    });
+  });
 }

@@ -170,7 +170,9 @@ void main() {
           _FakeDailyMetricRepository(const Ok([])),
           exportedAt: exportedAt,
         );
-        expect((result as Ok<ExportBundle>).value.coachSessions, isNull);
+        final bundle = (result as Ok<ExportBundle>).value;
+        expect(bundle.coachSessions, isNull);
+        expect(bundle.coachHistoryUnreadable, isFalse);
       },
     );
 
@@ -181,19 +183,41 @@ void main() {
         exportedAt: exportedAt,
         coachRepository: coach,
       );
-      expect((result as Ok<ExportBundle>).value.coachSessions, sessions);
+      final bundle = (result as Ok<ExportBundle>).value;
+      expect(bundle.coachSessions, sessions);
+      expect(bundle.coachHistoryUnreadable, isFalse);
       expect(coach.listCalls, 1);
     });
 
-    test('a coach Err passes its Failure through, with no bundle', () async {
-      const failure = CoachHistoryUnreadableFailure('unreadable');
+    test('with one and no sessions, coachSessions is empty', () async {
       final result = await readExportBundle(
         _FakeDailyMetricRepository(const Ok([])),
         exportedAt: exportedAt,
-        coachRepository: _FakeCoachRepository(const Err(failure)),
+        coachRepository: _FakeCoachRepository(const Ok([])),
       );
-      expect((result as Err<ExportBundle>).failure, same(failure));
+      final bundle = (result as Ok<ExportBundle>).value;
+      expect(bundle.coachSessions, isEmpty);
+      expect(bundle.coachHistoryUnreadable, isFalse);
     });
+
+    for (final failure in const <Failure>[
+      CoachHistoryUnreadableFailure('corrupt'),
+      CoachHistoryStorageFailure('locked'),
+    ]) {
+      test('a coach Err (${failure.runtimeType}) leaves the coach out but '
+          'keeps every daily row', () async {
+        final rows = [DailyMetric(date: DateTime(2026, 10, 19), steps: 1)];
+        final result = await readExportBundle(
+          _FakeDailyMetricRepository(Ok(rows)),
+          exportedAt: exportedAt,
+          coachRepository: _FakeCoachRepository(Err(failure)),
+        );
+        final bundle = (result as Ok<ExportBundle>).value;
+        expect(bundle.dailyMetrics, rows);
+        expect(bundle.coachSessions, isNull);
+        expect(bundle.coachHistoryUnreadable, isTrue);
+      });
+    }
 
     test('a daily-metrics Err fails first; the coach store is not '
         'read', () async {
