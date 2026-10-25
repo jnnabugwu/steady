@@ -30,6 +30,29 @@ class MethodChannelCoachModel implements CoachModel {
   final MethodChannel _channel;
   final EventChannel _responses;
 
+  /// The reply stream currently owning the `steady/coach/responses`
+  /// handler, if any.
+  ///
+  /// The native side has one `FlutterEventSink`, so only one reply streams
+  /// at a time; the binary messenger likewise has one message handler per
+  /// channel name. Without an owner, a second `listen` would silently take
+  /// the handler over and the first stream would hang forever — never
+  /// emitting, never closing — and that first stream's `cancel` would then
+  /// clear the second's handler. So each `_listen` takes ownership, closes
+  /// the stream it displaces (which cancels it natively, stopping a reply
+  /// nobody is listening to), and clears the handler on cancel only while
+  /// it still owns it.
+  ///
+  /// **Residual, and why it isn't fixed here:** events on
+  /// `steady/coach/responses` carry no session id, so an event the
+  /// displaced native stream had already queued before its `cancel`
+  /// arrived is indistinguishable from the live stream's own, and an
+  /// end-of-stream among them would close the live stream early. Telling
+  /// them apart needs the session id on the wire, which is a change to
+  /// `CoachChannel.swift`. Cancelling the displaced stream immediately
+  /// keeps the window small.
+  _ResponseListen? _owner;
+
   @override
   ResultFuture<CoachModelInfo> checkAvailability() async {
     final result = await _call(
@@ -116,9 +139,21 @@ class MethodChannelCoachModel implements CoachModel {
     final messenger = _responses.binaryMessenger;
     final control = MethodChannel(name, codec, messenger);
     late final StreamController<Object?> controller;
+    late final _ResponseListen me;
     controller = StreamController<Object?>(
       onListen: () async {
+        // Whatever was listening can no longer be reached by the native
+        // side: close it rather than leave it waiting forever.
+        // Not awaited: this listen must not wait on the displaced stream's
+        // listener to drain, and nothing here depends on it being closed.
+        final displaced = _owner;
+        _owner = me;
+        if (displaced != null) unawaited(displaced.close());
+
         messenger.setMessageHandler(name, (reply) async {
+          // A late event from a stream that has lost ownership belongs to
+          // nobody: dropping it is what keeps it from closing this one.
+          if (_owner != me) return null;
           if (reply == null) {
             unawaited(controller.close());
           } else {
@@ -133,13 +168,21 @@ class MethodChannelCoachModel implements CoachModel {
         try {
           await control.invokeMethod<void>('listen', arguments);
         } on Object catch (e, stack) {
-          messenger.setMessageHandler(name, null);
+          if (_owner == me) {
+            messenger.setMessageHandler(name, null);
+            _owner = null;
+          }
           controller.addError(e, stack);
           unawaited(controller.close());
         }
       },
       onCancel: () async {
-        messenger.setMessageHandler(name, null);
+        // Only clear the handler if it's still ours; a newer listen may
+        // own it by now.
+        if (_owner == me) {
+          messenger.setMessageHandler(name, null);
+          _owner = null;
+        }
         try {
           await control.invokeMethod<void>('cancel', arguments);
         } on Object {
@@ -148,6 +191,7 @@ class MethodChannelCoachModel implements CoachModel {
         }
       },
     );
+    me = _ResponseListen(controller);
     return controller.stream;
   }
 
@@ -220,5 +264,18 @@ class MethodChannelCoachModel implements CoachModel {
       // the channel throws: never let it escape the `Result`.
       return Err(UnknownFailure(what, cause: e));
     }
+  }
+}
+
+/// One `listen` on `steady/coach/responses`, used as the identity of
+/// whichever reply stream currently owns that channel's single handler.
+class _ResponseListen {
+  _ResponseListen(this._controller);
+
+  final StreamController<Object?> _controller;
+
+  /// Closes the stream, if it hasn't been closed already.
+  Future<void> close() async {
+    if (!_controller.isClosed) await _controller.close();
   }
 }

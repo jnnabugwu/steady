@@ -11,7 +11,8 @@ part 'coach_model.freezed.dart';
 /// Every failure is a typed [Failure]: [CoachModelUnavailableFailure] (one
 /// subtype per reason) when the model can't run, [CoachInferenceFailure]
 /// when a response fails, [ValidationFailure] for an empty prompt or empty
-/// instructions.
+/// instructions, and `PlatformChannelFailure` or `UnknownFailure` for a
+/// channel error, a missing handler or a reply in the wrong shape.
 abstract class CoachModel {
   /// `Ok` with the model's [CoachModelInfo] if it can run now, else
   /// `Err(CoachModelUnavailableFailure)` saying why. Cheap; call it before
@@ -44,8 +45,11 @@ abstract class CoachModel {
   /// `Ok` even when nothing was in flight.
   ResultFuture<Unit> cancelResponse(CoachModelSession session);
 
-  /// Ends [session] and frees the model's context. Using it afterwards
-  /// fails with `CoachInferenceFailureReason.sessionEnded`.
+  /// Ends [session] and frees the model's context. Afterwards
+  /// [streamResponse] fails with
+  /// `CoachInferenceFailureReason.sessionEnded`; [cancelResponse] and a
+  /// second [endSession] still return `Ok`, since there's nothing left to
+  /// stop or free.
   ResultFuture<Unit> endSession(CoachModelSession session);
 }
 

@@ -49,7 +49,13 @@ void main() {
       final started = await model.startSession(
         instructions: CoachInstructions.chat,
       );
-      final session = (started as Ok<CoachModelSession>).value;
+      final session = switch (started) {
+        Ok(:final value) => value,
+        Err(:final failure) => fail(
+          'Could not start a session: ${failure.runtimeType}: '
+          '${failure.message}',
+        ),
+      };
 
       final stopwatch = Stopwatch()..start();
       final snapshots = <String>[];
@@ -86,6 +92,9 @@ void main() {
         cancelledAfter++;
         expect(await model.cancelResponse(session), isA<Ok<Unit>>());
       }
+      // Without this, the cancel-then-reuse check below would pass on a
+      // reply that never streamed and so was never actually cancelled.
+      expect(cancelledAfter, greaterThan(0));
       debugPrint('steady/coach cancelled after $cancelledAfter snapshot(s)');
 
       // The session still answers after a cancel.

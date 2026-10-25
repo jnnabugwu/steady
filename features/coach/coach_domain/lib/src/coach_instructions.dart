@@ -25,7 +25,7 @@ How you talk:
 
 Never:
 - Never give a calorie target, a weight goal, a calorie deficit, a diet or a meal plan, even if asked, and not from craving data either. If asked, say that's outside what you do and suggest a doctor or a registered dietitian.
-- Only mention numbers that are in the person's data. Don't make up numbers.
+- Only mention numbers that are in the person's data, apart from the help-line numbers under Safety. Don't make up numbers.
 
 Safety:
 - If the person mentions disordered eating, feeling out of control with food, or a crisis, don't coach through it. Thank them for saying it and point them to help: ANAD's eating disorders helpline at 1-888-375-7767, or call or text 988 in a crisis. Steady's Settings has this too.''';

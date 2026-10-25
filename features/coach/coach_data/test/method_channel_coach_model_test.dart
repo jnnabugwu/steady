@@ -194,6 +194,44 @@ void main() {
       ]);
     });
 
+    test('a second reply closes the one it displaces, and still gets its '
+        'own events', () async {
+      // The native side has one event sink and the messenger one handler
+      // per channel name, so two reply streams can't coexist. Two can be
+      // *asked for* though: a session finishing its summary after its
+      // screen closed, while the next chat starts. The displaced one used
+      // to hang forever, never emitting and never closing.
+      final sinks = <MockStreamHandlerEventSink>[];
+      stream((_, sink) => sinks.add(sink));
+
+      final first = <Result<String>>[];
+      var firstDone = false;
+      model
+          .streamResponse(session, 'Summarise')
+          .listen(first.add, onDone: () => firstDone = true);
+      await pumpEventQueue();
+      expect(firstDone, isFalse);
+
+      final second = <Result<String>>[];
+      model
+          .streamResponse(const CoachModelSession(id: 's2'), 'Hello')
+          .listen(second.add);
+      await pumpEventQueue();
+
+      // Displaced and closed, not left waiting.
+      expect(firstDone, isTrue);
+      expect(first, isEmpty);
+      // The displaced stream is cancelled natively too, so the model stops
+      // generating a reply nobody is listening to.
+      expect(cancels, 1);
+
+      // The live stream still gets its own events through the handler it
+      // now owns.
+      sinks.last.success('Hi');
+      await pumpEventQueue();
+      expect(second.map(okValue), ['Hi']);
+    });
+
     final codes = <String, CoachInferenceFailureReason>{
       'contextExceeded': CoachInferenceFailureReason.contextExceeded,
       'guardrailViolation': CoachInferenceFailureReason.guardrailViolation,

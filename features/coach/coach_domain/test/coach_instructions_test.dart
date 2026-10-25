@@ -74,6 +74,16 @@ void main() {
         ]);
       });
 
+      test('the numbers rule exempts the help lines, so it cannot suppress '
+          'them', () {
+        // "Only mention numbers that are in the person's data" would
+        // otherwise forbid the two numbers the Safety section requires.
+        expectAll(["apart from the help-line numbers under Safety"]);
+        final rule = text.indexOf('Only mention numbers');
+        expect(rule, isNonNegative);
+        expect(text.indexOf('1-888-375-7767'), greaterThan(rule));
+      });
+
       test('stays short enough for the on-device context', () {
         // About 3 to 4 characters per token in English: 2,600 characters
         // is roughly 650 to 870 tokens of the 4,096-token window, leaving
