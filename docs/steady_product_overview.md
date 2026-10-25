@@ -95,9 +95,9 @@ minimum is an open decision, not yet resolved. The Mac app has no coach and no H
                          │  auth story)      │
                          └───────────────────┘
 
-  No backend. Health values, cravings and coach transcripts never leave the iPhone
-  (App Store 5.1.3). Today only daily metrics and check-ins sync; journal notes (§8,
-  planned) will sync the same way.
+  No backend. Health values, cravings and coach transcripts are never stored in Steady's
+  CloudKit container (App Store 5.1.3) and stay on the iPhone. Today only daily metrics
+  and check-ins sync; whether journal notes (§8, planned) sync is still open.
 ```
 
 ## 4. Data Model (current)

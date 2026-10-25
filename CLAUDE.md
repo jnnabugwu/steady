@@ -576,9 +576,13 @@ now involved, the account-loss mitigation is a user-triggered data export (CSV/J
 than any backend copy: Settings → Export (`features/data_export`), handed to the system share
 sheet. It covers daily metrics and check-in statuses, and (once the coach exists) each coach
 session's date, kind and summary, not the full transcript (decided 2026-10-24). A summary may
-mention Health numbers the coach discussed; that's accepted, since the export is a file the
-user chooses to share, not iCloud storage. The JSON's `schemaVersion` marks the change. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
-private database has no separate backup.
+mention Health numbers the coach discussed. That's accepted, and it isn't a 5.1.3 exception:
+the guideline bars storing health information in iCloud, and the invariant it protects —
+Health values are never written to the synced store or Steady's CloudKit container — still
+holds. An export is a local file the user chooses to share, so those numbers leave the phone
+only by their own hand. The JSON's `schemaVersion` marks the change. Data the user hasn't
+exported is still lost with the Apple ID, because CloudKit's private database has no separate
+backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in

@@ -252,7 +252,9 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       data. The history merges them in memory (`healthDayTotalsProvider` in
       `metrics_presentation`); `app/test/health_access_test.dart` fails if any Health
       path writes the shared store. The week/share card and the data export carry no
-      Health values. Values an older build stored are removed at launch
+      Health fields of their own; once the coach exists, a coach summary in the JSON
+      export may mention numbers the coach discussed (CLAUDE.md §7). Values an older
+      build stored are removed at launch
       (`clearLegacyHealthFields`, run from `app/lib/main.dart`).
 - [x] Platform channels live directly in `app/ios` runner-adjacent code (no macOS
       implementation) — deliberately not extracted into a native package like `RAGKitCore`
