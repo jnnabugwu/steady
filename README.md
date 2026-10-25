@@ -11,7 +11,7 @@ signal for how tracking is going, since it's self-reported rather than inferred.
 streaks, no red X's, no shame-coded visuals for missed days.
 
 An on-device **coach** (not "therapist") is available for craving support and a weekly
-15-minute check-in session — it reflects on your own logged data and asks questions, it
+5-minute check-in session — it reflects on your own logged data and asks questions, it
 never hands down calorie targets or diet prescriptions.
 
 ## Platform & stack

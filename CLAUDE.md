@@ -577,7 +577,9 @@ than any backend copy: Settings → Export (`features/data_export`), handed to t
 sheet. It covers daily metrics and check-in statuses, and on the iPhone each coach session's
 date, kind and summary, not the full transcript (decided 2026-10-24; JSON only, as
 `coachSessions`, read through `CoachRepository`; the CSV stays one row per day). A summary may
-mention Health numbers the coach discussed. That's accepted, and it isn't a 5.1.3 exception:
+mention Health numbers the coach discussed. The summary prompt asks for tracking habits and
+next week's plan, leaving out cravings and exact numbers (cravings aren't exported), but a
+model can't be held to that every time, so the docs don't promise it. That's accepted, and it isn't a 5.1.3 exception:
 the guideline bars storing health information in iCloud, and the invariant it protects —
 Health values are never written to the synced store or Steady's CloudKit container — still
 holds. An export is a local file the user chooses to share, so those numbers leave the phone
@@ -718,7 +720,7 @@ disabled one, an absent one. §11 covers why.
 ## 11. The coach runs on the iPhone
 
 **Decision (2026-10-24, replaces "the coach is macOS-only"):** the coach, both the
-15-minute weekly session and chat, runs on the iPhone with Apple Foundation Models
+5-minute weekly session and chat, runs on the iPhone with Apple Foundation Models
 on-device. The Mac has no coach. Decision record: `docs/technical_decisions.md`, "The coach
 runs on the iPhone".
 
@@ -726,8 +728,9 @@ runs on the iPhone".
 HealthKit, which works only there and can't sync through iCloud (§1, §7), and craving
 check-ins are device-only (§7). A Mac coach would see only calories eaten and check-ins,
 and the only way to fix that was a direct iPhone→Mac handoff (#97) with open pairing and
-App Review questions. The weekly session is still a deliberate, sit-down 15 minutes; it
-just happens on the phone.
+App Review questions. The weekly session is a short, deliberate 5 minutes (decided
+2026-10-25): a phone-sized conversation, and one that fits the on-device model's small
+context window (4,096 tokens on iOS 26) without summarising itself partway through.
 
 **Consequences that follow from this, worth remembering while building:**
 
@@ -794,5 +797,5 @@ Neither source doc has an equivalent call to make — the multi-app starter has 
 single-feature platform split at all. The coach was first scoped to the Mac, as a
 sit-down session rather than a pocket moment. That flipped (2026-10-24) once Health data
 and cravings turned out to be iPhone-only (App Store 5.1.3): a Mac coach couldn't see most
-of what it's meant to discuss. The session is still a deliberate 15 minutes, just on the
+of what it's meant to discuss. The session is a deliberate 5 minutes, sized for the
 phone. See §11 for the full consequences of this choice.

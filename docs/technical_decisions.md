@@ -9,7 +9,7 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ## The coach runs on the iPhone (2026-10-24)
 
-**Decision:** The coach (the 15-minute weekly session and chat) runs on the iPhone, with
+**Decision:** The coach (the 5-minute weekly session and chat) runs on the iPhone, with
 Apple Foundation Models on-device. This replaces "the coach is macOS-only" (CLAUDE.md §11,
 product overview §6). The Mac has no coach.
 
@@ -25,6 +25,10 @@ product overview §6). The Mac has no coach.
   Review.
 - Foundation Models runs on iPhones that support Apple Intelligence, so the model is
   available where the data already is.
+- The weekly session is about 5 minutes, not the original 15 (decided 2026-10-25). It's on
+  the phone now, and the on-device model's context (4,096 tokens on iOS 26, for the
+  instructions, the week's data and the whole conversation) fits a short, structured
+  session; a 15-minute one would have to summarise itself partway and lose early detail.
 
 **Consequences:**
 

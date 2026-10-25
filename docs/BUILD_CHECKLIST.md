@@ -189,7 +189,11 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [x] Data export includes each session's date, kind and summary (not the transcript):
       the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
       per day.
-- [ ] `coach_presentation`: weekly 15-minute session + chat on the iPhone, with the
+- [ ] Coach summary prompt (#79/#82): asks for tracking habits and next week's plan,
+      leaving out cravings and exact numbers (cravings aren't in the export). A model
+      can't be held to that every time, so a summary may still mention a Health number or
+      a craving (CLAUDE.md §7, PRIVACY.md).
+- [ ] `coach_presentation`: weekly 5-minute session + chat on the iPhone, with the
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
       isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
