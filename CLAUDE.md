@@ -137,9 +137,9 @@ steady/
 ```
 
 Each `*_presentation` package that needs a repository declares its providers in
-`lib/src/providers.dart` (§9): `checkin_presentation`, `cravings_presentation`,
-`metrics_presentation` and `pdf_import_presentation` today. `coach_presentation` has none yet, because
-`coach_domain` has no repository interface. Generated files (`*.g.dart`,
+`lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation`,
+`cravings_presentation`, `metrics_presentation` and `pdf_import_presentation` today.
+Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
 
@@ -574,11 +574,13 @@ code, because "local-only" is just SwiftData without sync. Decision record:
 iCloud private database; nothing in this section changes per user. Since other people's data is
 now involved, the account-loss mitigation is a user-triggered data export (CSV/JSON) rather
 than any backend copy: Settings → Export (`features/data_export`), handed to the system share
-sheet. It covers daily metrics and check-in statuses, and (once the coach exists) each coach
-session's date, kind and summary, not the full transcript (decided 2026-10-24). A summary may
+sheet. It covers daily metrics and check-in statuses, and on the iPhone each coach session's
+date, kind and summary, not the full transcript (decided 2026-10-24; JSON only, as
+`coachSessions`, read through `CoachRepository`; the CSV stays one row per day). A summary may
 mention Health numbers the coach discussed; that's accepted, since the export is a file the
-user chooses to share, not iCloud storage. The JSON's `schemaVersion` marks the change. Data the user hasn't exported is still lost with the Apple ID, because CloudKit's
-private database has no separate backup.
+user chooses to share, not iCloud storage. The JSON's `schemaVersion` (2) marks the change.
+Data the user hasn't exported is still lost with the Apple ID, because CloudKit's private
+database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in

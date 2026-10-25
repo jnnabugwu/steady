@@ -25,16 +25,18 @@
 /// [ImportRoute] (`/import`) stays top-level, on the root navigator over
 /// the shell, pushed from the import actions.
 ///
-/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" (iPhone),
-/// "Sample data" and the data export (and, in debug builds, the Developer
-/// card). [CravingRoute] (`/craving`, iPhone only) is the craving flow,
-/// pushed from the Today screen's "Having a craving?" button.
+/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" and
+/// "Coach" (iPhone), "Sample data" and the data export (and, in debug
+/// builds, the Developer card). [CravingRoute] (`/craving`, iPhone only)
+/// is the craving flow, pushed from the Today screen's "Having a craving?"
+/// button.
 library;
 
 import 'dart:async';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
@@ -223,12 +225,12 @@ class WeekRoute extends GoRouteData with $WeekRoute {
   }
 }
 
-/// `/settings`, the Settings tab: the settings screen (`DataExportModule`), with the Apple
-/// Health section ([AppleHealthCard]), "Cravings" ([CravingSettingsCard],
-/// iPhone only), "Sample data" ([SampleDataCard],
-/// shown only while the sample export's days are in the store) and the
-/// debug-only Developer card
-/// ([developerSettingsSections]) composed in above the export.
+/// `/settings`, the Settings tab: the settings screen (`DataExportModule`),
+/// with the Apple Health section ([AppleHealthCard]), "Cravings"
+/// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
+/// iPhone only), "Sample data" ([SampleDataCard], shown only while the
+/// sample export's days are in the store) and the debug-only Developer
+/// card ([developerSettingsSections]) composed in above the export.
 ///
 /// The root of its own tab, so there's nothing to pop: back switches to
 /// the Today tab, on a cold start straight to `/settings` too.
@@ -242,8 +244,9 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
         context.canPop() ? context.pop() : const HomeRoute().go(context),
     sections: [
       const AppleHealthCard(),
-      // Renders nothing on macOS.
+      // Both render nothing on macOS.
       const CravingSettingsCard(),
+      const CoachSettingsCard(),
       const SampleDataCard(),
       ...developerSettingsSections(),
     ],

@@ -82,9 +82,9 @@ CheckInRepository checkInRepository(Ref ref) =>
     throw UnimplementedError('Override checkInRepositoryProvider in app/');
 ```
 
-`metrics_presentation` and `pdf_import_presentation` have the same shape in their own
-`lib/src/providers.dart`. `coach_presentation` declares none, because `coach_domain` has no
-repository interface yet. The package barrel (`lib/checkin_presentation.dart`) exports
+`coach_presentation`, `cravings_presentation`, `metrics_presentation` and
+`pdf_import_presentation` have the same shape in their own `lib/src/providers.dart`. The
+package barrel (`lib/checkin_presentation.dart`) exports
 `src/providers.dart` so `app/` can name the provider.
 
 Why throw instead of returning a default? A default would have to be a `*_data` class,
