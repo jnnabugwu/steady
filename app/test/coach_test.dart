@@ -117,7 +117,7 @@ void main() {
         coachRepository: container.read(exportCoachRepositoryProvider),
       );
       final bundle = (result as Ok<ExportBundle>).value;
-      expect(bundle.coachHistoryUnreadable, isTrue);
+      expect(bundle.coachHistoryLeftOut, CoachHistoryLeftOut.unreadable);
       final json = jsonDecode(bundle.encodeJson()) as Map<String, Object?>;
       expect(json.containsKey('coachSessions'), isTrue);
       expect(json['coachSessions'], isNull);

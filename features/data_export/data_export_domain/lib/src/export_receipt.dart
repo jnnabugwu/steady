@@ -17,6 +17,19 @@ enum ExportShareOutcome {
   dismissed,
 }
 
+/// Why a JSON export left out the coach history.
+enum CoachHistoryLeftOut {
+  /// The stored history isn't in the format Steady writes
+  /// (`CoachHistoryUnreadableFailure`). It stays that way until the person
+  /// deletes it in Settings → Coach.
+  unreadable,
+
+  /// Any other read failure, such as a file-system error
+  /// (`CoachHistoryStorageFailure`). The history may be fine, so exporting
+  /// again may include it.
+  readFailed,
+}
+
 /// The result of one completed export: which file was built, how many days
 /// it holds, and what the user did with the share sheet.
 @freezed
@@ -36,9 +49,9 @@ abstract class ExportReceipt with _$ExportReceipt {
     /// What the user did with the share sheet.
     required ExportShareOutcome outcome,
 
-    /// `true` when the file is JSON and the coach history couldn't be read,
-    /// so it was left out (`ExportBundle.coachHistoryUnreadable`). Always
-    /// `false` for CSV, which never holds coach sessions.
-    @Default(false) bool coachHistoryLeftOut,
+    /// Why the coach history was left out of this JSON file
+    /// (`ExportBundle.coachHistoryLeftOut`), or `null` if nothing was.
+    /// Always `null` for CSV, which never holds coach sessions.
+    CoachHistoryLeftOut? coachHistoryLeftOut,
   }) = _ExportReceipt;
 }

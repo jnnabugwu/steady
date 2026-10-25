@@ -200,12 +200,15 @@ void main() {
       expect(bundle.coachHistoryUnreadable, isFalse);
     });
 
-    for (final failure in const <Failure>[
-      CoachHistoryUnreadableFailure('corrupt'),
-      CoachHistoryStorageFailure('locked'),
+    for (final (failure, leftOut) in const <(Failure, CoachHistoryLeftOut)>[
+      (
+        CoachHistoryUnreadableFailure('corrupt'),
+        CoachHistoryLeftOut.unreadable,
+      ),
+      (CoachHistoryStorageFailure('locked'), CoachHistoryLeftOut.readFailed),
     ]) {
-      test('a coach Err (${failure.runtimeType}) leaves the coach out but '
-          'keeps every daily row', () async {
+      test('a coach Err (${failure.runtimeType}) leaves the coach out as '
+          '${leftOut.name} but keeps every daily row', () async {
         final rows = [DailyMetric(date: DateTime(2026, 10, 19), steps: 1)];
         final result = await readExportBundle(
           _FakeDailyMetricRepository(Ok(rows)),
@@ -216,6 +219,8 @@ void main() {
         expect(bundle.dailyMetrics, rows);
         expect(bundle.coachSessions, isNull);
         expect(bundle.coachHistoryUnreadable, isTrue);
+        expect(bundle.coachHistoryFailure, same(failure));
+        expect(bundle.coachHistoryLeftOut, leftOut);
       });
     }
 

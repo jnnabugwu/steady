@@ -236,7 +236,7 @@ void main() {
     final unreadable = ExportBundle(
       exportedAt: exportedAt,
       dailyMetrics: [fullDay],
-      coachHistoryUnreadable: true,
+      coachHistoryFailure: const CoachHistoryUnreadableFailure('corrupt'),
     );
 
     test('JSON: unreadable coach history is null, distinct from [] and '
@@ -255,6 +255,11 @@ void main() {
       expect(states, [isEmpty, isNull, isFalse]);
     });
 
+    test('the failure is never written to the file', () {
+      expect(unreadable.encodeJson(), isNot(contains('corrupt')));
+      expect(unreadable.encodeCsv(), isNot(contains('corrupt')));
+    });
+
     test('CSV is unchanged by unreadable coach history', () {
       expect(unreadable.encodeCsv(), bundle([fullDay]).encodeCsv());
     });
@@ -265,7 +270,7 @@ void main() {
           exportedAt: exportedAt,
           dailyMetrics: const [],
           coachSessions: const [],
-          coachHistoryUnreadable: true,
+          coachHistoryFailure: const CoachHistoryUnreadableFailure('x'),
         ),
         throwsA(isA<AssertionError>()),
       );

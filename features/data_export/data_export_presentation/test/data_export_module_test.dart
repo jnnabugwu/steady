@@ -254,7 +254,30 @@ void main() {
         find.text('Exported 2 days to steady-export-2026-10-22.json. $leftOut'),
         findsOneWidget,
       );
-      expect(DataExportModule.coachHistoryLeftOutMessage, leftOut);
+      expect(DataExportModule.coachUnreadableNote, leftOut);
+    });
+
+    testWidgets('a read error (not a corrupt file): the JSON is still shared, '
+        'and the screen says to export again, not to delete', (tester) async {
+      await pumpModule(
+        tester,
+        coach: FakeCoachRepository(
+          onList: () => const Err(CoachHistoryStorageFailure('locked')),
+        ),
+      );
+      await tester.tap(button(ExportFormat.json));
+      await tester.pumpAndSettle();
+
+      expect(sharer.sharedFiles, hasLength(1));
+      expect(
+        find.text(
+          'Exported 2 days to steady-export-2026-10-22.json. '
+          "Coach history couldn't be read just now, so it was left out. "
+          'Export again to include it.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.textContaining('delete'), findsNothing);
     });
 
     testWidgets('unreadable, CSV: nothing to leave out, so no note', (

@@ -68,10 +68,11 @@ DateTime _midnightOf(DateTime moment) =>
 /// **The one exception: coach history** (decided 2026-10-25). A coach
 /// `Err` (a corrupt `coach_sessions.json`, or a file-system error) doesn't
 /// fail the export: the bundle keeps every daily row, with no sessions and
-/// `ExportBundle.coachHistoryUnreadable` set, so the JSON says the coach
-/// section was left out and the screen tells the person. Otherwise a
-/// corrupt coach file would block exporting their metrics until they
-/// deleted coach history.
+/// the failure in `ExportBundle.coachHistoryFailure`, so the JSON says the
+/// coach section was left out and the screen tells the person what to do
+/// (delete it if it's corrupt, export again if the read just failed).
+/// Otherwise a corrupt coach file would block exporting their metrics
+/// until they deleted coach history.
 ResultFuture<ExportBundle> readExportBundle(
   DailyMetricRepository repository, {
   required DateTime exportedAt,
@@ -86,13 +87,13 @@ ResultFuture<ExportBundle> readExportBundle(
       return Err(failure);
   }
   List<CoachSession>? coachSessions;
-  var coachHistoryUnreadable = false;
+  Failure? coachHistoryFailure;
   if (coachRepository != null) {
     switch (await coachRepository.listSessions()) {
       case Ok(:final value):
         coachSessions = value;
-      case Err():
-        coachHistoryUnreadable = true;
+      case Err(:final failure):
+        coachHistoryFailure = failure;
     }
   }
   return Ok(
@@ -100,7 +101,7 @@ ResultFuture<ExportBundle> readExportBundle(
       exportedAt: exportedAt,
       dailyMetrics: dailyMetrics,
       coachSessions: coachSessions,
-      coachHistoryUnreadable: coachHistoryUnreadable,
+      coachHistoryFailure: coachHistoryFailure,
     ),
   );
 }

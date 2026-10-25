@@ -589,7 +589,8 @@ is coach history** (decided 2026-10-25): if `coach_sessions.json` can't be read,
 still goes ahead with every daily row, the JSON's `coachSessions` is `null` (distinct from `[]`,
 no sessions, and from the key being absent, no coach on this device), and the screen says
 "Coach history couldn't be read, so it was left out. You can delete it in Settings → Coach."
-The CSV is unaffected. Data the user hasn't exported is still lost with the Apple ID, because
+(for a corrupt file), or to export again (for a file-system error, which may not recur). The
+CSV is unaffected. Data the user hasn't exported is still lost with the Apple ID, because
 CloudKit's private database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the

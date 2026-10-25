@@ -310,7 +310,7 @@ void main() {
               .read(dataExportControllerProvider)
               .value
               ?.coachHistoryLeftOut,
-          isFalse,
+          isNull,
         );
       },
     );
@@ -326,7 +326,7 @@ void main() {
       expect(json['coachSessions'], isEmpty);
       expect(
         withCoach.read(dataExportControllerProvider).value?.coachHistoryLeftOut,
-        isFalse,
+        isNull,
       );
     });
 
@@ -354,11 +354,28 @@ void main() {
               fileName: 'steady-export-2026-10-22.json',
               dayCount: 2,
               outcome: ExportShareOutcome.shared,
-              coachHistoryLeftOut: true,
+              coachHistoryLeftOut: CoachHistoryLeftOut.unreadable,
             ),
           ),
         );
       });
+
+      test(
+        'a storage failure is left out as readFailed, not unreadable',
+        () async {
+          coach.onList = () => const Err(CoachHistoryStorageFailure('locked'));
+          await export(ExportFormat.json);
+
+          expect(sharer.sharedFiles, hasLength(1));
+          expect(
+            withCoach
+                .read(dataExportControllerProvider)
+                .value
+                ?.coachHistoryLeftOut,
+            CoachHistoryLeftOut.readFailed,
+          );
+        },
+      );
 
       test('leaves the CSV as it always is, with nothing left out', () async {
         await export(ExportFormat.csv);
@@ -375,7 +392,7 @@ void main() {
               .read(dataExportControllerProvider)
               .value
               ?.coachHistoryLeftOut,
-          isFalse,
+          isNull,
         );
       });
     });

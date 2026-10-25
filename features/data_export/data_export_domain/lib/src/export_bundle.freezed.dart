@@ -19,14 +19,19 @@ mixin _$ExportBundle {
 /// its local calendar date names the file.
  DateTime get exportedAt;/// The rows to export, in any order: both encoders sort by date.
  List<DailyMetric> get dailyMetrics;/// The coach sessions to export, in any order: the JSON lists them
-/// oldest first. `null` where this device has no coach (the Mac), so
-/// the JSON leaves the key out; an empty list is a coach with no
-/// sessions yet. Only each session's date, kind and summary are
-/// written.
- List<CoachSession>? get coachSessions;/// `true` when this device has a coach but its history couldn't be
-/// read, so the JSON's `coachSessions` is `null` (left out) rather than
-/// absent or an array. [coachSessions] is `null` then.
- bool get coachHistoryUnreadable;
+/// oldest first. An empty list is a coach with no sessions yet. Only
+/// each session's date, kind and summary are written.
+///
+/// `null` in two cases, told apart by [coachHistoryFailure]:
+/// - no coach on this device (the Mac; [coachHistoryFailure] is
+///   `null`): the JSON leaves the `coachSessions` key out;
+/// - the coach history couldn't be read ([coachHistoryFailure] is
+///   set): the JSON writes `"coachSessions": null`.
+ List<CoachSession>? get coachSessions;/// Why this device's coach history couldn't be read, or `null` if it
+/// was read (or there's no coach). When set, [coachSessions] is `null`
+/// and the JSON's `coachSessions` is `null` (left out) rather than
+/// absent or an array. Never written to the file.
+ Failure? get coachHistoryFailure;
 /// Create a copy of ExportBundle
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,20 +43,20 @@ $ExportBundleCopyWith<ExportBundle> get copyWith => _$ExportBundleCopyWithImpl<E
 @override
 bool operator ==(Object other) {
   final _this = this as ExportBundle;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExportBundle&&(identical(other.exportedAt, _this.exportedAt) || other.exportedAt == _this.exportedAt)&&const DeepCollectionEquality().equals(other.dailyMetrics, _this.dailyMetrics)&&const DeepCollectionEquality().equals(other.coachSessions, _this.coachSessions)&&(identical(other.coachHistoryUnreadable, _this.coachHistoryUnreadable) || other.coachHistoryUnreadable == _this.coachHistoryUnreadable));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExportBundle&&(identical(other.exportedAt, _this.exportedAt) || other.exportedAt == _this.exportedAt)&&const DeepCollectionEquality().equals(other.dailyMetrics, _this.dailyMetrics)&&const DeepCollectionEquality().equals(other.coachSessions, _this.coachSessions)&&(identical(other.coachHistoryFailure, _this.coachHistoryFailure) || other.coachHistoryFailure == _this.coachHistoryFailure));
 }
 
 
 @override
 int get hashCode {
   final _this = this as ExportBundle;
-  return Object.hash(runtimeType,_this.exportedAt,const DeepCollectionEquality().hash(_this.dailyMetrics),const DeepCollectionEquality().hash(_this.coachSessions),_this.coachHistoryUnreadable);
+  return Object.hash(runtimeType,_this.exportedAt,const DeepCollectionEquality().hash(_this.dailyMetrics),const DeepCollectionEquality().hash(_this.coachSessions),_this.coachHistoryFailure);
 }
 
 @override
 String toString() {
   final _this = this as ExportBundle;
-  return 'ExportBundle(exportedAt: ${_this.exportedAt}, dailyMetrics: ${_this.dailyMetrics}, coachSessions: ${_this.coachSessions}, coachHistoryUnreadable: ${_this.coachHistoryUnreadable})';
+  return 'ExportBundle(exportedAt: ${_this.exportedAt}, dailyMetrics: ${_this.dailyMetrics}, coachSessions: ${_this.coachSessions}, coachHistoryFailure: ${_this.coachHistoryFailure})';
 }
 
 
@@ -62,7 +67,7 @@ abstract mixin class $ExportBundleCopyWith<$Res>  {
   factory $ExportBundleCopyWith(ExportBundle value, $Res Function(ExportBundle) _then) = _$ExportBundleCopyWithImpl;
 @useResult
 $Res call({
- DateTime exportedAt, List<DailyMetric> dailyMetrics, List<CoachSession>? coachSessions, bool coachHistoryUnreadable
+ DateTime exportedAt, List<DailyMetric> dailyMetrics, List<CoachSession>? coachSessions, Failure? coachHistoryFailure
 });
 
 
@@ -79,13 +84,13 @@ class _$ExportBundleCopyWithImpl<$Res>
 
 /// Create a copy of ExportBundle
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? exportedAt = null,Object? dailyMetrics = null,Object? coachSessions = freezed,Object? coachHistoryUnreadable = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? exportedAt = null,Object? dailyMetrics = null,Object? coachSessions = freezed,Object? coachHistoryFailure = freezed,}) {
   return _then(ExportBundle(
 exportedAt: null == exportedAt ? _self.exportedAt : exportedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,dailyMetrics: null == dailyMetrics ? _self.dailyMetrics : dailyMetrics // ignore: cast_nullable_to_non_nullable
 as List<DailyMetric>,coachSessions: freezed == coachSessions ? _self.coachSessions : coachSessions // ignore: cast_nullable_to_non_nullable
-as List<CoachSession>?,coachHistoryUnreadable: null == coachHistoryUnreadable ? _self.coachHistoryUnreadable : coachHistoryUnreadable // ignore: cast_nullable_to_non_nullable
-as bool,
+as List<CoachSession>?,coachHistoryFailure: freezed == coachHistoryFailure ? _self.coachHistoryFailure : coachHistoryFailure // ignore: cast_nullable_to_non_nullable
+as Failure?,
   ));
 }
 
@@ -170,10 +175,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  bool coachHistoryUnreadable)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  Failure? coachHistoryFailure)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ExportBundle() when $default != null:
-return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryUnreadable);case _:
+return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryFailure);case _:
   return orElse();
 
 }
@@ -191,10 +196,10 @@ return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.co
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  bool coachHistoryUnreadable)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  Failure? coachHistoryFailure)  $default,) {final _that = this;
 switch (_that) {
 case _ExportBundle():
-return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryUnreadable);case _:
+return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryFailure);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -211,10 +216,10 @@ return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.co
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  bool coachHistoryUnreadable)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime exportedAt,  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions,  Failure? coachHistoryFailure)?  $default,) {final _that = this;
 switch (_that) {
 case _ExportBundle() when $default != null:
-return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryUnreadable);case _:
+return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.coachHistoryFailure);case _:
   return null;
 
 }
@@ -226,7 +231,7 @@ return $default(_that.exportedAt,_that.dailyMetrics,_that.coachSessions,_that.co
 
 
 class _ExportBundle extends ExportBundle {
-  const _ExportBundle({required this.exportedAt, required  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions, this.coachHistoryUnreadable = false}): assert(!coachHistoryUnreadable || coachSessions == null, 'unreadable coach history has no sessions to export'),_dailyMetrics = dailyMetrics,_coachSessions = coachSessions,super._();
+  const _ExportBundle({required this.exportedAt, required  List<DailyMetric> dailyMetrics,  List<CoachSession>? coachSessions, this.coachHistoryFailure}): assert(coachHistoryFailure == null || coachSessions == null, 'unreadable coach history has no sessions to export'),_dailyMetrics = dailyMetrics,_coachSessions = coachSessions,super._();
   
 
 /// When the export was made. Written to the JSON as UTC ISO 8601, and
@@ -242,16 +247,24 @@ class _ExportBundle extends ExportBundle {
 }
 
 /// The coach sessions to export, in any order: the JSON lists them
-/// oldest first. `null` where this device has no coach (the Mac), so
-/// the JSON leaves the key out; an empty list is a coach with no
-/// sessions yet. Only each session's date, kind and summary are
-/// written.
+/// oldest first. An empty list is a coach with no sessions yet. Only
+/// each session's date, kind and summary are written.
+///
+/// `null` in two cases, told apart by [coachHistoryFailure]:
+/// - no coach on this device (the Mac; [coachHistoryFailure] is
+///   `null`): the JSON leaves the `coachSessions` key out;
+/// - the coach history couldn't be read ([coachHistoryFailure] is
+///   set): the JSON writes `"coachSessions": null`.
  final  List<CoachSession>? _coachSessions;
 /// The coach sessions to export, in any order: the JSON lists them
-/// oldest first. `null` where this device has no coach (the Mac), so
-/// the JSON leaves the key out; an empty list is a coach with no
-/// sessions yet. Only each session's date, kind and summary are
-/// written.
+/// oldest first. An empty list is a coach with no sessions yet. Only
+/// each session's date, kind and summary are written.
+///
+/// `null` in two cases, told apart by [coachHistoryFailure]:
+/// - no coach on this device (the Mac; [coachHistoryFailure] is
+///   `null`): the JSON leaves the `coachSessions` key out;
+/// - the coach history couldn't be read ([coachHistoryFailure] is
+///   set): the JSON writes `"coachSessions": null`.
 @override List<CoachSession>? get coachSessions {
   final value = _coachSessions;
   if (value == null) return null;
@@ -260,10 +273,11 @@ class _ExportBundle extends ExportBundle {
   return EqualUnmodifiableListView(value);
 }
 
-/// `true` when this device has a coach but its history couldn't be
-/// read, so the JSON's `coachSessions` is `null` (left out) rather than
-/// absent or an array. [coachSessions] is `null` then.
-@override@JsonKey() final  bool coachHistoryUnreadable;
+/// Why this device's coach history couldn't be read, or `null` if it
+/// was read (or there's no coach). When set, [coachSessions] is `null`
+/// and the JSON's `coachSessions` is `null` (left out) rather than
+/// absent or an array. Never written to the file.
+@override final  Failure? coachHistoryFailure;
 
 /// Create a copy of ExportBundle
 /// with the given fields replaced by the non-null parameter values.
@@ -275,18 +289,18 @@ _$ExportBundleCopyWith<_ExportBundle> get copyWith => __$ExportBundleCopyWithImp
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExportBundle&&(identical(other.exportedAt, exportedAt) || other.exportedAt == exportedAt)&&const DeepCollectionEquality().equals(other.dailyMetrics, _dailyMetrics)&&const DeepCollectionEquality().equals(other.coachSessions, _coachSessions)&&(identical(other.coachHistoryUnreadable, coachHistoryUnreadable) || other.coachHistoryUnreadable == coachHistoryUnreadable));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExportBundle&&(identical(other.exportedAt, exportedAt) || other.exportedAt == exportedAt)&&const DeepCollectionEquality().equals(other.dailyMetrics, _dailyMetrics)&&const DeepCollectionEquality().equals(other.coachSessions, _coachSessions)&&(identical(other.coachHistoryFailure, coachHistoryFailure) || other.coachHistoryFailure == coachHistoryFailure));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,exportedAt,const DeepCollectionEquality().hash(_dailyMetrics),const DeepCollectionEquality().hash(_coachSessions),coachHistoryUnreadable);
+    return Object.hash(runtimeType,exportedAt,const DeepCollectionEquality().hash(_dailyMetrics),const DeepCollectionEquality().hash(_coachSessions),coachHistoryFailure);
 }
 
 @override
 String toString() {
-    return 'ExportBundle(exportedAt: $exportedAt, dailyMetrics: $dailyMetrics, coachSessions: $coachSessions, coachHistoryUnreadable: $coachHistoryUnreadable)';
+    return 'ExportBundle(exportedAt: $exportedAt, dailyMetrics: $dailyMetrics, coachSessions: $coachSessions, coachHistoryFailure: $coachHistoryFailure)';
 }
 
 
@@ -297,7 +311,7 @@ abstract mixin class _$ExportBundleCopyWith<$Res> implements $ExportBundleCopyWi
   factory _$ExportBundleCopyWith(_ExportBundle value, $Res Function(_ExportBundle) _then) = __$ExportBundleCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime exportedAt, List<DailyMetric> dailyMetrics, List<CoachSession>? coachSessions, bool coachHistoryUnreadable
+ DateTime exportedAt, List<DailyMetric> dailyMetrics, List<CoachSession>? coachSessions, Failure? coachHistoryFailure
 });
 
 
@@ -314,13 +328,13 @@ class __$ExportBundleCopyWithImpl<$Res>
 
 /// Create a copy of ExportBundle
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? exportedAt = null,Object? dailyMetrics = null,Object? coachSessions = freezed,Object? coachHistoryUnreadable = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? exportedAt = null,Object? dailyMetrics = null,Object? coachSessions = freezed,Object? coachHistoryFailure = freezed,}) {
   return _then(_ExportBundle(
 exportedAt: null == exportedAt ? _self.exportedAt : exportedAt // ignore: cast_nullable_to_non_nullable
 as DateTime,dailyMetrics: null == dailyMetrics ? _self._dailyMetrics : dailyMetrics // ignore: cast_nullable_to_non_nullable
 as List<DailyMetric>,coachSessions: freezed == coachSessions ? _self._coachSessions : coachSessions // ignore: cast_nullable_to_non_nullable
-as List<CoachSession>?,coachHistoryUnreadable: null == coachHistoryUnreadable ? _self.coachHistoryUnreadable : coachHistoryUnreadable // ignore: cast_nullable_to_non_nullable
-as bool,
+as List<CoachSession>?,coachHistoryFailure: freezed == coachHistoryFailure ? _self.coachHistoryFailure : coachHistoryFailure // ignore: cast_nullable_to_non_nullable
+as Failure?,
   ));
 }
 

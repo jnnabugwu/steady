@@ -84,8 +84,9 @@ class DataExportController extends _$DataExportController {
           fileName: file.fileName,
           dayCount: bundle.dailyMetrics.length,
           outcome: outcome,
-          coachHistoryLeftOut:
-              format == ExportFormat.json && bundle.coachHistoryUnreadable,
+          coachHistoryLeftOut: format == ExportFormat.json
+              ? bundle.coachHistoryLeftOut
+              : null,
         ),
       ),
       Err(:final failure) => Err(failure),
