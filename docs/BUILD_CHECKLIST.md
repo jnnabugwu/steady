@@ -82,8 +82,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] Each `*_presentation` package declares its repository providers (throw unless
       overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
-      checkin, metrics, pdf_import, cravings, coach (`coachRepositoryProvider` and the
-      on-device model, `coachModelProvider`; both bound on iOS only).
+      checkin, metrics, pdf_import, cravings and coach (`coachRepositoryProvider`, bound
+      on iOS only). `coach_presentation` also declares `coachModelProvider` — the on-device
+      model, an inference port rather than a repository — bound on iOS only.
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -211,7 +212,10 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       doesn't coach through disordered eating or a crisis), with a test per constraint (#82).
 - [ ] UI review of coach screens against the no-shame rules: no streaks/shame visuals
       (already reflected in the single-hue logging-status ladder — don't reintroduce
-      red/yellow/green anywhere in this feature's UI). Waits for the coach screens (#82).
+      red/yellow/green anywhere in this feature's UI). Waits for the coach screens (#81).
+- [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
+      coach summaries all in one release), drop the "The coach isn't in Steady yet"
+      paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.
 
 ## Feature: notifications — dropped
 
@@ -326,7 +330,7 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [x] `NSHealthShareUsageDescription` says the values stay on the iPhone and are never stored
       in iCloud or written to Apple Health.
 - [ ] A short "not medical advice" note for the coach: the copy is `CoachCopy.notMedicalAdvice`
-      and it's in `docs/PRIVACY.md`; showing it waits for the coach screens (#82).
+      and it's in `docs/PRIVACY.md`; showing it waits for the coach screens (#81).
 - [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
       "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
       App Review is an early signal only (it's lighter than App Store review); full App

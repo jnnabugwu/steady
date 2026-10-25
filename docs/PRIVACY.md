@@ -44,6 +44,10 @@ food it was, calories, your location or any notes.
 
 ## Coach
 
+The coach isn't in Steady yet. This section describes how it handles your data from the
+version that adds it, including its Settings → Coach controls and its part of the data
+export; until then, Steady has no coach and keeps no coach data.
+
 On iPhone, Steady's coach talks with you about your week: what you logged, your check-ins,
 your steps and your craving check-ins. It uses Apple's on-device model (Apple Intelligence),
 so it works only on an iPhone that supports Apple Intelligence, with it turned on.

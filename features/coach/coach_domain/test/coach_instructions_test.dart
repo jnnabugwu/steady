@@ -36,6 +36,10 @@ void main() {
         expectAll(["Reflect on the person's own logged data", 'ask questions']);
       });
 
+      test('keeps replies short, with at most one question', () {
+        expectAll(['two to four sentences', 'at most one question']);
+      });
+
       test('never originates calorie targets, weight goals, deficits or '
           'diets, including from craving data', () {
         expectAll([
@@ -68,10 +72,21 @@ void main() {
           'out of control with food',
           'a crisis',
           "don't coach through it",
+          'Thank them for saying it',
           'ANAD',
           '1-888-375-7767',
           'call or text 988',
         ]);
+      });
+
+      test('the numbers rule exempts the help lines, so it cannot suppress '
+          'them', () {
+        // "Only mention numbers that are in the person's data" would
+        // otherwise forbid the two numbers the Safety section requires.
+        expectAll(['apart from the help-line numbers under Safety']);
+        final rule = text.indexOf('Only mention numbers');
+        expect(rule, isNonNegative);
+        expect(text.indexOf('1-888-375-7767'), greaterThan(rule));
       });
 
       test('stays short enough for the on-device context', () {
@@ -90,6 +105,18 @@ void main() {
     final steps = text.indexOf('then step consistency');
     expect(logging, isNonNegative);
     expect(steps, greaterThan(logging));
+  });
+
+  test('the weekly session is about 5 minutes, and says to keep it brief', () {
+    const text = CoachInstructions.weeklySession;
+    expect(
+      text,
+      contains(
+        'about 5 minutes, so keep it brief: one or two questions per topic '
+        'and short replies',
+      ),
+    );
+    expect(text, isNot(contains('15 minutes')));
   });
 
   test('the weekly session reflects on cravings without comparing weeks', () {
