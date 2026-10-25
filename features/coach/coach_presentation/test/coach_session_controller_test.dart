@@ -165,6 +165,29 @@ void main() {
       },
     );
 
+    test('a fresh session that fails to start ends the session, and the '
+        'next message is a no-op rather than a crash', () async {
+      final controller = await start();
+      model
+        // Overflow sends the conversation to a fresh model session...
+        ..failNext = const CoachInferenceFailure(
+          'full',
+          reason: CoachInferenceFailureReason.contextExceeded,
+        )
+        // ...and starting that one fails: no model session is left.
+        ..startResult = const Err(PlatformChannelFailure('boom'));
+      await controller.sendCoachMessage('Hello');
+
+      // Going back to `ready` would offer a composer with nothing behind
+      // it, and the next send would dereference a null model session.
+      expect(state().phase, CoachSessionPhase.failedToStart);
+      expect(state().failure, isA<PlatformChannelFailure>());
+
+      final before = model.prompts.length;
+      await controller.sendCoachMessage('Are you there?');
+      expect(model.prompts.length, before);
+    });
+
     test('a failed save is shown, and retrying saves again', () async {
       final controller = await start();
       repository.onSave = (_) async =>

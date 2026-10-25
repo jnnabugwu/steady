@@ -100,8 +100,14 @@ class FakeCoachModel implements CoachModel {
   /// Pushes [snapshot] (the whole reply so far) on the open reply.
   void reply(String snapshot) => _open!.add(Ok(snapshot));
 
-  /// Fails the open reply with [failure].
-  void fail(Failure failure) => _open!.add(Err(failure));
+  /// Fails the open reply with [failure], and closes it: `CoachModel`
+  /// says a reply's stream ends after one `Err`.
+  void fail(Failure failure) {
+    final open = _open!;
+    _open = null;
+    open.add(Err(failure));
+    unawaited(open.close());
+  }
 
   /// Closes the open reply.
   Future<void> finish() async {
@@ -111,8 +117,18 @@ class FakeCoachModel implements CoachModel {
   }
 
   @override
-  ResultFuture<Unit> cancelResponse(CoachModelSession session) async =>
-      const Ok(unit);
+  ResultFuture<Unit> cancelResponse(CoachModelSession session) async {
+    // `CoachModel.cancelResponse` says the reply's stream closes; in
+    // production that's the native task ending. Leaving it open here let
+    // tests pass on a stream a real caller would still be waiting on.
+    final open = _open;
+    if (open != null) {
+      _open = null;
+      cancelled = true;
+      await open.close();
+    }
+    return const Ok(unit);
+  }
 
   @override
   ResultFuture<Unit> endSession(CoachModelSession session) async {

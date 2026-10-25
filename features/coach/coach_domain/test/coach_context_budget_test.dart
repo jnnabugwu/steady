@@ -24,8 +24,21 @@ void main() {
     });
 
     test('counts code points, not UTF-16 units', () {
-      // Three emoji are six UTF-16 units but three code points.
-      expect(estimateCoachTokens('🙂🙂🙂'), 1);
+      // Three emoji are six UTF-16 units but three code points, so they
+      // cost three tokens here, not six.
+      expect(estimateCoachTokens('🙂🙂🙂'), 3);
+    });
+
+    test('counts non-Latin text a token per character, the safe side', () {
+      // "Three to four characters per token" is an English figure. CJK,
+      // Hangul and emoji are split far more finely — often a token each or
+      // more — so dividing every code point by three would under-count
+      // them threefold and let a turn through that overflows the window.
+      expect(estimateCoachTokens('今天过得怎么样'), 7);
+      expect(estimateCoachTokens('안녕하세요'), 5);
+      // Latin is still three per token, and mixed text adds the two.
+      expect(estimateCoachTokens('abcdef'), 2);
+      expect(estimateCoachTokens('abc今天'), 3);
     });
   });
 

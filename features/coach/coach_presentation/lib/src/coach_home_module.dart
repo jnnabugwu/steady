@@ -191,6 +191,10 @@ class _SessionTile extends StatelessWidget {
       container: true,
       button: true,
       label: preview.isEmpty ? title : '$title. $preview',
+      // `excludeSemantics` drops the Clickable's own action along with its
+      // labels, so without this the tile announces as a button VoiceOver
+      // can't activate.
+      onTap: onPressed,
       excludeSemantics: true,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: 64),
