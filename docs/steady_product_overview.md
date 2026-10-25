@@ -161,6 +161,66 @@ sodium, sleep) corrupting the week's confidence math, while still giving Friday 
 Dec 19 spike, §5) without needing separate completeness-gating logic, since the trend is
 always built from whatever daily readings exist rather than depending on one raw sample.
 
+## 7. The Coach
+
+A short, on-device conversation about your own tracking. It runs on the iPhone with Apple
+Foundation Models, so nothing is sent to a server. It's a coach, not a therapist: it reflects
+on what you logged and asks questions, and never hands down numbers.
+
+**What it does:**
+
+- **Weekly check-in, about 5 minutes.** A look back at the Friday→Thursday week that just
+  ended. It starts only when at least 4 of the 7 days have a check-in status (skipped
+  counts), so there's enough to talk about; otherwise it says so and suggests a chat. The
+  topics come one at a time, in order, and you move on with "Next":
+  1. **Logging**: it opens by asking how the week felt.
+  2. **Steps**: a separate thread, not folded into a general recap (§6).
+  3. **Cravings**, only if there were any: when they came and what was behind them, as an
+     observation and one question. No grading and no comparison with other weeks.
+  4. **One small thing to try next week**, chosen by you and phrased as something to do
+     ("If it's 4pm and I'm tired, then I'll have the snack I brought").
+
+  It ends with a short, neutral summary, saved with the session.
+- **Chat, any time.** A short conversation with the last seven days in view. You can stop a
+  reply partway; "End" writes a summary.
+- **A nudge on Today.** Friday to Sunday, when last week qualifies and no weekly check-in has
+  started yet: "Talk now" or "Not tonight" (hides it for the day). It's a card in the app,
+  never a notification, so the coach stays something you go to.
+- **History.** The Coach tab lists past sessions, newest first; tap one to read it.
+
+**What it sees:** a compact line per day for the last seven days: check-in status, calories
+eaten, steps and active/resting energy (read live from Apple Health), and how many craving
+check-ins there were and at what time of day (plus what was behind them, in the weekly
+check-in). Never raw food logs or full history; the on-device model's context window is
+small (4,096 tokens on iOS 26).
+
+**What it won't do:**
+
+- Give a calorie target, weight goal, deficit, diet or meal plan, even when asked, and not
+  from craving data either (the NEDA "Tessa" failure, `docs/research/craving_support.md`).
+- Mention numbers that aren't in your data.
+- Use streaks, scores, grades, praise or shame. A missed or partial day is information.
+  Coach screens use teal and neutrals only, no red, yellow or green.
+- Act as medical advice. If you mention disordered eating, feeling out of control with
+  food, or a crisis, it doesn't coach through it; it points to the ANAD helpline
+  (1-888-375-7767) or 988, call or text.
+
+**Where its data lives:** transcripts and summaries stay on the iPhone, never in Steady's
+CloudKit store, because they quote Health values and cravings (App Store 5.1.3). Like other
+app data they're in the phone's own iCloud Backup if that's on. Settings → Coach → "Delete
+coach history" removes them. The JSON export includes each session's date, type and summary,
+not the conversation.
+
+**When it can't run:** it needs iOS 26 or later on an iPhone that supports Apple
+Intelligence, with it turned on and the model downloaded. Otherwise the Coach tab says
+plainly which of those is missing, and the rest of the app works as usual. The Mac has no
+coach.
+
+**Status (2026-10-25):** built in PRs #124–#127, in review. No reply has run on a real
+model yet: the simulators report Apple Intelligence off or the model not ready, so it needs
+a try on an Apple Intelligence iPhone. The weekly check-in's screens in #127 still say
+"about 15 minutes" and need updating to 5.
+
 ## 8. Planned: Bringing in Journal Notes & Book-Derived Methods (RAG)
 
 **Goal:** let the coach draw on the user's own journal notes and distilled methods from
