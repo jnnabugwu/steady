@@ -34,8 +34,8 @@ abstract final class CoachModelChannel {
   /// - `{requestId, done: true}`: the reply finished;
   /// - `{requestId, error: String, message: String?, reason: String?}`:
   ///   the reply failed, `error` one of [inferenceCodes]' keys,
-  ///   [unavailableCode] (with `reason`, one of [unavailableReasons]' keys)
-  ///   or [sessionNotFoundCode].
+  ///   [unavailableCode] (with `reason`, one of [unavailableReasons]' keys),
+  ///   [sessionNotFoundCode] or [invalidArgumentsCode].
   ///
   /// `done` or an error is the last event; the native side sends no
   /// end-of-stream message, which couldn't carry a `requestId`. Cancelling
@@ -56,16 +56,24 @@ abstract final class CoachModelChannel {
   static const startSessionMethod = 'startSession';
 
   /// Arguments `{sessionId: String}`. Stops the reply in flight in that
-  /// session, if any; its event stream ends. Returns `null`.
+  /// session, if any; its event stream gets `done` and ends. Returns
+  /// `null`.
   static const cancelResponseMethod = 'cancelResponse';
 
-  /// Arguments `{sessionId: String}`. Cancels any reply in flight and drops
-  /// the session. Returns `null`.
+  /// Arguments `{sessionId: String}`. Stops any reply in flight in that
+  /// session (its event stream gets `done` and ends) and drops the
+  /// session. Returns `null`.
   static const endSessionMethod = 'endSession';
 
   /// The `FlutterError` code for "the model can't run"; `details` is the
   /// reason, one of [unavailableReasons]' keys.
   static const unavailableCode = 'unavailable';
+
+  /// The error code for a listen without a `requestId` or a prompt, which
+  /// `MethodChannelCoachModel` never sends (it checks the prompt first).
+  /// Like any code not in [inferenceCodes], it maps to
+  /// `CoachInferenceFailureReason.other`.
+  static const invalidArgumentsCode = 'invalidArguments';
 
   /// The `FlutterError` code for a session id the native side doesn't have
   /// (ended, or lost when the app restarted).

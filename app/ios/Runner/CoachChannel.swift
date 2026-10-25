@@ -25,8 +25,10 @@ import FoundationModels
 /// - `startSession({instructions})` starts a `LanguageModelSession` with
 ///   those instructions and returns its id. `FlutterError` `unavailable`
 ///   (reason in `details`) if the model can't run.
-/// - `cancelResponse({sessionId})` stops that session's reply in flight.
-/// - `endSession({sessionId})` stops any reply and drops the session.
+/// - `cancelResponse({sessionId})` stops that session's reply in flight,
+///   which ends with `done` on the reply stream.
+/// - `endSession({sessionId})` stops any reply (ending it with `done`) and
+///   drops the session.
 ///
 /// Event channel `steady/coach/responses`, listen arguments
 /// `{requestId, sessionId, prompt, maximumResponseTokens}`: streams the
@@ -48,7 +50,8 @@ import FoundationModels
 /// sink, never as `onListen`'s return value, which Dart would only log.
 ///
 /// One reply streams at a time: a new listen cancels the one in flight.
-/// A cancelled reply sends nothing more. The next reply waits for the
+/// A cancelled reply sends nothing more, except that `cancelResponse` and
+/// `endSession` first send its `done`, since Dart is still listening. The next reply waits for the
 /// cancelled one to stop before it touches its session, and a session
 /// cancelled mid-reply is rebuilt from its transcript in that time (see
 /// `replaceAfterCancel`), since the framework traps on the next request to
@@ -83,9 +86,10 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
   /// rebuilding a session (`replaceAfterCancel`) always finishes before the
   /// session is asked again.
   private var responseTask: Task<Void, Never>?
-  /// The session and request id of the reply in flight, if any.
+  /// The session, request id and sink of the reply in flight, if any.
   private var responseSessionID: String?
   private var responseRequestID: Int?
+  private var responseReply: ReplySink?
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -95,12 +99,12 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
       startSession(call.arguments, result)
     case "cancelResponse":
       if let id = Self.sessionID(call.arguments), id == responseSessionID {
-        cancelResponse()
+        finishResponse()
       }
       result(nil)
     case "endSession":
       if let id = Self.sessionID(call.arguments) {
-        if id == responseSessionID { cancelResponse() }
+        if id == responseSessionID { finishResponse() }
         sessions.removeValue(forKey: id)
       }
       result(nil)
@@ -167,12 +171,24 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
     result(id)
   }
 
-  /// Cancels the reply in flight, if any. Its task stays in
-  /// `responseTask` for the next reply to wait on.
+  /// Cancels the reply in flight, if any, without telling the Dart side:
+  /// for a cancel that came from Dart's stream itself (`onCancel`, or a new
+  /// listen displacing the old one), which is no longer listening. Its task
+  /// stays in `responseTask` for the next reply to wait on.
   private func cancelResponse() {
     responseTask?.cancel()
     responseSessionID = nil
     responseRequestID = nil
+    responseReply = nil
+  }
+
+  /// Ends the reply in flight with `done`, then cancels it: for
+  /// `cancelResponse` and `endSession`, where the Dart stream is still
+  /// listening and has to close. Sent from here because a cancelled reply
+  /// sends nothing itself.
+  private func finishResponse() {
+    responseReply?.done()
+    cancelResponse()
   }
 
   // MARK: - FlutterStreamHandler (the reply stream)
@@ -187,9 +203,10 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
     let maximumResponseTokens = args?["maximumResponseTokens"] as? Int
     let previous = responseTask
     cancelResponse()
+    let reply = ReplySink(requestID: requestID, events: events)
     responseSessionID = sessionID
     responseRequestID = requestID
-    let reply = ReplySink(requestID: requestID, events: events)
+    responseReply = reply
     responseTask = Task { @MainActor [weak self] in
       // Serialised: the previous reply has stopped, and its session has
       // been rebuilt if it was cancelled mid-reply, before this one looks
@@ -203,6 +220,10 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
         reply: reply)
       if cancelled, let id = sessionID, let session = session {
         self?.replaceAfterCancel(id: id, session: session)
+      }
+      // Finished on its own: nothing left for `finishResponse` to end.
+      if !Task.isCancelled, self?.responseRequestID == requestID {
+        self?.responseReply = nil
       }
     }
     return nil

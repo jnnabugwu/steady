@@ -313,6 +313,7 @@ void main() {
       'timeout': CoachInferenceFailureReason.timeout,
       'inferenceFailed': CoachInferenceFailureReason.other,
       'sessionNotFound': CoachInferenceFailureReason.sessionEnded,
+      CoachModelChannel.invalidArgumentsCode: CoachInferenceFailureReason.other,
       'somethingNew': CoachInferenceFailureReason.other,
     };
     for (final MapEntry(key: code, value: reason) in codes.entries) {
@@ -400,6 +401,36 @@ void main() {
         {'sessionId': 's1'},
       ]);
     });
+
+    for (final method in ['cancelResponse', 'endSession']) {
+      test('$method closes the reply stream through its done', () async {
+        // The native side answers either call by sending the reply's
+        // tagged done before stopping it (a cancelled reply sends nothing
+        // itself), so the stream the coach UI is reading ends.
+        late MockStreamHandlerEventSink sink;
+        stream((args, s) => sink = s..success(snapshot(args, 'Thinking')));
+        answer((call) {
+          if (call.method == method) sink.success(done(listens.single));
+          return null;
+        });
+
+        final events = <Result<String>>[];
+        var closed = false;
+        model
+            .streamResponse(session, 'Hi')
+            .listen(events.add, onDone: () => closed = true);
+        await pumpEventQueue();
+        expect(closed, isFalse);
+
+        final stopped = method == 'cancelResponse'
+            ? await model.cancelResponse(session)
+            : await model.endSession(session);
+        expect(okValue(stopped), unit);
+        await pumpEventQueue();
+        expect(events.map(okValue), ['Thinking']);
+        expect(closed, isTrue);
+      });
+    }
   });
 
   test('no native handler (macOS) is a PlatformChannelFailure', () async {
