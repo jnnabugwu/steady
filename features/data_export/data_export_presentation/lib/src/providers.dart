@@ -1,3 +1,4 @@
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_presentation/src/share_export_file.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -18,6 +19,19 @@ DailyMetricRepository exportDailyMetricRepository(Ref ref) =>
     throw UnimplementedError(
       'Override exportDailyMetricRepositoryProvider in app/',
     );
+
+/// The `CoachRepository` the export reads coach sessions from, or `null`
+/// where this device has no coach (the Mac).
+///
+/// Typed against `coach_domain` only, never `coach_data` (CLAUDE.md §3).
+/// `null` by default; `app/lib/providers.dart` binds it on iOS only, to the
+/// coach's own `coachRepositoryProvider`. While it's `null` the export has
+/// no `coachSessions` and the screen doesn't mention them. Only each
+/// session's date, kind and summary are exported, never the transcript.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+CoachRepository? exportCoachRepository(Ref ref) => null;
 
 /// Hands the finished export file to the system share sheet.
 ///

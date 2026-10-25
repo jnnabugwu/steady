@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/src/data_export_controller.dart';
+import 'package:data_export_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -42,6 +43,8 @@ class DataExportModule extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final export = ref.watch(dataExportControllerProvider);
+    // The coach (and so its sessions in the export) is iPhone only.
+    final hasCoach = ref.watch(exportCoachRepositoryProvider) != null;
 
     return Scaffold(
       headers: [_Header(onBack: onBack)],
@@ -84,8 +87,13 @@ class DataExportModule extends ConsumerWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Includes daily metrics and check-ins. Coach '
-                          "sessions aren't included yet.",
+                          hasCoach
+                              ? 'Includes daily metrics and check-ins. The '
+                                    'JSON file also includes each coach '
+                                    "session's date, type and summary, but "
+                                    'not the conversation itself.'
+                              : 'Includes daily metrics and check-ins.',
+                          key: const Key('exportContentsLine'),
                           style: SteadyType.body.copyWith(
                             fontSize: 13,
                             color: SteadyColors.textMuted,

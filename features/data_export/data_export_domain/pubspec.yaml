@@ -9,6 +9,10 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  # Coach sessions' date, kind and summary (iPhone), through the domain
+  # interface only; never coach_data (CLAUDE.md §3).
+  coach_domain:
+    path: ../../coach/coach_domain
   daily_metrics_domain:
     path: ../../../packages/shared/daily_metrics_domain
   failures:

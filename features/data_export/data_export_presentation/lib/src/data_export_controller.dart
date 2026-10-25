@@ -21,7 +21,8 @@ class DataExportController extends _$DataExportController {
 
   /// Domain event: DataExported.
   ///
-  /// Reads every `DailyMetric` row, builds a dated [format] file and hands
+  /// Reads every `DailyMetric` row (and, on the iPhone, every coach
+  /// session's date, kind and summary), builds a dated [format] file and hands
   /// it to the share sheet, anchored at [sharePositionOrigin] on macOS and
   /// iPad. On success the state becomes `AsyncData` with the receipt
   /// (including whether the user dismissed the sheet); on failure it
@@ -57,6 +58,7 @@ class DataExportController extends _$DataExportController {
     final read = await readExportBundle(
       ref.read(exportDailyMetricRepositoryProvider),
       exportedAt: ref.read(exportClockProvider)(),
+      coachRepository: ref.read(exportCoachRepositoryProvider),
     );
     final ExportBundle bundle;
     switch (read) {

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
@@ -31,10 +32,13 @@ void main() {
   Future<void> pumpModule(
     WidgetTester tester, {
     List<Widget> sections = const [],
+    CoachRepository? coach,
   }) => tester.pumpWidget(
     ProviderScope(
       overrides: [
         exportDailyMetricRepositoryProvider.overrideWithValue(repository),
+        if (coach != null)
+          exportCoachRepositoryProvider.overrideWithValue(coach),
         exportFileSharerProvider.overrideWithValue(sharer.call),
         exportClockProvider.overrideWithValue(() => now),
       ],
@@ -75,12 +79,28 @@ void main() {
     expect(find.text('Export your data'), findsOneWidget);
     expect(find.text('Export CSV'), findsOneWidget);
     expect(find.text('Export JSON'), findsOneWidget);
-    expect(find.textContaining("Coach sessions aren't"), findsOneWidget);
+    // No coach on this device (the Mac): the export doesn't mention it.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('exportContentsLine'))).data,
+      'Includes daily metrics and check-ins.',
+    );
     for (final format in ExportFormat.values) {
       expect(onPressed(tester, format), isNotNull);
     }
     expect(find.textContaining('Export'), findsNWidgets(3));
     expect(repository.getRangeCalls, isEmpty);
+  });
+
+  testWidgets('with the coach (iPhone), says the JSON has session summaries '
+      'but not the conversation', (tester) async {
+    await pumpModule(tester, coach: FakeCoachRepository());
+
+    expect(
+      tester.widget<Text>(find.byKey(const Key('exportContentsLine'))).data,
+      'Includes daily metrics and check-ins. The JSON file also includes '
+      "each coach session's date, type and summary, but not the "
+      'conversation itself.',
+    );
   });
 
   testWidgets('tapping Export CSV shares the dated file and confirms it', (
