@@ -24,13 +24,25 @@ abstract final class CoachModelChannel {
   static const name = 'steady/coach';
 
   /// The event channel the replies stream on. Listen arguments are
-  /// `{sessionId: String, prompt: String, maximumResponseTokens: int}`
-  /// ([maximumResponseTokens]). Each event is a String: the
-  /// whole reply so far (a snapshot). The stream ends after the last
-  /// snapshot, or after one error event whose code is one of
-  /// [inferenceCodes]' keys, [unavailableCode] or [sessionNotFoundCode].
-  /// Cancelling the subscription stops the model. Only one stream is live
-  /// at a time: a new listen cancels the old one.
+  /// `{requestId: int, sessionId: String, prompt: String,
+  /// maximumResponseTokens: int}` ([maximumResponseTokens]); `requestId`
+  /// is new for every listen, and `cancel` sends the same arguments back.
+  ///
+  /// Every event is a map tagged with that `requestId`, so an event from an
+  /// earlier listen can be told apart and dropped:
+  /// - `{requestId, snapshot: String}`: the whole reply so far;
+  /// - `{requestId, done: true}`: the reply finished;
+  /// - `{requestId, error: String, message: String?, reason: String?}`:
+  ///   the reply failed, `error` one of [inferenceCodes]' keys,
+  ///   [unavailableCode] (with `reason`, one of [unavailableReasons]' keys)
+  ///   or [sessionNotFoundCode].
+  ///
+  /// `done` or an error is the last event; the native side sends no
+  /// end-of-stream message, which couldn't carry a `requestId`. Cancelling
+  /// the subscription stops the model, and a cancelled reply sends nothing
+  /// more. Only one stream is live at a time: a new listen cancels the old
+  /// one, and the native side waits for it to stop before starting the new
+  /// reply.
   static const responsesName = 'steady/coach/responses';
 
   /// No arguments. Returns `{status: 'available', contextSize: int}` or

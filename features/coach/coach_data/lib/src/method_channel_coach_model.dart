@@ -35,23 +35,21 @@ class MethodChannelCoachModel implements CoachModel {
   ///
   /// The native side has one `FlutterEventSink`, so only one reply streams
   /// at a time; the binary messenger likewise has one message handler per
-  /// channel name. Without an owner, a second `listen` would silently take
-  /// the handler over and the first stream would hang forever — never
-  /// emitting, never closing — and that first stream's `cancel` would then
-  /// clear the second's handler. So each `_listen` takes ownership, closes
-  /// the stream it displaces (which cancels it natively, stopping a reply
-  /// nobody is listening to), and clears the handler on cancel only while
-  /// it still owns it.
+  /// channel name, across every instance of this class, which is why this
+  /// is static. Each `_listen` takes ownership and closes the stream it
+  /// displaces, rather than leave it waiting forever. The displaced stream
+  /// sends no native `cancel`: the new `listen` already stops its reply,
+  /// and a late `cancel` would stop the new one instead.
   ///
-  /// **Residual, and why it isn't fixed here:** events on
-  /// `steady/coach/responses` carry no session id, so an event the
-  /// displaced native stream had already queued before its `cancel`
-  /// arrived is indistinguishable from the live stream's own, and an
-  /// end-of-stream among them would close the live stream early. Telling
-  /// them apart needs the session id on the wire, which is a change to
-  /// `CoachChannel.swift`. Cancelling the displaced stream immediately
-  /// keeps the window small.
-  _ResponseListen? _owner;
+  /// Every event carries the `requestId` of the listen it answers
+  /// ([_nextRequestId]), so an event the displaced reply had already sent
+  /// before it was stopped, including its `done`, is dropped instead of
+  /// landing on (or closing) the live stream.
+  static _ResponseListen? _owner;
+
+  /// The `requestId` for the next listen. Static for the same reason as
+  /// [_owner]: ids must be unique per channel, not per instance.
+  static int _nextRequestId = 1;
 
   @override
   ResultFuture<CoachModelInfo> checkAvailability() async {
@@ -107,16 +105,31 @@ class MethodChannelCoachModel implements CoachModel {
         'prompt': prompt,
         'maximumResponseTokens': CoachModelChannel.maximumResponseTokens,
       })) {
-        if (event is! String) {
-          yield Err(
-            UnknownFailure(
-              'The coach sent a reply in an unexpected shape',
-              cause: FormatException('Expected a String snapshot', event),
-            ),
-          );
-          return;
+        switch (event) {
+          case {'requestId': int(), 'snapshot': final String snapshot}:
+            yield Ok(snapshot);
+          case {'requestId': int(), 'done': true}:
+            return;
+          case {'requestId': int(), 'error': final String code}:
+            yield Err(
+              _responseFailure(
+                PlatformException(
+                  code: code,
+                  message: event['message'] as String?,
+                  details: event['reason'],
+                ),
+              ),
+            );
+            return;
+          default:
+            yield Err(
+              UnknownFailure(
+                'The coach sent a reply in an unexpected shape',
+                cause: FormatException('Expected a reply event', event),
+              ),
+            );
+            return;
         }
-        yield Ok(event);
       }
     } on PlatformException catch (e) {
       yield Err(_responseFailure(e));
@@ -127,10 +140,12 @@ class MethodChannelCoachModel implements CoachModel {
     }
   }
 
-  /// The [_responses] event stream for [arguments], like
-  /// `EventChannel.receiveBroadcastStream` but with one difference: a
-  /// failed `listen` call (no native handler, as on macOS) is delivered as
-  /// the stream's error and closes it. `receiveBroadcastStream` only
+  /// The [_responses] event stream for [arguments] plus a fresh
+  /// `requestId`: the decoded events of this listen only (see [_owner]).
+  ///
+  /// Like `EventChannel.receiveBroadcastStream`, with one more difference:
+  /// a failed `listen` call (no native handler, as on macOS) is delivered
+  /// as the stream's error and closes it. `receiveBroadcastStream` only
   /// reports that through `FlutterError.reportError`, so the stream would
   /// never emit or close and the coach UI would wait forever.
   Stream<Object?> _listen(Map<String, Object?> arguments) {
@@ -138,6 +153,8 @@ class MethodChannelCoachModel implements CoachModel {
     final codec = _responses.codec;
     final messenger = _responses.binaryMessenger;
     final control = MethodChannel(name, codec, messenger);
+    final requestId = _nextRequestId++;
+    final tagged = {...arguments, 'requestId': requestId};
     late final StreamController<Object?> controller;
     late final _ResponseListen me;
     controller = StreamController<Object?>(
@@ -150,23 +167,25 @@ class MethodChannelCoachModel implements CoachModel {
         _owner = me;
         if (displaced != null) unawaited(displaced.close());
 
-        messenger.setMessageHandler(name, (reply) async {
-          // A late event from a stream that has lost ownership belongs to
-          // nobody: dropping it is what keeps it from closing this one.
-          if (_owner != me) return null;
-          if (reply == null) {
-            unawaited(controller.close());
-          } else {
-            try {
-              controller.add(codec.decodeEnvelope(reply));
-            } on PlatformException catch (e) {
-              controller.addError(e);
+        messenger.setMessageHandler(name, (message) async {
+          // An untagged end of stream: the native side never sends one,
+          // and it couldn't say whose it is.
+          if (_owner != me || message == null) return null;
+          try {
+            final event = codec.decodeEnvelope(message);
+            // An event from an earlier listen, sent before the native side
+            // stopped it: it isn't this reply's.
+            if (event is Map && event['requestId'] is int) {
+              if (event['requestId'] != requestId) return null;
             }
+            controller.add(event);
+          } on PlatformException catch (e) {
+            controller.addError(e);
           }
           return null;
         });
         try {
-          await control.invokeMethod<void>('listen', arguments);
+          await control.invokeMethod<void>('listen', tagged);
         } on Object catch (e, stack) {
           if (_owner == me) {
             messenger.setMessageHandler(name, null);
@@ -177,14 +196,13 @@ class MethodChannelCoachModel implements CoachModel {
         }
       },
       onCancel: () async {
-        // Only clear the handler if it's still ours; a newer listen may
-        // own it by now.
-        if (_owner == me) {
-          messenger.setMessageHandler(name, null);
-          _owner = null;
-        }
+        // A displaced stream does nothing more: the newer listen owns the
+        // handler, and has already stopped this reply natively.
+        if (_owner != me) return;
+        messenger.setMessageHandler(name, null);
+        _owner = null;
         try {
-          await control.invokeMethod<void>('cancel', arguments);
+          await control.invokeMethod<void>('cancel', tagged);
         } on Object {
           // Nothing to stop: the native stream already ended or never
           // started.

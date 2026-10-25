@@ -16,7 +16,7 @@ void main() {
   const session = CoachModelSession(id: 's1');
   late List<MethodCall> calls;
   late List<Object?> listens;
-  late int cancels;
+  late List<Object?> cancels;
   late MethodChannelCoachModel model;
 
   TestDefaultBinaryMessenger messenger() =>
@@ -39,10 +39,36 @@ void main() {
           listens.add(args);
           on(args, sink);
         },
-        onCancel: (_) => cancels++,
+        onCancel: cancels.add,
       ),
     );
   }
+
+  /// The `requestId` the Dart side tagged a listen with.
+  Object? requestId(Object? args) =>
+      (args! as Map<Object?, Object?>)['requestId'];
+
+  /// The native side's events for the listen with [args]
+  /// (`CoachModelChannel.responsesName`).
+  Map<String, Object?> snapshot(Object? args, String text) => {
+    'requestId': requestId(args),
+    'snapshot': text,
+  };
+  Map<String, Object?> done(Object? args) => {
+    'requestId': requestId(args),
+    'done': true,
+  };
+  Map<String, Object?> error(
+    Object? args,
+    String code, {
+    String? message,
+    String? reason,
+  }) => {
+    'requestId': requestId(args),
+    'error': code,
+    'message': ?message,
+    'reason': ?reason,
+  };
 
   T okValue<T>(Result<T> result) => switch (result) {
     Ok(:final value) => value,
@@ -57,7 +83,7 @@ void main() {
   setUp(() {
     calls = [];
     listens = [];
-    cancels = 0;
+    cancels = [];
     model = MethodChannelCoachModel();
   });
 
@@ -172,26 +198,34 @@ void main() {
   });
 
   group('streamResponse', () {
-    test('listens with the session and prompt, and passes snapshots '
-        'through in order', () async {
-      stream((_, sink) {
+    test('listens with the session, prompt and a request id, and passes '
+        'snapshots through in order', () async {
+      stream((args, sink) {
         sink
-          ..success('Hi')
-          ..success('Hi there')
-          ..success('Hi there. How did the week feel?')
-          ..endOfStream();
+          ..success(snapshot(args, 'Hi'))
+          ..success(snapshot(args, 'Hi there'))
+          ..success(snapshot(args, 'Hi there. How did the week feel?'))
+          ..success(done(args));
       });
       final events = await model.streamResponse(session, 'Hello').toList();
       expect(listens.single, {
         'sessionId': 's1',
         'prompt': 'Hello',
         'maximumResponseTokens': 512,
+        'requestId': isA<int>(),
       });
       expect(events.map(okValue), [
         'Hi',
         'Hi there',
         'Hi there. How did the week feel?',
       ]);
+    });
+
+    test('every listen gets a new request id', () async {
+      stream((args, sink) => sink.success(done(args)));
+      await model.streamResponse(session, 'One').toList();
+      await MethodChannelCoachModel().streamResponse(session, 'Two').toList();
+      expect(listens.map(requestId).toSet(), hasLength(2));
     });
 
     test('a second reply closes the one it displaces, and still gets its '
@@ -221,15 +255,52 @@ void main() {
       // Displaced and closed, not left waiting.
       expect(firstDone, isTrue);
       expect(first, isEmpty);
-      // The displaced stream is cancelled natively too, so the model stops
-      // generating a reply nobody is listening to.
-      expect(cancels, 1);
+      // No native cancel for the displaced reply: the new listen already
+      // stops it natively, and a cancel arriving after that listen would
+      // stop the new reply instead.
+      expect(cancels, isEmpty);
 
       // The live stream still gets its own events through the handler it
       // now owns.
-      sinks.last.success('Hi');
+      sinks.last.success(snapshot(listens.last, 'Hi'));
       await pumpEventQueue();
       expect(second.map(okValue), ['Hi']);
+    });
+
+    test("late events from a displaced reply, its done included, don't "
+        'reach or close the live stream', () async {
+      // The native side may have sent events for the first reply before it
+      // got the second listen and stopped the first. They arrive after the
+      // second stream owns the handler.
+      final sinks = <MockStreamHandlerEventSink>[];
+      stream((_, sink) => sinks.add(sink));
+
+      model.streamResponse(session, 'Summarise').listen((_) {});
+      await pumpEventQueue();
+      final firstArgs = listens.single;
+
+      final second = <Result<String>>[];
+      var secondDone = false;
+      model
+          .streamResponse(session, 'Hello')
+          .listen(second.add, onDone: () => secondDone = true);
+      await pumpEventQueue();
+      final secondArgs = listens.last;
+
+      sinks.last
+        ..success(snapshot(firstArgs, 'The week was'))
+        ..success(error(firstArgs, 'busy', message: 'Late'))
+        ..success(done(firstArgs));
+      await pumpEventQueue();
+      expect(second, isEmpty);
+      expect(secondDone, isFalse);
+
+      sinks.last
+        ..success(snapshot(secondArgs, 'Hi'))
+        ..success(done(secondArgs));
+      await pumpEventQueue();
+      expect(second.map(okValue), ['Hi']);
+      expect(secondDone, isTrue);
     });
 
     final codes = <String, CoachInferenceFailureReason>{
@@ -246,11 +317,11 @@ void main() {
     };
     for (final MapEntry(key: code, value: reason) in codes.entries) {
       test('error "$code" ends the stream with a $reason failure', () async {
-        stream((_, sink) {
+        stream((args, sink) {
           sink
-            ..success('Partial')
-            ..error(code: code, message: 'Nope')
-            ..endOfStream();
+            ..success(snapshot(args, 'Partial'))
+            ..success(error(args, code, message: 'Nope'))
+            ..success(snapshot(args, 'ignored'));
         });
         final events = await model.streamResponse(session, 'Hi').toList();
         expect(events, hasLength(2));
@@ -263,49 +334,58 @@ void main() {
     }
 
     test('an unavailable error mid-stream maps its reason', () async {
-      stream((_, sink) {
-        sink
-          ..error(
-            code: CoachModelChannel.unavailableCode,
+      stream((args, sink) {
+        sink.success(
+          error(
+            args,
+            CoachModelChannel.unavailableCode,
             message: 'Assets missing',
-            details: 'modelNotReady',
-          )
-          ..endOfStream();
+            reason: 'modelNotReady',
+          ),
+        );
       });
       final events = await model.streamResponse(session, 'Hi').toList();
       expect(errFailure(events.single), isA<CoachModelNotReadyFailure>());
     });
 
-    test(
-      'a non-string event is an UnknownFailure and ends the stream',
-      () async {
-        stream((_, sink) {
+    final malformed = <String, Object? Function(Object? args)>{
+      'a bare string': (_) => 'Hi',
+      'an untagged snapshot': (_) => {'snapshot': 'Hi'},
+      'a non-string snapshot': (args) => {
+        'requestId': requestId(args),
+        'snapshot': 7,
+      },
+      'an unknown event': (args) => {'requestId': requestId(args)},
+    };
+    for (final MapEntry(key: name, value: event) in malformed.entries) {
+      test('$name is an UnknownFailure and ends the stream', () async {
+        stream((args, sink) {
           sink
-            ..success(7)
-            ..success('ignored')
-            ..endOfStream();
+            ..success(event(args))
+            ..success(snapshot(args, 'ignored'));
         });
         final events = await model.streamResponse(session, 'Hi').toList();
         expect(errFailure(events.single), isA<UnknownFailure>());
-      },
-    );
+      });
+    }
 
     test('an empty prompt is a ValidationFailure, without listening', () async {
-      stream((_, sink) => sink.endOfStream());
+      stream((args, sink) => sink.success(done(args)));
       final events = await model.streamResponse(session, ' ').toList();
       expect(errFailure(events.single), isA<ValidationFailure>());
       expect(listens, isEmpty);
     });
 
-    test('cancelling the subscription cancels the native stream', () async {
-      stream((_, sink) => sink.success('Thinking'));
+    test('cancelling the subscription cancels the native stream, with the '
+        "listen's request id", () async {
+      stream((args, sink) => sink.success(snapshot(args, 'Thinking')));
       final first = Completer<Result<String>>();
       final subscription = model
           .streamResponse(session, 'Hi')
           .listen(first.complete);
       expect(okValue(await first.future), 'Thinking');
       await subscription.cancel();
-      expect(cancels, 1);
+      expect(cancels, [listens.single]);
     });
   });
 
