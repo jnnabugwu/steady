@@ -145,7 +145,7 @@ class CoachNudgeCard extends ConsumerWidget {
           const _CoachHeader(trailing: 'Weekly check-in'),
           if (failure == null)
             Text(
-              'Your weekly check-in for $label is ready: about 15 minutes '
+              'Your weekly check-in for $label is ready: about 5 minutes '
               'on logging, steps, and one small thing to try.',
               key: const Key('coachNudgeText'),
               style: SteadyType.body,
@@ -218,7 +218,7 @@ class CoachWeeklyCard extends ConsumerWidget {
           Text(
             week.allowed
                 ? 'Look back on $label: logging, then steps, then one small '
-                      'thing to try. About 15 minutes.'
+                      'thing to try. About 5 minutes.'
                 : 'The weekly check-in needs at least four days with a '
                       'check-in, so there’s enough to talk about. $label '
                       'had fewer. A chat works any time.',

@@ -342,7 +342,7 @@ class CoachChatRoute extends GoRouteData with $CoachChatRoute {
   );
 }
 
-/// `/weekly-check-in`: the weekly 15-minute session (#81,
+/// `/weekly-check-in`: the weekly 5-minute session (#81,
 /// [CoachSessionModule] with `CoachSessionKind.weekly`), iPhone only.
 ///
 /// Top-level, on the root navigator over the shell, because it's opened

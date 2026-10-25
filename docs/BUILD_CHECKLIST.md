@@ -209,7 +209,7 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       line when guardrails stop a reply.
 - [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
       Intelligence off / model not ready).
-- [x] `coach_presentation`: the weekly 15-minute session (#81). The last completed
+- [x] `coach_presentation`: the weekly 5-minute session (#81). The last completed
       Friday→Thursday week; doesn't start with fewer than 4 of 7 days checked in
       (`CheckWeeklyReadiness`); logging, steps, cravings (when there were any) and next week
       as separate topics; a stored summary. `/weekly-check-in`, from the nudge and the

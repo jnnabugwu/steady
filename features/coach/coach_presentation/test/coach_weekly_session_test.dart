@@ -203,7 +203,7 @@ void main() {
     ) async {
       await pump(tester);
       expect(find.text('Weekly check-in'), findsOneWidget);
-      expect(find.text('Oct 16 – 22 · about 15 minutes'), findsOneWidget);
+      expect(find.text('Oct 16 – 22 · about 5 minutes'), findsOneWidget);
       expect(find.text('Look back on Oct 16 – 22'), findsOneWidget);
       expect(
         find.textContaining('logging, steps and next week'),

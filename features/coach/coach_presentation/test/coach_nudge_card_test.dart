@@ -66,7 +66,7 @@ void main() {
     expect(card, findsOneWidget);
     expect(
       find.text(
-        'Your weekly check-in for Oct 16 – 22 is ready: about 15 minutes '
+        'Your weekly check-in for Oct 16 – 22 is ready: about 5 minutes '
         'on logging, steps, and one small thing to try.',
       ),
       findsOneWidget,

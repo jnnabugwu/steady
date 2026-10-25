@@ -148,7 +148,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
           subtitle: Text(
             session.weekFirst == null
                 ? 'On this iPhone'
-                : '${_weekLabel(session)} · about 15 minutes',
+                : '${_weekLabel(session)} · about 5 minutes',
           ),
           trailing: [
             if (canEnd)
@@ -298,7 +298,7 @@ class _WeeklyIntro extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'About 15 minutes, one topic at a time: $list. You can '
+                'About 5 minutes, one topic at a time: $list. You can '
                 'end whenever you like.',
                 style: SteadyType.body,
               ),
