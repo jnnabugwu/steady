@@ -14,3 +14,4 @@ export 'src/coach_model.dart';
 export 'src/coach_model_failures.dart';
 export 'src/coach_repository.dart';
 export 'src/coach_session.dart';
+export 'src/coach_weekly.dart';

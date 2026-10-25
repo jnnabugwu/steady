@@ -37,6 +37,7 @@ import 'dart:async';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_domain/coach_domain.dart' show CoachSessionKind;
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
@@ -163,8 +164,9 @@ class SettingsBranch extends StatefulShellBranchData {
 /// platform channel, and "Having a craving?" (iPhone only) opens
 /// [CravingRoute].
 ///
-/// The coach nudge slot stays empty: `coach_presentation` has nothing to
-/// say yet, and the nudge is hidden until it does.
+/// The coach nudge slot holds coach's [CoachNudgeCard]: on an iPhone, from
+/// Friday to Sunday, when last week's weekly check-in is ready. Its "Talk
+/// now" opens [CoachWeeklyRoute].
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -176,6 +178,12 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       onImportRequested: () => unawaited(_import(context, container)),
       onOpenAccountSettings: () => unawaited(_openAccountSettings(container)),
       onCravingRequested: () => unawaited(_craving(context, container)),
+      // Renders nothing on the Mac, and nothing on the iPhone unless the
+      // weekly check-in is ready (check-in data only, #81).
+      coachNudge: CoachNudgeCard(
+        onTalkNow: () =>
+            unawaited(const CoachWeeklyRoute().push<void>(context)),
+      ),
     );
   }
 
@@ -298,6 +306,8 @@ class CoachRoute extends GoRouteData with $CoachRoute {
   Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
     onChatRequested: () =>
         unawaited(const CoachChatRoute().push<void>(context)),
+    onWeeklyRequested: () =>
+        unawaited(const CoachWeeklyRoute().push<void>(context)),
     onSessionSelected: (id) =>
         unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
   );
@@ -319,6 +329,35 @@ class CoachChatRoute extends GoRouteData with $CoachChatRoute {
 
   @override
   Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
+    onClosed: () =>
+        context.canPop() ? context.pop() : const CoachRoute().go(context),
+  );
+}
+
+/// `/weekly-check-in`: the weekly 15-minute session (#81,
+/// [CoachSessionModule] with `CoachSessionKind.weekly`), iPhone only.
+///
+/// Top-level, on the root navigator over the shell, because it's opened
+/// from two tabs: the Today nudge's "Talk now" and the Coach tab's weekly
+/// card. Closing returns to whichever opened it. Redirects home where the
+/// coach doesn't exist (the Mac), like [CoachRoute].
+@TypedGoRoute<CoachWeeklyRoute>(path: '/weekly-check-in')
+class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
+  /// Creates the weekly session's route.
+  const CoachWeeklyRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(coachSupportAvailableProvider)
+      ? null
+      : const HomeRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
+    kind: CoachSessionKind.weekly,
     onClosed: () =>
         context.canPop() ? context.pop() : const CoachRoute().go(context),
   );

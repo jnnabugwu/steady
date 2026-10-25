@@ -610,6 +610,62 @@ final class CoachIdGeneratorProvider
 
 String _$coachIdGeneratorHash() => r'5ee441b420fc850db702f2df60f73966519784f9';
 
+/// The weekly session's gate: the 4-of-7 check-in rule (#81, CLAUDE.md
+/// §4), over [coachCheckInRepositoryProvider].
+
+@ProviderFor(coachWeeklyReadiness)
+final coachWeeklyReadinessProvider = CoachWeeklyReadinessProvider._();
+
+/// The weekly session's gate: the 4-of-7 check-in rule (#81, CLAUDE.md
+/// §4), over [coachCheckInRepositoryProvider].
+
+final class CoachWeeklyReadinessProvider
+    extends
+        $FunctionalProvider<
+          CheckWeeklyReadiness,
+          CheckWeeklyReadiness,
+          CheckWeeklyReadiness
+        >
+    with $Provider<CheckWeeklyReadiness> {
+  /// The weekly session's gate: the 4-of-7 check-in rule (#81, CLAUDE.md
+  /// §4), over [coachCheckInRepositoryProvider].
+  CoachWeeklyReadinessProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachWeeklyReadinessProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachWeeklyReadinessHash();
+
+  @$internal
+  @override
+  $ProviderElement<CheckWeeklyReadiness> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CheckWeeklyReadiness create(Ref ref) {
+    return coachWeeklyReadiness(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CheckWeeklyReadiness value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CheckWeeklyReadiness>(value),
+    );
+  }
+}
+
+String _$coachWeeklyReadinessHash() =>
+    r'59feec0dcc2352573c5dcab07029443ad0ec572a';
+
 /// The use case that builds the coach's context from the four domains
 /// above (CLAUDE.md §4: it combines several repositories).
 

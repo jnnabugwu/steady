@@ -234,9 +234,12 @@ String formatCoachWeek(
   CoachWeekData data, {
   bool includeCravingReasons = false,
 }) {
-  final header =
-      'Days, oldest first (${_date(data.today)} is today and may not be '
-      'finished):';
+  // A past week (the weekly session's) doesn't include today.
+  final header = data.days.any((d) => d.date == data.today)
+      ? 'Days, oldest first (${_date(data.today)} is today and may not be '
+            'finished):'
+      : 'Days, oldest first (a finished week; today is '
+            '${_date(data.today)}):';
   final lines = <String>[
     header,
     for (final day in data.days) _dayLine(day),

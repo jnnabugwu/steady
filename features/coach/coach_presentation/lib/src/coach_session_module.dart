@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/coach_session_controller.dart';
 import 'package:coach_presentation/src/coach_session_state.dart';
+import 'package:coach_presentation/src/coach_weekly_cards.dart';
 import 'package:coach_presentation/src/coach_widgets.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
@@ -144,7 +145,11 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
             ),
           ],
           title: Text(coachSessionKindLabel(widget.kind)),
-          subtitle: const Text('On this iPhone'),
+          subtitle: Text(
+            session.weekFirst == null
+                ? 'On this iPhone'
+                : '${_weekLabel(session)} · about 15 minutes',
+          ),
           trailing: [
             if (canEnd)
               SizedBox(
@@ -178,13 +183,34 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   ],
                 ),
               ),
-              CoachSessionPhase.unavailable ||
-              CoachSessionPhase.failedToStart => _Centered(
+              CoachSessionPhase.unavailable => _Centered(
                 child: CoachUnavailableCard(
                   failure:
                       session.failure ??
                       const CoachModelUnavailableUnknownFailure(),
                 ),
+              ),
+              CoachSessionPhase.failedToStart => const _Centered(
+                child: _NoteCard(
+                  key: Key('coachFailedToStart'),
+                  title: "Couldn't start the coach",
+                  body: 'Close this and try again in a moment.',
+                ),
+              ),
+              CoachSessionPhase.notEnoughCheckIns => _Centered(
+                child: _NoteCard(
+                  key: const Key('coachNotEnoughCheckIns'),
+                  title: 'Not enough of the week to look back on',
+                  body:
+                      'The weekly check-in needs at least four days with a '
+                      'check-in, so there’s enough to talk about. '
+                      '${_weekLabel(session)} had fewer. A chat works any '
+                      'time.',
+                ),
+              ),
+              CoachSessionPhase.awaitingStart => _WeeklyIntro(
+                state: session,
+                onBegin: () => unawaited(controller.startWeeklySession()),
               ),
               _ => _Conversation(
                 state: session,
@@ -193,10 +219,168 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                 onSend: _send,
                 onStop: () => unawaited(controller.stopCoachReply()),
                 onRetrySave: () => unawaited(controller.retryCoachSave()),
+                onNextTopic: () =>
+                    unawaited(controller.moveToNextWeeklyTopic()),
                 onDone: widget.onClosed,
               ),
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The weekly session's week, e.g. "Oct 16 – 22".
+String _weekLabel(CoachSessionState state) =>
+    coachWeekLabel(state.weekFirst!, state.weekLast!);
+
+/// A short title and line in a coach card.
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({required this.title, required this.body, super.key});
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) => GlassCard(
+    tint: GlassCardTint.coach,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      spacing: 8,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(title, style: SteadyType.cardTitle),
+        ),
+        Text(body, style: SteadyType.body),
+      ],
+    ),
+  );
+}
+
+/// What the weekly session covers, before it begins: its week, its topics
+/// in order, and **Begin** (`startWeeklySession`).
+class _WeeklyIntro extends StatelessWidget {
+  const _WeeklyIntro({required this.state, required this.onBegin});
+
+  final CoachSessionState state;
+  final VoidCallback onBegin;
+
+  @override
+  Widget build(BuildContext context) {
+    final topics = [
+      for (final topic in state.topics) weeklyTopicLabel(topic).toLowerCase(),
+    ];
+    final list = topics.length < 2
+        ? topics.join()
+        : '${topics.sublist(0, topics.length - 1).join(', ')} and '
+              '${topics.last}';
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const CoachMedicalNote(),
+        const SizedBox(height: 16),
+        GlassCard(
+          key: const Key('coachWeeklyIntro'),
+          tint: GlassCardTint.coach,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Semantics(
+                header: true,
+                child: Text(
+                  'Look back on ${_weekLabel(state)}',
+                  style: SteadyType.cardTitle,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'About 15 minutes, one topic at a time: $list. You can '
+                'end whenever you like.',
+                style: SteadyType.body,
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 52,
+                child: PrimaryButton(
+                  key: const Key('coachWeeklyBegin'),
+                  onPressed: onBegin,
+                  child: const Center(child: Text('Begin')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A weekly topic's name on screen.
+String weeklyTopicLabel(WeeklyTopic topic) => switch (topic) {
+  WeeklyTopic.logging => 'Logging',
+  WeeklyTopic.steps => 'Steps',
+  WeeklyTopic.cravings => 'Cravings',
+  WeeklyTopic.nextWeek => 'Next week',
+};
+
+/// Where the weekly session is: one chip per topic, the current one in the
+/// teal tint. Position only, never a checkmark or a grade.
+class _TopicRow extends StatelessWidget {
+  const _TopicRow({required this.state});
+
+  final CoachSessionState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = state.topic;
+    return Semantics(
+      container: true,
+      label: current == null
+          ? null
+          : 'Topic ${state.topicIndex + 1} of ${state.topics.length}: '
+                '${weeklyTopicLabel(current)}',
+      excludeSemantics: true,
+      child: Padding(
+        key: const Key('coachTopicRow'),
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final topic in state.topics)
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: topic == current
+                      ? SteadyColors.accentTealTint(0.16)
+                      : StatusOptionTile.unselectedFill,
+                  borderRadius: BorderRadius.circular(SteadyRadii.pill),
+                  border: Border.all(
+                    color: topic == current
+                        ? SteadyColors.accentTealTint(0.65)
+                        : SteadyColors.glassBorder,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  child: Text(
+                    weeklyTopicLabel(topic),
+                    style: SteadyType.body.copyWith(
+                      fontSize: 13,
+                      color: topic == current
+                          ? SteadyColors.accentTealHover
+                          : SteadyColors.textTertiary,
+                    ),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -223,6 +407,7 @@ class _Conversation extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onRetrySave,
+    required this.onNextTopic,
     required this.onDone,
   });
 
@@ -232,6 +417,7 @@ class _Conversation extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
   final VoidCallback onRetrySave;
+  final VoidCallback onNextTopic;
   final VoidCallback onDone;
 
   @override
@@ -243,9 +429,13 @@ class _Conversation extends StatelessWidget {
     final failure = state.failure;
     final messages = state.session.messages;
 
+    final weekly = state.topics.isNotEmpty;
+    final next = state.hasNextTopic ? state.topics[state.topicIndex + 1] : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (weekly && state.topicIndex >= 0) _TopicRow(state: state),
         Expanded(
           child: ListView(
             key: const Key('coachTranscript'),
@@ -254,7 +444,7 @@ class _Conversation extends StatelessWidget {
             children: [
               const CoachMedicalNote(),
               const SizedBox(height: 16),
-              if (messages.isEmpty && !replying)
+              if (!weekly && messages.isEmpty && !replying)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 14),
                   child: Text(
@@ -348,6 +538,20 @@ class _Conversation extends StatelessWidget {
             ],
           ),
         ),
+        if (next != null && phase == CoachSessionPhase.ready)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: SizedBox(
+              height: 44,
+              child: OutlineButton(
+                key: const Key('coachNextTopic'),
+                onPressed: onNextTopic,
+                child: Center(
+                  child: Text('Next: ${weeklyTopicLabel(next).toLowerCase()}'),
+                ),
+              ),
+            ),
+          ),
         if (!over)
           _Composer(
             input: input,

@@ -8,8 +8,17 @@ part of 'coach_session_controller.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// A live coach session on the iPhone: one chat, from opening the screen to
-/// its stored summary.
+/// A live coach session on the iPhone: a chat or the weekly session, from
+/// opening the screen to its stored summary.
+///
+/// **The weekly session** (#81) looks back on the last completed
+/// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+/// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+/// before the model is touched and again in [startWeeklySession]). Its
+/// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+/// cravings when there were any, next week), each opened by an app prompt
+/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+/// like a chat, with a stored summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -36,8 +45,17 @@ part of 'coach_session_controller.dart';
 @ProviderFor(CoachSessionController)
 final coachSessionControllerProvider = CoachSessionControllerFamily._();
 
-/// A live coach session on the iPhone: one chat, from opening the screen to
-/// its stored summary.
+/// A live coach session on the iPhone: a chat or the weekly session, from
+/// opening the screen to its stored summary.
+///
+/// **The weekly session** (#81) looks back on the last completed
+/// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+/// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+/// before the model is touched and again in [startWeeklySession]). Its
+/// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+/// cravings when there were any, next week), each opened by an app prompt
+/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+/// like a chat, with a stored summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -62,8 +80,17 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 /// person has said something.
 final class CoachSessionControllerProvider
     extends $NotifierProvider<CoachSessionController, CoachSessionState> {
-  /// A live coach session on the iPhone: one chat, from opening the screen to
-  /// its stored summary.
+  /// A live coach session on the iPhone: a chat or the weekly session, from
+  /// opening the screen to its stored summary.
+  ///
+  /// **The weekly session** (#81) looks back on the last completed
+  /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+  /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+  /// before the model is touched and again in [startWeeklySession]). Its
+  /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+  /// cravings when there were any, next week), each opened by an app prompt
+  /// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+  /// like a chat, with a stored summary.
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
@@ -132,10 +159,19 @@ final class CoachSessionControllerProvider
 }
 
 String _$coachSessionControllerHash() =>
-    r'ef8165e85f473a6ac16464657e38598693be41c2';
+    r'074e7ad82a4d16b792424eba83620d08b0e42079';
 
-/// A live coach session on the iPhone: one chat, from opening the screen to
-/// its stored summary.
+/// A live coach session on the iPhone: a chat or the weekly session, from
+/// opening the screen to its stored summary.
+///
+/// **The weekly session** (#81) looks back on the last completed
+/// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+/// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+/// before the model is touched and again in [startWeeklySession]). Its
+/// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+/// cravings when there were any, next week), each opened by an app prompt
+/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+/// like a chat, with a stored summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -177,8 +213,17 @@ final class CoachSessionControllerFamily extends $Family
         isAutoDispose: true,
       );
 
-  /// A live coach session on the iPhone: one chat, from opening the screen to
-  /// its stored summary.
+  /// A live coach session on the iPhone: a chat or the weekly session, from
+  /// opening the screen to its stored summary.
+  ///
+  /// **The weekly session** (#81) looks back on the last completed
+  /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+  /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+  /// before the model is touched and again in [startWeeklySession]). Its
+  /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+  /// cravings when there were any, next week), each opened by an app prompt
+  /// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+  /// like a chat, with a stored summary.
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
@@ -212,8 +257,17 @@ final class CoachSessionControllerFamily extends $Family
   String toString() => r'coachSessionControllerProvider';
 }
 
-/// A live coach session on the iPhone: one chat, from opening the screen to
-/// its stored summary.
+/// A live coach session on the iPhone: a chat or the weekly session, from
+/// opening the screen to its stored summary.
+///
+/// **The weekly session** (#81) looks back on the last completed
+/// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+/// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+/// before the model is touched and again in [startWeeklySession]). Its
+/// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+/// cravings when there were any, next week), each opened by an app prompt
+/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+/// like a chat, with a stored summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its

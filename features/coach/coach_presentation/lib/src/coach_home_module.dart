@@ -1,23 +1,25 @@
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/coach_history_providers.dart';
+import 'package:coach_presentation/src/coach_weekly_cards.dart';
 import 'package:coach_presentation/src/coach_widgets.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The Coach tab (iPhone only): start a chat, or read a past one.
+/// The Coach tab (iPhone only): start a chat or the weekly check-in, or
+/// read a past session.
 ///
 /// Top to bottom: the title, the coach card (a chat, or why the coach
 /// can't run here: [coachAvailabilityProvider]'s typed failure, through
-/// [CoachUnavailableCard]), [extra] (the weekly session's card, from the
-/// app layer), the "not medical advice" note, and the past conversations,
-/// newest first ([coachSessionListProvider]), each opening its read-only
-/// transcript.
+/// [CoachUnavailableCard]), the weekly check-in ([CoachWeeklyCard], while
+/// the model is available), the "not medical advice" note, and the past
+/// sessions, newest first ([coachSessionListProvider]), each opening its
+/// read-only transcript.
 ///
-/// Knows nothing about routing (CLAUDE.md §5): [onChatRequested] and
-/// [onSessionSelected] are wired by the app layer. Only ever built on the
-/// iPhone; the app has no route to it on the Mac.
+/// Knows nothing about routing (CLAUDE.md §5): [onChatRequested],
+/// [onWeeklyRequested] and [onSessionSelected] are wired by the app layer.
+/// Only ever built on the iPhone; the app has no route to it on the Mac.
 ///
 /// **Scrolls under the tab bar**, padding its end by
 /// `MediaQuery.paddingOf(context).bottom` like the Today screen.
@@ -25,19 +27,19 @@ class CoachHomeModule extends ConsumerWidget {
   /// Creates the Coach tab.
   const CoachHomeModule({
     required this.onChatRequested,
+    required this.onWeeklyRequested,
     required this.onSessionSelected,
-    this.extra,
     super.key,
   });
 
   /// Called when "Start a chat" is tapped.
   final void Function() onChatRequested;
 
+  /// Called when the weekly card's "Start the check-in" is tapped.
+  final void Function() onWeeklyRequested;
+
   /// Called with a past session's id when it's tapped.
   final void Function(String sessionId) onSessionSelected;
-
-  /// Shown under the coach card while the model is available.
-  final Widget? extra;
 
   /// Keeps the cards phone-width on a wide window.
   static const double maxWidth = 480;
@@ -79,7 +81,8 @@ class CoachHomeModule extends ConsumerWidget {
                     child: Center(child: CircularProgressIndicator()),
                   ),
                 },
-                if (availability is AsyncData) ?extra,
+                if (availability is AsyncData)
+                  CoachWeeklyCard(onWeeklyRequested: onWeeklyRequested),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   child: CoachMedicalNote(),

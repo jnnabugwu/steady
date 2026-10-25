@@ -14,6 +14,7 @@ void main() {
   late FakeCoachModel model;
   late FakeCoachRepository repository;
   late int chats;
+  late int weeklies;
   late List<String> opened;
 
   final chat = CoachSession(
@@ -51,6 +52,7 @@ void main() {
     model = FakeCoachModel();
     repository = FakeCoachRepository();
     chats = 0;
+    weeklies = 0;
     opened = [];
   });
 
@@ -65,6 +67,7 @@ void main() {
           theme: steadyTheme,
           home: CoachHomeModule(
             onChatRequested: () => chats++,
+            onWeeklyRequested: () => weeklies++,
             onSessionSelected: opened.add,
           ),
         ),

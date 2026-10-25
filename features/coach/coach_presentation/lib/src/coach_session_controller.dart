@@ -4,14 +4,24 @@ import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/coach_history_providers.dart';
 import 'package:coach_presentation/src/coach_session_state.dart';
 import 'package:coach_presentation/src/coach_week_context.dart';
+import 'package:coach_presentation/src/coach_weekly_readiness.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 part 'coach_session_controller.g.dart';
 
-/// A live coach session on the iPhone: one chat, from opening the screen to
-/// its stored summary.
+/// A live coach session on the iPhone: a chat or the weekly session, from
+/// opening the screen to its stored summary.
+///
+/// **The weekly session** (#81) looks back on the last completed
+/// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
+/// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
+/// before the model is touched and again in [startWeeklySession]). Its
+/// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
+/// cravings when there were any, next week), each opened by an app prompt
+/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
+/// like a chat, with a stored summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -70,6 +80,12 @@ class CoachSessionController extends _$CoachSessionController {
 
   Future<void> _start() async {
     final api = _api;
+    final weekly = kind == CoachSessionKind.weekly;
+    if (weekly) {
+      // The rule comes first: below it, the model is never touched.
+      final ready = await _checkWeek();
+      if (!ref.mounted || ready == null || !ready.allowed) return;
+    }
     final availability = await api.checkAvailability();
     if (!ref.mounted) return;
     final CoachModelInfo info;
@@ -92,15 +108,22 @@ class CoachSessionController extends _$CoachSessionController {
     _budget = CoachContextBudget(contextSize: info.contextSize);
 
     final now = ref.read(coachClockProvider)();
-    final window = coachChatWindow(now);
+    final window = weekly
+        ? (first: state.weekFirst!, last: state.weekLast!)
+        : coachChatWindow(now);
     final data = await ref
         .read(coachWeekContextProvider)
         .call(first: window.first, last: window.last, now: now);
     if (!ref.mounted) return;
     final instructions = CoachInstructions.forSession(
       instructionsFor(kind),
-      formatCoachWeek(data),
+      formatCoachWeek(data, includeCravingReasons: weekly),
     );
+    if (weekly) {
+      state = state.copyWith(
+        topics: weeklyTopicsFor(cravingCount: data.cravingCount),
+      );
+    }
 
     final started = await api.startSession(instructions: instructions);
     if (!ref.mounted) {
@@ -111,7 +134,11 @@ class CoachSessionController extends _$CoachSessionController {
       case Ok(:final value):
         _model = value;
         _conversation = CoachConversation.start(instructions: instructions);
-        state = state.copyWith(phase: CoachSessionPhase.ready);
+        state = state.copyWith(
+          phase: weekly
+              ? CoachSessionPhase.awaitingStart
+              : CoachSessionPhase.ready,
+        );
       case Err(:final failure):
         state = state.copyWith(
           phase: failure is CoachModelUnavailableFailure
@@ -147,26 +174,105 @@ class CoachSessionController extends _$CoachSessionController {
     );
     await _save();
     if (!ref.mounted) return;
+    await _turn(message, said: said);
+  }
 
-    if (_conversation!.needsFreshSession(message, _budget)) {
+  /// Domain event: WeeklySessionStarted.
+  ///
+  /// Begins the weekly session: checks the 4-of-7 rule again
+  /// ([CheckWeeklyReadiness], the week may have changed since the screen
+  /// opened), then has the coach open the first topic (logging). Ignored
+  /// unless the session is waiting to begin.
+  Future<void> startWeeklySession() async {
+    if (!ref.mounted || state.phase != CoachSessionPhase.awaitingStart) {
+      return;
+    }
+    state = state.copyWith(phase: CoachSessionPhase.starting);
+    final ready = await _checkWeek();
+    if (!ref.mounted || ready == null) return;
+    if (!ready.allowed) {
+      _endModel();
+      return;
+    }
+    await _openTopic(0);
+  }
+
+  /// Domain event: WeeklyTopicAdvanced.
+  ///
+  /// Moves the weekly session to its next topic (logging → steps →
+  /// cravings, when there were any → next week), as a new thread: the
+  /// coach is told to leave the last one behind. Ignored unless the
+  /// session is ready and has a next topic.
+  Future<void> moveToNextWeeklyTopic() async {
+    if (!ref.mounted ||
+        state.phase != CoachSessionPhase.ready ||
+        !state.hasNextTopic) {
+      return;
+    }
+    await _openTopic(state.topicIndex + 1);
+  }
+
+  Future<void> _openTopic(int index) async {
+    state = state.copyWith(
+      phase: CoachSessionPhase.replying,
+      topicIndex: index,
+      reply: null,
+      failure: null,
+    );
+    await _turn(weeklyTopicPrompt(state.topics[index]));
+  }
+
+  /// Reads the weekly session's week and its readiness. Sets the phase
+  /// for a failure or a week that's too thin; returns `null` on failure.
+  Future<WeeklyReadiness?> _checkWeek() async {
+    final result = await ref.read(coachWeeklyReadinessProvider)(
+      ref.read(coachClockProvider)(),
+    );
+    if (!ref.mounted) return null;
+    switch (result) {
+      case Ok(:final value):
+        state = state.copyWith(
+          weekFirst: value.first,
+          weekLast: value.last,
+          phase: value.allowed
+              ? state.phase
+              : CoachSessionPhase.notEnoughCheckIns,
+        );
+        return value;
+      case Err(:final failure):
+        state = state.copyWith(
+          phase: CoachSessionPhase.failedToStart,
+          failure: failure,
+        );
+        return null;
+    }
+  }
+
+  /// One exchange: [text] is the person's message ([said] its transcript
+  /// entry) or, with [said] `null`, the app's own prompt (a weekly topic).
+  /// Makes room first (a fresh model session when the turn wouldn't fit),
+  /// then streams the reply into the transcript.
+  Future<void> _turn(String text, {CoachMessage? said}) async {
+    final fromApp = said == null;
+    if (_conversation!.needsFreshSession(text, _budget, fromApp: fromApp)) {
       final moved = await _moveToFreshSession(summarise: true);
       if (!ref.mounted) return;
       if (moved != null) return _replyFailed(moved);
-      if (_conversation!.needsFreshSession(message, _budget)) {
+      if (_conversation!.needsFreshSession(text, _budget, fromApp: fromApp)) {
         // Even the carried context doesn't fit (a very small window): go
         // on with the message alone.
         _conversation = _conversation!.withoutCarry();
       }
     }
-    await _replyTo(message, said, retried: false);
+    await _replyTo(text, said, retried: false);
   }
 
   Future<void> _replyTo(
     String message,
-    CoachMessage said, {
+    CoachMessage? said, {
     required bool retried,
   }) async {
-    final prompt = _conversation!.promptFor(message);
+    final prompt = _conversation!.promptFor(message, fromApp: said == null);
     final (text, failure) = await _stream(_model!, prompt, show: true);
     if (!ref.mounted) return;
 
@@ -188,11 +294,9 @@ class CoachSessionController extends _$CoachSessionController {
             text: text.trim(),
             at: ref.read(coachClockProvider)(),
           );
-    _conversation = _conversation!.afterTurn(
-      prompt: prompt,
-      message: said,
-      reply: reply,
-    );
+    _conversation = said == null
+        ? _conversation!.afterAppPrompt(prompt: prompt, reply: reply)
+        : _conversation!.afterTurn(prompt: prompt, message: said, reply: reply);
     if (failure != null) return _replyFailed(failure);
     state = state.copyWith(
       phase: CoachSessionPhase.ready,
@@ -366,6 +470,8 @@ class CoachSessionController extends _$CoachSessionController {
         if (!ref.mounted) return;
       case CoachSessionPhase.unavailable ||
           CoachSessionPhase.failedToStart ||
+          CoachSessionPhase.notEnoughCheckIns ||
+          CoachSessionPhase.awaitingStart ||
           CoachSessionPhase.ready:
         break;
     }
