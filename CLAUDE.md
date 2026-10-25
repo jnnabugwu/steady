@@ -27,10 +27,11 @@
   The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` returns false on
   macOS. Health values are read live and never stored in the synced store (App Store
   guideline 5.1.3; `docs/technical_decisions.md`, "Health data stays on the iPhone").
-- **Apple Foundation Models — macOS only.** The coach runs live sessions on macOS
-  exclusively; the iOS app never wires up the Foundation Models platform channel at all,
-  no entitlement needed there. This decouples iOS's hardware floor from the A17 Pro+
-  requirement — see the note below.
+- **Apple Foundation Models — iPhone only.** The coach runs its sessions on the iPhone,
+  where its context lives: Health data (iOS only, above) and craving check-ins
+  (device-only, §7). The Mac has no Foundation Models code path. The model needs an iPhone
+  that supports Apple Intelligence, so the coach checks availability at runtime rather
+  than raising the app's iOS floor. See §11.
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
   for parsing Cal AI exports. **No backend.** Validated against real exports: 8/8 days
   parsed correctly on the short reference file, 36 food entries, all four known daily
@@ -94,15 +95,13 @@ steady/
 │   │   ├── cravings_domain/         # CravingEvent, CravingRepository, weekly summary
 │   │   ├── cravings_data/           # FileCravingRepository: JSON file in app support
 │   │   └── cravings_presentation/   # Flow module, home section, Settings card
-│   ├── coach/                      # macOS: live chat + weekly session (Foundation Models).
-│   │   │                            # iOS: read-only session history only, synced via
-│   │   │                            # CloudKit — no inference, no Foundation Models channel.
+│   ├── coach/                      # iPhone only: weekly session + chat (Foundation
+│   │   │                            # Models). The Mac has no coach code path (§11)
 │   │   ├── coach_domain/
-│   │   ├── coach_data/              # Foundation Models platform-channel calls — macOS
-│   │   │                            # implementation only; iOS implementation has no
-│   │   │                            # live-inference path (see §11)
-│   │   └── coach_presentation/       # branches on Platform.isMacOS for chat-input vs.
-│   │                                 # read-only history view
+│   │   ├── coach_data/              # Foundation Models channel (app/ios) + device-only
+│   │   │                            # transcript store, like cravings (§7, §11)
+│   │   └── coach_presentation/       # session + chat screens and the nudge card; reads
+│   │                                 # other features' domains for its context
 │   ├── pdf_import/                 # Upload flow; parses on-device via pdfrx_engine,
 │   │                                # writes DailyMetric rows straight to SwiftData
 │   │   ├── pdf_import_domain/
@@ -518,8 +517,8 @@ storing personal health information in iCloud, so steps and active/basal energy 
 live from HealthKit on the iPhone and shown there, never written to `DailyMetricRecord`.
 The record's `caloriesBurnedActive`, `caloriesBurnedBasal` and `steps` attributes stay in
 the schema (CloudKit's production schema is additive-only), but Apple Health values aren't
-written to them. The Mac shows calories eaten (Cal AI PDFs) and check-ins only, and the
-coach runs without Health data for now. Decision record: `docs/technical_decisions.md`,
+written to them. The Mac shows calories eaten (Cal AI PDFs) and check-ins only; the
+coach runs on the iPhone, where the Health data is (§11). Decision record: `docs/technical_decisions.md`,
 "Health data stays on the iPhone (App Store 5.1.3)".
 
 **No security-rules layer, by design.** The generic starter's Firestore section spends a
@@ -547,14 +546,11 @@ merges them (per field, the non-nil value from the most recently modified record
 device can come back from an older duplicate this way; accepted, since it needs two
 devices writing the same day before a sync.
 
-**Conflict resolution is plain last-writer-wins, everywhere, including coach transcripts.**
+**Conflict resolution is plain last-writer-wins, everywhere.**
 CloudKit resolves concurrent record writes at the record level with LWW; Steady doesn't
 layer any custom merge logic on top (collapsing duplicate *records*, above, is the only
-merge), not even for append-style data like coach session
-transcripts. The accepted tradeoff: if iPhone and Mac somehow write a transcript record at
-the same moment, one write silently wins and the other's messages are lost, with no error
-surfaced. Given single-user, single-writer-at-a-time usage in practice, this edge case is
-accepted risk rather than a reason to model transcripts as an append-only child collection.
+merge). Coach transcripts never reach CloudKit (they stay on the iPhone, §11), so merging
+append-style data across devices never comes up.
 
 **iCloud is optional: a banner, not a gate.** Steady never blocks on the iCloud account
 status. Signed out (or iCloud restricted or temporarily unavailable), the app works normally
@@ -582,7 +578,7 @@ private database has no separate backup.
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in
 the iPhone's app support directory, never synced. They read as health data, and App Store
 5.1.3(ii) says apps may not store personal health information in iCloud. Don't move them into
-the synced store; the Mac sees them only once the iPhone→Mac local handoff (#97) exists. The
+the synced store. The coach reads them on the iPhone (§11); the Mac never sees them. The
 file is deliberately **left in the user's own iOS device backup** (iCloud Backup, if they use
 it), so a restored phone keeps its history; the Settings text and PRIVACY.md say so plainly.
 Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
@@ -626,9 +622,9 @@ extracted Swift package — there's less shared logic to isolate there than with
 `RAGKitCore` (mostly "call the native API, marshal the result"), so extracting it now
 would be premature.
 
-**Foundation Models is wired only in `app/macos/`.** There is no iOS implementation of
-the coach's live-inference call at all — not a disabled one, an absent one. §11 covers
-the reasoning and what iOS shows instead.
+**Foundation Models is wired only in `app/ios/`**, runner-adjacent like the HealthKit
+channel. There is no macOS implementation of the coach's inference call at all — not a
+disabled one, an absent one. §11 covers why.
 
 ---
 
@@ -708,39 +704,49 @@ the reasoning and what iOS shows instead.
 
 ---
 
-## 11. The coach is macOS-only
+## 11. The coach runs on the iPhone
 
-**Decision:** live coach sessions — chat, the 15-minute weekly check-in — run on macOS
-only. iOS never invokes Foundation Models at all.
+**Decision (2026-10-24, replaces "the coach is macOS-only"):** the coach, both the
+15-minute weekly session and chat, runs on the iPhone with Apple Foundation Models
+on-device. The Mac has no coach. Decision record: `docs/technical_decisions.md`, "The coach
+runs on the iPhone".
 
-**What iOS shows instead:** past coach conversations and session summaries, read-only,
-synced via CloudKit like every other data type in the app. iOS can *display* a
-conversation that happened on Mac; it just can't *have* one. This is a meaningfully
-better iOS experience than removing the feature outright — the coach's presence is still
-visible and useful on the phone, just not interactive there.
+**Why:** the coach's context lives on the iPhone. Steps and burned energy come from
+HealthKit, which works only there and can't sync through iCloud (§1, §7), and craving
+check-ins are device-only (§7). A Mac coach would see only calories eaten and check-ins,
+and the only way to fix that was a direct iPhone→Mac handoff (#97) with open pairing and
+App Review questions. The weekly session is still a deliberate, sit-down 15 minutes; it
+just happens on the phone.
 
 **Consequences that follow from this, worth remembering while building:**
 
-- The coach nudge card on the check-in screen (Pass 01 design — "Talk now" / "Not
-  tonight") needs a platform-specific CTA. On macOS, "Talk now" opens a live session as
-  designed. On iOS, that button should read something like "Continue on Mac" — the card
-  itself (referencing check-in data to generate the nudge) doesn't need inference to
-  exist, only the actual conversation does.
-- `coach_data`'s iOS implementation has no live-inference code path — not a
-  feature-flagged-off one, an absent one. If `coach_presentation` is built correctly
-  (branching on `Platform.isMacOS` before ever trying to start a session), this should
-  never be reachable from iOS UI at all; it's not a runtime check to lean on as a safety
-  net.
-- **`notes` (RAG) is now implicitly macOS-scoped for its actual purpose**, even though
-  nothing prevents it from being cross-platform mechanically. Adding/editing journal
-  notes can stay available on iOS (it's just data entry, synced same as anything else),
-  but retrieval-into-coach-context only ever matters on macOS, since that's the only
-  place a session runs to retrieve *into*.
-- **Open, not yet decided:** whether to lower iOS's hardware/OS floor now that Foundation
-  Models no longer gates it there. HealthKit and SwiftData/CloudKit don't need A17 Pro+ —
-  that requirement existed specifically because of on-device inference. Worth revisiting
-  once there's a reason to care (e.g. wanting broader iPhone compatibility), not resolved
-  here.
+- **Transcripts and summaries stay on the iPhone.** They quote Health values and
+  cravings, so syncing them through CloudKit would be storing health information in iCloud
+  (5.1.3(ii)). `coach_data` keeps them in a device-only store, the same pattern as
+  `cravings_data` (§7): included in the phone's own iCloud Backup, never in Steady's
+  CloudKit store. Coach sessions add no CloudKit record type, so they don't gate the
+  production schema deploy.
+- **Availability is a runtime state, not a platform branch.** Foundation Models needs an
+  iPhone that supports Apple Intelligence, with it turned on and the model ready.
+  `coach_data` reports each unavailable reason as a typed `Failure`, the coach UI says
+  plainly why it can't start, and the rest of the app is unaffected. This doesn't raise
+  the app's iOS floor.
+- **The Mac has no coach code path**, the same way it has no HealthKit one: the coach's
+  providers are bound only by `appProviderOverridesFor(isIOS: true)`, like cravings (§9).
+  No Foundation Models code in `app/macos/`. A Mac chat without Health data or cravings
+  is a possible later addition, not planned.
+- **Nudge card** (`TodayScreen.coachNudge`, §5): "Talk now" / "Not tonight" on an iPhone
+  where the model is available. Where it isn't, the card explains why instead of offering
+  a session. Nothing on the Mac. The card itself needs check-in data, not inference.
+- **Context stays compact:** a short 7-day summary built from `metrics_domain`,
+  `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history. The
+  on-device model's context window is small, so a long session summarises its older turns.
+- **Guardrails (#82):** coach, not therapist. It never originates calorie targets, weight
+  goals or diet prescriptions, including from craving data (the NEDA "Tessa" failure in
+  `docs/research/craving_support.md`). The instructions live in one place, with tests
+  that assert the constraints are present.
+- **`notes` (RAG) feeds the iPhone coach.** Retrieval into the coach's context runs on the
+  iPhone, so `RAGKitCore` has to build for iOS.
 
 ---
 
@@ -772,9 +778,10 @@ original reason (PDF parsing) turned out not to need a server either, once valid
 on-device. Per §6, there's no `backend/` folder in this repo at all, and no auth system
 either — CloudKit's per-account private container already provides that for free.
 
-**Why is the coach macOS-only, when the rest of the app is genuinely both-platforms?**
+**Why does the coach run only on the iPhone, when most of the app is both-platforms?**
 Neither source doc has an equivalent call to make — the multi-app starter has no
-single-feature platform split at all. This is Steady-specific: the coach is meant to be
-a considered, sit-down session, not something reached for in a pocket moment, so scoping
-live inference to macOS reflects the product's own intent rather than a technical
-limitation being worked around. See §11 for the full consequences of this choice.
+single-feature platform split at all. The coach was first scoped to the Mac, as a
+sit-down session rather than a pocket moment. That flipped (2026-10-24) once Health data
+and cravings turned out to be iPhone-only (App Store 5.1.3): a Mac coach couldn't see most
+of what it's meant to discuss. The session is still a deliberate 15 minutes, just on the
+phone. See §11 for the full consequences of this choice.

@@ -7,6 +7,56 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## The coach runs on the iPhone (2026-10-24)
+
+**Decision:** The coach (the 15-minute weekly session and chat) runs on the iPhone, with
+Apple Foundation Models on-device. This replaces "the coach is macOS-only" (CLAUDE.md §11,
+product overview §6). The Mac has no coach.
+
+**Why:**
+
+- The coach's context is iPhone-only. Steps and burned energy come from HealthKit, which is
+  unavailable on the Mac and can't be synced through iCloud ("Health data stays on the
+  iPhone" below). Craving check-ins are device-only ("Craving support" below). A Mac coach
+  would see calories eaten and check-ins only, which drops the step-consistency thread the
+  Friday session is built around (product overview §6).
+- The only way to give a Mac coach that data was a direct iPhone→Mac local handoff (#97),
+  with open questions about pairing, what happens when the phone isn't nearby, and App
+  Review.
+- Foundation Models runs on iPhones that support Apple Intelligence, so the model is
+  available where the data already is.
+
+**Consequences:**
+
+- Coach transcripts and session summaries stay on the iPhone, in a device-only store like
+  cravings: part of the phone's own iCloud Backup, never in Steady's CloudKit store. They
+  quote Health values and cravings, so syncing them would be storing health information in
+  iCloud (5.1.3(ii)). Coach sessions therefore add no CloudKit record type and don't gate the
+  production schema deploy (#88).
+- There's no session history on the Mac. Deleting the app deletes the transcripts, as with
+  cravings.
+- Availability is checked at runtime (an iPhone that supports Apple Intelligence, with it
+  on and the model ready). On other iPhones the coach says why it's unavailable; the app's
+  iOS floor isn't raised.
+- The Mac gets no coach code path, the same way it has no HealthKit one: the coach
+  providers are bound only for iOS in `appProviderOverridesFor`.
+- The nudge card offers "Talk now" where the model is available. There's no "Continue on
+  Mac".
+- Journal-note retrieval (#85) feeds the iPhone coach, so `RAGKitCore` has to build for iOS.
+- #97 (the handoff) is no longer needed for the coach.
+
+**Alternatives considered:**
+
+- *Keep the coach Mac-only and accept that it can't see Health data or cravings.* Rejected:
+  the Friday session's step thread, and any craving reflection, would have nothing to work
+  with.
+- *Mac coach plus the iPhone→Mac handoff (#97).* Rejected for now: a pairing and networking
+  feature, plus an App Review question, just to move the data to where the model runs.
+- *Run it on both.* A Mac chat without Health data or cravings stays a possible later
+  addition, not planned.
+
+---
+
 ## Craving support: iPhone, guided, device-only (2026-10-23)
 
 **Decision:** Craving support ships on the iPhone only, as a short guided flow with no AI in
@@ -176,8 +226,8 @@ store. The Mac shows calories eaten (from Cal AI PDFs) and check-ins only, and t
   what 5.1.3(ii) prohibits.
 - *A direct iPhone→Mac local handoff of Health context* for the coach, with nothing stored in
   iCloud. Deferred (#97).
-- *Run the coach on the iPhone,* where Health data is available. Possible later; today the
-  coach is macOS-only by design (CLAUDE.md §11).
+- *Run the coach on the iPhone,* where Health data is available. Adopted 2026-10-24: see
+  "The coach runs on the iPhone" above.
 
 **Open risk:** App Review may read "personal health information" broadly enough to include
 calories eaten and check-ins, which do sync through CloudKit. The early external TestFlight

@@ -22,7 +22,7 @@ Apple-only), each with their own private copy of their data.*
   it, an optional guided minute of imagery, "Still want it?") with equally neutral endings, no
   scores or streaks, and "eating something is a good call" when you're hungry. Stored only on
   the iPhone, never in iCloud (see `technical_decisions.md`).
-- An on-device **coach** (not "therapist") for a weekly 15-minute check-in session (macOS),
+- An on-device **coach** (not "therapist") for a weekly 15-minute check-in session (iPhone),
   focused on tracking consistency and behavior — not calorie prescriptions.
 - **Share cards**: share an image of your week (check-in statuses by default; calories and
   steps only if you choose) to Messages, Instagram, or anywhere the share sheet reaches.
@@ -45,61 +45,58 @@ Apple-only), each with their own private copy of their data.*
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit on iOS only; Foundation Models on macOS only) |
-| On-device LLM | Apple **Foundation Models** framework — **macOS only** (26 "Tahoe"+, Apple Silicon) | The coach is a deliberate, sit-down macOS experience, not a pocket-moment feature — see `CLAUDE.md` §11. iOS shows read-only session history (synced via CloudKit) but never runs inference. Decouples iOS's hardware floor from the A17 Pro+ requirement that on-device LLM support would otherwise impose. |
+| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit and Foundation Models on iOS only) |
+| On-device LLM | Apple **Foundation Models** framework — **iPhone only** (iOS 26+, an iPhone that supports Apple Intelligence) | The coach runs where its context lives: Health data and craving check-ins are iPhone-only (App Store 5.1.3). The Mac has no coach. Availability is checked at runtime, so the app's iOS floor isn't raised — see `CLAUDE.md` §11. |
 | Sync | **CloudKit** (via SwiftData's CloudKit integration) | Single-user, Apple-only devices — CloudKit handles cross-device sync **and auth** (Apple ID) with no custom sync protocol, backend, or separate login system needed |
 | PDF parsing | **`pdfrx_engine`** (pure Dart), on-device | No backend at all — validated against real Cal AI exports (see `CLAUDE.md` §6 for the parsing algorithm and validation results) |
-| Local storage | **SwiftData** (CloudKit-backed) | Session memory for the coach, daily metrics cache — same store syncs automatically across iPhone and Mac |
+| Local storage | **SwiftData** (CloudKit-backed) | Daily metrics and check-ins — same store syncs automatically across iPhone and Mac. Coach transcripts and cravings stay device-only on the iPhone (`CLAUDE.md` §7, §11) |
 | Step/energy data | **HealthKit** via a `steady/healthkit` platform channel, **iOS only** | Read live on the iPhone and never stored in iCloud (App Store 5.1.3(ii); see `docs/technical_decisions.md`). The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` is `false` on macOS (checked on 26.6.2) |
 | Food data source | Cal AI PDF export (user-uploaded, either device) | Cal AI is the food log; this app doesn't replace it, it visualizes + coaches on top of it |
 
-**Platform requirement note:** macOS needs 26 Tahoe+/Apple Silicon for Foundation Models
-(HealthKit isn't available on the Mac). iOS's floor is **no longer tied to A17 Pro+** now that the coach
-doesn't run there — that requirement existed specifically for on-device LLM support (see
-`CLAUDE.md` §11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need,
-which is meaningfully lower; the exact iOS minimum is an open decision, not yet resolved.
-No Intel Mac support either way (Apple has confirmed Tahoe is the last macOS version to
-support Intel hardware at all).
+**Platform requirement note:** the coach needs iOS 26+ on an iPhone that supports Apple
+Intelligence, with it turned on. That's a runtime check, not the app's floor: on any other
+iPhone the rest of the app works and the coach says why it's unavailable (see `CLAUDE.md`
+§11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need; the exact iOS
+minimum is an open decision, not yet resolved. The Mac app has no coach and no Health data
+(HealthKit isn't available on the Mac).
 
 ## 3. High-Level Architecture
 
 ```text
-┌───────────────────────────────┐        ┌───────────────────────────────┐
-│      Flutter App (iOS)         │        │      Flutter App (macOS)       │
-│                                  │        │                                  │
-│  Weekly/Metrics Views            │        │  Weekly/Metrics Views            │
-│  Daily Check-in                  │        │  Daily Check-in                  │
-│  Coach: READ-ONLY history         │        │  Coach: LIVE chat + 15-min       │
-│    only (synced), no inference    │        │    session (Foundation Models)   │
-│  PDF Import (pdfrx_engine,       │        │  PDF Import (pdfrx_engine,       │
-│    on-device, no backend)        │        │    on-device, no backend)        │
-│           │                      │        │           │                      │
-│  ┌────────▼─────────┐            │        │  ┌────────▼─────────┐            │
-│  │  SwiftData local   │           │        │  │  SwiftData local   │           │
-│  │  (daily_metrics)   │           │        │  │  (daily_metrics)   │           │
-│  └────────┬──────────┘            │        │  └────────┬──────────┘            │
-│           │                      │        │           │                      │
-│  ┌────────┴──────┐                │        │  ┌────────┴──────┐  ┌───────────┐│
-│  │  HealthKit      │               │        │  │  (no HealthKit  │  │Foundation ││
-│  │  (platform      │               │        │  │   on the Mac)   │  │ Models    ││
-│  │   channel)      │               │        │  │                 │  │(platform  ││
-│  └─────────────────┘               │        │  └─────────────────┘  │ channel)  ││
-│                                    │        │                        └───────────┘│
-└───────────┬──────────────────────┘        └───────────┬──────────────────────┘
-            │                                             │
-            └─────────────────┬───────────────────────────┘
-                               │  automatic sync, no custom code
-                     ┌─────────▼─────────┐
-                     │      CloudKit       │
-                     │  (per-user private   │
-                     │   container, scoped   │
-                     │   by Apple ID —        │
-                     │   this is also the     │
-                     │   entire auth story)   │
-                     └────────────────────┘
+┌────────────────────────────────┐      ┌────────────────────────────────┐
+│       Flutter App (iOS)        │      │      Flutter App (macOS)       │
+│                                │      │                                │
+│  Weekly/Metrics views          │      │  Weekly/Metrics views          │
+│  Daily check-in                │      │  Daily check-in                │
+│  Cravings (device-only)        │      │  PDF import (pdfrx_engine)     │
+│  Coach: weekly session + chat  │      │  (no coach, no Health data)    │
+│    transcripts device-only     │      │                                │
+│  PDF import (pdfrx_engine)     │      │                                │
+│                                │      │                                │
+│  ┌──────────────┐ ┌──────────┐ │      │                                │
+│  │  HealthKit   │ │Foundation│ │      │                                │
+│  │ (read live,  │ │  Models  │ │      │                                │
+│  │ never synced)│ │(platform │ │      │                                │
+│  └──────────────┘ │ channel) │ │      │                                │
+│                   └──────────┘ │      │                                │
+│  ┌──────────────────────────┐  │      │  ┌──────────────────────────┐  │
+│  │ SwiftData (daily metrics,│  │      │  │ SwiftData (daily metrics,│  │
+│  │ check-ins)               │  │      │  │ check-ins)               │  │
+│  └────────────┬─────────────┘  │      │  └────────────┬─────────────┘  │
+└───────────────┼────────────────┘      └───────────────┼────────────────┘
+                └──────────────────┬────────────────────┘
+                                   │  automatic sync, no custom code
+                         ┌─────────▼─────────┐
+                         │     CloudKit      │
+                         │ (per-user private │
+                         │  container, scoped│
+                         │  by Apple ID; this│
+                         │  is also the whole│
+                         │  auth story)      │
+                         └───────────────────┘
 
-  No backend. Nothing leaves the device — PDF parsing, sync, and auth are all handled
-  on-device or via CloudKit. See CLAUDE.md §6 for the PDF parsing validation and design.
+  No backend. Health values, cravings and coach transcripts never leave the iPhone
+  (App Store 5.1.3); only daily metrics and check-ins sync.
 ```
 
 ## 4. Data Model (current)
@@ -130,16 +127,15 @@ against real exported data but are **not** part of the active build — parked p
 
 ## 6. Resolved Design Decisions
 
-**Coach availability — macOS only for live sessions.**
-The coach's chat and 15-minute weekly session run exclusively on macOS via Foundation
-Models; iOS never wires up the LLM platform channel at all. iOS shows past coach
-conversations and summaries read-only (synced via CloudKit, same as everything else) —
-the feature is still visible on the phone, just not interactive there. This reflects
-product intent (a considered, sit-down conversation, not a pocket-moment feature) rather
-than a technical constraint, and it has a useful side effect: iOS's hardware floor is no
-longer tied to the A17 Pro+ requirement that on-device LLM support otherwise imposes —
-see the Platform Requirement note in §2. Full consequences (nudge-card CTA differences,
-`notes`/RAG being implicitly macOS-scoped for its actual use) are in `CLAUDE.md` §11.
+**Coach availability — iPhone only (2026-10-24; replaces "macOS only").**
+The coach's 15-minute weekly session and chat run on the iPhone via Foundation Models. Its
+context lives there: steps and burned energy come from HealthKit, which works only on the
+iPhone and can't sync through iCloud (App Store 5.1.3), and craving check-ins are
+device-only. A Mac coach would have seen only calories eaten and check-ins, which leaves
+the Friday session's step thread (below) with nothing to discuss. Transcripts stay on the
+iPhone too, since they quote that data. The session is still meant as a deliberate
+sit-down, just on the phone. Full consequences are in `CLAUDE.md` §11; decision record:
+`docs/technical_decisions.md`, "The coach runs on the iPhone".
 
 **End-of-day check-in UX — in-app only, no reminder.**
 An always-visible home-screen card is the zero-friction path for whenever the user is already
