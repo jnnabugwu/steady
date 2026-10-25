@@ -607,9 +607,16 @@ class _EndedCard extends StatelessWidget {
             const Text('SUMMARY', style: SteadyType.eyebrow),
             const SizedBox(height: 8),
             Text(
+              // Don't promise it was saved when it wasn't: the save-failure
+              // banner is on the same screen, and the two contradicting
+              // each other is worse than either alone.
               summary ??
-                  "The coach couldn't write a summary this time. The "
-                      'conversation is saved.',
+                  (state.saveFailed
+                      ? "The coach couldn't write a summary this time, and "
+                            "this conversation couldn't be saved on your "
+                            'iPhone.'
+                      : "The coach couldn't write a summary this time. The "
+                            'conversation is saved.'),
               key: const Key('coachSummary'),
               style: SteadyType.body.copyWith(color: SteadyColors.textPrimary),
             ),

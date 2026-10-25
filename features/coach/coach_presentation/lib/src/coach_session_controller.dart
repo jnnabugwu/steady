@@ -309,8 +309,15 @@ class CoachSessionController extends _$CoachSessionController {
   }
 
   void _replyFailed(Failure failure) {
+    // A failed move to a fresh session leaves no model session behind
+    // (`_moveToFreshSession` ends the old one before starting the new).
+    // Going back to `ready` would let the next message through to
+    // `_stream(_model!, ...)` and crash on the null; there is nothing left
+    // to send it to, so the session is over.
     state = state.copyWith(
-      phase: CoachSessionPhase.ready,
+      phase: _model == null
+          ? CoachSessionPhase.failedToStart
+          : CoachSessionPhase.ready,
       reply: null,
       failure: failure,
     );

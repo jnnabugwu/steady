@@ -2,6 +2,8 @@
 // `flutter test integration_test/coach_tab_smoke_test.dart -d <device>`.
 // ignore_for_file: avoid_print
 
+import 'dart:io';
+
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,5 +49,7 @@ void main() {
     }
     print('HOLDING FOR SCREENSHOT');
     await tester.pump(holdFor);
-  });
+    // The Mac has no Coach tab at all (§11), so there'd be nothing to
+    // find: same guard as the other iOS-only device checks.
+  }, skip: !Platform.isIOS);
 }

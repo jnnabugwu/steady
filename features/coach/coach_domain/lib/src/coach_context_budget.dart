@@ -9,10 +9,37 @@ const int coachMaxReplyTokens = 512;
 /// A deliberately high estimate of how many tokens [text] takes.
 ///
 /// Apple's SDK docs put English at about three to four characters per
-/// token. Counting three over-counts, which is the safe side: a session
-/// that fits this estimate fits the model. Counted in Unicode code points,
-/// so an emoji or an accented letter isn't counted as several characters.
-int estimateCoachTokens(String text) => (text.runes.length / 3).ceil();
+/// token, so Latin text is counted at three characters per token: the safe
+/// side, since a session that fits this estimate fits the model.
+///
+/// Three per token only holds for Latin script, though. CJK, Hangul, emoji
+/// and the rest are split far more finely — often a token per character or
+/// more — so dividing every code point by three would *under*-count them
+/// threefold and let a turn through that the model then rejects. Anything
+/// outside the Latin range is therefore counted as a whole token each.
+/// That over-counts Greek and Cyrillic, which is again the safe side: a
+/// conversation in them moves to a fresh session sooner than it strictly
+/// must, rather than overflowing.
+///
+/// Counted in Unicode code points, so an emoji or an accented letter isn't
+/// counted as several characters.
+int estimateCoachTokens(String text) {
+  var latin = 0;
+  var dense = 0;
+  for (final rune in text.runes) {
+    if (rune < _firstNonLatinRune) {
+      latin++;
+    } else {
+      dense++;
+    }
+  }
+  return (latin / 3).ceil() + dense;
+}
+
+/// The first code point past Basic Latin, Latin-1, Latin Extended-A/B and
+/// IPA extensions — i.e. where "about three characters per token" stops
+/// being a safe assumption. See [estimateCoachTokens].
+const int _firstNonLatinRune = 0x0370;
 
 /// Tokens for the role markers the model's transcript wraps every prompt
 /// and every reply in. A guess on the high side; the margin covers the
@@ -187,11 +214,15 @@ class CoachConversation {
     var chars = 0;
     for (final message in window.reversed) {
       final text = _cut(message.text, 400);
+      // Runes, like `_cut` and every other cap here: counting UTF-16 code
+      // units would spend the allowance twice as fast on emoji and other
+      // surrogate pairs, dropping recent context for no reason.
+      final length = text.runes.length;
       if (carried.length == 4 ||
-          chars + text.length > coachMaxCarriedMessagesChars) {
+          chars + length > coachMaxCarriedMessagesChars) {
         break;
       }
-      chars += text.length;
+      chars += length;
       carried.insert(0, message.copyWith(text: text));
     }
     return carried;
@@ -209,8 +240,7 @@ class CoachConversation {
     final parts = [
       if (newSummary != null && newSummary.isNotEmpty)
         'Earlier in this conversation (a summary):\n$newSummary',
-      if (kept.isNotEmpty)
-        'The last messages:\n${coachTranscriptLines(kept)}',
+      if (kept.isNotEmpty) 'The last messages:\n${coachTranscriptLines(kept)}',
     ];
     return CoachConversation._(
       instructions: instructions,
