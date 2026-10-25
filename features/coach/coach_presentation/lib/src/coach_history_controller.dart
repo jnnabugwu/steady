@@ -1,3 +1,4 @@
+import 'package:coach_presentation/src/coach_history_providers.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -35,6 +36,8 @@ class CoachHistoryController extends _$CoachHistoryController {
       return;
     }
     if (!ref.mounted) return;
+    // The Coach tab's list of past sessions is now empty.
+    if (result is Ok) ref.invalidate(coachSessionListProvider);
     state = switch (result) {
       Ok() => const AsyncData(true),
       Err(:final failure) => AsyncError(failure, StackTrace.current),

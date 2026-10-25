@@ -27,7 +27,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       `packages_native/*` skeleton per CLAUDE.md §2, all packages `flutter pub get`/
       `flutter analyze` clean.
 - [x] FFCA path-dependency graph wired: each `_data`/`_presentation` → its own `_domain`;
-      `coach_presentation` → `metrics_domain` + `checkin_domain`; nothing crosses into
+      `coach_presentation` → `metrics_domain` + `checkin_domain` + `cravings_domain` +
+      `health_sync_domain`; nothing crosses into
       another feature's `_data`/`_presentation` (CLAUDE.md §2/§3).
 - [x] `app/lib/app_router.dart` holds `routerProvider` and the typed routes;
       `app/lib/providers.dart` holds DI (`bootstrap.dart` and `get_it` are gone).
@@ -47,8 +48,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
-      Done for checkin, metrics (`MetricsHistoryModule`) and pdf_import (`PdfImportModule`);
-      not yet for coach.
+      Done for checkin, metrics (`MetricsHistoryModule`), pdf_import (`PdfImportModule`)
+      and coach (`CoachHomeModule`, `CoachSessionModule`, `CoachTranscriptModule`).
 - [x] Feature screens use `shadcn_flutter`/`ui_kit` widgets only, never Material (decided
       2026-10-22; CLAUDE.md §5, "App shell"). `CheckInModule` is converted and `main.dart`
       has no Material localizations delegate.
@@ -186,7 +187,8 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       reports its own at runtime). No macOS implementation at all (#79).
 - [ ] The #79 "done when" on hardware: a debug build on a supported iPhone streams a
       reply, and an unsupported iPhone (or Apple Intelligence off) shows a clear message.
-      The message needs the coach UI (#81).
+      The message exists now (the Coach tab and the session screen, #80); checking it on
+      hardware is still open.
 - [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
       `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
@@ -196,8 +198,18 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [x] Data export includes each session's date, kind and summary (not the transcript):
       the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
       per day (#78).
-- [ ] `coach_presentation`: weekly 15-minute session + chat on the iPhone, with the
-      context built from metrics, check-ins, Health totals and cravings (domains only).
+- [x] `coach_presentation`: chat on the iPhone (#80). The Coach tab (iPhone only; the Mac
+      has the shell branch but no tab, and `/coach` redirects home), a live session with a
+      streaming reply, a stop button, the transcript saved as it grows and a model-written
+      summary at the end, and past sessions with a read-only transcript. Context from
+      metrics, check-ins, live Health totals and cravings, domains only
+      (`BuildCoachWeekContext`), kept inside the 4,096-token window by
+      `CoachConversation` (tests: `coach_context_budget_test.dart`). Unavailable states per
+      typed reason; the "not medical advice" note on the tab and in every session, the help
+      line when guardrails stop a reply.
+- [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
+      Intelligence off / model not ready).
+- [ ] `coach_presentation`: the weekly 15-minute session (#81).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
       isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
 - [x] Tone and safety instructions in one place: `CoachInstructions` in `coach_domain`

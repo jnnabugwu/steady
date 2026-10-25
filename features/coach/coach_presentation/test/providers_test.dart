@@ -20,6 +20,32 @@ void main() {
     );
   });
 
+  test("the context's sources are unbound until the app binds them", () {
+    final container = ProviderContainer.test();
+    expect(container.read(coachHealthKitRepositoryProvider), isNull);
+    expect(container.read(coachCravingRepositoryProvider), isNull);
+    for (final read in [
+      () => container.read(coachCheckInRepositoryProvider),
+      () => container.read(coachMetricsRepositoryProvider),
+    ]) {
+      expect(read, throwsA(isA<ProviderException>()));
+    }
+  });
+
+  test('session ids are random version 4 UUIDs', () {
+    final a = randomCoachSessionId();
+    expect(
+      a,
+      matches(
+        RegExp(
+          '^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-'
+          r'[0-9a-f]{12}$',
+        ),
+      ),
+    );
+    expect(randomCoachSessionId(), isNot(a));
+  });
+
   test('an override is what the coach reads', () {
     final model = _FakeCoachModel();
     final container = ProviderContainer.test(

@@ -83,7 +83,9 @@ abstract final class CoachModelChannel {
   /// guard: running the real model (macOS 26.6 host, the same framework),
   /// one reply looped on a repeated list for over three minutes. Uncapped,
   /// that would eat the whole 4,096-token context and end the session.
-  static const maximumResponseTokens = 512;
+  /// Defined in `coach_domain` ([coachMaxReplyTokens]), whose context
+  /// budget reserves exactly this much room for every reply.
+  static const int maximumResponseTokens = coachMaxReplyTokens;
 
   /// The unavailable reasons on the wire, and the failure for each.
   static const Map<String, CoachModelUnavailableFailure> unavailableReasons = {

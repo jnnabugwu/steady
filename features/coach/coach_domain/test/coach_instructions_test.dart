@@ -99,6 +99,31 @@ void main() {
     );
   });
 
+  group('session instructions and the summary request', () {
+    test("a session's instructions are its kind's, then the data", () {
+      final text = CoachInstructions.forSession(
+        CoachInstructions.chat,
+        'Mon Oct 19: logged fully',
+      );
+      expect(text, startsWith(CoachInstructions.chat));
+      expect(text, endsWith("The person's data:\nMon Oct 19: logged fully"));
+    });
+
+    test('the summary request is short and neutral', () {
+      const request = CoachInstructions.summaryRequest;
+      for (final phrase in [
+        'neutral',
+        'No advice',
+        'no questions',
+        'no judgement',
+        'no numbers that are not in the conversation',
+      ]) {
+        expect(request, contains(phrase), reason: phrase);
+      }
+      expect(request.length, lessThan(400));
+    });
+  });
+
   group('copy', () {
     test('the not-medical-advice note says so', () {
       expect(CoachCopy.notMedicalAdvice, contains("isn't medical advice"));

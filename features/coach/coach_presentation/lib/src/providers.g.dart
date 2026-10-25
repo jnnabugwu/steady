@@ -231,3 +231,436 @@ final class CoachModelProvider
 }
 
 String _$coachModelHash() => r'683d504a6b6ec41f3f38295db61e9e43b875736a';
+
+/// Check-in statuses, for the coach's context. Bound by the app to the
+/// check-in feature's own repository (the same instance, so the same
+/// shared store; CLAUDE.md §9). Typed against `checkin_domain` only.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachCheckInRepository)
+final coachCheckInRepositoryProvider = CoachCheckInRepositoryProvider._();
+
+/// Check-in statuses, for the coach's context. Bound by the app to the
+/// check-in feature's own repository (the same instance, so the same
+/// shared store; CLAUDE.md §9). Typed against `checkin_domain` only.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachCheckInRepositoryProvider
+    extends
+        $FunctionalProvider<
+          CheckInRepository,
+          CheckInRepository,
+          CheckInRepository
+        >
+    with $Provider<CheckInRepository> {
+  /// Check-in statuses, for the coach's context. Bound by the app to the
+  /// check-in feature's own repository (the same instance, so the same
+  /// shared store; CLAUDE.md §9). Typed against `checkin_domain` only.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachCheckInRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachCheckInRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachCheckInRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<CheckInRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CheckInRepository create(Ref ref) {
+    return coachCheckInRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CheckInRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CheckInRepository>(value),
+    );
+  }
+}
+
+String _$coachCheckInRepositoryHash() =>
+    r'cca806147ffa85db4bb14e57983513626d837e48';
+
+/// Calories eaten, for the coach's context. Bound by the app to the
+/// metrics feature's repository (the same instance). Typed against
+/// `metrics_domain` only.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachMetricsRepository)
+final coachMetricsRepositoryProvider = CoachMetricsRepositoryProvider._();
+
+/// Calories eaten, for the coach's context. Bound by the app to the
+/// metrics feature's repository (the same instance). Typed against
+/// `metrics_domain` only.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachMetricsRepositoryProvider
+    extends
+        $FunctionalProvider<
+          MetricsRepository,
+          MetricsRepository,
+          MetricsRepository
+        >
+    with $Provider<MetricsRepository> {
+  /// Calories eaten, for the coach's context. Bound by the app to the
+  /// metrics feature's repository (the same instance). Typed against
+  /// `metrics_domain` only.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachMetricsRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachMetricsRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachMetricsRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<MetricsRepository> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  MetricsRepository create(Ref ref) {
+    return coachMetricsRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(MetricsRepository value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<MetricsRepository>(value),
+    );
+  }
+}
+
+String _$coachMetricsRepositoryHash() =>
+    r'b00b621abc119065c9750a186850a5fcf4ddf93c';
+
+/// Apple Health's daily totals, read live for the coach's context and
+/// never stored, or `null` where there's no Health (CLAUDE.md §7). Bound
+/// by the app to its one Health source.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachHealthKitRepository)
+final coachHealthKitRepositoryProvider = CoachHealthKitRepositoryProvider._();
+
+/// Apple Health's daily totals, read live for the coach's context and
+/// never stored, or `null` where there's no Health (CLAUDE.md §7). Bound
+/// by the app to its one Health source.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachHealthKitRepositoryProvider
+    extends
+        $FunctionalProvider<
+          HealthKitRepository?,
+          HealthKitRepository?,
+          HealthKitRepository?
+        >
+    with $Provider<HealthKitRepository?> {
+  /// Apple Health's daily totals, read live for the coach's context and
+  /// never stored, or `null` where there's no Health (CLAUDE.md §7). Bound
+  /// by the app to its one Health source.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachHealthKitRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachHealthKitRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachHealthKitRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<HealthKitRepository?> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  HealthKitRepository? create(Ref ref) {
+    return coachHealthKitRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(HealthKitRepository? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<HealthKitRepository?>(value),
+    );
+  }
+}
+
+String _$coachHealthKitRepositoryHash() =>
+    r'031dc71e31c550966ff8a3b7fa1a86e64d341647';
+
+/// Craving check-ins, for the coach's context (counts, time of day and
+/// reasons; never turned into calorie advice, #82), or `null` where
+/// craving support isn't bound. Bound by the app to the cravings
+/// feature's repository (the same instance, so the same device-only file).
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachCravingRepository)
+final coachCravingRepositoryProvider = CoachCravingRepositoryProvider._();
+
+/// Craving check-ins, for the coach's context (counts, time of day and
+/// reasons; never turned into calorie advice, #82), or `null` where
+/// craving support isn't bound. Bound by the app to the cravings
+/// feature's repository (the same instance, so the same device-only file).
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachCravingRepositoryProvider
+    extends
+        $FunctionalProvider<
+          CravingRepository?,
+          CravingRepository?,
+          CravingRepository?
+        >
+    with $Provider<CravingRepository?> {
+  /// Craving check-ins, for the coach's context (counts, time of day and
+  /// reasons; never turned into calorie advice, #82), or `null` where
+  /// craving support isn't bound. Bound by the app to the cravings
+  /// feature's repository (the same instance, so the same device-only file).
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachCravingRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachCravingRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachCravingRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<CravingRepository?> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CravingRepository? create(Ref ref) {
+    return coachCravingRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CravingRepository? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CravingRepository?>(value),
+    );
+  }
+}
+
+String _$coachCravingRepositoryHash() =>
+    r'795bf393e7a32a0229255fd06a41ec63054ae290';
+
+/// The clock the coach reads "now" from (session start, message times, the
+/// context's days). Defaults to [DateTime.now]; tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachClock)
+final coachClockProvider = CoachClockProvider._();
+
+/// The clock the coach reads "now" from (session start, message times, the
+/// context's days). Defaults to [DateTime.now]; tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachClockProvider
+    extends $FunctionalProvider<CoachClock, CoachClock, CoachClock>
+    with $Provider<CoachClock> {
+  /// The clock the coach reads "now" from (session start, message times, the
+  /// context's days). Defaults to [DateTime.now]; tests pin it.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachClockProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachClockProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachClockHash();
+
+  @$internal
+  @override
+  $ProviderElement<CoachClock> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  CoachClock create(Ref ref) {
+    return coachClock(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CoachClock value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CoachClock>(value),
+    );
+  }
+}
+
+String _$coachClockHash() => r'3058842c244af0777bcd2fcaef1086df11a9a720';
+
+/// The id generator for new coach sessions: a random version 4 UUID by
+/// default ([randomCoachSessionId]); tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachIdGenerator)
+final coachIdGeneratorProvider = CoachIdGeneratorProvider._();
+
+/// The id generator for new coach sessions: a random version 4 UUID by
+/// default ([randomCoachSessionId]); tests pin it.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachIdGeneratorProvider
+    extends
+        $FunctionalProvider<
+          CoachIdGenerator,
+          CoachIdGenerator,
+          CoachIdGenerator
+        >
+    with $Provider<CoachIdGenerator> {
+  /// The id generator for new coach sessions: a random version 4 UUID by
+  /// default ([randomCoachSessionId]); tests pin it.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachIdGeneratorProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachIdGeneratorProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachIdGeneratorHash();
+
+  @$internal
+  @override
+  $ProviderElement<CoachIdGenerator> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  CoachIdGenerator create(Ref ref) {
+    return coachIdGenerator(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CoachIdGenerator value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CoachIdGenerator>(value),
+    );
+  }
+}
+
+String _$coachIdGeneratorHash() => r'5ee441b420fc850db702f2df60f73966519784f9';
+
+/// The use case that builds the coach's context from the four domains
+/// above (CLAUDE.md §4: it combines several repositories).
+
+@ProviderFor(coachWeekContext)
+final coachWeekContextProvider = CoachWeekContextProvider._();
+
+/// The use case that builds the coach's context from the four domains
+/// above (CLAUDE.md §4: it combines several repositories).
+
+final class CoachWeekContextProvider
+    extends
+        $FunctionalProvider<
+          BuildCoachWeekContext,
+          BuildCoachWeekContext,
+          BuildCoachWeekContext
+        >
+    with $Provider<BuildCoachWeekContext> {
+  /// The use case that builds the coach's context from the four domains
+  /// above (CLAUDE.md §4: it combines several repositories).
+  CoachWeekContextProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachWeekContextProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachWeekContextHash();
+
+  @$internal
+  @override
+  $ProviderElement<BuildCoachWeekContext> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  BuildCoachWeekContext create(Ref ref) {
+    return coachWeekContext(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(BuildCoachWeekContext value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<BuildCoachWeekContext>(value),
+    );
+  }
+}
+
+String _$coachWeekContextHash() => r'c23761a2870a1b0e491cc130ece2f23758e5b49d';

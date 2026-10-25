@@ -7,6 +7,7 @@
 /// user's own iOS device backup, like any app data.
 library;
 
+export 'src/coach_context_budget.dart';
 export 'src/coach_history_failures.dart';
 export 'src/coach_instructions.dart';
 export 'src/coach_model.dart';

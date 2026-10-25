@@ -48,11 +48,34 @@ $rules
 
 This session:
 This is a short chat. Answer what the person asks about their own tracking, using their data. If they want to go over the whole week, suggest the weekly check-in.''';
+
+  /// A model session's full instructions: one of the session kinds above
+  /// ([chat], [weeklySession]) followed by the person's [data], the compact
+  /// summary of their days that the app builds (never anything they
+  /// typed: their messages go in prompts, not instructions).
+  static String forSession(String kind, String data) =>
+      "$kind\n\nThe person's data:\n$data";
+
+  /// What the coach is asked, in a separate model session with the same
+  /// instructions, to summarise a conversation: when a session ends (the
+  /// stored summary the data export carries) and when a long chat moves
+  /// its older turns out of the context window.
+  ///
+  /// Neutral on purpose: the summary is the person's own record, so it
+  /// says what was talked about and what they chose, without advice,
+  /// grades or questions.
+  static const String summaryRequest =
+      "Summarise the conversation below for the person's own records, in "
+      'two or three short, neutral sentences. Say what was talked about '
+      'and anything they chose to try. No advice, no questions, no '
+      'judgement, and no numbers that are not in the conversation.';
 }
 
 /// User-facing coach copy that has to match the instructions above, kept
-/// next to them so the two can't drift. For the coach screens to show
-/// (#82, #81); nothing shows it yet.
+/// next to them so the two can't drift. The coach screens show
+/// [notMedicalAdvice] on the Coach tab and at the top of every live
+/// session, and [helpLine] when a reply is stopped by Apple's guardrails
+/// (#80, #82).
 abstract final class CoachCopy {
   /// The "not medical advice" note for the coach screens (App Store 1.4.1;
   /// `docs/PRIVACY.md`).

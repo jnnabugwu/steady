@@ -1,8 +1,11 @@
+import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_data/coach_data.dart';
 import 'package:coach_presentation/coach_presentation.dart';
+import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:steady/providers.dart';
 
 /// The coach is iPhone only (#79, CLAUDE.md §11): the real override list
@@ -28,6 +31,42 @@ void main() {
           isA<UnimplementedError>(),
         ),
       ),
+    );
+  });
+
+  test("iOS binds the coach's context to each feature's own repository, "
+      'never a second instance (the shared-store invariant)', () {
+    final ios = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: true),
+    );
+    expect(
+      ios.read(coachCheckInRepositoryProvider),
+      same(ios.read(checkInRepositoryProvider)),
+    );
+    expect(
+      ios.read(coachMetricsRepositoryProvider),
+      same(ios.read(metricsRepositoryProvider)),
+    );
+    expect(
+      ios.read(coachCravingRepositoryProvider),
+      same(ios.read(cravingRepositoryProvider)),
+    );
+    expect(ios.read(coachHealthKitRepositoryProvider), isNotNull);
+    expect(
+      ios.read(coachHealthKitRepositoryProvider),
+      same(ios.read(healthKitRepositoryProvider)),
+    );
+  });
+
+  test("macOS leaves the coach's context unbound", () {
+    final mac = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: false),
+    );
+    expect(mac.read(coachHealthKitRepositoryProvider), isNull);
+    expect(mac.read(coachCravingRepositoryProvider), isNull);
+    expect(
+      () => mac.read(coachCheckInRepositoryProvider),
+      throwsA(isA<ProviderException>()),
     );
   });
 
