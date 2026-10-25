@@ -10,10 +10,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_data/health_sync_data.dart';
-import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/today_screen.dart';
 
 /// Craving support (#109) in the real app on the real override list:
 /// iPhone only (by the injected platform), device-only storage, the
@@ -140,7 +140,7 @@ void main() {
 
     testWidgets('iOS: home shows "Having a craving?"', (tester) async {
       await pumpApp(tester, isIOS: true);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(entryButton, findsOneWidget);
       expect(find.text('Having a craving?'), findsOneWidget);
       expect(weekLine, findsNothing);
@@ -148,7 +148,7 @@ void main() {
 
     testWidgets('macOS: no entry point on home', (tester) async {
       await pumpApp(tester, isIOS: false);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(entryButton, findsNothing);
     });
 
@@ -178,7 +178,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CravingFlowModule), findsNothing);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.text('1 craving this week, in the evening'), findsOneWidget);
       expect(cravings.events.single.outcome, CravingOutcome.havingIt);
     });
@@ -192,7 +192,7 @@ void main() {
       await tester.tap(find.byKey(const Key('cravingCloseButton')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(cravings.events, isEmpty);
       expect(weekLine, findsNothing);
     });
@@ -208,7 +208,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('cravingCloseButton')));
       await tester.pumpAndSettle();
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
     });
 
     testWidgets('macOS: /craving redirects home', (tester) async {
@@ -219,7 +219,7 @@ void main() {
       );
       expect(tester.takeException(), isNull);
       expect(find.byType(CravingFlowModule), findsNothing);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(container.read(routerProvider).state.matchedLocation, '/');
     });
 
@@ -259,7 +259,7 @@ void main() {
 
       await tester.tap(find.byKey(const Key('settingsBackButton')));
       await tester.pumpAndSettle();
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(weekLine, findsNothing);
     });
 

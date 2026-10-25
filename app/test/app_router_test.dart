@@ -13,6 +13,7 @@ import 'package:steady/app_router.dart';
 import 'package:steady/app_shell.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/today_screen.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 void main() {
@@ -66,7 +67,7 @@ void main() {
     testWidgets('/ shows the home screen', (tester) async {
       await pumpApp(tester);
 
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(find.byType(CheckInModule), findsNothing);
     });
 
@@ -141,7 +142,7 @@ void main() {
         expect(location(container), '/');
         expect(tabBar, findsOneWidget);
         expect(selectedTab(tester), 0);
-        expect(find.byType(MetricsHistoryModule), findsOneWidget);
+        expect(find.byType(TodayScreen), findsOneWidget);
         expect(find.byType(CheckInModule), findsNothing);
       });
     }
@@ -178,7 +179,7 @@ void main() {
       await tapTab(tester, 'Today');
       expect(location(container), '/');
       expect(selectedTab(tester), 0);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
     });
 
     testWidgets('each tab keeps its own stack', (tester) async {
@@ -214,17 +215,25 @@ void main() {
       final screenHeight =
           tester.view.physicalSize.height / tester.view.devicePixelRatio;
       final contentPadding = MediaQuery.paddingOf(
-        tester.element(find.byType(MetricsHistoryModule)),
+        tester.element(find.byType(TodayScreen)),
       ).bottom;
 
       // The content still fills the screen (it scrolls under the bar), but
       // its bottom padding reaches above the bar's top edge.
-      expect(
-        tester.getBottomLeft(find.byType(MetricsHistoryModule)).dy,
-        screenHeight,
-      );
+      expect(tester.getBottomLeft(find.byType(TodayScreen)).dy, screenHeight);
       expect(contentPadding, AppShell.bottomInset(0));
       expect(screenHeight - contentPadding, lessThan(barTop));
+
+      // Today pads its scroll content by that inset rather than sitting in
+      // a bottom SafeArea, so its cards scroll under the bar.
+      final scroll = tester.widget<SingleChildScrollView>(
+        find.byKey(const Key('todayScroll')),
+      );
+      expect(scroll.padding!.resolve(TextDirection.ltr).bottom, contentPadding);
+      expect(
+        tester.getBottomLeft(find.byKey(const Key('todayScroll'))).dy,
+        screenHeight,
+      );
     });
 
     testWidgets("a check-in's buttons stay above the bar", (tester) async {
@@ -263,7 +272,7 @@ void main() {
       // Today is beneath the check-in: tapping it returns there.
       await tapTab(tester, 'Today');
       expect(find.byType(CheckInModule), findsNothing);
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
       expect(location(container), '/');
     });
   });
@@ -280,13 +289,14 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(find.byType(DataExportModule), findsOneWidget);
-      expect(find.byType(MetricsHistoryModule), findsNothing);
+      expect(find.byType(TodayScreen), findsNothing);
     });
 
     testWidgets(
-      'the home gear button opens the Settings tab, and back returns',
+      'the Week gear button opens the Settings tab, and back goes to Today',
       (tester) async {
         final container = await pumpApp(tester);
+        await tapTab(tester, 'Week');
 
         await tester.tap(find.byKey(const Key('openSettingsButton')));
         await tester.pumpAndSettle();
@@ -302,7 +312,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(DataExportModule), findsNothing);
-        expect(find.byType(MetricsHistoryModule), findsOneWidget);
+        expect(find.byType(TodayScreen), findsOneWidget);
       },
     );
 
@@ -314,7 +324,7 @@ void main() {
       await tester.tap(find.byKey(const Key('settingsBackButton')));
       await tester.pumpAndSettle();
 
-      expect(find.byType(MetricsHistoryModule), findsOneWidget);
+      expect(find.byType(TodayScreen), findsOneWidget);
     });
   });
 

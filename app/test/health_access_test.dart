@@ -197,6 +197,8 @@ void main() {
 
     testWidgets('launch, resume and Settings "Refresh" show live Health in '
         'the history and write nothing', (tester) async {
+      tester.platformDispatcher.defaultRouteNameTestValue = '/week';
+      addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
       await tester.pumpWidget(
         ProviderScope(overrides: overrides(), child: const SteadyApp()),
       );

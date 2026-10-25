@@ -51,3 +51,43 @@ typedef CheckInClock = DateTime Function();
 /// `keepAlive`: cheap and stateless (D6).
 @Riverpod(keepAlive: true)
 CheckInClock checkInClock(Ref ref) => DateTime.now;
+
+/// Today's date (local midnight), as the check-in and cairn cards and the
+/// app's Today screen read it. Built from [checkInClockProvider], so tests
+/// pin it through the clock. The clock's value is read in local time, so a
+/// UTC clock still gives the local calendar date.
+///
+/// **Rolls over at midnight** through [refreshToday]: the app root calls it
+/// from a timer set for the next local midnight ([untilNextMidnight]) and on
+/// every return to the foreground (a timer can fire late while the device
+/// sleeps). A screen left open overnight then moves to the new day, and the
+/// date-keyed families its watchers key on (`checkInControllerProvider`,
+/// `weekCardControllerProvider`, ...) move with it. The timer lives in the
+/// widget tree, not here, so it ends with the app's root widget.
+///
+/// `keepAlive`: one value for the whole app.
+@Riverpod(keepAlive: true)
+class CheckInToday extends _$CheckInToday {
+  @override
+  DateTime build() {
+    final now = ref.watch(checkInClockProvider)().toLocal();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  /// How long from the clock's now until the next local midnight: when to
+  /// call [refreshToday] next.
+  Duration untilNextMidnight() {
+    final now = ref.read(checkInClockProvider)().toLocal();
+    return DateTime(now.year, now.month, now.day + 1).difference(now);
+  }
+
+  /// Domain event: DayChanged.
+  ///
+  /// Re-reads the clock and moves to the new day if the date has changed
+  /// (e.g. the app sat in the background over midnight). Does nothing on
+  /// the same day, so watchers don't rebuild.
+  void refreshToday() {
+    final now = ref.read(checkInClockProvider)().toLocal();
+    if (DateTime(now.year, now.month, now.day) != state) ref.invalidateSelf();
+  }
+}

@@ -3,6 +3,7 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:account_presentation/account_presentation.dart';
+import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -122,6 +123,11 @@ Future<void> _clearLegacyHealthFields(ProviderContainer container) async {
 /// redirects (CLAUDE.md §7); it only shows or hides the home screen's
 /// iCloud sync banner.
 ///
+/// It also rolls "today" (`checkInTodayProvider`) over to the new day, from
+/// a timer set for the next local midnight and on every return to the
+/// foreground, so the Today screen and its date-keyed cards don't stay on
+/// yesterday when left open overnight.
+///
 /// It also starts [dailyMetricsRemoteRefreshProvider], so screens re-read
 /// the store when CloudKit syncs in another device's rows (#73).
 ///
@@ -142,6 +148,7 @@ class SteadyApp extends ConsumerStatefulWidget {
 
 class _SteadyAppState extends ConsumerState<SteadyApp> {
   late final AppLifecycleListener _lifecycle;
+  Timer? _midnight;
 
   @override
   void initState() {
@@ -154,9 +161,29 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
           ref.read(accountStatusControllerProvider.notifier).recheckAccount(),
         );
         _refreshHealth();
+        _rollOverDay();
       },
     );
     _refreshHealth();
+    _scheduleMidnight();
+  }
+
+  /// Moves `checkInTodayProvider` to the new day if the date has changed,
+  /// then sets the timer for the next midnight again.
+  void _rollOverDay() {
+    ref.read(checkInTodayProvider.notifier).refreshToday();
+    _scheduleMidnight();
+  }
+
+  /// Rolls the day over at the next local midnight, so a Today screen left
+  /// open overnight moves to the new date. Owned by this widget, so it ends
+  /// with the app.
+  void _scheduleMidnight() {
+    _midnight?.cancel();
+    _midnight = Timer(
+      ref.read(checkInTodayProvider.notifier).untilNextMidnight(),
+      _rollOverDay,
+    );
   }
 
   void _refreshHealth() => unawaited(
@@ -165,6 +192,7 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
 
   @override
   void dispose() {
+    _midnight?.cancel();
     _lifecycle.dispose();
     super.dispose();
   }
