@@ -48,9 +48,10 @@ List<WeeklyTopic> weeklyTopicsFor({required int cravingCount}) => [
 /// weeks, nothing about calories or food.
 String weeklyTopicPrompt(WeeklyTopic topic) => switch (topic) {
   WeeklyTopic.logging =>
-    'Begin the weekly check-in. Ask how the week felt. Then talk only about '
+    'Begin the weekly check-in by asking how the week felt. Keep it to '
         'logging consistency: which days were logged fully, partly or '
-        'skipped. One observation from the data, one question.',
+        'skipped. Make at most one observation from the data, and ask how '
+        'the week felt as your only question.',
   WeeklyTopic.steps =>
     'Move to a new topic: step consistency this week. Leave logging behind. '
         'One observation from the step data, one question. If there is no '
@@ -63,6 +64,7 @@ String weeklyTopicPrompt(WeeklyTopic topic) => switch (topic) {
   WeeklyTopic.nextWeek =>
     "Last topic: ask if there's one small thing they'd like to try next "
         'week. If they pick one, help phrase it as something to do, like '
-        '"If it\'s 4pm and I\'m tired, then I\'ll have the snack I brought." '
+        '"If I\'m tired in the afternoon, then I\'ll have the snack I '
+        'brought." '
         'Let them choose; never suggest calorie targets or diets.',
 };

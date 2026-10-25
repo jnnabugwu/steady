@@ -68,7 +68,11 @@ Future<WeeklyReadiness?> coachNudge(Ref ref) async {
   } on Object {
     return null;
   }
-  if (!week.allowed) return null;
+  // "Anything that can't be read means no nudge" includes a week only
+  // partly read: four readable check-ins alongside three failed reads is
+  // not a week this can offer to look back on. The session's own gate is
+  // deliberately more forgiving (`WeeklyReadiness.anyDayUnreadable`).
+  if (!week.allowed || week.anyDayUnreadable) return null;
   final List<CoachSession> sessions;
   try {
     sessions = await ref.watch(coachSessionListProvider.future);

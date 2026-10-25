@@ -55,6 +55,23 @@ void main() {
       if (box.decoration case BoxDecoration(:final color?)) {
         expect(trafficLight(color), isFalse, reason: screen);
       }
+      // A traffic-light *border* would have passed the fill check.
+      if (box.decoration case BoxDecoration(:final Border border)) {
+        for (final side in [
+          border.top,
+          border.right,
+          border.bottom,
+          border.left,
+        ]) {
+          expect(trafficLight(side.color), isFalse, reason: '$screen border');
+        }
+      }
+    }
+    // So would a red or green glyph.
+    for (final icon in tester.widgetList<Icon>(find.byType(Icon))) {
+      if (icon.color case final color?) {
+        expect(trafficLight(color), isFalse, reason: '$screen icon');
+      }
     }
   }
 
@@ -87,12 +104,23 @@ void main() {
     });
   });
 
-  Future<void> pump(WidgetTester tester, Widget child) async {
+  /// Pumps [child] under a fresh `ProviderScope`.
+  ///
+  /// [scope] must differ between pumps in one test: re-pumping an unkeyed
+  /// `ProviderScope` reuses its element and container, so a provider that
+  /// has already resolved (availability, say) keeps its old value and the
+  /// second pump reviews the first pump's screen.
+  Future<void> pump(
+    WidgetTester tester,
+    Widget child, {
+    String scope = 'a',
+  }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
+        key: ValueKey(scope),
         overrides: coachTestOverrides(
           model: model,
           repository: repository,
@@ -116,6 +144,8 @@ void main() {
       ),
     );
     review(tester, 'Coach tab');
+    expect(find.byKey(const Key('coachChatCard')), findsOneWidget);
+
     model.availability = const Err(CoachDeviceNotEligibleFailure());
     await pump(
       tester,
@@ -124,7 +154,11 @@ void main() {
         onWeeklyRequested: () {},
         onSessionSelected: (_) {},
       ),
+      scope: 'unavailable',
     );
+    // Proof this pass is reviewing the unavailable screen and not the
+    // previous one over again.
+    expect(find.byKey(const Key('coachUnavailableCard')), findsOneWidget);
     review(tester, 'Coach tab, unavailable');
   });
 
@@ -147,7 +181,13 @@ void main() {
     expect(find.byKey(const Key('coachNudgeCard')), findsOneWidget);
     review(tester, 'nudge');
     model.availability = const Err(CoachModelNotReadyFailure());
-    await pump(tester, Center(child: CoachNudgeCard(onTalkNow: () {})));
+    await pump(
+      tester,
+      Center(child: CoachNudgeCard(onTalkNow: () {})),
+      scope: 'unavailable',
+    );
+    // As above: proof the unavailable copy is what's on screen now.
+    expect(find.text('The coach is still getting ready'), findsOneWidget);
     review(tester, 'nudge, unavailable');
   });
 

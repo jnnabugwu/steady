@@ -285,6 +285,19 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
 /// `/coach`, the Coach tab (iPhone only, #80): [CoachHomeModule], to start
 /// a chat ([CoachChatRoute]) or read a past one ([CoachTranscriptRoute]).
 ///
+/// `/` where this device has no coach, else `null` (stay put).
+///
+/// Shared by [CoachRoute] and [CoachWeeklyRoute] so the two can't drift
+/// apart: the Mac must be able to reach neither, including by a typed-in
+/// link.
+String? _homeWhereNoCoach(BuildContext context) =>
+    ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(coachSupportAvailableProvider)
+    ? null
+    : const HomeRoute().location;
+
 /// Where the coach doesn't exist (the Mac, `coachSupportAvailableProvider`
 /// `false`) it redirects to `/`, and so does every route under it (a
 /// parent's redirect runs for its children too), so no coach screen can
@@ -295,12 +308,7 @@ class CoachRoute extends GoRouteData with $CoachRoute {
 
   @override
   String? redirect(BuildContext context, GoRouterState state) =>
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(coachSupportAvailableProvider)
-      ? null
-      : const HomeRoute().location;
+_homeWhereNoCoach(context);
 
   @override
   Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
@@ -348,12 +356,7 @@ class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
 
   @override
   String? redirect(BuildContext context, GoRouterState state) =>
-      ProviderScope.containerOf(
-        context,
-        listen: false,
-      ).read(coachSupportAvailableProvider)
-      ? null
-      : const HomeRoute().location;
+_homeWhereNoCoach(context);
 
   @override
   Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(

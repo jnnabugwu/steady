@@ -758,10 +758,10 @@ just happens on the phone.
   is a possible later addition, not planned.
 - **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" /
   "Not tonight" on an iPhone where the model is available. Where it isn't, the card says
-  why instead of offering a session. Nothing on the Mac. Whether it exists is check-in data
-  only (`coachNudgeProvider`): Friday to Sunday, when last week passes the 4-of-7 rule, no
-  weekly session has started since that week ended, and "Not tonight" wasn't tapped today
-  (kept in memory).
+  why instead of offering a session. Nothing on the Mac. Whether it exists never calls the
+  model (`coachNudgeProvider`); it needs all of: an iPhone, Friday to Sunday, last week
+  passing the 4-of-7 rule with every day readable, no weekly session started since that
+  week ended, and "Not tonight" not tapped today (kept in memory).
 - **Weekly session (#81):** looks back on the last completed Friday→Thursday week
   (`coachWeeklyWindow`). It doesn't start if fewer than 4 of the 7 days have any check-in
   status (`CheckWeeklyReadiness`, a use case; checked before the model is touched and again

@@ -30,10 +30,15 @@ void main() {
       ]);
     });
 
-    test('logging opens the session by asking how the week felt', () {
+    test('logging opens the session by asking how the week felt, and asks '
+        'nothing else', () {
       final prompt = weeklyTopicPrompt(WeeklyTopic.logging);
-      expect(prompt, contains('Ask how the week felt'));
-      expect(prompt, contains('only about logging consistency'));
+      expect(prompt, contains('asking how the week felt'));
+      expect(prompt, contains('logging consistency'));
+      // One question per reply (`CoachInstructions.rules`). The prompt used
+      // to ask for the feeling question *and* a second one from the data.
+      expect(prompt, contains('as your only question'));
+      expect(prompt, isNot(contains('one question')));
     });
 
     test('each later topic is a new thread that leaves the last behind', () {

@@ -31,6 +31,16 @@ abstract class WeeklyReadiness with _$WeeklyReadiness {
 
     /// Days in the week with any check-in status.
     required int daysWithCheckIn,
+
+    /// Whether any of the seven days couldn't be read at all.
+    ///
+    /// The session's own gate stays permissive about this — an unreadable
+    /// day counts as no check-in, and only a week where *every* day fails
+    /// is a failure, so a half-broken store doesn't block a session the
+    /// person asked for. The Today nudge is the stricter reader: it offers
+    /// a session unasked, so it stands down on anything it couldn't read
+    /// (`coachNudgeProvider`).
+    @Default(false) bool anyDayUnreadable,
   }) = _WeeklyReadiness;
 
   const WeeklyReadiness._();
@@ -74,6 +84,11 @@ class CheckWeeklyReadiness {
         first: window.first,
         last: window.last,
         daysWithCheckIn: days,
+        // Kept rather than folded into `days`: four readable check-ins and
+        // three failed reads would otherwise be indistinguishable from a
+        // clean four-day week, and the nudge would offer a session off a
+        // week it couldn't actually see.
+        anyDayUnreadable: results.any((r) => r is Err),
       ),
     );
   }

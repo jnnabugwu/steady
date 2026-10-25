@@ -189,4 +189,4 @@ final class CoachNudgeProvider
   }
 }
 
-String _$coachNudgeHash() => r'b753a4f7d604db16da6500ed65a7f2b85049b377';
+String _$coachNudgeHash() => r'5bc2bf4ae450f30377df7c7545e0cbc6671ccba8';

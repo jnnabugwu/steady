@@ -1,3 +1,4 @@
+import 'package:checkin_domain/checkin_domain.dart';
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:failures/failures.dart';
@@ -9,6 +10,7 @@ import 'package:ui_kit/ui_kit.dart';
 import 'helpers/coach_container.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
+import 'helpers/fake_domains.dart';
 
 void main() {
   late FakeCoachModel model;
@@ -75,6 +77,42 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
+
+  testWidgets('the weekly card asks for the weekly session', (tester) async {
+    // A week with enough check-ins, so the card offers the session rather
+    // than the thin-week line. `onWeeklyRequested` was counted but never
+    // asserted, so the card could have stopped calling it unnoticed.
+    tester.view.physicalSize = const Size(390, 844) * 3;
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          checkIns: FakeCheckIns({
+            for (var d = 16; d <= 22; d++)
+              DateTime(2026, 10, d): CheckInStatus.logged,
+          }),
+          // A Friday: the week looked back on is Oct 16 to 22.
+          now: () => DateTime(2026, 10, 23, 20),
+        ),
+        child: ShadcnApp(
+          theme: steadyTheme,
+          home: CoachHomeModule(
+            onChatRequested: () => chats++,
+            onWeeklyRequested: () => weeklies++,
+            onSessionSelected: opened.add,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('coachStartWeekly')));
+    expect(weeklies, 1);
+    expect(chats, 0);
+  });
 
   testWidgets('available: offers a chat, with the medical note', (
     tester,
