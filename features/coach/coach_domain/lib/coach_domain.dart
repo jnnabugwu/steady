@@ -1,5 +1,5 @@
-/// A Calculator.
-class Calculator {
-  /// Returns [value] plus 1.
-  int addOne(int value) => value + 1;
-}
+/// The coach (iPhone only, CLAUDE.md §11): the on-device model interface,
+/// its typed failures, and the coach's instructions.
+library;
+
+export 'src/coach_instructions.dart';
