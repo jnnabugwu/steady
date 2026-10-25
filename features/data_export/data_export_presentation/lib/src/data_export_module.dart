@@ -157,14 +157,34 @@ class DataExportModule extends ConsumerWidget {
     );
   }
 
-  static String _receiptMessage(ExportReceipt receipt) =>
-      switch (receipt.outcome) {
-        ExportShareOutcome.shared =>
-          'Exported ${receipt.dayCount} '
-              '${receipt.dayCount == 1 ? 'day' : 'days'} '
-              'to ${receipt.fileName}.',
-        ExportShareOutcome.dismissed => 'Export cancelled. Nothing was saved.',
-      };
+  static String _receiptMessage(ExportReceipt receipt) {
+    switch (receipt.outcome) {
+      case ExportShareOutcome.shared:
+        final days = receipt.dayCount == 1 ? 'day' : 'days';
+        final exported =
+            'Exported ${receipt.dayCount} $days to ${receipt.fileName}.';
+        return switch (receipt.coachHistoryLeftOut) {
+          null => exported,
+          CoachHistoryLeftOut.unreadable => '$exported $coachUnreadableNote',
+          CoachHistoryLeftOut.readFailed => '$exported $coachReadFailedNote',
+        };
+      case ExportShareOutcome.dismissed:
+        return 'Export cancelled. Nothing was saved.';
+    }
+  }
+
+  /// Added to the receipt when a JSON export left out coach history that
+  /// isn't in Steady's format, which only deleting it fixes.
+  static const coachUnreadableNote =
+      "Coach history couldn't be read, so it was left out. You can delete "
+      'it in Settings → Coach.';
+
+  /// Added to the receipt when a JSON export left out coach history
+  /// because reading it failed (a file-system error), which may not
+  /// happen again.
+  static const coachReadFailedNote =
+      "Coach history couldn't be read just now, so it was left out. Export "
+      'again to include it.';
 }
 
 /// The Pass 02 screen header: a round glass back button above the 34px

@@ -91,10 +91,19 @@ class FileCoachRepository implements CoachRepository {
     if (located case Err(:final failure)) return Err(failure);
     final file = (located as Ok<File>).value;
     try {
-      for (final f in [file, File('${file.path}.tmp')]) {
+      // The leftover `.tmp` goes first, then the file of record. That order
+      // is what keeps a half-done delete consistent: whichever step fails,
+      // the sessions still on disk are the sessions still cached. Deleting
+      // the file of record first and then failing would leave the cache
+      // holding history that is no longer there, and the next `saveSession`
+      // would write all of it back.
+      for (final f in [File('${file.path}.tmp'), file]) {
         if (f.existsSync()) await f.delete();
       }
     } on FileSystemException catch (e) {
+      // Belt and braces, in case that order ever changes: a cache that may
+      // not match disk is worth less than no cache.
+      _sessions = null;
       return Err(
         CoachHistoryStorageFailure(
           'Could not delete coach file ${file.path}',

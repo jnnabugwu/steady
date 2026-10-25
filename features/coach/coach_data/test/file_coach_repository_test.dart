@@ -242,6 +242,20 @@ void main() {
             'sessions': [_validEntry],
           },
           {'version': 1, 'cravings': <Object?>[]},
+          // A session `saveSession` would have rejected is corrupt too:
+          // this app can't have written it, so it isn't history.
+          {
+            'version': 1,
+            'sessions': [
+              {..._validEntry, 'id': ''},
+            ],
+          },
+          {
+            'version': 1,
+            'sessions': [
+              {..._validEntry, 'endedAt': '2026-10-22T00:00:00.000Z'},
+            ],
+          },
         ]) {
           final encoded = jsonEncode(contents);
           file.writeAsStringSync(encoded);

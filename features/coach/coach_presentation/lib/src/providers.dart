@@ -12,7 +12,9 @@ part 'providers.g.dart';
 /// (CLAUDE.md §11). Tests override it with a fake. Reading it without an
 /// override throws.
 ///
-/// `keepAlive`: repositories are cheap and stateless (D6).
+/// `keepAlive`: unlike most repositories (D6), the file store is stateful —
+/// it owns the loaded sessions and the queue that serialises every write.
+/// One instance has to own both, so disposing it mid-write is not an option.
 @Riverpod(keepAlive: true)
 CoachRepository coachRepository(Ref ref) =>
     throw UnimplementedError('Override coachRepositoryProvider in app/');

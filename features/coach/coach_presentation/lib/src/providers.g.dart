@@ -17,7 +17,9 @@ part of 'providers.dart';
 /// (CLAUDE.md §11). Tests override it with a fake. Reading it without an
 /// override throws.
 ///
-/// `keepAlive`: repositories are cheap and stateless (D6).
+/// `keepAlive`: unlike most repositories (D6), the file store is stateful —
+/// it owns the loaded sessions and the queue that serialises every write.
+/// One instance has to own both, so disposing it mid-write is not an option.
 
 @ProviderFor(coachRepository)
 final coachRepositoryProvider = CoachRepositoryProvider._();
@@ -31,7 +33,9 @@ final coachRepositoryProvider = CoachRepositoryProvider._();
 /// (CLAUDE.md §11). Tests override it with a fake. Reading it without an
 /// override throws.
 ///
-/// `keepAlive`: repositories are cheap and stateless (D6).
+/// `keepAlive`: unlike most repositories (D6), the file store is stateful —
+/// it owns the loaded sessions and the queue that serialises every write.
+/// One instance has to own both, so disposing it mid-write is not an option.
 
 final class CoachRepositoryProvider
     extends
@@ -46,7 +50,9 @@ final class CoachRepositoryProvider
   /// (CLAUDE.md §11). Tests override it with a fake. Reading it without an
   /// override throws.
   ///
-  /// `keepAlive`: repositories are cheap and stateless (D6).
+  /// `keepAlive`: unlike most repositories (D6), the file store is stateful —
+  /// it owns the loaded sessions and the queue that serialises every write.
+  /// One instance has to own both, so disposing it mid-write is not an option.
   CoachRepositoryProvider._()
     : super(
         from: null,

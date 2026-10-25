@@ -57,7 +57,7 @@ List<CoachSession> decodeCoachFile(Object? json) {
 CoachSession _decodeSession(Object? json) {
   final field = _fieldsOf(json, 'Coach session');
   final endedAt = field<String?>('endedAt');
-  return CoachSession(
+  final session = CoachSession(
     id: field<String>('id'),
     kind: _byName(CoachSessionKind.values, field<String>('kind')),
     startedAt: _time(field<String>('startedAt')),
@@ -67,6 +67,12 @@ CoachSession _decodeSession(Object? json) {
       for (final m in field<List<Object?>>('messages')) _decodeMessage(m),
     ],
   );
+  // The same rule `saveSession` writes by, so a file holding a session this
+  // app could never have written reads as corrupt rather than as history.
+  if (validateCoachSession(session) case final invalid?) {
+    throw FormatException('Invalid coach session: ${invalid.message}');
+  }
+  return session;
 }
 
 CoachMessage _decodeMessage(Object? json) {
