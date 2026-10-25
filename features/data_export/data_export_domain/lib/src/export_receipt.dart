@@ -1,3 +1,4 @@
+import 'package:data_export_domain/src/export_bundle.dart';
 import 'package:data_export_domain/src/export_format.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -15,19 +16,6 @@ enum ExportShareOutcome {
   /// The user closed the share sheet without picking a destination, so
   /// nothing was saved.
   dismissed,
-}
-
-/// Why a JSON export left out the coach history.
-enum CoachHistoryLeftOut {
-  /// The stored history isn't in the format Steady writes
-  /// (`CoachHistoryUnreadableFailure`). It stays that way until the person
-  /// deletes it in Settings → Coach.
-  unreadable,
-
-  /// Any other read failure, such as a file-system error
-  /// (`CoachHistoryStorageFailure`). The history may be fine, so exporting
-  /// again may include it.
-  readFailed,
 }
 
 /// The result of one completed export: which file was built, how many days

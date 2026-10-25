@@ -4,11 +4,23 @@ import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/src/export_file.dart';
 import 'package:data_export_domain/src/export_format.dart';
-import 'package:data_export_domain/src/export_receipt.dart';
 import 'package:failures/failures.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'export_bundle.freezed.dart';
+
+/// Why a JSON export left out the coach history.
+enum CoachHistoryLeftOut {
+  /// The stored history isn't in the format Steady writes
+  /// (`CoachHistoryUnreadableFailure`). It stays that way until the person
+  /// deletes it in Settings → Coach.
+  unreadable,
+
+  /// Any other read failure, such as a file-system error
+  /// (`CoachHistoryStorageFailure`). The history may be fine, so exporting
+  /// again may include it.
+  readFailed,
+}
 
 /// Everything one export holds, and how it's written as CSV or JSON.
 ///
