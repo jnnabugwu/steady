@@ -50,7 +50,7 @@ energy from Apple Health and shows them in the app. Steady:
 - reads them fresh from Apple Health and doesn't save them, so they are never stored in
   iCloud;
 - never writes anything to Apple Health;
-- never shares them with anyone or uses them for advertising.
+- never shares them itself with anyone, and never uses them for advertising.
 
 You can turn off Steady's access at any time in the Health app or in Settings → Privacy &
 Security → Health. The Mac app doesn't use Apple Health.
