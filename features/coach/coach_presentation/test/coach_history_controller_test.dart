@@ -73,6 +73,17 @@ void main() {
     );
   });
 
+  test('a thrown Failure is passed through as it is', () async {
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    const failure = CoachHistoryStorageFailure('locked');
+    repository.onDeleteAll = () async => throw failure;
+    await notifier().deleteCoachHistory();
+
+    // Not wrapped in an UnknownFailure: it already carries its message.
+    expect(container.read(coachHistoryControllerProvider).error, failure);
+  });
+
   test('a second delete while one is in flight is ignored', () async {
     container.listen(coachHistoryControllerProvider, (_, _) {});
     await settled();

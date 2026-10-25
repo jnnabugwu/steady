@@ -74,6 +74,33 @@ void main() {
     expect(sessions.map((s) => s.id), ['new', 'a', 'b', 'old']);
   });
 
+  test('toString gives shape, never what was said', () {
+    // Transcripts are device-only (CLAUDE.md §11). freezed's generated
+    // toString would print every message, and a ProviderObserver or a
+    // Flutter error dump prints state through toString.
+    const secret = 'I skipped dinner on Tuesday';
+    const aside = 'A quiet week, one skipped day.';
+    final message = CoachMessage(
+      role: CoachMessageRole.user,
+      text: secret,
+      at: start,
+    );
+    final stored = session().copyWith(
+      messages: [message],
+      summary: aside,
+    );
+
+    expect(message.toString(), isNot(contains(secret)));
+    expect(message.toString(), contains('role'));
+    expect(stored.toString(), isNot(contains(secret)));
+    expect(stored.toString(), isNot(contains(aside)));
+    expect(stored.toString(), contains('s1'));
+    expect(stored.toString(), contains('messages: 1'));
+    // The fields themselves still carry everything.
+    expect(stored.messages.single.text, secret);
+    expect(stored.summary, aside);
+  });
+
   test('history failures are typed Failures', () {
     expect(
       const CoachHistoryUnreadableFailure('bad'),

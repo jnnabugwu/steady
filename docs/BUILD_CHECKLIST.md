@@ -185,11 +185,10 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
       `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
       (`coach_sessions.json` in app support) in `coach_data`, bound only by
-      `appProviderOverridesFor(isIOS: true)`. Settings → Coach → "Delete coach history"
-      (#78).
+      `appProviderOverridesFor(isIOS: true)`. Settings → Coach → "Delete coach history".
 - [x] Data export includes each session's date, kind and summary (not the transcript):
       the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
-      per day (#78).
+      per day.
 - [ ] `coach_presentation`: weekly 15-minute session + chat on the iPhone, with the
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it

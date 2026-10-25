@@ -40,11 +40,6 @@ int get hashCode {
   return Object.hash(runtimeType,_this.role,_this.text,_this.at);
 }
 
-@override
-String toString() {
-  final _this = this as CoachMessage;
-  return 'CoachMessage(role: ${_this.role}, text: ${_this.text}, at: ${_this.at})';
-}
 
 
 }
@@ -216,8 +211,8 @@ return $default(_that.role,_that.text,_that.at);case _:
 /// @nodoc
 
 
-class _CoachMessage implements CoachMessage {
-  const _CoachMessage({required this.role, required this.text, required this.at});
+class _CoachMessage extends CoachMessage {
+  const _CoachMessage({required this.role, required this.text, required this.at}): super._();
   
 
 /// Who wrote it.
@@ -246,10 +241,6 @@ int get hashCode {
     return Object.hash(runtimeType,role,text,at);
 }
 
-@override
-String toString() {
-    return 'CoachMessage(role: $role, text: $text, at: $at)';
-}
 
 
 }
@@ -322,11 +313,6 @@ int get hashCode {
   return Object.hash(runtimeType,_this.id,_this.kind,_this.startedAt,const DeepCollectionEquality().hash(_this.messages),_this.endedAt,_this.summary);
 }
 
-@override
-String toString() {
-  final _this = this as CoachSession;
-  return 'CoachSession(id: ${_this.id}, kind: ${_this.kind}, startedAt: ${_this.startedAt}, messages: ${_this.messages}, endedAt: ${_this.endedAt}, summary: ${_this.summary})';
-}
 
 
 }
@@ -501,8 +487,8 @@ return $default(_that.id,_that.kind,_that.startedAt,_that.messages,_that.endedAt
 /// @nodoc
 
 
-class _CoachSession implements CoachSession {
-  const _CoachSession({required this.id, required this.kind, required this.startedAt,  List<CoachMessage> messages = const <CoachMessage>[], this.endedAt, this.summary}): _messages = messages;
+class _CoachSession extends CoachSession {
+  const _CoachSession({required this.id, required this.kind, required this.startedAt,  List<CoachMessage> messages = const <CoachMessage>[], this.endedAt, this.summary}): _messages = messages,super._();
   
 
 /// Identity, unique per session. Saving a session with an `id` that's
@@ -548,10 +534,6 @@ int get hashCode {
     return Object.hash(runtimeType,id,kind,startedAt,const DeepCollectionEquality().hash(_messages),endedAt,summary);
 }
 
-@override
-String toString() {
-    return 'CoachSession(id: $id, kind: $kind, startedAt: $startedAt, messages: $messages, endedAt: $endedAt, summary: $summary)';
-}
 
 
 }
