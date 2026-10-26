@@ -216,10 +216,9 @@ Intelligence, with it turned on and the model downloaded. Otherwise the Coach ta
 plainly which of those is missing, and the rest of the app works as usual. The Mac has no
 coach.
 
-**Status (2026-10-25):** built in PRs #124–#127, in review. No reply has run on a real
-model yet: the simulators report Apple Intelligence off or the model not ready, so it needs
-a try on an Apple Intelligence iPhone. The weekly check-in's screens in #127 still say
-"about 15 minutes" and need updating to 5.
+**Status (2026-10-26):** built (PRs #124–#127). No reply has run on a real model yet: the
+simulators report Apple Intelligence off or the model not ready, so it needs a try on an
+Apple Intelligence iPhone.
 
 ## 8. Planned: Bringing in Journal Notes & Book-Derived Methods (RAG)
 

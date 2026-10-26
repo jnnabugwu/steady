@@ -13,9 +13,9 @@
 /// 4. This week: checkin's [CairnWeekCard] for today's week.
 /// 5. Metrics: metrics' [TodayMetricTiles] for today (the Mac shows only
 ///    what it has: no Apple Health there).
-/// 6. The coach nudge slot, [TodayScreen.coachNudge]: empty until the coach
-///    has something to say (`coach_presentation` has nothing to provide
-///    yet).
+/// 6. The coach nudge slot, [TodayScreen.coachNudge]: the app router puts
+///    coach's `CoachNudgeCard` there, which offers the weekly check-in on
+///    an iPhone from Friday to Sunday and renders nothing otherwise.
 /// 7. The cravings feature's [CravingHomeSection], iPhone only (it renders
 ///    nothing on macOS).
 library;
@@ -63,9 +63,9 @@ class TodayScreen extends ConsumerWidget {
   /// Called when the cravings section's "Having a craving?" is tapped.
   final void Function() onCravingRequested;
 
-  /// The coach nudge card, below the metrics, or `null` for none. Nothing
-  /// fills it yet: the nudge shows only once the coach has something to
-  /// say, and `coach_presentation` can't provide that so far.
+  /// The coach nudge card, below the metrics, or `null` for none. The
+  /// router passes coach's `CoachNudgeCard`, which sizes to nothing when
+  /// there's no nudge (and always on the Mac).
   final Widget? coachNudge;
 
   /// Keeps the cards phone-width on a wide macOS window.

@@ -39,7 +39,7 @@ Safety:
 $rules
 
 This session:
-This is the weekly check-in, about 5 minutes, so keep it brief: one or two questions per topic and short replies. Start by asking how the week felt. Then talk about two things, one at a time, as separate topics: first logging consistency (which days were logged, partial or skipped), then step consistency. If there are craving check-ins, you can describe when they came and what was behind them, and ask about it. Don't compare craving counts with other weeks. End by asking if there's one small thing they'd like to try next week, and let them choose it.''';
+This is the weekly check-in, about 5 minutes, so keep it brief: one or two questions per topic and short replies. Start by asking, in a sentence, how the week felt. Then talk about two things, one at a time, as separate topics: first logging consistency (which days were logged, partial or skipped), then step consistency. If there are craving check-ins, you can describe when they came and what was behind them, and ask about it. Don't compare craving counts with other weeks. End by asking if there's one small thing they'd like to try next week, and let them choose it.''';
 
   /// A short chat, outside the weekly session.
   static const String chat =

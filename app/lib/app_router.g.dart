@@ -6,7 +6,11 @@ part of 'app_router.dart';
 // GoRouterGenerator
 // **************************************************************************
 
-List<RouteBase> get $appRoutes => [$appShellRoute, $importRoute];
+List<RouteBase> get $appRoutes => [
+  $appShellRoute,
+  $coachWeeklyRoute,
+  $importRoute,
+];
 
 RouteBase get $appShellRoute => StatefulShellRouteData.$route(
   factory: $AppShellRouteExtension._fromState,
@@ -237,6 +241,33 @@ mixin $SettingsRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $coachWeeklyRoute => GoRouteData.$route(
+  path: '/weekly-check-in',
+  hasOverriddenOnExit: false,
+  factory: $CoachWeeklyRoute._fromState,
+);
+
+mixin $CoachWeeklyRoute on GoRouteData {
+  static CoachWeeklyRoute _fromState(GoRouterState state) =>
+      const CoachWeeklyRoute();
+
+  @override
+  String get location => GoRouteData.$location('/weekly-check-in');
 
   @override
   void go(BuildContext context) => context.go(location);

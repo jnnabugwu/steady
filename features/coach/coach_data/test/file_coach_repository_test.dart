@@ -165,9 +165,10 @@ void main() {
       final start = DateTime(2026, 10, 23, 19);
       for (final bad in [
         _session('', start),
-        _session('a', start).copyWith(
-          endedAt: start.subtract(const Duration(minutes: 1)),
-        ),
+        _session(
+          'a',
+          start,
+        ).copyWith(endedAt: start.subtract(const Duration(minutes: 1))),
       ]) {
         expect(
           await repo.saveSession(bad),
@@ -313,11 +314,7 @@ void main() {
             base.copyWith(
               messages: [
                 for (var j = 0; j < i; j++)
-                  CoachMessage(
-                    role: CoachMessageRole.user,
-                    text: '$j',
-                    at: at,
-                  ),
+                  CoachMessage(role: CoachMessageRole.user, text: '$j', at: at),
               ],
             ),
           ),

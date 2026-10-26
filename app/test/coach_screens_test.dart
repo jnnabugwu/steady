@@ -1,3 +1,4 @@
+import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
@@ -36,7 +37,11 @@ void main() {
     _FakeModel? model,
     _MemoryRepository? repository,
     String? coldStart,
+    DateTime? now,
+    DateTime Function()? clock,
+    int checkInsLastWeek = 0,
   }) async {
+    final readClock = clock ?? (now == null ? null : () => now);
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -60,9 +65,26 @@ void main() {
             (ref) => ref.watch(metricsRepositoryProvider),
           ),
         ],
+        if (readClock != null) ...[
+          coachClockProvider.overrideWithValue(readClock),
+          checkInClockProvider.overrideWithValue(readClock),
+        ],
       ],
     );
     addTearDown(container.dispose);
+    // Check-ins on the first days of the week the weekly session looks
+    // back on, through the app's shared store.
+    if (readClock != null) {
+      final first = coachWeeklyWindow(readClock()).first;
+      for (var i = 0; i < checkInsLastWeek; i++) {
+        await container
+            .read(checkInRepositoryProvider)
+            .logCheckIn(
+              DateTime(first.year, first.month, first.day + i),
+              CheckInStatus.logged,
+            );
+      }
+    }
     await tester.pumpWidget(
       UncontrolledProviderScope(container: container, child: const SteadyApp()),
     );
@@ -87,7 +109,24 @@ void main() {
       expect(tester.widget<GlassTabBar>(tabBar).selectedIndex, 0);
     });
 
-    for (final path in ['/coach', '/coach/chat', '/coach/sessions/abc']) {
+    testWidgets('Today has no coach nudge, even on a Friday with a full '
+        'week', (tester) async {
+      await pumpApp(
+        tester,
+        isIOS: false,
+        now: DateTime(2026, 10, 23, 20),
+        checkInsLastWeek: 7,
+      );
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(find.byKey(const Key('coachNudgeCard')), findsNothing);
+    });
+
+    for (final path in [
+      '/coach',
+      '/coach/chat',
+      '/coach/sessions/abc',
+      '/weekly-check-in',
+    ]) {
       testWidgets('a cold start at $path goes home', (tester) async {
         final container = await pumpApp(tester, isIOS: false, coldStart: path);
         expect(location(container), '/');
@@ -165,13 +204,112 @@ void main() {
         'Coach reply.',
       ]);
 
-      await tester.tap(find.byKey(Key('coachSession_${stored.id}')));
+      final tile = find.byKey(Key('coachSession_${stored.id}'));
+      // Clear of the floating tab bar.
+      await tester.scrollUntilVisible(
+        tile,
+        200,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('coachHomeScroll')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.drag(
+        find.byKey(const Key('coachHomeScroll')),
+        const Offset(0, -300),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(tile);
       await tester.pumpAndSettle();
       expect(location(container), '/coach/sessions/${stored.id}');
       expect(find.byType(CoachTranscriptModule), findsOneWidget);
       expect(find.text('How was my week?'), findsOneWidget);
       // Inside the Coach tab: the bar is still there.
       expect(tabBar.hitTestable(), findsOneWidget);
+    });
+
+    testWidgets("Friday: Today's nudge offers the weekly check-in, and Talk "
+        'now opens it over the shell', (tester) async {
+      final repository = _MemoryRepository();
+      final container = await pumpApp(
+        tester,
+        isIOS: true,
+        repository: repository,
+        now: DateTime(2026, 10, 23, 20),
+        checkInsLastWeek: 4,
+      );
+      final nudge = find.byKey(const Key('coachNudgeCard'));
+      await tester.scrollUntilVisible(
+        nudge,
+        200,
+        scrollable: find.descendant(
+          of: find.byKey(const Key('todayScroll')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      expect(find.textContaining('Oct 16 – 22 is ready'), findsOneWidget);
+
+      await tester.drag(
+        find.byKey(const Key('todayScroll')),
+        const Offset(0, -200),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('coachNudgeTalkNow')));
+      await tester.pumpAndSettle();
+      expect(location(container), '/weekly-check-in');
+      expect(find.text('Look back on Oct 16 – 22'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('coachWeeklyBegin')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('coachMessageField')),
+        'It went fine.',
+      );
+      await tester.tap(find.byKey(const Key('coachSend')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('coachSessionEnd')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('coachSessionDone')));
+      await tester.pumpAndSettle();
+
+      expect(location(container), '/');
+      expect(repository.sessions.single.kind, CoachSessionKind.weekly);
+      // Done for this week: the nudge is gone.
+      expect(nudge, findsNothing);
+    });
+
+    testWidgets('"Not tonight" lasts the day: back in the app the next '
+        'morning, the nudge is offered again', (tester) async {
+      var now = DateTime(2026, 10, 23, 20);
+      await pumpApp(tester, isIOS: true, clock: () => now, checkInsLastWeek: 4);
+      final nudge = find.byKey(const Key('coachNudgeCard'));
+      final scrollable = find.descendant(
+        of: find.byKey(const Key('todayScroll')),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(nudge, 200, scrollable: scrollable);
+      await tester.tap(find.byKey(const Key('coachNudgeNotTonight')));
+      await tester.pumpAndSettle();
+      expect(nudge, findsNothing);
+
+      // Saturday morning, back in the app.
+      now = DateTime(2026, 10, 24, 9);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(nudge, 200, scrollable: scrollable);
+      expect(nudge, findsOneWidget);
+    });
+
+    testWidgets('a week with three check-ins: no nudge', (tester) async {
+      await pumpApp(
+        tester,
+        isIOS: true,
+        now: DateTime(2026, 10, 23, 20),
+        checkInsLastWeek: 3,
+      );
+      expect(find.byKey(const Key('coachNudgeCard')), findsNothing);
     });
 
     testWidgets('deleting coach history in Settings empties the Coach tab', (

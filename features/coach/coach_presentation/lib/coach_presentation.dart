@@ -15,5 +15,7 @@ export 'src/coach_session_state.dart';
 export 'src/coach_settings_card.dart';
 export 'src/coach_transcript_module.dart';
 export 'src/coach_week_context.dart';
+export 'src/coach_weekly_cards.dart';
+export 'src/coach_weekly_readiness.dart';
 export 'src/coach_widgets.dart';
 export 'src/providers.dart';

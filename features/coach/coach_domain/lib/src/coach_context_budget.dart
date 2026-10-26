@@ -191,17 +191,29 @@ class CoachConversation {
 
   /// The prompt to send for the person's [message]: the message itself, or,
   /// first in a fresh session, the carried context followed by it.
-  String promptFor(String message) {
-    final text = clampMessage(message);
+  ///
+  /// With [fromApp], [message] is the app's own prompt (the weekly
+  /// session's opening or its next topic): it isn't clamped, and follows
+  /// the carried context as is.
+  String promptFor(String message, {bool fromApp = false}) {
     final carried = carry;
+    if (fromApp) return carried == null ? message : '$carried\n\n$message';
+    final text = clampMessage(message);
     if (carried == null) return text;
     return '$carried\n\nThe person now says:\n$text';
   }
 
-  /// Whether [message] has to go to a fresh model session because it
-  /// wouldn't fit, with a full reply, in the current one.
-  bool needsFreshSession(String message, CoachContextBudget budget) => !budget
-      .fitsTurn(sessionTokens: sessionTokens, prompt: promptFor(message));
+  /// Whether [message] (the app's own with [fromApp]) has to go to a fresh
+  /// model session because it wouldn't fit, with a full reply, in the
+  /// current one.
+  bool needsFreshSession(
+    String message,
+    CoachContextBudget budget, {
+    bool fromApp = false,
+  }) => !budget.fitsTurn(
+    sessionTokens: sessionTokens,
+    prompt: promptFor(message, fromApp: fromApp),
+  );
 
   /// The messages to summarise before moving to a fresh session: every
   /// message in the window except the ones carried word for word.
@@ -315,16 +327,16 @@ class CoachConversation {
   /// only the reply joins the window.
   CoachConversation afterAppPrompt({
     required String prompt,
-    required CoachMessage reply,
+    required CoachMessage? reply,
   }) => CoachConversation._(
     instructions: instructions,
     earlierSummary: earlierSummary,
-    window: [...window, reply],
+    window: [...window, ?reply],
     carry: null,
     sessionTokens:
         sessionTokens +
         estimateCoachTokens(prompt) +
-        estimateCoachTokens(reply.text) +
+        estimateCoachTokens(reply?.text ?? '') +
         2 * coachTurnOverheadTokens,
   );
 

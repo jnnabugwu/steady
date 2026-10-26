@@ -85,10 +85,7 @@ void main() {
       text: secret,
       at: start,
     );
-    final stored = session().copyWith(
-      messages: [message],
-      summary: aside,
-    );
+    final stored = session().copyWith(messages: [message], summary: aside);
 
     expect(message.toString(), isNot(contains(secret)));
     expect(message.toString(), contains('role'));

@@ -313,6 +313,7 @@ copy:
 | `healthKitRepositoryProvider` (declared directly in `app/lib/providers.dart`; `null` except on iOS) | `keepAlive: true` | Same reason: cheap and stateless. `health_sync` is headless, so the app layer declares it (§9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
+| `coachNudgeDismissalProvider` ("Not tonight") | `keepAlive: true` | Holds the day the nudge was dismissed; it has to outlive Today's rebuilds. In memory only, so a relaunch shows the nudge again. |
 | `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
 
@@ -370,11 +371,21 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
-  // The app chooses what completion means. Today: nothing, so the screen stays up
-  // showing the logged status. Another route might pop, or go somewhere else.
+  // The app chooses what completion means. Today: the screen stays up showing the
+  // logged status, and the coach's weekly readiness is read again (a past day's
+  // check-in can change it). Another route might pop, or go somewhere else.
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CheckInModule(date: date, onCheckInCompleted: () {});
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return CheckInModule(
+      date: date,
+      onCheckInCompleted: () {
+        if (container.read(coachSupportAvailableProvider)) {
+          container.invalidate(weeklyReadinessProvider);
+        }
+      },
+    );
+  }
 }
 ```
 
@@ -398,9 +409,10 @@ Facts about that route worth knowing before adding the next one:
   (`redirectMalformedCheckIn`) sends a `/checkin/<segment>` with no valid leading date
   (e.g. `/checkin/garbage`, `/checkin/2026-02-30`) to `/`, so `CheckInRoute` is never
   built for it.
-- **`onCheckInCompleted` is a no-op today.** It stays on `CheckInModule` as the
-  feature's callback contract; the route passes `() {}`. `CheckInModule` normalizes
-  `date` to midnight itself, for its provider key.
+- **`onCheckInCompleted` only refreshes the coach's weekly readiness** (iPhone): a
+  past day's check-in can change whether last week passes the 4-of-7 rule behind
+  Today's coach nudge. The screen itself stays up. `CheckInModule` normalizes `date`
+  to midnight itself, for its provider key.
 - When a callback does need a provider (e.g. `HomeRoute`'s import refresh), read the
   container once in `build` with `ProviderScope.containerOf(context, listen: false)`
   and close over it. An `Err` with no UI to show it in is reported via
@@ -444,8 +456,11 @@ greeting and the import button. "Today" is checkin's `checkInTodayProvider` (loc
 midnight of `checkInClockProvider`, which tests pin). The app root (`SteadyApp` in
 `main.dart`) calls its `refreshToday` from a timer set for the next local midnight and on
 every resume, so a screen left open overnight moves to the new day and its date-keyed
-cards re-key. The coach nudge (§11) has a slot, `TodayScreen.coachNudge`, that stays
-empty until `coach_presentation` has something to say.
+cards re-key. The coach nudge (§11) fills the `TodayScreen.coachNudge` slot:
+`HomeRoute` passes coach's `CoachNudgeCard`, which renders nothing on the Mac and nothing
+on the iPhone unless the weekly check-in is ready. Its "Talk now" opens `CoachWeeklyRoute`
+(`/weekly-check-in`, top-level on the root navigator, since both Today and the Coach tab
+open it; it redirects home on the Mac).
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -765,9 +780,20 @@ context window (4,096 tokens on iOS 26) without summarising itself partway throu
   providers are bound only by `appProviderOverridesFor(isIOS: true)`, like cravings (§9).
   No Foundation Models code in `app/macos/`. A Mac chat without Health data or cravings
   is a possible later addition, not planned.
-- **Nudge card** (`TodayScreen.coachNudge`, §5): "Talk now" / "Not tonight" on an iPhone
-  where the model is available. Where it isn't, the card explains why instead of offering
-  a session. Nothing on the Mac. The card itself needs check-in data, not inference.
+- **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" /
+  "Not tonight" on an iPhone where the model is available. Where it isn't, the card says
+  why instead of offering a session. Nothing on the Mac. Whether it exists never calls the
+  model (`coachNudgeProvider`); it needs all of: an iPhone, Friday to Sunday, last week
+  passing the 4-of-7 rule with every day readable, no weekly session started since that
+  week ended, and "Not tonight" not tapped today (kept in memory).
+- **Weekly session (#81):** looks back on the last completed Friday→Thursday week
+  (`coachWeeklyWindow`). It doesn't start if fewer than 4 of the 7 days have any check-in
+  status (`CheckWeeklyReadiness`, a use case; checked before the model is touched and again
+  on Begin). Its topics are separate threads, in order: logging, steps, the week's cravings
+  when there were any (observations with a question, never a grade or a week-on-week
+  comparison), and one small thing to try next week (`WeeklyTopic`, `weeklyTopicPrompt` in
+  `coach_domain`). Each topic opens with an app prompt the person doesn't see; "Next: …"
+  moves on (`moveToNextWeeklyTopic`). It ends with a stored summary, like a chat.
 - **Context stays compact:** a short 7-day summary built from `metrics_domain`,
   `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history
   (`BuildCoachWeekContext`, a use case in `coach_presentation`, and `formatCoachWeek`, one

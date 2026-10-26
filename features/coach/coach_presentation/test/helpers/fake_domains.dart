@@ -15,9 +15,15 @@ class FakeCheckIns implements CheckInRepository {
   /// When set, every read fails.
   Failure? failure;
 
+  /// Days (local midnight) whose read fails, the rest reading normally.
+  final Set<DateTime> failingDays = {};
+
   @override
   ResultFuture<CheckInStatus?> getStatus(DateTime date) async {
     if (failure case final f?) return Err(f);
+    if (failingDays.contains(DateTime(date.year, date.month, date.day))) {
+      return const Err(UnknownFailure('this day could not be read'));
+    }
     return Ok(statuses[DateTime(date.year, date.month, date.day)]);
   }
 

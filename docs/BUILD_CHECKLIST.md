@@ -218,16 +218,25 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       line when guardrails stop a reply.
 - [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
       Intelligence off / model not ready).
-- [ ] `coach_presentation`: the weekly 5-minute session (#81).
-- [ ] Nudge card: "Talk now" where the model is available, an explanation where it
-      isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
+- [x] `coach_presentation`: the weekly 5-minute session (#81). The last completed
+      Friday→Thursday week; doesn't start with fewer than 4 of 7 days checked in
+      (`CheckWeeklyReadiness`); logging, steps, cravings (when there were any) and next week
+      as separate topics; a stored summary. `/weekly-check-in`, from the nudge and the
+      Coach tab.
+- [x] Nudge card (`CoachNudgeCard` in `TodayScreen.coachNudge`): "Talk now" / "Not
+      tonight" where the model is available, an explanation where it isn't; nothing on the
+      Mac. Shown Friday to Sunday from check-in data only (#81).
 - [x] Tone and safety instructions in one place: `CoachInstructions` in `coach_domain`
       (coach, not therapist; never originates calorie targets, weight goals, deficits or
       diets, including from craving data; no streaks or shame; points to ANAD and 988 and
       doesn't coach through disordered eating or a crisis), with a test per constraint (#82).
-- [ ] UI review of coach screens against the no-shame rules: no streaks/shame visuals
-      (already reflected in the single-hue logging-status ladder — don't reintroduce
-      red/yellow/green anywhere in this feature's UI). Waits for the coach screens (#81).
+- [x] UI review of coach screens against the no-shame rules (#82): teal ladder and
+      neutrals only, no streaks, scores, grades or praise/blame words, topics shown as a
+      position, never a checkmark. `coach_no_shame_test.dart` sweeps the Coach tab, the
+      nudge, a weekly session, a thin week, a past transcript and Settings' Coach card
+      with its delete dialog — text, fills, borders and icons — in both available and
+      unavailable states. "Delete coach history" is teal like the rest (#78), not the
+      theme's destructive red; its wording and the confirm dialog carry the warning.
 - [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
       coach summaries all in one release), drop the "The coach isn't in Steady yet"
       paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.

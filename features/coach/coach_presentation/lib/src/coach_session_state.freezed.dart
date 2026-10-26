@@ -26,7 +26,12 @@ mixin _$CoachSessionState {
 /// (while [CoachSessionPhase.ready]). `null` otherwise.
  Failure? get failure;/// Whether the last save to the coach history failed. The conversation
 /// carries on; the next save writes the whole session again.
- bool get saveFailed;
+ bool get saveFailed;/// Weekly only: the week it looks back on (its Friday), once known.
+ DateTime? get weekFirst;/// Weekly only: the week's Thursday, once known.
+ DateTime? get weekLast;/// Weekly only: the session's topics, in order (`weeklyTopicsFor`).
+ List<WeeklyTopic> get topics;/// Weekly only: the index in [topics] of the topic under way, or `-1`
+/// before the session begins.
+ int get topicIndex;
 /// Create a copy of CoachSessionState
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -38,20 +43,20 @@ $CoachSessionStateCopyWith<CoachSessionState> get copyWith => _$CoachSessionStat
 @override
 bool operator ==(Object other) {
   final _this = this as CoachSessionState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoachSessionState&&(identical(other.phase, _this.phase) || other.phase == _this.phase)&&(identical(other.session, _this.session) || other.session == _this.session)&&(identical(other.reply, _this.reply) || other.reply == _this.reply)&&(identical(other.failure, _this.failure) || other.failure == _this.failure)&&(identical(other.saveFailed, _this.saveFailed) || other.saveFailed == _this.saveFailed));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoachSessionState&&(identical(other.phase, _this.phase) || other.phase == _this.phase)&&(identical(other.session, _this.session) || other.session == _this.session)&&(identical(other.reply, _this.reply) || other.reply == _this.reply)&&(identical(other.failure, _this.failure) || other.failure == _this.failure)&&(identical(other.saveFailed, _this.saveFailed) || other.saveFailed == _this.saveFailed)&&(identical(other.weekFirst, _this.weekFirst) || other.weekFirst == _this.weekFirst)&&(identical(other.weekLast, _this.weekLast) || other.weekLast == _this.weekLast)&&const DeepCollectionEquality().equals(other.topics, _this.topics)&&(identical(other.topicIndex, _this.topicIndex) || other.topicIndex == _this.topicIndex));
 }
 
 
 @override
 int get hashCode {
   final _this = this as CoachSessionState;
-  return Object.hash(runtimeType,_this.phase,_this.session,_this.reply,_this.failure,_this.saveFailed);
+  return Object.hash(runtimeType,_this.phase,_this.session,_this.reply,_this.failure,_this.saveFailed,_this.weekFirst,_this.weekLast,const DeepCollectionEquality().hash(_this.topics),_this.topicIndex);
 }
 
 @override
 String toString() {
   final _this = this as CoachSessionState;
-  return 'CoachSessionState(phase: ${_this.phase}, session: ${_this.session}, reply: ${_this.reply}, failure: ${_this.failure}, saveFailed: ${_this.saveFailed})';
+  return 'CoachSessionState(phase: ${_this.phase}, session: ${_this.session}, reply: ${_this.reply}, failure: ${_this.failure}, saveFailed: ${_this.saveFailed}, weekFirst: ${_this.weekFirst}, weekLast: ${_this.weekLast}, topics: ${_this.topics}, topicIndex: ${_this.topicIndex})';
 }
 
 
@@ -62,7 +67,7 @@ abstract mixin class $CoachSessionStateCopyWith<$Res>  {
   factory $CoachSessionStateCopyWith(CoachSessionState value, $Res Function(CoachSessionState) _then) = _$CoachSessionStateCopyWithImpl;
 @useResult
 $Res call({
- CoachSessionPhase phase, CoachSession session, String? reply, Failure? failure, bool saveFailed
+ CoachSessionPhase phase, CoachSession session, String? reply, Failure? failure, bool saveFailed, DateTime? weekFirst, DateTime? weekLast, List<WeeklyTopic> topics, int topicIndex
 });
 
 
@@ -79,14 +84,18 @@ class _$CoachSessionStateCopyWithImpl<$Res>
 
 /// Create a copy of CoachSessionState
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? phase = null,Object? session = null,Object? reply = freezed,Object? failure = freezed,Object? saveFailed = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? phase = null,Object? session = null,Object? reply = freezed,Object? failure = freezed,Object? saveFailed = null,Object? weekFirst = freezed,Object? weekLast = freezed,Object? topics = null,Object? topicIndex = null,}) {
   return _then(CoachSessionState(
 phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
 as CoachSessionPhase,session: null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
 as CoachSession,reply: freezed == reply ? _self.reply : reply // ignore: cast_nullable_to_non_nullable
 as String?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
 as Failure?,saveFailed: null == saveFailed ? _self.saveFailed : saveFailed // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,weekFirst: freezed == weekFirst ? _self.weekFirst : weekFirst // ignore: cast_nullable_to_non_nullable
+as DateTime?,weekLast: freezed == weekLast ? _self.weekLast : weekLast // ignore: cast_nullable_to_non_nullable
+as DateTime?,topics: null == topics ? _self.topics : topics // ignore: cast_nullable_to_non_nullable
+as List<WeeklyTopic>,topicIndex: null == topicIndex ? _self.topicIndex : topicIndex // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 /// Create a copy of CoachSessionState
@@ -180,10 +189,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed,  DateTime? weekFirst,  DateTime? weekLast,  List<WeeklyTopic> topics,  int topicIndex)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CoachSessionState() when $default != null:
-return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed);case _:
+return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed,_that.weekFirst,_that.weekLast,_that.topics,_that.topicIndex);case _:
   return orElse();
 
 }
@@ -201,10 +210,10 @@ return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFa
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed,  DateTime? weekFirst,  DateTime? weekLast,  List<WeeklyTopic> topics,  int topicIndex)  $default,) {final _that = this;
 switch (_that) {
 case _CoachSessionState():
-return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed);case _:
+return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed,_that.weekFirst,_that.weekLast,_that.topics,_that.topicIndex);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -221,10 +230,10 @@ return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFa
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( CoachSessionPhase phase,  CoachSession session,  String? reply,  Failure? failure,  bool saveFailed,  DateTime? weekFirst,  DateTime? weekLast,  List<WeeklyTopic> topics,  int topicIndex)?  $default,) {final _that = this;
 switch (_that) {
 case _CoachSessionState() when $default != null:
-return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed);case _:
+return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFailed,_that.weekFirst,_that.weekLast,_that.topics,_that.topicIndex);case _:
   return null;
 
 }
@@ -236,7 +245,7 @@ return $default(_that.phase,_that.session,_that.reply,_that.failure,_that.saveFa
 
 
 class _CoachSessionState extends CoachSessionState {
-  const _CoachSessionState({required this.phase, required this.session, this.reply, this.failure, this.saveFailed = false}): super._();
+  const _CoachSessionState({required this.phase, required this.session, this.reply, this.failure, this.saveFailed = false, this.weekFirst, this.weekLast,  List<WeeklyTopic> topics = const <WeeklyTopic>[], this.topicIndex = -1}): _topics = topics,super._();
   
 
 /// Where the session is.
@@ -255,6 +264,22 @@ class _CoachSessionState extends CoachSessionState {
 /// Whether the last save to the coach history failed. The conversation
 /// carries on; the next save writes the whole session again.
 @override@JsonKey() final  bool saveFailed;
+/// Weekly only: the week it looks back on (its Friday), once known.
+@override final  DateTime? weekFirst;
+/// Weekly only: the week's Thursday, once known.
+@override final  DateTime? weekLast;
+/// Weekly only: the session's topics, in order (`weeklyTopicsFor`).
+ final  List<WeeklyTopic> _topics;
+/// Weekly only: the session's topics, in order (`weeklyTopicsFor`).
+@override@JsonKey() List<WeeklyTopic> get topics {
+  if (_topics is EqualUnmodifiableListView) return _topics;
+  // ignore: implicit_dynamic_type
+  return EqualUnmodifiableListView(_topics);
+}
+
+/// Weekly only: the index in [topics] of the topic under way, or `-1`
+/// before the session begins.
+@override@JsonKey() final  int topicIndex;
 
 /// Create a copy of CoachSessionState
 /// with the given fields replaced by the non-null parameter values.
@@ -266,18 +291,18 @@ _$CoachSessionStateCopyWith<_CoachSessionState> get copyWith => __$CoachSessionS
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoachSessionState&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.session, session) || other.session == session)&&(identical(other.reply, reply) || other.reply == reply)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.saveFailed, saveFailed) || other.saveFailed == saveFailed));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoachSessionState&&(identical(other.phase, phase) || other.phase == phase)&&(identical(other.session, session) || other.session == session)&&(identical(other.reply, reply) || other.reply == reply)&&(identical(other.failure, failure) || other.failure == failure)&&(identical(other.saveFailed, saveFailed) || other.saveFailed == saveFailed)&&(identical(other.weekFirst, weekFirst) || other.weekFirst == weekFirst)&&(identical(other.weekLast, weekLast) || other.weekLast == weekLast)&&const DeepCollectionEquality().equals(other.topics, _topics)&&(identical(other.topicIndex, topicIndex) || other.topicIndex == topicIndex));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,phase,session,reply,failure,saveFailed);
+    return Object.hash(runtimeType,phase,session,reply,failure,saveFailed,weekFirst,weekLast,const DeepCollectionEquality().hash(_topics),topicIndex);
 }
 
 @override
 String toString() {
-    return 'CoachSessionState(phase: $phase, session: $session, reply: $reply, failure: $failure, saveFailed: $saveFailed)';
+    return 'CoachSessionState(phase: $phase, session: $session, reply: $reply, failure: $failure, saveFailed: $saveFailed, weekFirst: $weekFirst, weekLast: $weekLast, topics: $topics, topicIndex: $topicIndex)';
 }
 
 
@@ -288,7 +313,7 @@ abstract mixin class _$CoachSessionStateCopyWith<$Res> implements $CoachSessionS
   factory _$CoachSessionStateCopyWith(_CoachSessionState value, $Res Function(_CoachSessionState) _then) = __$CoachSessionStateCopyWithImpl;
 @override @useResult
 $Res call({
- CoachSessionPhase phase, CoachSession session, String? reply, Failure? failure, bool saveFailed
+ CoachSessionPhase phase, CoachSession session, String? reply, Failure? failure, bool saveFailed, DateTime? weekFirst, DateTime? weekLast, List<WeeklyTopic> topics, int topicIndex
 });
 
 
@@ -305,14 +330,18 @@ class __$CoachSessionStateCopyWithImpl<$Res>
 
 /// Create a copy of CoachSessionState
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? phase = null,Object? session = null,Object? reply = freezed,Object? failure = freezed,Object? saveFailed = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? phase = null,Object? session = null,Object? reply = freezed,Object? failure = freezed,Object? saveFailed = null,Object? weekFirst = freezed,Object? weekLast = freezed,Object? topics = null,Object? topicIndex = null,}) {
   return _then(_CoachSessionState(
 phase: null == phase ? _self.phase : phase // ignore: cast_nullable_to_non_nullable
 as CoachSessionPhase,session: null == session ? _self.session : session // ignore: cast_nullable_to_non_nullable
 as CoachSession,reply: freezed == reply ? _self.reply : reply // ignore: cast_nullable_to_non_nullable
 as String?,failure: freezed == failure ? _self.failure : failure // ignore: cast_nullable_to_non_nullable
 as Failure?,saveFailed: null == saveFailed ? _self.saveFailed : saveFailed // ignore: cast_nullable_to_non_nullable
-as bool,
+as bool,weekFirst: freezed == weekFirst ? _self.weekFirst : weekFirst // ignore: cast_nullable_to_non_nullable
+as DateTime?,weekLast: freezed == weekLast ? _self.weekLast : weekLast // ignore: cast_nullable_to_non_nullable
+as DateTime?,topics: null == topics ? _self._topics : topics // ignore: cast_nullable_to_non_nullable
+as List<WeeklyTopic>,topicIndex: null == topicIndex ? _self.topicIndex : topicIndex // ignore: cast_nullable_to_non_nullable
+as int,
   ));
 }
 

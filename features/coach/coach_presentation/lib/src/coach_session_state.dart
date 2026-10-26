@@ -17,6 +17,14 @@ enum CoachSessionPhase {
   /// ([CoachSessionState.failure] says why).
   failedToStart,
 
+  /// Weekly only: fewer than `weeklySessionMinCheckInDays` of the week's
+  /// days have a check-in, so the session doesn't start (#81).
+  notEnoughCheckIns,
+
+  /// Weekly only: everything is ready; waiting for the person to begin
+  /// (`startWeeklySession`).
+  awaitingStart,
+
   /// Waiting for the person's next message.
   ready,
 
@@ -62,9 +70,29 @@ abstract class CoachSessionState with _$CoachSessionState {
     /// Whether the last save to the coach history failed. The conversation
     /// carries on; the next save writes the whole session again.
     @Default(false) bool saveFailed,
+
+    /// Weekly only: the week it looks back on (its Friday), once known.
+    DateTime? weekFirst,
+
+    /// Weekly only: the week's Thursday, once known.
+    DateTime? weekLast,
+
+    /// Weekly only: the session's topics, in order (`weeklyTopicsFor`).
+    @Default(<WeeklyTopic>[]) List<WeeklyTopic> topics,
+
+    /// Weekly only: the index in [topics] of the topic under way, or `-1`
+    /// before the session begins.
+    @Default(-1) int topicIndex,
   }) = _CoachSessionState;
 
   const CoachSessionState._();
+
+  /// Weekly only: the topic under way, or `null` before it begins.
+  WeeklyTopic? get topic =>
+      topicIndex >= 0 && topicIndex < topics.length ? topics[topicIndex] : null;
+
+  /// Weekly only: whether there's a topic after the current one.
+  bool get hasNextTopic => topicIndex >= 0 && topicIndex < topics.length - 1;
 
   /// Whether the person has said anything yet. A session with nothing
   /// from them is never stored.

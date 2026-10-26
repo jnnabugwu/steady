@@ -7,7 +7,7 @@ enum CoachSessionKind {
   /// An open conversation, started whenever the person wants one.
   chat,
 
-  /// The 15-minute weekly session (product overview §6).
+  /// The 5-minute weekly session (product overview §6).
   weekly,
 }
 

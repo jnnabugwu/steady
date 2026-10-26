@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/coach_week_context.dart';
+import 'package:coach_presentation/src/coach_weekly_readiness.dart';
 import 'package:cravings_domain/cravings_domain.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_domain/metrics_domain.dart';
@@ -122,6 +123,12 @@ String randomCoachSessionId() {
   return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
       '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
+
+/// The weekly session's gate: the 4-of-7 check-in rule (#81, CLAUDE.md
+/// §4), over [coachCheckInRepositoryProvider].
+@riverpod
+CheckWeeklyReadiness coachWeeklyReadiness(Ref ref) =>
+    CheckWeeklyReadiness(ref.watch(coachCheckInRepositoryProvider));
 
 /// The use case that builds the coach's context from the four domains
 /// above (CLAUDE.md §4: it combines several repositories).

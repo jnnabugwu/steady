@@ -14,6 +14,8 @@ List<Override> coachTestOverrides({
   required FakeCoachModel model,
   required FakeCoachRepository repository,
   FakeCheckIns? checkIns,
+  FakeCravings? cravings,
+  DateTime Function()? now,
   String sessionId = 'session-1',
 }) => [
   coachSupportAvailableProvider.overrideWithValue(true),
@@ -26,7 +28,7 @@ List<Override> coachTestOverrides({
     FakeMetrics({DateTime(2026, 10, 24): 1800}),
   ),
   coachHealthKitRepositoryProvider.overrideWithValue(FakeHealth()),
-  coachCravingRepositoryProvider.overrideWithValue(FakeCravings()),
-  coachClockProvider.overrideWithValue(() => coachTestNow),
+  coachCravingRepositoryProvider.overrideWithValue(cravings ?? FakeCravings()),
+  coachClockProvider.overrideWithValue(now ?? () => coachTestNow),
   coachIdGeneratorProvider.overrideWithValue(() => sessionId),
 ];
