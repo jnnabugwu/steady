@@ -10,6 +10,7 @@ library;
 export 'src/coach_context_budget.dart';
 export 'src/coach_history_failures.dart';
 export 'src/coach_instructions.dart';
+export 'src/coach_keep_going.dart';
 export 'src/coach_model.dart';
 export 'src/coach_model_failures.dart';
 export 'src/coach_repository.dart';

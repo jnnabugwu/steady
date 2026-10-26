@@ -211,6 +211,61 @@ void main() {
     });
   });
 
+  group('context summary instructions (carried forward, never stored)', () {
+    const text = CoachInstructions.contextSummary;
+    final lower = text.toLowerCase();
+
+    void expectAll(List<String> phrases) {
+      for (final phrase in phrases) {
+        expect(lower, contains(phrase.toLowerCase()), reason: phrase);
+      }
+    }
+
+    test("don't carry the coaching rules, and don't coach or ask", () {
+      expect(text, isNot(contains(CoachInstructions.rules)));
+      expectAll(['you are not the coach', "don't coach", "don't ask anything"]);
+    });
+
+    test('keeps what the coach needs to carry on, cravings and numbers '
+        'included', () {
+      expectAll([
+        'so the coach can carry on',
+        'including cravings and any numbers they mentioned',
+      ]);
+      expect(lower, isNot(contains('leave out cravings')));
+    });
+
+    test('gives no advice, questions, judgement, streaks or praise', () {
+      expectAll([
+        'No advice, no questions and no judgement',
+        'No streaks, grades, scores or praise',
+      ]);
+    });
+
+    test('never adds calorie targets, weight goals, deficits or diets', () {
+      expectAll([
+        'Never add a calorie target',
+        'a weight goal',
+        'a calorie deficit',
+        'a diet',
+        'a meal plan',
+      ]);
+    });
+
+    test('keeps a crisis or disordered eating in view, with the help', () {
+      expectAll([
+        'disordered eating',
+        'out of control with food',
+        'a crisis',
+        'were pointed to help',
+      ]);
+    });
+
+    test('stays short enough for the on-device context', () {
+      expect(text.length, lessThan(2600));
+    });
+  });
+
   group('copy', () {
     test('the not-medical-advice note says so', () {
       expect(CoachCopy.notMedicalAdvice, contains("isn't medical advice"));

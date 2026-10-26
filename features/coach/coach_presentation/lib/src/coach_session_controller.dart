@@ -63,12 +63,12 @@ class CoachSessionController extends _$CoachSessionController {
   late CoachContextBudget _budget;
 
   /// The reply on screen, which [stopCoachReply] can stop.
-  StreamSubscription<Result<String>>? _reply;
+  StreamSubscription<Result<CoachReplySnapshot>>? _reply;
 
   /// Whichever model stream is running (the reply on screen, or a summary
   /// asked in a separate session), and its completion: cancelled on
   /// dispose.
-  StreamSubscription<Result<String>>? _active;
+  StreamSubscription<Result<CoachReplySnapshot>>? _active;
   Completer<void>? _activeDone;
 
   /// The turn or retried start in flight, which [endCoachSession] waits
@@ -198,9 +198,29 @@ class CoachSessionController extends _$CoachSessionController {
     }
   }
 
+  /// Domain event: CoachKeepGoing.
+  ///
+  /// "Keep going" under a reply cut off at the reply cap
+  /// ([CoachSessionState.replyCutOff]): the person's turn reads "Keep
+  /// going", and the coach is asked to carry on from the sentence it didn't
+  /// finish ([CoachKeepGoing]). Ignored unless the session is ready after a
+  /// cut-off reply, once ending, or once disposed.
+  Future<void> keepGoing() async {
+    if (!ref.mounted ||
+        _ending ||
+        state.phase != CoachSessionPhase.ready ||
+        !state.replyCutOff) {
+      return;
+    }
+    await _run(
+      () => _send(CoachKeepGoing.message, prompt: CoachKeepGoing.prompt),
+    );
+  }
+
   /// The person's [message]: added to the transcript and saved, then one
-  /// exchange ([_turn]).
-  Future<void> _send(String message) async {
+  /// exchange ([_turn]), which sends [prompt] to the model instead when
+  /// given ("Keep going" stores its label but asks for more).
+  Future<void> _send(String message, {String? prompt}) async {
     final said = CoachMessage(
       role: CoachMessageRole.user,
       text: message,
@@ -213,10 +233,11 @@ class CoachSessionController extends _$CoachSessionController {
       ),
       reply: null,
       failure: null,
+      replyCutOff: false,
     );
     await _save();
     if (!ref.mounted || _ending) return;
-    await _turn(message, said: said);
+    await _turn(prompt ?? message, said: said);
   }
 
   /// Domain event: WeeklySessionStarted.
@@ -279,6 +300,7 @@ class CoachSessionController extends _$CoachSessionController {
       topicIndex: index,
       reply: null,
       failure: null,
+      replyCutOff: false,
     );
     await _turn(weeklyTopicPrompt(state.topics[index]));
   }
@@ -337,7 +359,11 @@ class CoachSessionController extends _$CoachSessionController {
     // Ending stops what streams; nothing new starts after it.
     if (_ending) return;
     final prompt = _conversation!.promptFor(message, fromApp: said == null);
-    final (text, failure) = await _stream(_model!, prompt, show: true);
+    final (:text, :outputTokens, :finished, :failure) = await _stream(
+      _model!,
+      prompt,
+      show: true,
+    );
     if (!ref.mounted) return;
 
     if (failure case CoachInferenceFailure(:final reason)
@@ -352,20 +378,39 @@ class CoachSessionController extends _$CoachSessionController {
       return await _replyTo(message, said, retried: true);
     }
 
-    final reply = text.trim().isEmpty || failure != null
+    // A reply that ran into the reply cap stops mid-sentence: keep it up to
+    // its last complete sentence and offer "Keep going". Only one that
+    // ended on its own; a stopped or failed one is left as it is.
+    final cutOff =
+        failure == null &&
+        finished &&
+        CoachKeepGoing.wasCutOff(text, outputTokens: outputTokens);
+    final kept = cutOff ? CoachKeepGoing.trim(text) : text.trim();
+    final reply = kept.isEmpty || failure != null
         ? null
         : CoachMessage(
             role: CoachMessageRole.coach,
-            text: text.trim(),
+            text: kept,
             at: ref.read(coachClockProvider)(),
           );
+    final generated = cutOff ? text : null;
     _conversation = said == null
-        ? _conversation!.afterAppPrompt(prompt: prompt, reply: reply)
-        : _conversation!.afterTurn(prompt: prompt, message: said, reply: reply);
+        ? _conversation!.afterAppPrompt(
+            prompt: prompt,
+            reply: reply,
+            generated: generated,
+          )
+        : _conversation!.afterTurn(
+            prompt: prompt,
+            message: said,
+            reply: reply,
+            generated: generated,
+          );
     if (failure != null) return _replyFailed(failure);
     state = state.copyWith(
       phase: CoachSessionPhase.ready,
       reply: null,
+      replyCutOff: cutOff && reply != null,
       session: state.session.copyWith(
         messages: [...state.session.messages, ?reply],
       ),
@@ -384,19 +429,24 @@ class CoachSessionController extends _$CoachSessionController {
           ? CoachSessionPhase.failedToStart
           : CoachSessionPhase.ready,
       reply: null,
+      replyCutOff: false,
       failure: failure,
     );
   }
 
-  /// Streams the reply to [prompt] in [session]. Returns the last snapshot
-  /// (what was said before a stop, too) and the failure, if any. With
-  /// [show], each snapshot goes to [CoachSessionState.reply].
-  Future<(String, Failure?)> _stream(
+  /// Streams the reply to [prompt] in [session]. Returns the last snapshot's
+  /// text (what was said before a stop, too) and token count, whether the
+  /// reply finished on its own (not stopped or failed), and the failure,
+  /// if any. With [show], each snapshot goes to [CoachSessionState.reply].
+  Future<({String text, int? outputTokens, bool finished, Failure? failure})>
+  _stream(
     CoachModelSession session,
     String prompt, {
     required bool show,
   }) async {
     var latest = '';
+    int? outputTokens;
+    var finished = false;
     Failure? failure;
     final done = Completer<void>();
     void finish() {
@@ -409,9 +459,10 @@ class CoachSessionController extends _$CoachSessionController {
           (result) {
             switch (result) {
               case Ok(:final value):
-                latest = value;
+                latest = value.text;
+                outputTokens = value.outputTokens;
                 if (show && ref.mounted) {
-                  state = state.copyWith(reply: value);
+                  state = state.copyWith(reply: value.text);
                 }
               case Err(failure: final f):
                 // The stream ends after one Err (`CoachModel`); don't wait
@@ -426,7 +477,11 @@ class CoachSessionController extends _$CoachSessionController {
                 : UnknownFailure('The coach could not reply', cause: e);
             finish();
           },
-          onDone: finish,
+          onDone: () {
+            // Only a stream that closes by itself; a stop cancels instead.
+            finished = failure == null;
+            finish();
+          },
         );
     _active = subscription;
     _activeDone = done;
@@ -441,7 +496,12 @@ class CoachSessionController extends _$CoachSessionController {
       _activeDone = null;
     }
     if (show) _reply = null;
-    return (latest, failure);
+    return (
+      text: latest,
+      outputTokens: outputTokens,
+      finished: finished,
+      failure: failure,
+    );
   }
 
   /// Domain event: CoachReplyStopped.
@@ -479,13 +539,19 @@ class CoachSessionController extends _$CoachSessionController {
     final conversation = _conversation!;
     String? summary;
     if (summarise) {
+      // Carried forward, never stored: the context summary keeps what the
+      // coach needs, cravings and numbers included.
       summary = await _askAlone(
         coachSummaryPrompt(
           request: CoachInstructions.summaryRequest,
           messages: conversation.toSummarise,
           earlierSummary: conversation.earlierSummary,
           budget: _budget,
+          instructionTokens: estimateCoachTokens(
+            CoachInstructions.contextSummary,
+          ),
         ),
+        instructions: CoachInstructions.contextSummary,
       );
       if (!ref.mounted || _ending) return null;
     }
@@ -509,18 +575,24 @@ class CoachSessionController extends _$CoachSessionController {
     }
   }
 
-  /// Asks [prompt] in a separate model session primed with the summary
-  /// instructions ([CoachInstructions.summary], not the coaching ones), and
-  /// returns the reply, or `null` if anything fails.
-  Future<String?> _askAlone(String? prompt) async {
+  /// Asks [prompt] in a separate model session primed with summary
+  /// [instructions] (by default [CoachInstructions.summary], the stored
+  /// summary's; never the coaching ones), and returns the reply, or `null`
+  /// if anything fails.
+  Future<String?> _askAlone(
+    String? prompt, {
+    String instructions = CoachInstructions.summary,
+  }) async {
     if (prompt == null) return null;
     final api = _api;
-    final started = await api.startSession(
-      instructions: CoachInstructions.summary,
-    );
+    final started = await api.startSession(instructions: instructions);
     if (started case Ok(:final value)) {
       try {
-        final (text, failure) = await _stream(value, prompt, show: false);
+        final (:text, :failure, outputTokens: _, finished: _) = await _stream(
+          value,
+          prompt,
+          show: false,
+        );
         final trimmed = text.trim();
         return failure == null && trimmed.isNotEmpty ? trimmed : null;
       } finally {

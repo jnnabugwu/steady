@@ -267,10 +267,15 @@ class CoachConversation {
 
   /// The conversation after [prompt] was sent for [message] and [reply]
   /// came back (the reply may be partial if it was stopped, or empty).
+  ///
+  /// [generated] is what the model actually produced when [reply] keeps
+  /// less (a cut-off reply trimmed by `CoachKeepGoing.trim`): the model's
+  /// own transcript holds all of it, so that's what the window counts.
   CoachConversation afterTurn({
     required String prompt,
     required CoachMessage message,
     required CoachMessage? reply,
+    String? generated,
   }) => CoachConversation._(
     instructions: instructions,
     earlierSummary: earlierSummary,
@@ -279,7 +284,7 @@ class CoachConversation {
     sessionTokens:
         sessionTokens +
         estimateCoachTokens(prompt) +
-        estimateCoachTokens(reply?.text ?? '') +
+        estimateCoachTokens(generated ?? reply?.text ?? '') +
         2 * coachTurnOverheadTokens,
   );
 
@@ -324,10 +329,11 @@ class CoachConversation {
   /// The conversation after the app itself prompted the coach ([prompt],
   /// e.g. the weekly session's opening or its move to the next topic) and
   /// it said [reply]. The prompt isn't one of the person's messages, so
-  /// only the reply joins the window.
+  /// only the reply joins the window. [generated] as for [afterTurn].
   CoachConversation afterAppPrompt({
     required String prompt,
     required CoachMessage? reply,
+    String? generated,
   }) => CoachConversation._(
     instructions: instructions,
     earlierSummary: earlierSummary,
@@ -336,7 +342,7 @@ class CoachConversation {
     sessionTokens:
         sessionTokens +
         estimateCoachTokens(prompt) +
-        estimateCoachTokens(reply?.text ?? '') +
+        estimateCoachTokens(generated ?? reply?.text ?? '') +
         2 * coachTurnOverheadTokens,
   );
 

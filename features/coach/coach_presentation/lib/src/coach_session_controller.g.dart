@@ -192,7 +192,7 @@ final class CoachSessionControllerProvider
 }
 
 String _$coachSessionControllerHash() =>
-    r'3dd388a027c215820b193db6acaebc41408243bd';
+    r'b9b3e836078d84df670e69a48727c625867fbfc7';
 
 /// A live coach session on the iPhone: a chat or the weekly session, from
 /// opening the screen to its stored summary.

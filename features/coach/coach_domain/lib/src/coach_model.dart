@@ -28,15 +28,15 @@ abstract class CoachModel {
 
   /// Streams the reply to [prompt] in [session].
   ///
-  /// Each `Ok` is a **snapshot**: the whole reply so far, not just the new
-  /// text, so show the latest one and replace the previous. The stream
+  /// Each `Ok` is a [CoachReplySnapshot]: the whole reply so far, not just
+  /// the new text, so show the latest one and replace the previous. The stream
   /// closes after the last snapshot. On failure it emits one `Err` and
   /// closes. Cancelling the subscription, or [cancelResponse], stops the
   /// model; the stream then closes without an `Err`.
   ///
   /// One response at a time across the app: starting another stream
   /// cancels the one in flight.
-  Stream<Result<String>> streamResponse(
+  Stream<Result<CoachReplySnapshot>> streamResponse(
     CoachModelSession session,
     String prompt,
   );
@@ -75,4 +75,21 @@ abstract class CoachModelSession with _$CoachModelSession {
     /// The native side's id for the session.
     required String id,
   }) = _CoachModelSession;
+}
+
+/// One snapshot of a reply as it streams ([CoachModel.streamResponse]).
+@freezed
+abstract class CoachReplySnapshot with _$CoachReplySnapshot {
+  /// Creates a snapshot of the reply so far.
+  const factory CoachReplySnapshot({
+    /// The whole reply so far.
+    required String text,
+
+    /// How many tokens the model has generated for this reply so far, where
+    /// the model reports it (Foundation Models' `Snapshot.usage`, iOS 27 and
+    /// later), or `null` (iOS 26). Foundation Models gives no reason when a
+    /// reply stops, so this count reaching the reply cap is the only signal
+    /// that a reply was cut off there (`CoachKeepGoing.wasCutOff`).
+    int? outputTokens,
+  }) = _CoachReplySnapshot;
 }

@@ -548,4 +548,283 @@ as String,
 
 }
 
+/// @nodoc
+mixin _$CoachReplySnapshot {
+
+/// The whole reply so far.
+ String get text;/// How many tokens the model has generated for this reply so far, where
+/// the model reports it (Foundation Models' `Snapshot.usage`, iOS 27 and
+/// later), or `null` (iOS 26). Foundation Models gives no reason when a
+/// reply stops, so this count reaching the reply cap is the only signal
+/// that a reply was cut off there (`CoachKeepGoing.wasCutOff`).
+ int? get outputTokens;
+/// Create a copy of CoachReplySnapshot
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$CoachReplySnapshotCopyWith<CoachReplySnapshot> get copyWith => _$CoachReplySnapshotCopyWithImpl<CoachReplySnapshot>(this as CoachReplySnapshot, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  final _this = this as CoachReplySnapshot;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoachReplySnapshot&&(identical(other.text, _this.text) || other.text == _this.text)&&(identical(other.outputTokens, _this.outputTokens) || other.outputTokens == _this.outputTokens));
+}
+
+
+@override
+int get hashCode {
+  final _this = this as CoachReplySnapshot;
+  return Object.hash(runtimeType,_this.text,_this.outputTokens);
+}
+
+@override
+String toString() {
+  final _this = this as CoachReplySnapshot;
+  return 'CoachReplySnapshot(text: ${_this.text}, outputTokens: ${_this.outputTokens})';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $CoachReplySnapshotCopyWith<$Res>  {
+  factory $CoachReplySnapshotCopyWith(CoachReplySnapshot value, $Res Function(CoachReplySnapshot) _then) = _$CoachReplySnapshotCopyWithImpl;
+@useResult
+$Res call({
+ String text, int? outputTokens
+});
+
+
+
+
+}
+/// @nodoc
+class _$CoachReplySnapshotCopyWithImpl<$Res>
+    implements $CoachReplySnapshotCopyWith<$Res> {
+  _$CoachReplySnapshotCopyWithImpl(this._self, this._then);
+
+  final CoachReplySnapshot _self;
+  final $Res Function(CoachReplySnapshot) _then;
+
+/// Create a copy of CoachReplySnapshot
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') @override $Res call({Object? text = null,Object? outputTokens = freezed,}) {
+  return _then(CoachReplySnapshot(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,outputTokens: freezed == outputTokens ? _self.outputTokens : outputTokens // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+}
+
+
+/// Adds pattern-matching-related methods to [CoachReplySnapshot].
+extension CoachReplySnapshotPatterns on CoachReplySnapshot {
+/// A variant of `map` that fallback to returning `orElse`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _CoachReplySnapshot value)?  $default,{required TResult orElse(),}){
+final _that = this;
+switch (_that) {
+case _CoachReplySnapshot() when $default != null:
+return $default(_that);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// Callbacks receives the raw object, upcasted.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case final Subclass2 value:
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _CoachReplySnapshot value)  $default,){
+final _that = this;
+switch (_that) {
+case _CoachReplySnapshot():
+return $default(_that);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `map` that fallback to returning `null`.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case final Subclass value:
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _CoachReplySnapshot value)?  $default,){
+final _that = this;
+switch (_that) {
+case _CoachReplySnapshot() when $default != null:
+return $default(_that);case _:
+  return null;
+
+}
+}
+/// A variant of `when` that fallback to an `orElse` callback.
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return orElse();
+/// }
+/// ```
+
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( String text,  int? outputTokens)?  $default,{required TResult orElse(),}) {final _that = this;
+switch (_that) {
+case _CoachReplySnapshot() when $default != null:
+return $default(_that.text,_that.outputTokens);case _:
+  return orElse();
+
+}
+}
+/// A `switch`-like method, using callbacks.
+///
+/// As opposed to `map`, this offers destructuring.
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case Subclass2(:final field2):
+///     return ...;
+/// }
+/// ```
+
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( String text,  int? outputTokens)  $default,) {final _that = this;
+switch (_that) {
+case _CoachReplySnapshot():
+return $default(_that.text,_that.outputTokens);case _:
+  throw StateError('Unexpected subclass');
+
+}
+}
+/// A variant of `when` that fallback to returning `null`
+///
+/// It is equivalent to doing:
+/// ```dart
+/// switch (sealedClass) {
+///   case Subclass(:final field):
+///     return ...;
+///   case _:
+///     return null;
+/// }
+/// ```
+
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( String text,  int? outputTokens)?  $default,) {final _that = this;
+switch (_that) {
+case _CoachReplySnapshot() when $default != null:
+return $default(_that.text,_that.outputTokens);case _:
+  return null;
+
+}
+}
+
+}
+
+/// @nodoc
+
+
+class _CoachReplySnapshot implements CoachReplySnapshot {
+  const _CoachReplySnapshot({required this.text, this.outputTokens});
+  
+
+/// The whole reply so far.
+@override final  String text;
+/// How many tokens the model has generated for this reply so far, where
+/// the model reports it (Foundation Models' `Snapshot.usage`, iOS 27 and
+/// later), or `null` (iOS 26). Foundation Models gives no reason when a
+/// reply stops, so this count reaching the reply cap is the only signal
+/// that a reply was cut off there (`CoachKeepGoing.wasCutOff`).
+@override final  int? outputTokens;
+
+/// Create a copy of CoachReplySnapshot
+/// with the given fields replaced by the non-null parameter values.
+@override @JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+_$CoachReplySnapshotCopyWith<_CoachReplySnapshot> get copyWith => __$CoachReplySnapshotCopyWithImpl<_CoachReplySnapshot>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoachReplySnapshot&&(identical(other.text, text) || other.text == text)&&(identical(other.outputTokens, outputTokens) || other.outputTokens == outputTokens));
+}
+
+
+@override
+int get hashCode {
+    return Object.hash(runtimeType,text,outputTokens);
+}
+
+@override
+String toString() {
+    return 'CoachReplySnapshot(text: $text, outputTokens: $outputTokens)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class _$CoachReplySnapshotCopyWith<$Res> implements $CoachReplySnapshotCopyWith<$Res> {
+  factory _$CoachReplySnapshotCopyWith(_CoachReplySnapshot value, $Res Function(_CoachReplySnapshot) _then) = __$CoachReplySnapshotCopyWithImpl;
+@override @useResult
+$Res call({
+ String text, int? outputTokens
+});
+
+
+
+
+}
+/// @nodoc
+class __$CoachReplySnapshotCopyWithImpl<$Res>
+    implements _$CoachReplySnapshotCopyWith<$Res> {
+  __$CoachReplySnapshotCopyWithImpl(this._self, this._then);
+
+  final _CoachReplySnapshot _self;
+  final $Res Function(_CoachReplySnapshot) _then;
+
+/// Create a copy of CoachReplySnapshot
+/// with the given fields replaced by the non-null parameter values.
+@override @pragma('vm:prefer-inline') $Res call({Object? text = null,Object? outputTokens = freezed,}) {
+  return _then(_CoachReplySnapshot(
+text: null == text ? _self.text : text // ignore: cast_nullable_to_non_nullable
+as String,outputTokens: freezed == outputTokens ? _self.outputTokens : outputTokens // ignore: cast_nullable_to_non_nullable
+as int?,
+  ));
+}
+
+
+}
+
 // dart format on

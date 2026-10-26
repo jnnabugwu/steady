@@ -229,12 +229,14 @@ void main() {
       expect(bySession.length, greaterThan(5));
       for (final MapEntry(key: id, value: prompts) in bySession.entries) {
         final instructions = model.instructions[int.parse(id.substring(1))];
-        // Summaries run under the summary instructions, never the coaching
-        // ones (which ask for questions); every other session coaches.
+        // A move's summary runs under the carried-forward summary
+        // instructions (it keeps cravings and numbers; the stored end
+        // summary's don't), never the coaching ones, which ask for
+        // questions; every other session coaches.
         expect(
           instructions,
           prompts.first.startsWith(CoachInstructions.summaryRequest)
-              ? CoachInstructions.summary
+              ? CoachInstructions.contextSummary
               : startsWith(CoachInstructions.chat),
           reason: 'session $id',
         );
@@ -297,6 +299,89 @@ void main() {
       final controller = await start();
       await controller.stopCoachReply();
       expect(state().phase, CoachSessionPhase.ready);
+    });
+  });
+
+  group('a reply cut off at the reply cap ("Keep going")', () {
+    // Two full sentences, then one the cap cut in half.
+    const cut = 'You logged five days. Steps were steady. On Friday you';
+
+    test("the model's token count at the cap: stored up to the last full "
+        'sentence, and Keep going is offered', () async {
+      model
+        ..replyFor = ((_) => cut)
+        ..outputTokensNext = coachMaxReplyTokens;
+      final controller = await start();
+      await controller.sendCoachMessage('How was my week?');
+
+      expect(state().replyCutOff, isTrue);
+      expect(
+        state().session.messages.last.text,
+        'You logged five days. Steps were steady.',
+      );
+      expect(
+        repository.sessions.single.messages.last.text,
+        'You logged five days. Steps were steady.',
+      );
+    });
+
+    test('without a token count (iOS 26), a long reply that stops '
+        'mid-sentence counts as cut off', () async {
+      final long = '${'You logged most days this week. ' * 40}On Friday you';
+      model.replyFor = (_) => long;
+      final controller = await start();
+      await controller.sendCoachMessage('How was my week?');
+
+      expect(state().replyCutOff, isTrue);
+      expect(state().session.messages.last.text, endsWith('this week.'));
+    });
+
+    test('a complete reply, or a short one, is left alone', () async {
+      model.replyFor = (_) => 'You logged five days';
+      final controller = await start();
+      await controller.sendCoachMessage('How was my week?');
+      expect(state().replyCutOff, isFalse);
+      expect(state().session.messages.last.text, 'You logged five days');
+    });
+
+    test('a reply the person stopped is never "cut off"', () async {
+      model.manualReplies = true;
+      final controller = await start();
+      unawaited(controller.sendCoachMessage('Tell me about Tuesday.'));
+      await pumpEventQueue();
+      model.reply(cut, outputTokens: coachMaxReplyTokens);
+      await pumpEventQueue();
+      await controller.stopCoachReply();
+      await pumpEventQueue();
+      expect(state().replyCutOff, isFalse);
+      expect(state().session.messages.last.text, cut);
+    });
+
+    test('Keep going: the person\'s turn reads "Keep going", the coach is '
+        'asked to carry on, and the offer goes away', () async {
+      model
+        ..replyFor = ((_) => cut)
+        ..outputTokensNext = coachMaxReplyTokens;
+      final controller = await start();
+      await controller.sendCoachMessage('How was my week?');
+      model.replyFor = (_) => 'On Friday you logged partly. That counts.';
+
+      await controller.keepGoing();
+      expect(model.prompts.last.prompt, contains(CoachKeepGoing.prompt));
+      final texts = state().session.messages.map((m) => m.text).toList();
+      expect(texts.sublist(texts.length - 2), [
+        CoachKeepGoing.message,
+        'On Friday you logged partly. That counts.',
+      ]);
+      expect(state().replyCutOff, isFalse);
+    });
+
+    test('Keep going is ignored when the last reply was complete', () async {
+      final controller = await start();
+      await controller.sendCoachMessage('Hi');
+      final sent = model.prompts.length;
+      await controller.keepGoing();
+      expect(model.prompts, hasLength(sent));
     });
   });
 

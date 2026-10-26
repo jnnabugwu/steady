@@ -80,6 +80,21 @@ How you write:
   static const String summaryRequest =
       'Summarise the conversation below in two or three short, neutral '
       'sentences, following your instructions.';
+
+  /// The instructions for the summary a long chat carries forward when its
+  /// older turns move out of the model's context window
+  /// (`CoachConversation`). Never stored, shown or exported: it only goes
+  /// into the next model session's first prompt, so unlike [summary] it
+  /// keeps what the coach needs to carry on, cravings and the numbers that
+  /// were talked about included. The same safety lines still apply.
+  static const String contextSummary = '''
+You write a short note of a conversation between a person and Steady's coach, so the coach can carry on from it later. In this task you are not the coach: don't reply to the person, don't coach and don't ask anything.
+
+How you write:
+- Two or three short, neutral sentences: what was talked about, including cravings and any numbers they mentioned, and anything they chose to try.
+- No advice, no questions and no judgement. No streaks, grades, scores or praise.
+- Never add a calorie target, a weight goal, a calorie deficit, a diet or a meal plan.
+- If they talked about disordered eating, feeling out of control with food, or a crisis, say so plainly, and that they were pointed to help.''';
 }
 
 /// User-facing coach copy that has to match the instructions above, kept

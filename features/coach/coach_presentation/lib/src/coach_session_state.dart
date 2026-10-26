@@ -71,6 +71,11 @@ abstract class CoachSessionState with _$CoachSessionState {
     /// carries on; the next save writes the whole session again.
     @Default(false) bool saveFailed,
 
+    /// Whether the coach's last reply was cut off at the reply cap
+    /// (`CoachKeepGoing`). It's stored trimmed to its last complete
+    /// sentence, and the screen offers "Keep going".
+    @Default(false) bool replyCutOff,
+
     /// Weekly only: the week it looks back on (its Friday), once known.
     DateTime? weekFirst,
 

@@ -75,6 +75,9 @@ void main() {
     Err(:final failure) => fail('Expected Ok, got $failure'),
   };
 
+  /// A snapshot event's reply text.
+  String text(Result<CoachReplySnapshot> result) => okValue(result).text;
+
   Failure errFailure<T>(Result<T> result) => switch (result) {
     Ok(:final value) => fail('Expected Err, got Ok($value)'),
     Err(:final failure) => failure,
@@ -214,11 +217,28 @@ void main() {
         'maximumResponseTokens': 512,
         'requestId': isA<int>(),
       });
-      expect(events.map(okValue), [
+      expect(events.map(text), [
         'Hi',
         'Hi there',
         'Hi there. How did the week feel?',
       ]);
+    });
+
+    test("passes the model's output token count through, where it sends "
+        'one (iOS 27), and null where it does not (iOS 26)', () async {
+      stream((args, sink) {
+        sink
+          ..success(snapshot(args, 'Hi'))
+          ..success({...snapshot(args, 'Hi there'), 'outputTokens': 512})
+          ..success({...snapshot(args, 'Hi there.'), 'outputTokens': 'x'})
+          ..success(done(args));
+      });
+      final events = await model.streamResponse(session, 'Hello').toList();
+      expect(events.map((e) => okValue(e).outputTokens), [null, 512, null]);
+      expect(
+        okValue(events[1]),
+        const CoachReplySnapshot(text: 'Hi there', outputTokens: 512),
+      );
     });
 
     test('every listen gets a new request id', () async {
@@ -238,7 +258,7 @@ void main() {
       final sinks = <MockStreamHandlerEventSink>[];
       stream((_, sink) => sinks.add(sink));
 
-      final first = <Result<String>>[];
+      final first = <Result<CoachReplySnapshot>>[];
       var firstDone = false;
       model
           .streamResponse(session, 'Summarise')
@@ -246,7 +266,7 @@ void main() {
       await pumpEventQueue();
       expect(firstDone, isFalse);
 
-      final second = <Result<String>>[];
+      final second = <Result<CoachReplySnapshot>>[];
       model
           .streamResponse(const CoachModelSession(id: 's2'), 'Hello')
           .listen(second.add);
@@ -264,7 +284,7 @@ void main() {
       // now owns.
       sinks.last.success(snapshot(listens.last, 'Hi'));
       await pumpEventQueue();
-      expect(second.map(okValue), ['Hi']);
+      expect(second.map(text), ['Hi']);
     });
 
     test("late events from a displaced reply, its done included, don't "
@@ -279,7 +299,7 @@ void main() {
       await pumpEventQueue();
       final firstArgs = listens.single;
 
-      final second = <Result<String>>[];
+      final second = <Result<CoachReplySnapshot>>[];
       var secondDone = false;
       model
           .streamResponse(session, 'Hello')
@@ -299,7 +319,7 @@ void main() {
         ..success(snapshot(secondArgs, 'Hi'))
         ..success(done(secondArgs));
       await pumpEventQueue();
-      expect(second.map(okValue), ['Hi']);
+      expect(second.map(text), ['Hi']);
       expect(secondDone, isTrue);
     });
 
@@ -326,7 +346,7 @@ void main() {
         });
         final events = await model.streamResponse(session, 'Hi').toList();
         expect(events, hasLength(2));
-        expect(okValue(events.first), 'Partial');
+        expect(text(events.first), 'Partial');
         final failure = errFailure(events.last);
         expect(failure, isA<CoachInferenceFailure>());
         expect((failure as CoachInferenceFailure).reason, reason);
@@ -380,11 +400,11 @@ void main() {
     test('cancelling the subscription cancels the native stream, with the '
         "listen's request id", () async {
       stream((args, sink) => sink.success(snapshot(args, 'Thinking')));
-      final first = Completer<Result<String>>();
+      final first = Completer<Result<CoachReplySnapshot>>();
       final subscription = model
           .streamResponse(session, 'Hi')
           .listen(first.complete);
-      expect(okValue(await first.future), 'Thinking');
+      expect(text(await first.future), 'Thinking');
       await subscription.cancel();
       expect(cancels, [listens.single]);
     });
@@ -414,7 +434,7 @@ void main() {
           return null;
         });
 
-        final events = <Result<String>>[];
+        final events = <Result<CoachReplySnapshot>>[];
         var closed = false;
         model
             .streamResponse(session, 'Hi')
@@ -427,7 +447,7 @@ void main() {
             : await model.endSession(session);
         expect(okValue(stopped), unit);
         await pumpEventQueue();
-        expect(events.map(okValue), ['Thinking']);
+        expect(events.map(text), ['Thinking']);
         expect(closed, isTrue);
       });
     }

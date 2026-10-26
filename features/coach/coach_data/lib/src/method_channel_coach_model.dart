@@ -89,7 +89,7 @@ class MethodChannelCoachModel implements CoachModel {
   }
 
   @override
-  Stream<Result<String>> streamResponse(
+  Stream<Result<CoachReplySnapshot>> streamResponse(
     CoachModelSession session,
     String prompt,
   ) async* {
@@ -107,7 +107,13 @@ class MethodChannelCoachModel implements CoachModel {
       })) {
         switch (event) {
           case {'requestId': int(), 'snapshot': final String snapshot}:
-            yield Ok(snapshot);
+            final tokens = event['outputTokens'];
+            yield Ok(
+              CoachReplySnapshot(
+                text: snapshot,
+                outputTokens: tokens is int ? tokens : null,
+              ),
+            );
           case {'requestId': int(), 'done': true}:
             return;
           case {'requestId': int(), 'error': final String code}:

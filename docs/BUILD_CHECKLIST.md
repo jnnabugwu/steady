@@ -218,6 +218,11 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       line when guardrails stop a reply.
 - [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
       Intelligence off / model not ready).
+- [x] Replies cut off at the 512-token cap: trimmed to the last full sentence, with a
+      **Keep going** button (`CoachKeepGoing`). A long chat's carried summary keeps
+      cravings and numbers (`CoachInstructions.contextSummary`); the stored one doesn't.
+- [ ] On a supported iPhone: iOS 27's output token count reaching the cap (the reliable
+      cut-off signal), and the iOS 26 fallback, both unverified on a real model.
 - [x] `coach_presentation`: the weekly 5-minute session (#81). The last completed
       Friday→Thursday week; doesn't start with fewer than 4 of 7 days checked in
       (`CheckWeeklyReadiness`); logging, steps, cravings (when there were any) and next week

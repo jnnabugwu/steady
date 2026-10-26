@@ -36,9 +36,10 @@ import FoundationModels
 /// event is a map tagged with the listen's `requestId` (an Int the Dart
 /// side picks per listen), so Dart can drop events from a reply it has
 /// already moved past:
-/// - `{requestId, snapshot}`: the **whole reply so far**
+/// - `{requestId, snapshot, outputTokens?}`: the **whole reply so far**
 ///   (`streamResponse(to:)` yields cumulative snapshots, and they're
-///   forwarded as is);
+///   forwarded as is), with the tokens generated so far from iOS 27 on
+///   (`Snapshot.usage`; absent on iOS 26);
 /// - `{requestId, done: true}`: the reply finished;
 /// - `{requestId, error, message, reason}`: the reply failed. `error` is
 ///   `contextExceeded`, `guardrailViolation`, `refusal`,
@@ -284,8 +285,15 @@ private final class CoachHandler: NSObject, FlutterStreamHandler {
     do {
       for try await snapshot in session.streamResponse(to: prompt, options: options) {
         if Task.isCancelled { return true }
-        // The whole reply so far, not a delta (see the type's doc).
-        reply.snapshot(snapshot.content)
+        // The whole reply so far, not a delta (see the type's doc), and,
+        // from iOS 27, how many tokens it has used: Foundation Models gives
+        // no stop reason, so that count reaching `maximumResponseTokens` is
+        // the only sign a reply was cut off there (`CoachKeepGoing`).
+        var outputTokens: Int?
+        if #available(iOS 27.0, *) {
+          outputTokens = snapshot.usage.output.totalTokenCount
+        }
+        reply.snapshot(snapshot.content, outputTokens: outputTokens)
       }
       // A cancelled stream ends without throwing.
       if Task.isCancelled { return true }
@@ -359,8 +367,10 @@ private struct ReplySink {
   let requestID: Int?
   let events: FlutterEventSink
 
-  func snapshot(_ text: String) {
-    send(["snapshot": text])
+  func snapshot(_ text: String, outputTokens: Int?) {
+    var event: [String: Any] = ["snapshot": text]
+    if let outputTokens = outputTokens { event["outputTokens"] = outputTokens }
+    send(event)
   }
 
   func done() {
