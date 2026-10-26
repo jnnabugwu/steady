@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+3
+version: 1.0.0+4
 
 environment:
   sdk: ^3.13.0
@@ -40,6 +40,12 @@ dependencies:
     path: ../features/checkin/checkin_domain
   checkin_presentation:
     path: ../features/checkin/checkin_presentation
+  coach_data:
+    path: ../features/coach/coach_data
+  coach_domain:
+    path: ../features/coach/coach_domain
+  coach_presentation:
+    path: ../features/coach/coach_presentation
 
   cravings_data:
     path: ../features/cravings/cravings_data
@@ -96,6 +102,7 @@ dependencies:
 
   ui_kit:
     path: ../packages/shared/ui_kit
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   build_runner: ^2.16.2

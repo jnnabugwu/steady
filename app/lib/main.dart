@@ -4,6 +4,12 @@ import 'dart:io';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_presentation/coach_presentation.dart'
+    show
+        coachAvailabilityProvider,
+        coachNudgeProvider,
+        coachSupportAvailableProvider,
+        weeklyReadinessProvider;
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,6 +168,10 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         );
         _refreshHealth();
         _rollOverDay();
+        // The person may have turned Apple Intelligence on meanwhile.
+        if (ref.read(coachSupportAvailableProvider)) {
+          ref.invalidate(coachAvailabilityProvider);
+        }
       },
     );
     _refreshHealth();
@@ -169,9 +179,17 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
   }
 
   /// Moves `checkInTodayProvider` to the new day if the date has changed,
-  /// then sets the timer for the next midnight again.
+  /// then sets the timer for the next midnight again. The coach's nudge is
+  /// read again too: it depends on the day (Friday to Sunday, "Not tonight"
+  /// lasts one day, a new week begins on Friday), and its clock is a plain
+  /// function Riverpod can't watch for a change of date.
   void _rollOverDay() {
     ref.read(checkInTodayProvider.notifier).refreshToday();
+    if (ref.read(coachSupportAvailableProvider)) {
+      ref
+        ..invalidate(weeklyReadinessProvider)
+        ..invalidate(coachNudgeProvider);
+    }
     _scheduleMidnight();
   }
 

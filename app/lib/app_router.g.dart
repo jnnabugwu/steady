@@ -6,7 +6,11 @@ part of 'app_router.dart';
 // GoRouterGenerator
 // **************************************************************************
 
-List<RouteBase> get $appRoutes => [$appShellRoute, $importRoute];
+List<RouteBase> get $appRoutes => [
+  $appShellRoute,
+  $coachWeeklyRoute,
+  $importRoute,
+];
 
 RouteBase get $appShellRoute => StatefulShellRouteData.$route(
   factory: $AppShellRouteExtension._fromState,
@@ -39,6 +43,28 @@ RouteBase get $appShellRoute => StatefulShellRouteData.$route(
           path: '/week',
           hasOverriddenOnExit: false,
           factory: $WeekRoute._fromState,
+        ),
+      ],
+    ),
+    StatefulShellBranchData.$branch(
+      routes: [
+        GoRouteData.$route(
+          path: '/coach',
+          hasOverriddenOnExit: false,
+          factory: $CoachRoute._fromState,
+          routes: [
+            GoRouteData.$route(
+              path: 'chat',
+              hasOverriddenOnExit: false,
+              parentNavigatorKey: CoachChatRoute.$parentNavigatorKey,
+              factory: $CoachChatRoute._fromState,
+            ),
+            GoRouteData.$route(
+              path: 'sessions/:sessionId',
+              hasOverriddenOnExit: false,
+              factory: $CoachTranscriptRoute._fromState,
+            ),
+          ],
         ),
       ],
     ),
@@ -144,11 +170,104 @@ mixin $WeekRoute on GoRouteData {
   void replace(BuildContext context) => context.replace(location);
 }
 
+mixin $CoachRoute on GoRouteData {
+  static CoachRoute _fromState(GoRouterState state) => const CoachRoute();
+
+  @override
+  String get location => GoRouteData.$location('/coach');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CoachChatRoute on GoRouteData {
+  static CoachChatRoute _fromState(GoRouterState state) =>
+      const CoachChatRoute();
+
+  @override
+  String get location => GoRouteData.$location('/coach/chat');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CoachTranscriptRoute on GoRouteData {
+  static CoachTranscriptRoute _fromState(GoRouterState state) =>
+      CoachTranscriptRoute(sessionId: state.pathParameters['sessionId']!);
+
+  CoachTranscriptRoute get _self => this as CoachTranscriptRoute;
+
+  @override
+  String get location => GoRouteData.$location(
+    '/coach/sessions/${Uri.encodeComponent(_self.sessionId)}',
+  );
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
 mixin $SettingsRoute on GoRouteData {
   static SettingsRoute _fromState(GoRouterState state) => const SettingsRoute();
 
   @override
   String get location => GoRouteData.$location('/settings');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $coachWeeklyRoute => GoRouteData.$route(
+  path: '/weekly-check-in',
+  hasOverriddenOnExit: false,
+  factory: $CoachWeeklyRoute._fromState,
+);
+
+mixin $CoachWeeklyRoute on GoRouteData {
+  static CoachWeeklyRoute _fromState(GoRouterState state) =>
+      const CoachWeeklyRoute();
+
+  @override
+  String get location => GoRouteData.$location('/weekly-check-in');
 
   @override
   void go(BuildContext context) => context.go(location);

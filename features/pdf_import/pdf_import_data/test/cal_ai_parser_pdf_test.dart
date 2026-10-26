@@ -51,10 +51,8 @@ void main() {
 /// A minimal PDF 1.4 file: one page per entry in [pages], each line drawn in
 /// Helvetica at its own baseline, with a correct xref table.
 Uint8List _buildPdf(List<List<String>> pages) {
-  String escape(String s) => s
-      .replaceAll(r'\', r'\\')
-      .replaceAll('(', r'\(')
-      .replaceAll(')', r'\)');
+  String escape(String s) =>
+      s.replaceAll(r'\', r'\\').replaceAll('(', r'\(').replaceAll(')', r'\)');
 
   // Object numbers: 1 catalog, 2 page tree, 3 font, then per page
   // (page, content stream) pairs.

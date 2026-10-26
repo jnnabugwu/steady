@@ -235,21 +235,25 @@ abstract final class SteadyRadii {
   /// Floating tab bar: 32px (64px tall, so a full pill).
   static const tabBar = 32.0;
 
-  /// Chat bubbles: asymmetric radius for a tail effect,
-  /// 18px 18px 18px 6px (incoming). Unchanged from Pass 01.
+  /// Chat bubbles: asymmetric radius for a tail effect, CSS
+  /// `18px 18px 18px 6px` (incoming, the coach's, aligned left). CSS lists
+  /// corners top-left, top-right, bottom-right, bottom-left, so the small
+  /// corner is the bottom left, on the side the bubble hangs from.
+  /// Unchanged from Pass 01.
   static const chatBubble = BorderRadius.only(
     topLeft: Radius.circular(18),
     topRight: Radius.circular(18),
-    bottomLeft: Radius.circular(18),
-    bottomRight: Radius.circular(6),
+    bottomRight: Radius.circular(18),
+    bottomLeft: Radius.circular(6),
   );
 
-  /// [chatBubble] mirrored, for outgoing messages.
+  /// [chatBubble] mirrored, for outgoing messages (the person's, aligned
+  /// right): CSS `18px 18px 6px 18px`, the small corner bottom right.
   static const chatBubbleMirrored = BorderRadius.only(
     topLeft: Radius.circular(18),
     topRight: Radius.circular(18),
-    bottomLeft: Radius.circular(6),
-    bottomRight: Radius.circular(18),
+    bottomRight: Radius.circular(6),
+    bottomLeft: Radius.circular(18),
   );
 
   /// Small indicators (status dots, legend swatches): 5px. Unchanged from

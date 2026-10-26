@@ -138,9 +138,10 @@ steady/
 ```
 
 Each `*_presentation` package that needs a repository declares its providers in
-`lib/src/providers.dart` (§9): `checkin_presentation`, `cravings_presentation`,
-`metrics_presentation` and `pdf_import_presentation` today. `coach_presentation` has none yet, because
-`coach_domain` has no repository interface. Generated files (`*.g.dart`,
+`lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation` (the coach
+store, the on-device model and the context's sources, all bound on iOS only; the sources
+to the owning features' own repositories), `cravings_presentation`,
+`metrics_presentation` and `pdf_import_presentation` today. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
 
@@ -313,6 +314,8 @@ copy:
 | `healthKitRepositoryProvider` (declared directly in `app/lib/providers.dart`; `null` except on iOS) | `keepAlive: true` | Same reason: cheap and stateless. `health_sync` is headless, so the app layer declares it (§9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
+| `coachNudgeDismissalProvider` ("Not tonight") | `keepAlive: true` | Holds the day the nudge was dismissed; it has to outlive Today's rebuilds. In memory only, so a relaunch shows the nudge again. |
+| `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
 
 Never mark a **family** `keepAlive`. Every argument value would live forever. If a family
@@ -369,11 +372,21 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
-  // The app chooses what completion means. Today: nothing, so the screen stays up
-  // showing the logged status. Another route might pop, or go somewhere else.
+  // The app chooses what completion means. Today: the screen stays up showing the
+  // logged status, and the coach's weekly readiness is read again (a past day's
+  // check-in can change it). Another route might pop, or go somewhere else.
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CheckInModule(date: date, onCheckInCompleted: () {});
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return CheckInModule(
+      date: date,
+      onCheckInCompleted: () {
+        if (container.read(coachSupportAvailableProvider)) {
+          container.invalidate(weeklyReadinessProvider);
+        }
+      },
+    );
+  }
 }
 ```
 
@@ -397,9 +410,10 @@ Facts about that route worth knowing before adding the next one:
   (`redirectMalformedCheckIn`) sends a `/checkin/<segment>` with no valid leading date
   (e.g. `/checkin/garbage`, `/checkin/2026-02-30`) to `/`, so `CheckInRoute` is never
   built for it.
-- **`onCheckInCompleted` is a no-op today.** It stays on `CheckInModule` as the
-  feature's callback contract; the route passes `() {}`. `CheckInModule` normalizes
-  `date` to midnight itself, for its provider key.
+- **`onCheckInCompleted` only refreshes the coach's weekly readiness** (iPhone): a
+  past day's check-in can change whether last week passes the 4-of-7 rule behind
+  Today's coach nudge. The screen itself stays up. `CheckInModule` normalizes `date`
+  to midnight itself, for its provider key.
 - When a callback does need a provider (e.g. `HomeRoute`'s import refresh), read the
   container once in `build` with `ProviderScope.containerOf(context, listen: false)`
   and close over it. An `Err` with no UI to show it in is reported via
@@ -417,9 +431,16 @@ deep linking at all.
 
 **Tabs.** `AppShellRoute` is a typed `StatefulShellRoute` (`app/lib/app_router.dart`),
 laid out by `AppShell` (`app/lib/app_shell.dart`) with the floating `GlassTabBar` over
-its content. Three branches, one per tab, each with its own navigation stack: Today
-(`/`, `HomeRoute`), Week (`/week`, `WeekRoute`, the metrics history) and Settings
-(`/settings`, `SettingsRoute`). The Coach tab joins once a coach screen exists.
+its content. Four branches, one per tab, each with its own navigation stack: Today
+(`/`, `HomeRoute`), Week (`/week`, `WeekRoute`, the metrics history), Coach (`/coach`,
+`CoachRoute`, iPhone only) and Settings (`/settings`, `SettingsRoute`). **The Coach tab is
+iPhone only:** typed shell branches are fixed at compile time, so the Mac has the branch
+but not the tab (`visibleBranches` in `app_shell.dart` maps the bar's tabs to branch
+indexes and drops Coach where `coachSupportAvailableProvider` is `false`), and
+`CoachRoute.redirect` sends `/coach` and everything under it home there, so no coach
+screen is ever built on the Mac. Under `/coach`: `CoachChatRoute` (`/coach/chat`, a live
+session, on the root navigator over the shell) and `CoachTranscriptRoute`
+(`/coach/sessions/<id>`, a past session, read-only, inside the tab).
 `CheckInRoute` (`/checkin/<date>`) and `CravingRoute` (`/craving`, iPhone only) are nested
 under `HomeRoute`, so Today is beneath them even on a cold start; the check-in keeps the
 tab bar, while `CravingRoute` is presented on the root navigator over the shell.
@@ -436,8 +457,11 @@ greeting and the import button. "Today" is checkin's `checkInTodayProvider` (loc
 midnight of `checkInClockProvider`, which tests pin). The app root (`SteadyApp` in
 `main.dart`) calls its `refreshToday` from a timer set for the next local midnight and on
 every resume, so a screen left open overnight moves to the new day and its date-keyed
-cards re-key. The coach nudge (§11) has a slot, `TodayScreen.coachNudge`, that stays
-empty until `coach_presentation` has something to say.
+cards re-key. The coach nudge (§11) fills the `TodayScreen.coachNudge` slot:
+`HomeRoute` passes coach's `CoachNudgeCard`, which renders nothing on the Mac and nothing
+on the iPhone unless the weekly check-in is ready. Its "Talk now" opens `CoachWeeklyRoute`
+(`/weekly-check-in`, top-level on the root navigator, since both Today and the Coach tab
+open it; it redirects home on the Mac).
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -575,17 +599,25 @@ code, because "local-only" is just SwiftData without sync. Decision record:
 iCloud private database; nothing in this section changes per user. Since other people's data is
 now involved, the account-loss mitigation is a user-triggered data export (CSV/JSON) rather
 than any backend copy: Settings → Export (`features/data_export`), handed to the system share
-sheet. It covers daily metrics and check-in statuses, and (once the coach exists) each coach
-session's date, kind and summary, not the full transcript (decided 2026-10-24). A summary may
+sheet. It covers daily metrics and check-in statuses, and on the iPhone each coach session's
+date, kind and summary, not the full transcript (decided 2026-10-24; JSON only, as
+`coachSessions`, read through `CoachRepository`; the CSV stays one row per day). A summary may
 mention Health numbers the coach discussed. The summary prompt asks for tracking habits and
 next week's plan, leaving out cravings and exact numbers (cravings aren't exported), but a
 model can't be held to that every time, so the docs don't promise it. That's accepted, and it isn't a 5.1.3 exception:
 the guideline bars storing health information in iCloud, and the invariant it protects —
 Health values are never written to the synced store or Steady's CloudKit container — still
 holds. An export is a local file the user chooses to share, so those numbers leave the phone
-only by their own hand. The JSON's `schemaVersion` marks the change. Data the user hasn't
-exported is still lost with the Apple ID, because CloudKit's private database has no separate
-backup.
+only by their own hand. The JSON's `schemaVersion` (2) marks the change. An export is never
+partial: a failed read of the daily rows fails it, and no file is shared. **The one exception
+is coach history** (decided 2026-10-25): if `coach_sessions.json` can't be read, the export
+still goes ahead with every daily row, the JSON's `coachSessions` is `null` (distinct from `[]`,
+no sessions, and from the key being absent, no coach on this device), and the screen says
+so. For a corrupt file it says "Coach history couldn't be read, so it was left out. You can
+delete it in Settings → Coach." For a file-system error, which may not recur, it says "Coach
+history couldn't be read just now, so it was left out. Export again to include it." The CSV
+is unaffected. Data the user hasn't exported is still lost with the Apple ID, because
+CloudKit's private database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in
@@ -749,16 +781,58 @@ context window (4,096 tokens on iOS 26) without summarising itself partway throu
   providers are bound only by `appProviderOverridesFor(isIOS: true)`, like cravings (§9).
   No Foundation Models code in `app/macos/`. A Mac chat without Health data or cravings
   is a possible later addition, not planned.
-- **Nudge card** (`TodayScreen.coachNudge`, §5): "Talk now" / "Not tonight" on an iPhone
-  where the model is available. Where it isn't, the card explains why instead of offering
-  a session. Nothing on the Mac. The card itself needs check-in data, not inference.
+- **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" /
+  "Not tonight" on an iPhone where the model is available. Where it isn't, the card says
+  why instead of offering a session. Nothing on the Mac. Whether it exists never calls the
+  model (`coachNudgeProvider`); it needs all of: an iPhone, Friday to Sunday, last week
+  passing the 4-of-7 rule with every day readable, no weekly session started since that
+  week ended, and "Not tonight" not tapped today (kept in memory).
+- **Weekly session (#81):** looks back on the last completed Friday→Thursday week
+  (`coachWeeklyWindow`). It doesn't start if fewer than 4 of the 7 days have any check-in
+  status (`CheckWeeklyReadiness`, a use case; checked before the model is touched and again
+  on Begin). Its topics are separate threads, in order: logging, steps, the week's cravings
+  when there were any (observations with a question, never a grade or a week-on-week
+  comparison), and one small thing to try next week (`WeeklyTopic`, `weeklyTopicPrompt` in
+  `coach_domain`). Each topic opens with an app prompt the person doesn't see; "Next: …"
+  moves on (`moveToNextWeeklyTopic`). It ends with a stored summary, like a chat.
 - **Context stays compact:** a short 7-day summary built from `metrics_domain`,
-  `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history. The
-  on-device model's context window is small, so a long session summarises its older turns.
+  `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history
+  (`BuildCoachWeekContext`, a use case in `coach_presentation`, and `formatCoachWeek`, one
+  line per day, at most 1,200 characters). The on-device model's context window is small
+  (4,096 tokens on iOS 26, for instructions, data, prompts and replies together; read at
+  runtime as `CoachModelInfo.contextSize`). `CoachConversation` (`coach_domain`) counts
+  three characters per token (an over-estimate) and sends a turn only if its prompt, a
+  full 512-token reply and a 256-token margin still fit; otherwise the older turns are
+  summarised by the model in a separate session and the chat moves to a fresh session,
+  carrying that summary and the last few messages in its first prompt. That carried
+  summary is asked under `CoachInstructions.contextSummary`, which keeps cravings and the
+  numbers talked about, since the coach needs them; only the stored end summary uses
+  `CoachInstructions.summary`, which leaves both out (§7). The data goes in the
+  instructions; anything the person typed only ever goes in prompts. The stored
+  transcript is always the whole conversation.
+- **A reply cut off at the 512-token cap ("Keep going"):** Foundation Models gives no stop
+  reason, so `CoachKeepGoing.wasCutOff` uses the reply's output token count where the
+  model reports it (`CoachReplySnapshot.outputTokens`, iOS 27's `Snapshot.usage`) and, on
+  iOS 26, a long reply that doesn't end a sentence. A cut-off reply is shown and stored up
+  to its last complete sentence (`CoachKeepGoing.trim`), and the screen offers **Keep
+  going** (`keepGoing`): the person's turn reads "Keep going" and the coach is asked to
+  carry on. The window still counts the whole generated reply, which the model's own
+  transcript holds.
+- **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach
+  can't run here, per typed failure, and the past sessions), a live session
+  (`CoachSessionModule`, `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`,
+  `endCoachSession`, which writes the summary the export carries) and a read-only
+  transcript (`CoachTranscriptModule`). Routes in §5, "Tabs".
+- **The model channel** (#79): `steady/coach` in `app/ios/Runner/CoachChannel.swift`,
+  behind `CoachModel` (`coach_domain`). Replies stream as cumulative snapshots (the whole
+  reply so far), and each unavailable reason (device not eligible, Apple Intelligence off,
+  model not ready, iOS older than 26) is its own typed `Failure`. The on-device model needs
+  no entitlement. Steady never uses Apple's server model (`PrivateCloudComputeLanguageModel`).
 - **Guardrails (#82):** coach, not therapist. It never originates calorie targets, weight
   goals or diet prescriptions, including from craving data (the NEDA "Tessa" failure in
-  `docs/research/craving_support.md`). The instructions live in one place, with tests
-  that assert the constraints are present.
+  `docs/research/craving_support.md`). The instructions live in one place
+  (`CoachInstructions` in `coach_domain`, with the "not medical advice" and help-line copy
+  in `CoachCopy`), and `coach_instructions_test.dart` asserts each constraint is present.
 - **`notes` (RAG) feeds the iPhone coach.** Retrieval into the coach's context runs on the
   iPhone, so `RAGKitCore` has to build for iOS.
 

@@ -48,7 +48,7 @@ Future<void> pumpGoldenScreen(WidgetTester tester) async {
       ],
       child: ShadcnApp(
         theme: steadyTheme,
-        home: PdfImportModule(onImportCompleted: () {}),
+        home: PdfImportModule(onImportCompleted: () {}, onBack: () {}),
       ),
     ),
   );

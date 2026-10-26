@@ -215,3 +215,61 @@ final class HealthKitRepositoryProvider
 
 String _$healthKitRepositoryHash() =>
     r'e8c8cdadc90ff969e3423a0b40941dc4a6d33f11';
+
+/// How app-level screens open an external link (Settings' privacy policy).
+/// Defaults to the system browser through `url_launcher`; tests override
+/// it so they never reach the plugin.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(appLinkOpener)
+final appLinkOpenerProvider = AppLinkOpenerProvider._();
+
+/// How app-level screens open an external link (Settings' privacy policy).
+/// Defaults to the system browser through `url_launcher`; tests override
+/// it so they never reach the plugin.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class AppLinkOpenerProvider
+    extends $FunctionalProvider<AppLinkOpener, AppLinkOpener, AppLinkOpener>
+    with $Provider<AppLinkOpener> {
+  /// How app-level screens open an external link (Settings' privacy policy).
+  /// Defaults to the system browser through `url_launcher`; tests override
+  /// it so they never reach the plugin.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  AppLinkOpenerProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'appLinkOpenerProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$appLinkOpenerHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppLinkOpener> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AppLinkOpener create(Ref ref) {
+    return appLinkOpener(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppLinkOpener value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppLinkOpener>(value),
+    );
+  }
+}
+
+String _$appLinkOpenerHash() => r'1a821145e4d9aa6a4cfc6ba7d59da001d8277634';

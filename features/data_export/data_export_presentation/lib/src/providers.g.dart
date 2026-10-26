@@ -86,6 +86,85 @@ final class ExportDailyMetricRepositoryProvider
 String _$exportDailyMetricRepositoryHash() =>
     r'ee986f305e2fad42b87d4083785b7e165f1bc34c';
 
+/// The `CoachRepository` the export reads coach sessions from, or `null`
+/// where this device has no coach (the Mac).
+///
+/// Typed against `coach_domain` only, never `coach_data` (CLAUDE.md §3).
+/// `null` by default; `app/lib/providers.dart` binds it on iOS only, to the
+/// coach's own `coachRepositoryProvider`. While it's `null` the export has
+/// no `coachSessions` and the screen doesn't mention them. Only each
+/// session's date, kind and summary are exported, never the transcript.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(exportCoachRepository)
+final exportCoachRepositoryProvider = ExportCoachRepositoryProvider._();
+
+/// The `CoachRepository` the export reads coach sessions from, or `null`
+/// where this device has no coach (the Mac).
+///
+/// Typed against `coach_domain` only, never `coach_data` (CLAUDE.md §3).
+/// `null` by default; `app/lib/providers.dart` binds it on iOS only, to the
+/// coach's own `coachRepositoryProvider`. While it's `null` the export has
+/// no `coachSessions` and the screen doesn't mention them. Only each
+/// session's date, kind and summary are exported, never the transcript.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class ExportCoachRepositoryProvider
+    extends
+        $FunctionalProvider<
+          CoachRepository?,
+          CoachRepository?,
+          CoachRepository?
+        >
+    with $Provider<CoachRepository?> {
+  /// The `CoachRepository` the export reads coach sessions from, or `null`
+  /// where this device has no coach (the Mac).
+  ///
+  /// Typed against `coach_domain` only, never `coach_data` (CLAUDE.md §3).
+  /// `null` by default; `app/lib/providers.dart` binds it on iOS only, to the
+  /// coach's own `coachRepositoryProvider`. While it's `null` the export has
+  /// no `coachSessions` and the screen doesn't mention them. Only each
+  /// session's date, kind and summary are exported, never the transcript.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  ExportCoachRepositoryProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'exportCoachRepositoryProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$exportCoachRepositoryHash();
+
+  @$internal
+  @override
+  $ProviderElement<CoachRepository?> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  CoachRepository? create(Ref ref) {
+    return exportCoachRepository(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CoachRepository? value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CoachRepository?>(value),
+    );
+  }
+}
+
+String _$exportCoachRepositoryHash() =>
+    r'30196d3851a8cc059679cf0174f630f30322e271';
+
 /// Hands the finished export file to the system share sheet.
 ///
 /// Defaults to the real `share_plus` implementation, which needs no

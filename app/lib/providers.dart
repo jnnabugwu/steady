@@ -45,8 +45,24 @@
 /// macOS the repository stays unbound and every craving surface renders
 /// nothing.
 ///
-/// Nothing is wired for coach yet: `coach_domain` has no repository
-/// interface so far.
+/// **The coach is iOS only, and its sessions are device-only** (#78,
+/// CLAUDE.md §11): transcripts and summaries are kept in a JSON file in the
+/// application support directory ([coachStoreFile]), never in
+/// SwiftData/CloudKit, for the same 5.1.3(ii) reason as cravings.
+/// `coachRepositoryProvider`, `coachSupportAvailableProvider` and the
+/// export's `exportCoachRepositoryProvider` are bound only when
+/// [appProviderOverridesFor] is built with `isIOS: true`; the Mac binds no
+/// coach provider at all.
+///
+/// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
+/// (`coachModelProvider`, Apple Foundation Models through the
+/// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
+/// built with `isIOS: true`. On macOS it stays unbound, and there's no
+/// coach code in `app/macos/` at all. Whether the model can actually run
+/// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
+/// The coach's context providers (#80: check-ins, calories eaten, Health,
+/// cravings) are bound in the same iOS-only block, each to the owning
+/// feature's own repository, never a second instance.
 library;
 
 import 'dart:io';
@@ -55,6 +71,8 @@ import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_data/coach_data.dart';
+import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_data/cravings_data.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -68,6 +86,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 part 'providers.g.dart';
 
@@ -116,6 +135,18 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 HealthKitRepository? healthKitRepository(Ref ref) => null;
 
+/// Opens an external link in the browser. Returns whether it opened.
+typedef AppLinkOpener = Future<bool> Function(Uri uri);
+
+/// How app-level screens open an external link (Settings' privacy policy).
+/// Defaults to the system browser through `url_launcher`; tests override
+/// it so they never reach the plugin.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+AppLinkOpener appLinkOpener(Ref ref) =>
+    (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
+
 /// Binds every feature-declared repository provider to its `*_data`
 /// implementation, for the current platform. Passed to `ProviderScope` in
 /// `main.dart`, and used as-is by `test/bootstrap_test.dart`.
@@ -128,10 +159,16 @@ final List<Override> appProviderOverrides = appProviderOverridesFor(
 Future<File> cravingStoreFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/cravings.json');
 
+/// The device-only coach file: `coach_sessions.json` in the application
+/// support directory. Looked up on first use, not at launch.
+Future<File> coachStoreFile() async => File(
+  '${(await getApplicationSupportDirectory()).path}/coach_sessions.json',
+);
+
 /// [appProviderOverrides] for a given platform. The platform choices in it
-/// are Apple Health and craving support, both bound only when [isIOS] (see
-/// the library comment). A function, not just the list, so tests can build
-/// the iOS wiring on any host.
+/// are Apple Health, craving support and the coach, all bound only when
+/// [isIOS] (see the library comment). A function, not just the list, so
+/// tests can build the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
   if (isIOS) ...[
     healthKitRepositoryProvider.overrideWith(
@@ -140,6 +177,31 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     cravingSupportAvailableProvider.overrideWithValue(true),
     cravingRepositoryProvider.overrideWith(
       (ref) => FileCravingRepository.locatedBy(cravingStoreFile),
+    ),
+    coachSupportAvailableProvider.overrideWithValue(true),
+    coachRepositoryProvider.overrideWith(
+      (ref) => FileCoachRepository.locatedBy(coachStoreFile),
+    ),
+    // The export reads each session's date, kind and summary through the
+    // coach's own repository: the same instance, so the same file.
+    exportCoachRepositoryProvider.overrideWith(
+      (ref) => ref.watch(coachRepositoryProvider),
+    ),
+    coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
+    // The coach's context (#80) reads the other features through their own
+    // repositories: the same instances, so the same stores (the shared
+    // daily-metrics store, the device-only craving file, live Health).
+    coachCheckInRepositoryProvider.overrideWith(
+      (ref) => ref.watch(checkInRepositoryProvider),
+    ),
+    coachMetricsRepositoryProvider.overrideWith(
+      (ref) => ref.watch(metricsRepositoryProvider),
+    ),
+    coachHealthKitRepositoryProvider.overrideWith(
+      (ref) => ref.watch(healthKitRepositoryProvider),
+    ),
+    coachCravingRepositoryProvider.overrideWith(
+      (ref) => ref.watch(cravingRepositoryProvider),
     ),
   ],
   // The iCloud account status (#53). Until CloudKit is configured (the
