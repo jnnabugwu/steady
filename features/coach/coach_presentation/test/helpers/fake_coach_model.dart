@@ -24,6 +24,10 @@ class FakeCoachModel implements CoachModel {
   /// What [startSession] returns, or `null` for a new session.
   Result<CoachModelSession>? startResult;
 
+  /// Awaited by [startSession] before it answers, when set: lets a test
+  /// hold a model session's start to interleave other calls.
+  Future<void> Function()? beforeStart;
+
   /// When `true`, replies stay open until [finish].
   bool manualReplies;
 
@@ -66,6 +70,7 @@ class FakeCoachModel implements CoachModel {
     required String instructions,
   }) async {
     this.instructions.add(instructions);
+    if (beforeStart case final hook?) await hook();
     if (startResult case final result?) return result;
     return Ok(CoachModelSession(id: 's${_next++}'));
   }

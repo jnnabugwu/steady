@@ -49,6 +49,37 @@ void main() {
     expect(repository.deleteAllCalls, 1);
   });
 
+  test('a successful delete re-reads an open transcript, which is now '
+      'gone', () async {
+    container.listen(coachStoredSessionProvider('a'), (_, _) {});
+    expect(
+      await container.read(coachStoredSessionProvider('a').future),
+      isNotNull,
+    );
+
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    await notifier().deleteCoachHistory();
+    expect(
+      await container.read(coachStoredSessionProvider('a').future),
+      isNull,
+    );
+  });
+
+  test('advances the history epoch before it deletes', () async {
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    final epoch = container.read(coachHistoryEpochProvider);
+    int? seen;
+    repository.onDeleteAll = () async {
+      seen = epoch.value;
+      repository.sessions.clear();
+      return const Ok(unit);
+    };
+    await notifier().deleteCoachHistory();
+    expect(seen, 1);
+  });
+
   test('an Err becomes an AsyncError carrying that Failure', () async {
     container.listen(coachHistoryControllerProvider, (_, _) {});
     await settled();
@@ -71,6 +102,17 @@ void main() {
       container.read(coachHistoryControllerProvider).error,
       isA<UnknownFailure>(),
     );
+  });
+
+  test('a thrown Failure is passed through as it is', () async {
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    const failure = CoachHistoryStorageFailure('locked');
+    repository.onDeleteAll = () async => throw failure;
+    await notifier().deleteCoachHistory();
+
+    // Not wrapped in an UnknownFailure: it already carries its message.
+    expect(container.read(coachHistoryControllerProvider).error, failure);
   });
 
   test('a second delete while one is in flight is ignored', () async {

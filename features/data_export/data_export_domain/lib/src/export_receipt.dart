@@ -1,3 +1,4 @@
+import 'package:data_export_domain/src/export_bundle.dart';
 import 'package:data_export_domain/src/export_format.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
@@ -35,5 +36,10 @@ abstract class ExportReceipt with _$ExportReceipt {
 
     /// What the user did with the share sheet.
     required ExportShareOutcome outcome,
+
+    /// Why the coach history was left out of this JSON file
+    /// (`ExportBundle.coachHistoryLeftOut`), or `null` if nothing was.
+    /// Always `null` for CSV, which never holds coach sessions.
+    CoachHistoryLeftOut? coachHistoryLeftOut,
   }) = _ExportReceipt;
 }

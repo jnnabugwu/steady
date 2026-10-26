@@ -22,9 +22,19 @@ part of 'coach_session_controller.dart';
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
-/// screen closed is never handed to the next one. Auto-dispose; while
-/// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-/// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+/// screen closed is never handed to the next one. Auto-dispose; from its
+/// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+/// (closed in `finally`), so closing the screen doesn't lose the summary
+/// (CLAUDE.md §4).
+///
+/// **One operation at a time.** A turn (the person's message: save,
+/// perhaps a move to a fresh model session, the reply, save) and a retried
+/// start are each one in-flight operation ([_operation]). The phase isn't
+/// the lock: `replying` covers a save and a session move as well as the
+/// reply. Ending marks the session as ending at once, stops whatever is
+/// streaming, and waits for the operation to finish before it summarises;
+/// an operation that resumes after that point stops without touching the
+/// model or the transcript further.
 ///
 /// **Context budget.** The model sees the instructions for [kind] with a
 /// compact summary of the person's last seven days
@@ -40,7 +50,8 @@ part of 'coach_session_controller.dart';
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
 /// with the summary when the session ends. Nothing is stored until the
-/// person has said something.
+/// person has said something, and never again for a session that was
+/// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
 
 @ProviderFor(CoachSessionController)
 final coachSessionControllerProvider = CoachSessionControllerFamily._();
@@ -59,9 +70,19 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
-/// screen closed is never handed to the next one. Auto-dispose; while
-/// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-/// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+/// screen closed is never handed to the next one. Auto-dispose; from its
+/// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+/// (closed in `finally`), so closing the screen doesn't lose the summary
+/// (CLAUDE.md §4).
+///
+/// **One operation at a time.** A turn (the person's message: save,
+/// perhaps a move to a fresh model session, the reply, save) and a retried
+/// start are each one in-flight operation ([_operation]). The phase isn't
+/// the lock: `replying` covers a save and a session move as well as the
+/// reply. Ending marks the session as ending at once, stops whatever is
+/// streaming, and waits for the operation to finish before it summarises;
+/// an operation that resumes after that point stops without touching the
+/// model or the transcript further.
 ///
 /// **Context budget.** The model sees the instructions for [kind] with a
 /// compact summary of the person's last seven days
@@ -77,7 +98,8 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
 /// with the summary when the session ends. Nothing is stored until the
-/// person has said something.
+/// person has said something, and never again for a session that was
+/// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
 final class CoachSessionControllerProvider
     extends $NotifierProvider<CoachSessionController, CoachSessionState> {
   /// A live coach session on the iPhone: a chat or the weekly session, from
@@ -94,9 +116,19 @@ final class CoachSessionControllerProvider
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
-  /// screen closed is never handed to the next one. Auto-dispose; while
-  /// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-  /// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+  /// screen closed is never handed to the next one. Auto-dispose; from its
+  /// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+  /// (closed in `finally`), so closing the screen doesn't lose the summary
+  /// (CLAUDE.md §4).
+  ///
+  /// **One operation at a time.** A turn (the person's message: save,
+  /// perhaps a move to a fresh model session, the reply, save) and a retried
+  /// start are each one in-flight operation ([_operation]). The phase isn't
+  /// the lock: `replying` covers a save and a session move as well as the
+  /// reply. Ending marks the session as ending at once, stops whatever is
+  /// streaming, and waits for the operation to finish before it summarises;
+  /// an operation that resumes after that point stops without touching the
+  /// model or the transcript further.
   ///
   /// **Context budget.** The model sees the instructions for [kind] with a
   /// compact summary of the person's last seven days
@@ -112,7 +144,8 @@ final class CoachSessionControllerProvider
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
   /// with the summary when the session ends. Nothing is stored until the
-  /// person has said something.
+  /// person has said something, and never again for a session that was
+  /// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
   CoachSessionControllerProvider._({
     required CoachSessionControllerFamily super.from,
     required (CoachSessionKind, String) super.argument,
@@ -159,7 +192,7 @@ final class CoachSessionControllerProvider
 }
 
 String _$coachSessionControllerHash() =>
-    r'074e7ad82a4d16b792424eba83620d08b0e42079';
+    r'4516dd8bb07c73fc987eee9e22b0d57a82f62071';
 
 /// A live coach session on the iPhone: a chat or the weekly session, from
 /// opening the screen to its stored summary.
@@ -175,9 +208,19 @@ String _$coachSessionControllerHash() =>
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
-/// screen closed is never handed to the next one. Auto-dispose; while
-/// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-/// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+/// screen closed is never handed to the next one. Auto-dispose; from its
+/// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+/// (closed in `finally`), so closing the screen doesn't lose the summary
+/// (CLAUDE.md §4).
+///
+/// **One operation at a time.** A turn (the person's message: save,
+/// perhaps a move to a fresh model session, the reply, save) and a retried
+/// start are each one in-flight operation ([_operation]). The phase isn't
+/// the lock: `replying` covers a save and a session move as well as the
+/// reply. Ending marks the session as ending at once, stops whatever is
+/// streaming, and waits for the operation to finish before it summarises;
+/// an operation that resumes after that point stops without touching the
+/// model or the transcript further.
 ///
 /// **Context budget.** The model sees the instructions for [kind] with a
 /// compact summary of the person's last seven days
@@ -193,7 +236,8 @@ String _$coachSessionControllerHash() =>
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
 /// with the summary when the session ends. Nothing is stored until the
-/// person has said something.
+/// person has said something, and never again for a session that was
+/// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
 
 final class CoachSessionControllerFamily extends $Family
     with
@@ -227,9 +271,19 @@ final class CoachSessionControllerFamily extends $Family
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
-  /// screen closed is never handed to the next one. Auto-dispose; while
-  /// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-  /// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+  /// screen closed is never handed to the next one. Auto-dispose; from its
+  /// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+  /// (closed in `finally`), so closing the screen doesn't lose the summary
+  /// (CLAUDE.md §4).
+  ///
+  /// **One operation at a time.** A turn (the person's message: save,
+  /// perhaps a move to a fresh model session, the reply, save) and a retried
+  /// start are each one in-flight operation ([_operation]). The phase isn't
+  /// the lock: `replying` covers a save and a session move as well as the
+  /// reply. Ending marks the session as ending at once, stops whatever is
+  /// streaming, and waits for the operation to finish before it summarises;
+  /// an operation that resumes after that point stops without touching the
+  /// model or the transcript further.
   ///
   /// **Context budget.** The model sees the instructions for [kind] with a
   /// compact summary of the person's last seven days
@@ -245,7 +299,8 @@ final class CoachSessionControllerFamily extends $Family
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
   /// with the summary when the session ends. Nothing is stored until the
-  /// person has said something.
+  /// person has said something, and never again for a session that was
+  /// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
 
   CoachSessionControllerProvider call(
     CoachSessionKind kind,
@@ -271,9 +326,19 @@ final class CoachSessionControllerFamily extends $Family
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
-/// screen closed is never handed to the next one. Auto-dispose; while
-/// [endCoachSession] runs it holds a `KeepAliveLink` (closed in `finally`),
-/// so closing the screen doesn't lose the summary (CLAUDE.md §4).
+/// screen closed is never handed to the next one. Auto-dispose; from its
+/// first line to its last, [endCoachSession] holds a `KeepAliveLink`
+/// (closed in `finally`), so closing the screen doesn't lose the summary
+/// (CLAUDE.md §4).
+///
+/// **One operation at a time.** A turn (the person's message: save,
+/// perhaps a move to a fresh model session, the reply, save) and a retried
+/// start are each one in-flight operation ([_operation]). The phase isn't
+/// the lock: `replying` covers a save and a session move as well as the
+/// reply. Ending marks the session as ending at once, stops whatever is
+/// streaming, and waits for the operation to finish before it summarises;
+/// an operation that resumes after that point stops without touching the
+/// model or the transcript further.
 ///
 /// **Context budget.** The model sees the instructions for [kind] with a
 /// compact summary of the person's last seven days
@@ -289,7 +354,8 @@ final class CoachSessionControllerFamily extends $Family
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
 /// with the summary when the session ends. Nothing is stored until the
-/// person has said something.
+/// person has said something, and never again for a session that was
+/// still open when "Delete coach history" ran ([coachHistoryEpochProvider]).
 
 abstract class _$CoachSessionController extends $Notifier<CoachSessionState> {
   late final _$args = ref.$arg as (CoachSessionKind, String);

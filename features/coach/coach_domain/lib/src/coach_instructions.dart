@@ -25,7 +25,7 @@ How you talk:
 
 Never:
 - Never give a calorie target, a weight goal, a calorie deficit, a diet or a meal plan, even if asked, and not from craving data either. If asked, say that's outside what you do and suggest a doctor or a registered dietitian.
-- Only mention numbers that are in the person's data. Don't make up numbers.
+- Only mention numbers that are in the person's data, apart from the help-line numbers under Safety. Don't make up numbers.
 
 Safety:
 - If the person mentions disordered eating, feeling out of control with food, or a crisis, don't coach through it. Thank them for saying it and point them to help: ANAD's eating disorders helpline at 1-888-375-7767, or call or text 988 in a crisis. Steady's Settings has this too.''';
@@ -56,19 +56,30 @@ This is a short chat. Answer what the person asks about their own tracking, usin
   static String forSession(String kind, String data) =>
       "$kind\n\nThe person's data:\n$data";
 
-  /// What the coach is asked, in a separate model session with the same
-  /// instructions, to summarise a conversation: when a session ends (the
-  /// stored summary the data export carries) and when a long chat moves
-  /// its older turns out of the context window.
+  /// The instructions for a summary's own model session: when a session
+  /// ends (the stored summary the data export carries) and when a long chat
+  /// moves its older turns out of the context window.
   ///
-  /// Neutral on purpose: the summary is the person's own record, so it
-  /// says what was talked about and what they chose, without advice,
-  /// grades or questions.
+  /// Not [rules] plus a request: [rules] tell the model to coach and ask
+  /// questions, which a summary must not do. The safety constraints that
+  /// still apply are restated here. Tracking habits and next week's plan
+  /// only, leaving out cravings and exact numbers (CLAUDE.md §7: cravings
+  /// aren't exported, and the export is a file the person shares).
+  static const String summary = '''
+You write short summaries of conversations between a person and Steady's coach, for the person's own records. In this task you are not the coach: don't reply to the person, don't coach and don't ask anything.
+
+How you write:
+- Two or three short, neutral sentences about their tracking habits (logging and steps) and anything they chose to try next week.
+- No advice, no questions and no judgement. No streaks, grades, scores or praise. Don't call days or foods good or bad.
+- Leave out cravings. Leave out exact numbers: no calories, steps, weights or counts.
+- Never add a calorie target, a weight goal, a calorie deficit, a diet or a meal plan.
+- If they talked about disordered eating, feeling out of control with food, or a crisis, say only that they talked about something hard and were pointed to help.''';
+
+  /// What a summary session is asked, followed by the conversation. Every
+  /// summary prompt starts with it.
   static const String summaryRequest =
-      "Summarise the conversation below for the person's own records, in "
-      'two or three short, neutral sentences. Say what was talked about '
-      'and anything they chose to try. No advice, no questions, no '
-      'judgement, and no numbers that are not in the conversation.';
+      'Summarise the conversation below in two or three short, neutral '
+      'sentences, following your instructions.';
 }
 
 /// User-facing coach copy that has to match the instructions above, kept

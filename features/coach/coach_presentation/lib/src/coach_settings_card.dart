@@ -11,6 +11,12 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// Renders nothing unless [coachSupportAvailableProvider] is `true`. The
 /// app layer composes it into the settings screen's `sections`.
+///
+/// **No red, yellow or green** (decided 2026-10-25, the coach colour rule
+/// from #82): the delete button and the dialog's "Delete" are the teal
+/// accent ([SteadyColors.accentTeal]), not the theme's destructive red. The
+/// action reads as destructive through its wording ("Delete coach
+/// history", "It can’t be undone.") and the confirm dialog, not its colour.
 class CoachSettingsCard extends ConsumerWidget {
   /// Creates the card.
   const CoachSettingsCard({super.key});
@@ -31,7 +37,7 @@ class CoachSettingsCard extends ConsumerWidget {
             onPressed: () => unawaited(closeOverlay<bool>(context, false)),
             child: const Text('Cancel'),
           ),
-          DestructiveButton(
+          PrimaryButton(
             key: const Key('coachDeleteConfirm'),
             onPressed: () => unawaited(closeOverlay<bool>(context, true)),
             child: const Text('Delete'),
@@ -51,7 +57,6 @@ class CoachSettingsCard extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final history = ref.watch(coachHistoryControllerProvider);
-    final destructive = Theme.of(context).colorScheme.destructive;
     final status = switch (history) {
       AsyncData(value: true) => 'Coach history deleted.',
       AsyncError() => "Couldn't delete coach history. Try again.",
@@ -81,11 +86,14 @@ class CoachSettingsCard extends ConsumerWidget {
               height: 44,
               child: OutlineButton(
                 key: const Key('coachDeleteHistoryButton'),
-                leading: Icon(LucideIcons.trash2, color: destructive),
+                leading: const Icon(
+                  LucideIcons.trash2,
+                  color: SteadyColors.accentTeal,
+                ),
                 onPressed: () => unawaited(_confirmAndDelete(context, ref)),
-                child: Text(
+                child: const Text(
                   'Delete coach history',
-                  style: TextStyle(color: destructive),
+                  style: TextStyle(color: SteadyColors.accentTeal),
                 ),
               ),
             ),

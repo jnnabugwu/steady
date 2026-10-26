@@ -165,9 +165,10 @@ void main() {
       final start = DateTime(2026, 10, 23, 19);
       for (final bad in [
         _session('', start),
-        _session('a', start).copyWith(
-          endedAt: start.subtract(const Duration(minutes: 1)),
-        ),
+        _session(
+          'a',
+          start,
+        ).copyWith(endedAt: start.subtract(const Duration(minutes: 1))),
       ]) {
         expect(
           await repo.saveSession(bad),
@@ -242,6 +243,20 @@ void main() {
             'sessions': [_validEntry],
           },
           {'version': 1, 'cravings': <Object?>[]},
+          // A session `saveSession` would have rejected is corrupt too:
+          // this app can't have written it, so it isn't history.
+          {
+            'version': 1,
+            'sessions': [
+              {..._validEntry, 'id': ''},
+            ],
+          },
+          {
+            'version': 1,
+            'sessions': [
+              {..._validEntry, 'endedAt': '2026-10-22T00:00:00.000Z'},
+            ],
+          },
         ]) {
           final encoded = jsonEncode(contents);
           file.writeAsStringSync(encoded);
@@ -299,11 +314,7 @@ void main() {
             base.copyWith(
               messages: [
                 for (var j = 0; j < i; j++)
-                  CoachMessage(
-                    role: CoachMessageRole.user,
-                    text: '$j',
-                    at: at,
-                  ),
+                  CoachMessage(role: CoachMessageRole.user, text: '$j', at: at),
               ],
             ),
           ),

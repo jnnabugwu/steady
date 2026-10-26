@@ -61,9 +61,18 @@ DateTime _midnightOf(DateTime moment) =>
 /// [coachRepository] (the Mac, which has no coach) leaves
 /// `ExportBundle.coachSessions` `null`.
 ///
-/// A repository `Err` from either read is passed through unchanged, so no
-/// bundle (and no file) is ever built from a failed or partial read. The
-/// coach store is read only after the daily rows read succeeds.
+/// A daily-metrics `Err` is passed through unchanged, so no bundle (and no
+/// file) is ever built from a failed or partial read of the rows. The coach
+/// store is read only after that read succeeds.
+///
+/// **The one exception: coach history** (decided 2026-10-25). A coach
+/// `Err` (a corrupt `coach_sessions.json`, or a file-system error) doesn't
+/// fail the export: the bundle keeps every daily row, with no sessions and
+/// the failure in `ExportBundle.coachHistoryFailure`, so the JSON says the
+/// coach section was left out and the screen tells the person what to do
+/// (delete it if it's corrupt, export again if the read just failed).
+/// Otherwise a corrupt coach file would block exporting their metrics
+/// until they deleted coach history.
 ResultFuture<ExportBundle> readExportBundle(
   DailyMetricRepository repository, {
   required DateTime exportedAt,
@@ -78,12 +87,13 @@ ResultFuture<ExportBundle> readExportBundle(
       return Err(failure);
   }
   List<CoachSession>? coachSessions;
+  Failure? coachHistoryFailure;
   if (coachRepository != null) {
     switch (await coachRepository.listSessions()) {
       case Ok(:final value):
         coachSessions = value;
       case Err(:final failure):
-        return Err(failure);
+        coachHistoryFailure = failure;
     }
   }
   return Ok(
@@ -91,6 +101,7 @@ ResultFuture<ExportBundle> readExportBundle(
       exportedAt: exportedAt,
       dailyMetrics: dailyMetrics,
       coachSessions: coachSessions,
+      coachHistoryFailure: coachHistoryFailure,
     ),
   );
 }

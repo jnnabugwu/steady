@@ -6,19 +6,30 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 ///
 /// [dailyTotals] answers from [days], one row per day of the range like the
 /// native side, or `Err(failure)` when [failure] is set. Records each call.
+/// [preferredWeightUnit] answers [weightUnit], or `Err(weightUnitFailure)`.
 /// Like the real repository, days are local calendar days: bounds and seeded
 /// dates are normalized to local midnight (a UTC `DateTime` converted
 /// first), mirroring `health_sync_data`'s `healthLocalDay`.
 class FakeHealthKitRepository implements HealthKitRepository {
-  FakeHealthKitRepository({List<HealthDayTotals> days = const []})
-    : days = {
-        for (final d in days)
-          _localDay(d.date): d.copyWith(date: _localDay(d.date)),
-      };
+  FakeHealthKitRepository({
+    List<HealthDayTotals> days = const [],
+    this.weightUnit = WeightUnit.kilograms,
+  }) : days = {
+         for (final d in days)
+           _localDay(d.date): d.copyWith(date: _localDay(d.date)),
+       };
 
   final Map<DateTime, HealthDayTotals> days;
 
   Failure? failure;
+
+  WeightUnit weightUnit;
+
+  /// When set, [preferredWeightUnit] returns `Err` with it ([failure]
+  /// doesn't apply there, so a test can fail the unit alone).
+  Failure? weightUnitFailure;
+
+  int preferredWeightUnitCalls = 0;
 
   final List<(DateTime, DateTime)> dailyTotalsCalls = [];
 
@@ -31,6 +42,13 @@ class FakeHealthKitRepository implements HealthKitRepository {
 
   @override
   ResultFuture<Unit> requestAuthorization() async => const Ok(unit);
+
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() async {
+    preferredWeightUnitCalls++;
+    final failure = weightUnitFailure;
+    return failure == null ? Ok(weightUnit) : Err(failure);
+  }
 
   @override
   ResultFuture<List<HealthDayTotals>> dailyTotals(

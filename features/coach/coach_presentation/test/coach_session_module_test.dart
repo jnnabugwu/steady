@@ -235,6 +235,26 @@ void main() {
     });
   }
 
+  testWidgets('"Check again" on the session screen starts the coach once it '
+      'can', (tester) async {
+    model.availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+    await pump(tester);
+    expect(find.byKey(const Key('coachMessageField')), findsNothing);
+
+    model.availability = const Ok(CoachModelInfo(contextSize: 4096));
+    await tester.tap(find.byKey(const Key('coachCheckAgain')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachUnavailableCard')), findsNothing);
+    expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+  });
+
+  testWidgets('no "Check again" where it could never help', (tester) async {
+    model.availability = const Err(CoachDeviceNotEligibleFailure());
+    await pump(tester);
+    expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
+  });
+
   testWidgets('with a screen reader on, a finished reply is announced once, '
       'never a snapshot', (tester) async {
     final announced = recordAnnouncements(tester);

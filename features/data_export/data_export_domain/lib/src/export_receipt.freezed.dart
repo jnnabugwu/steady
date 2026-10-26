@@ -20,7 +20,10 @@ mixin _$ExportReceipt {
  String get fileName;/// How many days (rows) the file holds. `0` is a real, complete export
 /// of an empty store, not a failure.
  int get dayCount;/// What the user did with the share sheet.
- ExportShareOutcome get outcome;
+ ExportShareOutcome get outcome;/// Why the coach history was left out of this JSON file
+/// (`ExportBundle.coachHistoryLeftOut`), or `null` if nothing was.
+/// Always `null` for CSV, which never holds coach sessions.
+ CoachHistoryLeftOut? get coachHistoryLeftOut;
 /// Create a copy of ExportReceipt
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -32,20 +35,20 @@ $ExportReceiptCopyWith<ExportReceipt> get copyWith => _$ExportReceiptCopyWithImp
 @override
 bool operator ==(Object other) {
   final _this = this as ExportReceipt;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExportReceipt&&(identical(other.format, _this.format) || other.format == _this.format)&&(identical(other.fileName, _this.fileName) || other.fileName == _this.fileName)&&(identical(other.dayCount, _this.dayCount) || other.dayCount == _this.dayCount)&&(identical(other.outcome, _this.outcome) || other.outcome == _this.outcome));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is ExportReceipt&&(identical(other.format, _this.format) || other.format == _this.format)&&(identical(other.fileName, _this.fileName) || other.fileName == _this.fileName)&&(identical(other.dayCount, _this.dayCount) || other.dayCount == _this.dayCount)&&(identical(other.outcome, _this.outcome) || other.outcome == _this.outcome)&&(identical(other.coachHistoryLeftOut, _this.coachHistoryLeftOut) || other.coachHistoryLeftOut == _this.coachHistoryLeftOut));
 }
 
 
 @override
 int get hashCode {
   final _this = this as ExportReceipt;
-  return Object.hash(runtimeType,_this.format,_this.fileName,_this.dayCount,_this.outcome);
+  return Object.hash(runtimeType,_this.format,_this.fileName,_this.dayCount,_this.outcome,_this.coachHistoryLeftOut);
 }
 
 @override
 String toString() {
   final _this = this as ExportReceipt;
-  return 'ExportReceipt(format: ${_this.format}, fileName: ${_this.fileName}, dayCount: ${_this.dayCount}, outcome: ${_this.outcome})';
+  return 'ExportReceipt(format: ${_this.format}, fileName: ${_this.fileName}, dayCount: ${_this.dayCount}, outcome: ${_this.outcome}, coachHistoryLeftOut: ${_this.coachHistoryLeftOut})';
 }
 
 
@@ -56,7 +59,7 @@ abstract mixin class $ExportReceiptCopyWith<$Res>  {
   factory $ExportReceiptCopyWith(ExportReceipt value, $Res Function(ExportReceipt) _then) = _$ExportReceiptCopyWithImpl;
 @useResult
 $Res call({
- ExportFormat format, String fileName, int dayCount, ExportShareOutcome outcome
+ ExportFormat format, String fileName, int dayCount, ExportShareOutcome outcome, CoachHistoryLeftOut? coachHistoryLeftOut
 });
 
 
@@ -73,13 +76,14 @@ class _$ExportReceiptCopyWithImpl<$Res>
 
 /// Create a copy of ExportReceipt
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? format = null,Object? fileName = null,Object? dayCount = null,Object? outcome = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? format = null,Object? fileName = null,Object? dayCount = null,Object? outcome = null,Object? coachHistoryLeftOut = freezed,}) {
   return _then(ExportReceipt(
 format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
 as ExportFormat,fileName: null == fileName ? _self.fileName : fileName // ignore: cast_nullable_to_non_nullable
 as String,dayCount: null == dayCount ? _self.dayCount : dayCount // ignore: cast_nullable_to_non_nullable
 as int,outcome: null == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
-as ExportShareOutcome,
+as ExportShareOutcome,coachHistoryLeftOut: freezed == coachHistoryLeftOut ? _self.coachHistoryLeftOut : coachHistoryLeftOut // ignore: cast_nullable_to_non_nullable
+as CoachHistoryLeftOut?,
   ));
 }
 
@@ -164,10 +168,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome,  CoachHistoryLeftOut? coachHistoryLeftOut)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _ExportReceipt() when $default != null:
-return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _:
+return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome,_that.coachHistoryLeftOut);case _:
   return orElse();
 
 }
@@ -185,10 +189,10 @@ return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome,  CoachHistoryLeftOut? coachHistoryLeftOut)  $default,) {final _that = this;
 switch (_that) {
 case _ExportReceipt():
-return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _:
+return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome,_that.coachHistoryLeftOut);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -205,10 +209,10 @@ return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( ExportFormat format,  String fileName,  int dayCount,  ExportShareOutcome outcome,  CoachHistoryLeftOut? coachHistoryLeftOut)?  $default,) {final _that = this;
 switch (_that) {
 case _ExportReceipt() when $default != null:
-return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _:
+return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome,_that.coachHistoryLeftOut);case _:
   return null;
 
 }
@@ -220,7 +224,7 @@ return $default(_that.format,_that.fileName,_that.dayCount,_that.outcome);case _
 
 
 class _ExportReceipt implements ExportReceipt {
-  const _ExportReceipt({required this.format, required this.fileName, required this.dayCount, required this.outcome});
+  const _ExportReceipt({required this.format, required this.fileName, required this.dayCount, required this.outcome, this.coachHistoryLeftOut});
   
 
 /// The format that was exported.
@@ -232,6 +236,10 @@ class _ExportReceipt implements ExportReceipt {
 @override final  int dayCount;
 /// What the user did with the share sheet.
 @override final  ExportShareOutcome outcome;
+/// Why the coach history was left out of this JSON file
+/// (`ExportBundle.coachHistoryLeftOut`), or `null` if nothing was.
+/// Always `null` for CSV, which never holds coach sessions.
+@override final  CoachHistoryLeftOut? coachHistoryLeftOut;
 
 /// Create a copy of ExportReceipt
 /// with the given fields replaced by the non-null parameter values.
@@ -243,18 +251,18 @@ _$ExportReceiptCopyWith<_ExportReceipt> get copyWith => __$ExportReceiptCopyWith
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExportReceipt&&(identical(other.format, format) || other.format == format)&&(identical(other.fileName, fileName) || other.fileName == fileName)&&(identical(other.dayCount, dayCount) || other.dayCount == dayCount)&&(identical(other.outcome, outcome) || other.outcome == outcome));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _ExportReceipt&&(identical(other.format, format) || other.format == format)&&(identical(other.fileName, fileName) || other.fileName == fileName)&&(identical(other.dayCount, dayCount) || other.dayCount == dayCount)&&(identical(other.outcome, outcome) || other.outcome == outcome)&&(identical(other.coachHistoryLeftOut, coachHistoryLeftOut) || other.coachHistoryLeftOut == coachHistoryLeftOut));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,format,fileName,dayCount,outcome);
+    return Object.hash(runtimeType,format,fileName,dayCount,outcome,coachHistoryLeftOut);
 }
 
 @override
 String toString() {
-    return 'ExportReceipt(format: $format, fileName: $fileName, dayCount: $dayCount, outcome: $outcome)';
+    return 'ExportReceipt(format: $format, fileName: $fileName, dayCount: $dayCount, outcome: $outcome, coachHistoryLeftOut: $coachHistoryLeftOut)';
 }
 
 
@@ -265,7 +273,7 @@ abstract mixin class _$ExportReceiptCopyWith<$Res> implements $ExportReceiptCopy
   factory _$ExportReceiptCopyWith(_ExportReceipt value, $Res Function(_ExportReceipt) _then) = __$ExportReceiptCopyWithImpl;
 @override @useResult
 $Res call({
- ExportFormat format, String fileName, int dayCount, ExportShareOutcome outcome
+ ExportFormat format, String fileName, int dayCount, ExportShareOutcome outcome, CoachHistoryLeftOut? coachHistoryLeftOut
 });
 
 
@@ -282,13 +290,14 @@ class __$ExportReceiptCopyWithImpl<$Res>
 
 /// Create a copy of ExportReceipt
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? format = null,Object? fileName = null,Object? dayCount = null,Object? outcome = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? format = null,Object? fileName = null,Object? dayCount = null,Object? outcome = null,Object? coachHistoryLeftOut = freezed,}) {
   return _then(_ExportReceipt(
 format: null == format ? _self.format : format // ignore: cast_nullable_to_non_nullable
 as ExportFormat,fileName: null == fileName ? _self.fileName : fileName // ignore: cast_nullable_to_non_nullable
 as String,dayCount: null == dayCount ? _self.dayCount : dayCount // ignore: cast_nullable_to_non_nullable
 as int,outcome: null == outcome ? _self.outcome : outcome // ignore: cast_nullable_to_non_nullable
-as ExportShareOutcome,
+as ExportShareOutcome,coachHistoryLeftOut: freezed == coachHistoryLeftOut ? _self.coachHistoryLeftOut : coachHistoryLeftOut // ignore: cast_nullable_to_non_nullable
+as CoachHistoryLeftOut?,
   ));
 }
 

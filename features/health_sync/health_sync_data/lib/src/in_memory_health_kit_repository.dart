@@ -16,6 +16,7 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
   /// Creates the repository, starting at [status] with [days] of data.
   InMemoryHealthKitRepository({
     this.status = HealthAuthorizationStatus.notDetermined,
+    this.weightUnit = WeightUnit.kilograms,
     Iterable<HealthDayTotals> days = const [],
   }) : days = {
          for (final d in days)
@@ -24,6 +25,9 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
 
   /// What [authorizationStatus] returns.
   HealthAuthorizationStatus status;
+
+  /// What [preferredWeightUnit] returns once [status] is `requested`.
+  WeightUnit weightUnit;
 
   /// Health's data, by local midnight.
   final Map<DateTime, HealthDayTotals> days;
@@ -82,6 +86,30 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
       )
         days[d] ?? HealthDayTotals(date: d),
     ]);
+  }
+
+  /// Like the native side, fails before the permission sheet was shown
+  /// (`authorizationNotDetermined`) and where Health isn't available
+  /// (`unavailable`), so a test can't read a unit the iPhone wouldn't give.
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() async {
+    final failure = this.failure;
+    if (failure != null) return Err(failure);
+    return switch (status) {
+      HealthAuthorizationStatus.notDetermined => const Err(
+        PlatformChannelFailure(
+          'Weight access has not been requested yet',
+          code: HealthKitChannel.authorizationNotDeterminedCode,
+        ),
+      ),
+      HealthAuthorizationStatus.unavailable => const Err(
+        PlatformChannelFailure(
+          'Health data is not available on this device',
+          code: HealthKitChannel.unavailableCode,
+        ),
+      ),
+      HealthAuthorizationStatus.requested => Ok(weightUnit),
+    };
   }
 
   Result<T> _or<T>(T Function() value) {

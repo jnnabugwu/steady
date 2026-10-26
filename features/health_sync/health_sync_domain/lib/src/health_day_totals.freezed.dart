@@ -19,7 +19,9 @@ mixin _$HealthDayTotals {
  DateTime get date;/// Summed `stepCount`.
  int? get steps;/// Summed `activeEnergyBurned`, rounded to whole kcal.
  int? get caloriesBurnedActive;/// Summed `basalEnergyBurned`, rounded to whole kcal.
- int? get caloriesBurnedBasal;
+ int? get caloriesBurnedBasal;/// The day's most recent `bodyMass` reading, in kilograms. Not a sum,
+/// and not smoothed: see `weightTrendKg` for the trend.
+ double? get weightKg;
 /// Create a copy of HealthDayTotals
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
@@ -31,20 +33,20 @@ $HealthDayTotalsCopyWith<HealthDayTotals> get copyWith => _$HealthDayTotalsCopyW
 @override
 bool operator ==(Object other) {
   final _this = this as HealthDayTotals;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is HealthDayTotals&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.steps, _this.steps) || other.steps == _this.steps)&&(identical(other.caloriesBurnedActive, _this.caloriesBurnedActive) || other.caloriesBurnedActive == _this.caloriesBurnedActive)&&(identical(other.caloriesBurnedBasal, _this.caloriesBurnedBasal) || other.caloriesBurnedBasal == _this.caloriesBurnedBasal));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is HealthDayTotals&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.steps, _this.steps) || other.steps == _this.steps)&&(identical(other.caloriesBurnedActive, _this.caloriesBurnedActive) || other.caloriesBurnedActive == _this.caloriesBurnedActive)&&(identical(other.caloriesBurnedBasal, _this.caloriesBurnedBasal) || other.caloriesBurnedBasal == _this.caloriesBurnedBasal)&&(identical(other.weightKg, _this.weightKg) || other.weightKg == _this.weightKg));
 }
 
 
 @override
 int get hashCode {
   final _this = this as HealthDayTotals;
-  return Object.hash(runtimeType,_this.date,_this.steps,_this.caloriesBurnedActive,_this.caloriesBurnedBasal);
+  return Object.hash(runtimeType,_this.date,_this.steps,_this.caloriesBurnedActive,_this.caloriesBurnedBasal,_this.weightKg);
 }
 
 @override
 String toString() {
   final _this = this as HealthDayTotals;
-  return 'HealthDayTotals(date: ${_this.date}, steps: ${_this.steps}, caloriesBurnedActive: ${_this.caloriesBurnedActive}, caloriesBurnedBasal: ${_this.caloriesBurnedBasal})';
+  return 'HealthDayTotals(date: ${_this.date}, steps: ${_this.steps}, caloriesBurnedActive: ${_this.caloriesBurnedActive}, caloriesBurnedBasal: ${_this.caloriesBurnedBasal}, weightKg: ${_this.weightKg})';
 }
 
 
@@ -55,7 +57,7 @@ abstract mixin class $HealthDayTotalsCopyWith<$Res>  {
   factory $HealthDayTotalsCopyWith(HealthDayTotals value, $Res Function(HealthDayTotals) _then) = _$HealthDayTotalsCopyWithImpl;
 @useResult
 $Res call({
- DateTime date, int? steps, int? caloriesBurnedActive, int? caloriesBurnedBasal
+ DateTime date, int? steps, int? caloriesBurnedActive, int? caloriesBurnedBasal, double? weightKg
 });
 
 
@@ -72,13 +74,14 @@ class _$HealthDayTotalsCopyWithImpl<$Res>
 
 /// Create a copy of HealthDayTotals
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? steps = freezed,Object? caloriesBurnedActive = freezed,Object? caloriesBurnedBasal = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? steps = freezed,Object? caloriesBurnedActive = freezed,Object? caloriesBurnedBasal = freezed,Object? weightKg = freezed,}) {
   return _then(HealthDayTotals(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,steps: freezed == steps ? _self.steps : steps // ignore: cast_nullable_to_non_nullable
 as int?,caloriesBurnedActive: freezed == caloriesBurnedActive ? _self.caloriesBurnedActive : caloriesBurnedActive // ignore: cast_nullable_to_non_nullable
 as int?,caloriesBurnedBasal: freezed == caloriesBurnedBasal ? _self.caloriesBurnedBasal : caloriesBurnedBasal // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,weightKg: freezed == weightKg ? _self.weightKg : weightKg // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
@@ -163,10 +166,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal,  double? weightKg)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _HealthDayTotals() when $default != null:
-return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal);case _:
+return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal,_that.weightKg);case _:
   return orElse();
 
 }
@@ -184,10 +187,10 @@ return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.calories
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal,  double? weightKg)  $default,) {final _that = this;
 switch (_that) {
 case _HealthDayTotals():
-return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal);case _:
+return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal,_that.weightKg);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -204,10 +207,10 @@ return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.calories
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime date,  int? steps,  int? caloriesBurnedActive,  int? caloriesBurnedBasal,  double? weightKg)?  $default,) {final _that = this;
 switch (_that) {
 case _HealthDayTotals() when $default != null:
-return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal);case _:
+return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.caloriesBurnedBasal,_that.weightKg);case _:
   return null;
 
 }
@@ -219,7 +222,7 @@ return $default(_that.date,_that.steps,_that.caloriesBurnedActive,_that.calories
 
 
 class _HealthDayTotals extends HealthDayTotals {
-  const _HealthDayTotals({required this.date, this.steps, this.caloriesBurnedActive, this.caloriesBurnedBasal}): super._();
+  const _HealthDayTotals({required this.date, this.steps, this.caloriesBurnedActive, this.caloriesBurnedBasal, this.weightKg}): super._();
   
 
 /// The day, at local midnight.
@@ -230,6 +233,9 @@ class _HealthDayTotals extends HealthDayTotals {
 @override final  int? caloriesBurnedActive;
 /// Summed `basalEnergyBurned`, rounded to whole kcal.
 @override final  int? caloriesBurnedBasal;
+/// The day's most recent `bodyMass` reading, in kilograms. Not a sum,
+/// and not smoothed: see `weightTrendKg` for the trend.
+@override final  double? weightKg;
 
 /// Create a copy of HealthDayTotals
 /// with the given fields replaced by the non-null parameter values.
@@ -241,18 +247,18 @@ _$HealthDayTotalsCopyWith<_HealthDayTotals> get copyWith => __$HealthDayTotalsCo
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _HealthDayTotals&&(identical(other.date, date) || other.date == date)&&(identical(other.steps, steps) || other.steps == steps)&&(identical(other.caloriesBurnedActive, caloriesBurnedActive) || other.caloriesBurnedActive == caloriesBurnedActive)&&(identical(other.caloriesBurnedBasal, caloriesBurnedBasal) || other.caloriesBurnedBasal == caloriesBurnedBasal));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _HealthDayTotals&&(identical(other.date, date) || other.date == date)&&(identical(other.steps, steps) || other.steps == steps)&&(identical(other.caloriesBurnedActive, caloriesBurnedActive) || other.caloriesBurnedActive == caloriesBurnedActive)&&(identical(other.caloriesBurnedBasal, caloriesBurnedBasal) || other.caloriesBurnedBasal == caloriesBurnedBasal)&&(identical(other.weightKg, weightKg) || other.weightKg == weightKg));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,date,steps,caloriesBurnedActive,caloriesBurnedBasal);
+    return Object.hash(runtimeType,date,steps,caloriesBurnedActive,caloriesBurnedBasal,weightKg);
 }
 
 @override
 String toString() {
-    return 'HealthDayTotals(date: $date, steps: $steps, caloriesBurnedActive: $caloriesBurnedActive, caloriesBurnedBasal: $caloriesBurnedBasal)';
+    return 'HealthDayTotals(date: $date, steps: $steps, caloriesBurnedActive: $caloriesBurnedActive, caloriesBurnedBasal: $caloriesBurnedBasal, weightKg: $weightKg)';
 }
 
 
@@ -263,7 +269,7 @@ abstract mixin class _$HealthDayTotalsCopyWith<$Res> implements $HealthDayTotals
   factory _$HealthDayTotalsCopyWith(_HealthDayTotals value, $Res Function(_HealthDayTotals) _then) = __$HealthDayTotalsCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime date, int? steps, int? caloriesBurnedActive, int? caloriesBurnedBasal
+ DateTime date, int? steps, int? caloriesBurnedActive, int? caloriesBurnedBasal, double? weightKg
 });
 
 
@@ -280,13 +286,14 @@ class __$HealthDayTotalsCopyWithImpl<$Res>
 
 /// Create a copy of HealthDayTotals
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? steps = freezed,Object? caloriesBurnedActive = freezed,Object? caloriesBurnedBasal = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? steps = freezed,Object? caloriesBurnedActive = freezed,Object? caloriesBurnedBasal = freezed,Object? weightKg = freezed,}) {
   return _then(_HealthDayTotals(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,steps: freezed == steps ? _self.steps : steps // ignore: cast_nullable_to_non_nullable
 as int?,caloriesBurnedActive: freezed == caloriesBurnedActive ? _self.caloriesBurnedActive : caloriesBurnedActive // ignore: cast_nullable_to_non_nullable
 as int?,caloriesBurnedBasal: freezed == caloriesBurnedBasal ? _self.caloriesBurnedBasal : caloriesBurnedBasal // ignore: cast_nullable_to_non_nullable
-as int?,
+as int?,weightKg: freezed == weightKg ? _self.weightKg : weightKg // ignore: cast_nullable_to_non_nullable
+as double?,
   ));
 }
 
