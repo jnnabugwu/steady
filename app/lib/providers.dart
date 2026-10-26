@@ -86,6 +86,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 part 'providers.g.dart';
 
@@ -133,6 +134,18 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 /// `keepAlive`: cheap and stateless (D6).
 @Riverpod(keepAlive: true)
 HealthKitRepository? healthKitRepository(Ref ref) => null;
+
+/// Opens an external link in the browser. Returns whether it opened.
+typedef AppLinkOpener = Future<bool> Function(Uri uri);
+
+/// How app-level screens open an external link (Settings' privacy policy).
+/// Defaults to the system browser through `url_launcher`; tests override
+/// it so they never reach the plugin.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+AppLinkOpener appLinkOpener(Ref ref) =>
+    (uri) => launchUrl(uri, mode: LaunchMode.externalApplication);
 
 /// Binds every feature-declared repository provider to its `*_data`
 /// implementation, for the current platform. Passed to `ProviderScope` in

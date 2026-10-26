@@ -50,6 +50,7 @@ import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/app_shell.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
+import 'package:steady/privacy_card.dart';
 import 'package:steady/sample_data_card.dart';
 import 'package:steady/today_screen.dart';
 import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
@@ -258,7 +259,9 @@ class WeekRoute extends GoRouteData with $WeekRoute {
 /// with the Apple Health section ([AppleHealthCard]), "Cravings"
 /// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
 /// iPhone only), "Sample data" ([SampleDataCard], shown only while the
-/// sample export's days are in the store) and the debug-only Developer
+/// sample export's days are in the store), "Privacy" ([PrivacyCard], the
+/// privacy policy link App Store guideline 5.1.1(i) asks for) and the
+/// debug-only Developer
 /// card ([developerSettingsSections]) composed in above the export.
 ///
 /// The root of its own tab, so there's nothing to pop: back switches to
@@ -277,6 +280,7 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       const CravingSettingsCard(),
       const CoachSettingsCard(),
       const SampleDataCard(),
+      const PrivacyCard(),
       ...developerSettingsSections(),
     ],
   );

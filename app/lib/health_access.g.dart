@@ -62,7 +62,7 @@ final class HealthAccessControllerProvider
 }
 
 String _$healthAccessControllerHash() =>
-    r'd56ce20252d9579fe066c4832df1741626637d42';
+    r'c13fc5a29f3e8321a7f927c39026871232165217';
 
 /// Whether Health is available and whether its permission sheet has been
 /// shown (never "allowed" or "denied": HealthKit doesn't say), for
