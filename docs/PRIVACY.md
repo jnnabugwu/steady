@@ -1,6 +1,6 @@
 # Steady Privacy Policy
 
-Effective 24 October 2026.
+Effective 26 October 2026.
 
 Steady is an app for iPhone and Mac that shows your daily calories and a simple end-of-day
 check-in. This policy describes what the app does with your data.
@@ -69,20 +69,22 @@ so it works only on an iPhone that supports Apple Intelligence, with it turned o
 
 ## Apple Health
 
-On iPhone, with your permission, Steady reads your daily steps, active energy and resting
-energy from Apple Health and shows them in the app. Steady:
+On iPhone, with your permission, Steady reads your daily steps, active energy, resting
+energy and weight from Apple Health and shows them in the app (weight as a smoothed trend
+and that day's reading). Steady:
 
-- reads them fresh from Apple Health and doesn't keep its own copy, and never stores them
-  in iCloud. The one exception is the coach on iPhone: its conversations can mention them,
-  and those conversations are kept only on your iPhone (part of the phone's own iCloud
-  Backup if you use it, like all app data);
+- reads them fresh from Apple Health each time and doesn't save them, so Steady never puts
+  them in its iCloud storage or in its own data on the iPhone (and so they aren't in Steady's
+  part of an iCloud Backup or in the data export);
 - never writes anything to Apple Health;
 - never shares them with anyone, and never uses them for advertising. An export you make
   yourself (Settings → Export) includes a short summary of each coach session, and a
   summary may mention a number the coach discussed.
 
-You can turn off Steady's access at any time in the Health app or in Settings → Privacy &
-Security → Health. The Mac app doesn't use Apple Health.
+Apple Health keeps its own copy of this data, and syncs it through iCloud if you've turned
+on Health in iCloud. That's Apple's storage, managed in the Health app and your iCloud
+settings, not Steady's. You can turn off Steady's access at any time in the Health app or in
+Settings → Privacy & Security → Health. The Mac app doesn't use Apple Health.
 
 ## What Steady doesn't do
 

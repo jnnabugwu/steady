@@ -45,6 +45,15 @@
 /// macOS the repository stays unbound and every craving surface renders
 /// nothing.
 ///
+/// **The coach is iOS only, and its sessions are device-only** (#78,
+/// CLAUDE.md §11): transcripts and summaries are kept in a JSON file in the
+/// application support directory ([coachStoreFile]), never in
+/// SwiftData/CloudKit, for the same 5.1.3(ii) reason as cravings.
+/// `coachRepositoryProvider`, `coachSupportAvailableProvider` and the
+/// export's `exportCoachRepositoryProvider` are bound only when
+/// [appProviderOverridesFor] is built with `isIOS: true`; the Mac binds no
+/// coach provider at all.
+///
 /// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
 /// (`coachModelProvider`, Apple Foundation Models through the
 /// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
@@ -134,11 +143,16 @@ final List<Override> appProviderOverrides = appProviderOverridesFor(
 Future<File> cravingStoreFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/cravings.json');
 
+/// The device-only coach file: `coach_sessions.json` in the application
+/// support directory. Looked up on first use, not at launch.
+Future<File> coachStoreFile() async => File(
+  '${(await getApplicationSupportDirectory()).path}/coach_sessions.json',
+);
+
 /// [appProviderOverrides] for a given platform. The platform choices in it
-/// are Apple Health, craving support and the coach's model, all bound only
-/// when [isIOS] (see
-/// the library comment). A function, not just the list, so tests can build
-/// the iOS wiring on any host.
+/// are Apple Health, craving support and the coach, all bound only when
+/// [isIOS] (see the library comment). A function, not just the list, so
+/// tests can build the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
   if (isIOS) ...[
     healthKitRepositoryProvider.overrideWith(
@@ -147,6 +161,15 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     cravingSupportAvailableProvider.overrideWithValue(true),
     cravingRepositoryProvider.overrideWith(
       (ref) => FileCravingRepository.locatedBy(cravingStoreFile),
+    ),
+    coachSupportAvailableProvider.overrideWithValue(true),
+    coachRepositoryProvider.overrideWith(
+      (ref) => FileCoachRepository.locatedBy(coachStoreFile),
+    ),
+    // The export reads each session's date, kind and summary through the
+    // coach's own repository: the same instance, so the same file.
+    exportCoachRepositoryProvider.overrideWith(
+      (ref) => ref.watch(coachRepositoryProvider),
     ),
     coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
   ],

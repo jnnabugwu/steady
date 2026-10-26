@@ -1,3 +1,4 @@
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:failures/failures.dart';
@@ -31,13 +32,36 @@ class _FakeDailyMetricRepository implements DailyMetricRepository {
   }) => throw UnimplementedError();
 
   @override
-  ResultFuture<Unit> clearFields(
-    DateTime date,
-    Set<DailyMetricField> fields,
-  ) => throw UnimplementedError();
+  ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields) =>
+      throw UnimplementedError();
 
   @override
   ResultFuture<Unit> delete(DateTime date) => throw UnimplementedError();
+}
+
+/// Answers `listSessions` with [listResult] and counts calls.
+class _FakeCoachRepository implements CoachRepository {
+  _FakeCoachRepository(this.listResult);
+
+  final Result<List<CoachSession>> listResult;
+  int listCalls = 0;
+
+  @override
+  ResultFuture<List<CoachSession>> listSessions() async {
+    listCalls++;
+    return listResult;
+  }
+
+  @override
+  ResultFuture<CoachSession?> getSession(String id) =>
+      throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> saveSession(CoachSession session) =>
+      throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> deleteAll() => throw UnimplementedError();
 }
 
 void main() {
@@ -127,5 +151,89 @@ void main() {
 
     expect(result, isA<Err<ExportBundle>>());
     expect((result as Err<ExportBundle>).failure, same(failure));
+  });
+
+  group('coach sessions', () {
+    final sessions = [
+      CoachSession(
+        id: 'a',
+        kind: CoachSessionKind.weekly,
+        startedAt: DateTime(2026, 10, 23, 19),
+        summary: 'Calm week.',
+      ),
+    ];
+
+    test(
+      'without a coach repository (the Mac), coachSessions is null',
+      () async {
+        final result = await readExportBundle(
+          _FakeDailyMetricRepository(const Ok([])),
+          exportedAt: exportedAt,
+        );
+        final bundle = (result as Ok<ExportBundle>).value;
+        expect(bundle.coachSessions, isNull);
+        expect(bundle.coachHistoryUnreadable, isFalse);
+      },
+    );
+
+    test('with one (the iPhone), every session is bundled', () async {
+      final coach = _FakeCoachRepository(Ok(sessions));
+      final result = await readExportBundle(
+        _FakeDailyMetricRepository(const Ok([])),
+        exportedAt: exportedAt,
+        coachRepository: coach,
+      );
+      final bundle = (result as Ok<ExportBundle>).value;
+      expect(bundle.coachSessions, sessions);
+      expect(bundle.coachHistoryUnreadable, isFalse);
+      expect(coach.listCalls, 1);
+    });
+
+    test('with one and no sessions, coachSessions is empty', () async {
+      final result = await readExportBundle(
+        _FakeDailyMetricRepository(const Ok([])),
+        exportedAt: exportedAt,
+        coachRepository: _FakeCoachRepository(const Ok([])),
+      );
+      final bundle = (result as Ok<ExportBundle>).value;
+      expect(bundle.coachSessions, isEmpty);
+      expect(bundle.coachHistoryUnreadable, isFalse);
+    });
+
+    for (final (failure, leftOut) in const <(Failure, CoachHistoryLeftOut)>[
+      (
+        CoachHistoryUnreadableFailure('corrupt'),
+        CoachHistoryLeftOut.unreadable,
+      ),
+      (CoachHistoryStorageFailure('locked'), CoachHistoryLeftOut.readFailed),
+    ]) {
+      test('a coach Err (${failure.runtimeType}) leaves the coach out as '
+          '${leftOut.name} but keeps every daily row', () async {
+        final rows = [DailyMetric(date: DateTime(2026, 10, 19), steps: 1)];
+        final result = await readExportBundle(
+          _FakeDailyMetricRepository(Ok(rows)),
+          exportedAt: exportedAt,
+          coachRepository: _FakeCoachRepository(Err(failure)),
+        );
+        final bundle = (result as Ok<ExportBundle>).value;
+        expect(bundle.dailyMetrics, rows);
+        expect(bundle.coachSessions, isNull);
+        expect(bundle.coachHistoryUnreadable, isTrue);
+        expect(bundle.coachHistoryFailure, same(failure));
+        expect(bundle.coachHistoryLeftOut, leftOut);
+      });
+    }
+
+    test('a daily-metrics Err fails first; the coach store is not '
+        'read', () async {
+      final coach = _FakeCoachRepository(Ok(sessions));
+      final result = await readExportBundle(
+        _FakeDailyMetricRepository(const Err(UnknownFailure('down'))),
+        exportedAt: exportedAt,
+        coachRepository: coach,
+      );
+      expect(result, isA<Err<ExportBundle>>());
+      expect(coach.listCalls, 0);
+    });
   });
 }

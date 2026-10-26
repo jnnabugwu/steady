@@ -214,6 +214,12 @@ void main() {
       'a string count': [
         {'date': '2026-10-21', 'steps': '12'},
       ],
+      'a zero weight': [
+        {'date': '2026-10-21', 'weightKg': 0},
+      ],
+      'a string weight': [
+        {'date': '2026-10-21', 'weightKg': '80.2'},
+      ],
     };
     for (final MapEntry(key: name, value: reply) in malformed.entries) {
       test('$name is an UnknownFailure', () async {
@@ -238,6 +244,52 @@ void main() {
       );
       expect(failure, isA<PlatformChannelFailure>());
       expect((failure as PlatformChannelFailure).code, 'unavailable');
+    });
+  });
+
+  group('weight', () {
+    test('dailyTotals decodes weightKg as a double, int or null', () async {
+      answer(
+        (_) => [
+          {'date': '2026-10-21', 'weightKg': 81.37},
+          {'date': '2026-10-22', 'weightKg': 81},
+          {'date': '2026-10-23', 'weightKg': null},
+        ],
+      );
+      final days = okValue(
+        await repository.dailyTotals(
+          DateTime(2026, 10, 21),
+          DateTime(2026, 10, 23),
+        ),
+      );
+      expect(days.map((d) => d.weightKg), [81.37, 81.0, null]);
+      expect(days.first.hasActivity, isFalse);
+      expect(days.first.isEmpty, isFalse);
+    });
+
+    const units = {
+      'kg': WeightUnit.kilograms,
+      'lb': WeightUnit.pounds,
+      'st': WeightUnit.stones,
+      'somethingNew': WeightUnit.kilograms,
+    };
+    for (final MapEntry(key: wire, value: unit) in units.entries) {
+      test('preferredWeightUnit maps "$wire" to $unit', () async {
+        answer((_) => wire);
+        expect(okValue(await repository.preferredWeightUnit()), unit);
+        expect(calls.single.method, 'preferredWeightUnit');
+        expect(calls.single.arguments, isNull);
+      });
+    }
+
+    test('preferredWeightUnit before the permission sheet is a '
+        'PlatformChannelFailure', () async {
+      throwPlatform(HealthKitChannel.authorizationNotDeterminedCode);
+      final failure = errFailure(await repository.preferredWeightUnit());
+      expect(
+        (failure as PlatformChannelFailure).code,
+        'authorizationNotDetermined',
+      );
     });
   });
 
