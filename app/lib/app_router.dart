@@ -444,6 +444,16 @@ class ImportRoute extends GoRouteData with $ImportRoute {
           const HomeRoute().go(context);
         }
       },
+      onBack: () {
+        if (context.canPop()) {
+          // As above: the pushing screen refreshes once this route pops.
+          context.pop();
+        } else {
+          // A sample import may have been committed before leaving.
+          _invalidateImportReaders(container);
+          const HomeRoute().go(context);
+        }
+      },
     );
   }
 }

@@ -7,7 +7,11 @@ import 'package:steady/providers.dart';
 import 'package:steady/today_screen.dart';
 
 void main() {
-  Future<void> pumpApp(WidgetTester tester) async {
+  Future<void> pumpApp(WidgetTester tester, {String? coldStart}) async {
+    if (coldStart != null) {
+      tester.platformDispatcher.defaultRouteNameTestValue = coldStart;
+      addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+    }
     await tester.pumpWidget(
       ProviderScope(overrides: appProviderOverrides, child: const SteadyApp()),
     );
@@ -33,6 +37,31 @@ void main() {
     tester
         .widget<PdfImportModule>(find.byType(PdfImportModule))
         .onImportCompleted();
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PdfImportModule), findsNothing);
+    expect(find.byType(TodayScreen), findsOneWidget);
+  });
+
+  testWidgets('the back button returns to the Today screen', (tester) async {
+    await pumpApp(tester);
+    await tester.tap(find.byKey(const Key('importButton_header')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('pdfImport_backButton')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(PdfImportModule), findsNothing);
+    expect(find.byType(TodayScreen), findsOneWidget);
+  });
+
+  testWidgets('back from a cold start at /import goes to Today', (
+    tester,
+  ) async {
+    await pumpApp(tester, coldStart: '/import');
+    expect(find.byType(PdfImportModule), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('pdfImport_backButton')));
     await tester.pumpAndSettle();
 
     expect(find.byType(PdfImportModule), findsNothing);

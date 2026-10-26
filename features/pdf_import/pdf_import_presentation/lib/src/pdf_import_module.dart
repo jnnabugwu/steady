@@ -11,9 +11,10 @@ import 'package:ui_kit/ui_kit.dart';
 /// review its days, import.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): once the parsed days are
-/// committed it calls [onImportCompleted], and the app layer decides what
-/// happens next. After a sample import it first stays on the confirmation,
-/// which says how to remove the sample days, until the user taps Done.
+/// committed it calls [onImportCompleted], and the header's back button
+/// calls [onBack]; the app layer decides where each goes. After a sample
+/// import it first stays on the confirmation, which says how to remove the
+/// sample days, until the user taps Done.
 ///
 /// Pass 02 ("Native Glass", issue #68): each step sits on a [GlassCard],
 /// with a teal pill for the primary action and a glass pill for the
@@ -23,12 +24,20 @@ import 'package:ui_kit/ui_kit.dart';
 /// `ShadcnApp` ancestor and no Material ones.
 class PdfImportModule extends ConsumerWidget {
   /// Creates the PDF import screen.
-  const PdfImportModule({required this.onImportCompleted, super.key});
+  const PdfImportModule({
+    required this.onImportCompleted,
+    required this.onBack,
+    super.key,
+  });
 
   /// Called once after the parsed days are committed successfully: right
   /// away for a chosen file, or when the user taps Done on a sample
   /// import's confirmation. Not called when the commit fails.
   final void Function() onImportCompleted;
+
+  /// Called when the header's back button is tapped, at any step. Leaving
+  /// mid-commit doesn't cancel the write.
+  final void Function() onBack;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,7 +60,7 @@ class PdfImportModule extends ConsumerWidget {
     }
 
     return Scaffold(
-      headers: const [_Header()],
+      headers: [_Header(onBack: onBack)],
       child: SafeArea(
         top: false,
         child: Padding(
@@ -190,30 +199,49 @@ class PdfImportModule extends ConsumerWidget {
 
 /// The Pass 02 screen header: the 34px title under a small teal line.
 class _Header extends StatelessWidget {
-  const _Header();
+  const _Header({required this.onBack});
+
+  final void Function() onBack;
 
   @override
   Widget build(BuildContext context) {
-    return const SafeArea(
+    return SafeArea(
       bottom: false,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(22, 16, 22, 8),
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'On this device',
-              style: TextStyle(
-                fontFamily: SteadyType.fontFamily,
-                fontFamilyFallback: SteadyType.fontFamilyFallback,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: SteadyColors.accentTealHover,
+            // The same round glass back button as Settings.
+            GlassIconButton(
+              key: const Key('pdfImport_backButton'),
+              icon: LucideIcons.arrowLeft,
+              semanticLabel: 'Back',
+              onPressed: onBack,
+            ),
+            const SizedBox(height: 12),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'On this device',
+                    style: TextStyle(
+                      fontFamily: SteadyType.fontFamily,
+                      fontFamilyFallback: SteadyType.fontFamilyFallback,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: SteadyColors.accentTealHover,
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text('Import from Cal AI', style: SteadyType.headline),
+                ],
               ),
             ),
-            SizedBox(height: 4),
-            Text('Import from Cal AI', style: SteadyType.headline),
           ],
         ),
       ),

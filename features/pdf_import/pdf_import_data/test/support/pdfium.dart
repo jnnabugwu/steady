@@ -21,7 +21,8 @@ void usePdfiumBuiltByFlutterTest() {
   final json = jsonDecode(manifest.readAsStringSync()) as Map<String, dynamic>;
   final targets = json['native-assets'] as Map<String, dynamic>? ?? {};
   for (final assets in targets.values) {
-    final entry = (assets as Map<String, dynamic>)['package:pdfium_dart/libpdfium'];
+    final entry =
+        (assets as Map<String, dynamic>)['package:pdfium_dart/libpdfium'];
     if (entry is List && entry.length == 2 && entry[0] == 'absolute') {
       final path = entry[1] as String;
       if (File(path).existsSync()) {

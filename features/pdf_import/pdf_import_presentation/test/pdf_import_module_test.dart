@@ -14,11 +14,13 @@ void main() {
   late FakePdfImportRepository repository;
   late FakePdfFilePicker picker;
   late int completedCount;
+  late int backCount;
 
   setUp(() {
     repository = FakePdfImportRepository();
     picker = FakePdfFilePicker(bytes: pdfBytes);
     completedCount = 0;
+    backCount = 0;
   });
 
   Future<void> pump(WidgetTester tester) => tester.pumpWidget(
@@ -30,7 +32,10 @@ void main() {
       ],
       child: ShadcnApp(
         theme: steadyTheme,
-        home: PdfImportModule(onImportCompleted: () => completedCount++),
+        home: PdfImportModule(
+          onImportCompleted: () => completedCount++,
+          onBack: () => backCount++,
+        ),
       ),
     ),
   );
@@ -41,6 +46,36 @@ void main() {
   final chooseAgainButton = find.byKey(
     const Key('pdfImport_chooseAgainButton'),
   );
+
+  testWidgets('the back button calls onBack, on the pick step and the '
+      'preview', (tester) async {
+    await pump(tester);
+    final back = find.byKey(const Key('pdfImport_backButton'));
+    expect(
+      tester.getSemantics(back),
+      matchesSemantics(
+        label: 'Back',
+        isButton: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasTapAction: true,
+        isFocusable: true,
+        hasFocusAction: true,
+      ),
+    );
+
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    expect(backCount, 1);
+
+    await tester.tap(chooseButton);
+    await tester.pumpAndSettle();
+    expect(importButton, findsOneWidget);
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+    expect(backCount, 2);
+    expect(completedCount, 0);
+  });
 
   testWidgets('empty -> preview -> import fires onImportCompleted once', (
     tester,
