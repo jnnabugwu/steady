@@ -3,6 +3,7 @@ export 'src/live_health.dart'
         healthDayTotalsProvider,
         healthHistoryDays,
         healthHistoryWindow,
+        healthWeightUnitProvider,
         metricsHealthKitRepositoryProvider;
 export 'src/metrics_history_controller.dart';
 export 'src/metrics_history_module.dart' show MetricsHistoryModule;

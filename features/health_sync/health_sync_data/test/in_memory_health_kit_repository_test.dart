@@ -101,5 +101,50 @@ void main() {
       await repo.dailyTotals(DateTime(2026), DateTime(2026)),
       isA<Err<List<HealthDayTotals>>>(),
     );
+    expect(await repo.preferredWeightUnit(), isA<Err<WeightUnit>>());
+  });
+
+  test('preferredWeightUnit returns weightUnit once requested', () async {
+    final repo = InMemoryHealthKitRepository(
+      status: HealthAuthorizationStatus.requested,
+      weightUnit: WeightUnit.pounds,
+    );
+    expect(
+      await repo.preferredWeightUnit(),
+      isA<Ok<WeightUnit>>().having((r) => r.value, 'value', WeightUnit.pounds),
+    );
+  });
+
+  test('preferredWeightUnit before the permission sheet fails like the '
+      'native side, and succeeds after it', () async {
+    final repo = InMemoryHealthKitRepository(weightUnit: WeightUnit.pounds);
+    final before = await repo.preferredWeightUnit();
+    expect(
+      before,
+      isA<Err<WeightUnit>>().having(
+        (r) => (r.failure as PlatformChannelFailure).code,
+        'code',
+        HealthKitChannel.authorizationNotDeterminedCode,
+      ),
+    );
+    await repo.requestAuthorization();
+    expect(
+      await repo.preferredWeightUnit(),
+      isA<Ok<WeightUnit>>().having((r) => r.value, 'value', WeightUnit.pounds),
+    );
+  });
+
+  test('preferredWeightUnit where Health is unavailable fails', () async {
+    final repo = InMemoryHealthKitRepository(
+      status: HealthAuthorizationStatus.unavailable,
+    );
+    expect(
+      await repo.preferredWeightUnit(),
+      isA<Err<WeightUnit>>().having(
+        (r) => (r.failure as PlatformChannelFailure).code,
+        'code',
+        HealthKitChannel.unavailableCode,
+      ),
+    );
   });
 }

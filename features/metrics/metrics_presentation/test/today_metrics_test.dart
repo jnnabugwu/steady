@@ -133,6 +133,20 @@ void main() {
       expect(find.byKey(const Key('todayMetricsEmpty')), findsOneWidget);
     });
 
+    testWidgets('a week with only a weight reading shows the weight card, '
+        'not "No metrics"', (tester) async {
+      await pump(
+        tester,
+        health: FakeHealthKitRepository(
+          days: [HealthDayTotals(date: today, weightKg: 80)],
+        ),
+      );
+
+      expect(find.byType(MetricTile), findsNothing);
+      expect(find.byKey(const Key('todayMetricsEmpty')), findsNothing);
+      expect(find.byKey(const Key('todayWeightCard')), findsOneWidget);
+    });
+
     testWidgets('a failed read shows the Failure', (tester) async {
       repository.onGetRange = (_, _) =>
           const Err(PlatformChannelFailure('store down'));
