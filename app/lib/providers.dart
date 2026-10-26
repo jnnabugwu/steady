@@ -53,6 +53,13 @@
 /// export's `exportCoachRepositoryProvider` are bound only when
 /// [appProviderOverridesFor] is built with `isIOS: true`; the Mac binds no
 /// coach provider at all.
+///
+/// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
+/// (`coachModelProvider`, Apple Foundation Models through the
+/// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
+/// built with `isIOS: true`. On macOS it stays unbound, and there's no
+/// coach code in `app/macos/` at all. Whether the model can actually run
+/// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
 library;
 
 import 'dart:io';
@@ -164,6 +171,7 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     exportCoachRepositoryProvider.overrideWith(
       (ref) => ref.watch(coachRepositoryProvider),
     ),
+    coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
   ],
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native

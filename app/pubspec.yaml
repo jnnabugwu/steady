@@ -40,7 +40,6 @@ dependencies:
     path: ../features/checkin/checkin_domain
   checkin_presentation:
     path: ../features/checkin/checkin_presentation
-
   coach_data:
     path: ../features/coach/coach_data
   coach_domain:
