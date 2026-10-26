@@ -17,15 +17,28 @@ abstract final class HealthKitChannel {
   static const authorizationStatusMethod = 'authorizationStatus';
 
   /// No arguments. Shows the read-only permission sheet (step count, active
-  /// energy, basal energy) if needed. Returns `null`; errors are
+  /// energy, basal energy, body mass) if needed. Returns `null`; errors are
   /// `FlutterError`s.
   static const requestAuthorizationMethod = 'requestAuthorization';
 
   /// Arguments `{start: 'yyyy-MM-dd', end: 'yyyy-MM-dd'}`, inclusive local
   /// calendar days. Returns a list with one map per day:
-  /// `{date: 'yyyy-MM-dd', steps: int?, activeKcal: int?, basalKcal: int?}`,
-  /// where `null` means no samples of that type that day.
+  /// `{date: 'yyyy-MM-dd', steps: int?, activeKcal: int?, basalKcal: int?,
+  /// weightKg: double?}`. `weightKg` is the day's latest reading, not a sum.
+  ///
+  /// `null` means Steady got no samples of that type that day, which is
+  /// *not* the same as "nothing was recorded": HealthKit never tells an app
+  /// whether read access was granted, so a type the user didn't allow also
+  /// reads as `null` on every day. For weight it also covers a permission
+  /// sheet that hasn't been shown yet (people who connected Health before
+  /// weight existed). So a `null` must never be shown as a fact about the
+  /// day, like "no reading today", unless the same type has a value
+  /// elsewhere in the range, which shows access was granted.
   static const dailyTotalsMethod = 'dailyTotals';
+
+  /// No arguments. Returns `kg`, `lb` or `st` (see
+  /// [weightUnitFromWire]).
+  static const preferredWeightUnitMethod = 'preferredWeightUnit';
 
   /// The `FlutterError` code the native side uses when Health isn't
   /// available on the device.
@@ -61,6 +74,14 @@ bool isSupportedHealthDate(DateTime date) {
   final year = healthLocalDay(date).year;
   return year >= 0 && year <= 9999;
 }
+
+/// Maps the `preferredWeightUnit` wire string. Anything unknown, including
+/// `null`, is [WeightUnit.kilograms], as on the native side.
+WeightUnit weightUnitFromWire(Object? raw) => switch (raw) {
+  'lb' => WeightUnit.pounds,
+  'st' => WeightUnit.stones,
+  _ => WeightUnit.kilograms,
+};
 
 /// Formats [date]'s local calendar day (see [healthLocalDay]) as
 /// `yyyy-MM-dd`. Throws [RangeError] if the year is outside 0000 to 9999
@@ -101,7 +122,7 @@ DateTime parseHealthDate(Object? raw) {
 /// `UnknownFailure` rather than writing half-understood data.
 ///
 /// Hand-written rather than a freezed DTO, like the `steady/daily_metrics`
-/// row format in `daily_metrics_data`: four flat fields don't need codegen.
+/// row format in `daily_metrics_data`: five flat fields don't need codegen.
 List<HealthDayTotals> healthDayTotalsFromWire(Object? raw) {
   if (raw is! List<Object?>) {
     throw FormatException('Expected a list of days', raw);
@@ -114,6 +135,7 @@ List<HealthDayTotals> healthDayTotalsFromWire(Object? raw) {
           steps: _count(row, 'steps'),
           caloriesBurnedActive: _count(row, 'activeKcal'),
           caloriesBurnedBasal: _count(row, 'basalKcal'),
+          weightKg: _weight(row, 'weightKg'),
         )
       else
         throw FormatException('Expected each day to be a map', row),
@@ -127,4 +149,13 @@ int? _count(Map<Object?, Object?> row, String key) {
   if (value == null) return null;
   if (value is num && value.isFinite && value >= 0) return value.round();
   throw FormatException('Expected "$key" to be a non-negative number', value);
+}
+
+/// A positive weight in kilograms, or `null`. An `int` is accepted, since
+/// a whole-kilogram reading may arrive without a fraction.
+double? _weight(Map<Object?, Object?> row, String key) {
+  final value = row[key];
+  if (value == null) return null;
+  if (value is num && value.isFinite && value > 0) return value.toDouble();
+  throw FormatException('Expected "$key" to be a positive number', value);
 }
