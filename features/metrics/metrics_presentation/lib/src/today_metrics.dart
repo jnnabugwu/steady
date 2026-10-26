@@ -63,7 +63,8 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// Below the tiles, a [TodayWeightCard] when Health has a weight reading in
 /// the window (iPhone only): the smoothed trend, and today's reading.
 ///
-/// With no metric at all this week, a short glass card says so. Lays
+/// With no metric and no weight reading this week, a short glass card says
+/// so; a weight reading alone shows just the weight card. Lays
 /// itself out at full width with no outer padding; the app's Today screen
 /// places it.
 class TodayMetricTiles extends ConsumerWidget {
@@ -95,12 +96,18 @@ class TodayMetricTiles extends ConsumerWidget {
         // error would otherwise stay up until something else invalidates.
         onRetry: () => ref.invalidate(todayMetricsProvider(day)),
       ),
-      AsyncValue(:final value?) => switch (weight) {
-        null => _tiles(day, mergeLiveHealth(value, health)),
-        final weight => Column(
+      AsyncValue(:final value?) => switch ((
+        _tiles(day, mergeLiveHealth(value, health)),
+        weight,
+      )) {
+        // A weight reading is a metric too: no "No metrics" card above it.
+        (null, null) => _empty,
+        (final tiles?, null) => tiles,
+        (null, final weight?) => weight,
+        (final tiles?, final weight?) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           spacing: 12,
-          children: [_tiles(day, mergeLiveHealth(value, health)), weight],
+          children: [tiles, weight],
         ),
       },
       _ => const Padding(
@@ -120,6 +127,9 @@ class TodayMetricTiles extends ConsumerWidget {
     DateTime day,
     Map<DateTime, HealthDayTotals> health,
   ) {
+    // Only with a reading somewhere in the window, which shows weight access
+    // was granted: then a `null` today really is "No reading today", not
+    // access withheld (see `HealthKitRepository.dailyTotals`).
     final trendKg = weightTrendKg(health.values);
     if (trendKg == null) return null;
     final unit = ref.watch(healthWeightUnitProvider);
@@ -132,7 +142,16 @@ class TodayMetricTiles extends ConsumerWidget {
     );
   }
 
-  Widget _tiles(DateTime day, List<DailyMetric> merged) {
+  /// Shown when the week has no tile and no weight reading.
+  static const _empty = _Message(
+    key: Key('todayMetricsEmpty'),
+    text:
+        'No metrics this week yet. Import a Cal AI PDF to see '
+        'what you’ve eaten.',
+  );
+
+  /// The tile row, or `null` when no metric has a value this week.
+  Widget? _tiles(DateTime day, List<DailyMetric> merged) {
     final byDay = {
       for (final d in merged)
         DateTime(d.date.year, d.date.month, d.date.day): d,
@@ -143,14 +162,7 @@ class TodayMetricTiles extends ConsumerWidget {
         if (week.any((d) => d != null && metric.read(d) != null))
           _tile(metric, week),
     ];
-    if (tiles.isEmpty) {
-      return const _Message(
-        key: Key('todayMetricsEmpty'),
-        text:
-            'No metrics this week yet. Import a Cal AI PDF to see '
-            'what you’ve eaten.',
-      );
-    }
+    if (tiles.isEmpty) return null;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 8,

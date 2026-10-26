@@ -24,8 +24,16 @@ abstract final class HealthKitChannel {
   /// Arguments `{start: 'yyyy-MM-dd', end: 'yyyy-MM-dd'}`, inclusive local
   /// calendar days. Returns a list with one map per day:
   /// `{date: 'yyyy-MM-dd', steps: int?, activeKcal: int?, basalKcal: int?,
-  /// weightKg: double?}`, where `null` means no samples of that type that
-  /// day. `weightKg` is the day's latest reading, not a sum.
+  /// weightKg: double?}`. `weightKg` is the day's latest reading, not a sum.
+  ///
+  /// `null` means Steady got no samples of that type that day, which is
+  /// *not* the same as "nothing was recorded": HealthKit never tells an app
+  /// whether read access was granted, so a type the user didn't allow also
+  /// reads as `null` on every day. For weight it also covers a permission
+  /// sheet that hasn't been shown yet (people who connected Health before
+  /// weight existed). So a `null` must never be shown as a fact about the
+  /// day, like "no reading today", unless the same type has a value
+  /// elsewhere in the range, which shows access was granted.
   static const dailyTotalsMethod = 'dailyTotals';
 
   /// No arguments. Returns `kg`, `lb` or `st` (see

@@ -26,7 +26,7 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
   /// What [authorizationStatus] returns.
   HealthAuthorizationStatus status;
 
-  /// What [preferredWeightUnit] returns.
+  /// What [preferredWeightUnit] returns once [status] is `requested`.
   WeightUnit weightUnit;
 
   /// Health's data, by local midnight.
@@ -88,8 +88,29 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
     ]);
   }
 
+  /// Like the native side, fails before the permission sheet was shown
+  /// (`authorizationNotDetermined`) and where Health isn't available
+  /// (`unavailable`), so a test can't read a unit the iPhone wouldn't give.
   @override
-  ResultFuture<WeightUnit> preferredWeightUnit() async => _or(() => weightUnit);
+  ResultFuture<WeightUnit> preferredWeightUnit() async {
+    final failure = this.failure;
+    if (failure != null) return Err(failure);
+    return switch (status) {
+      HealthAuthorizationStatus.notDetermined => const Err(
+        PlatformChannelFailure(
+          'Weight access has not been requested yet',
+          code: HealthKitChannel.authorizationNotDeterminedCode,
+        ),
+      ),
+      HealthAuthorizationStatus.unavailable => const Err(
+        PlatformChannelFailure(
+          'Health data is not available on this device',
+          code: HealthKitChannel.unavailableCode,
+        ),
+      ),
+      HealthAuthorizationStatus.requested => Ok(weightUnit),
+    };
+  }
 
   Result<T> _or<T>(T Function() value) {
     final failure = this.failure;

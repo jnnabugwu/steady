@@ -1,6 +1,6 @@
 # Steady Privacy Policy
 
-Effective 23 October 2026.
+Effective 26 October 2026.
 
 Steady is an app for iPhone and Mac that shows your daily calories and a simple end-of-day
 check-in. This policy describes what the app does with your data.
@@ -48,13 +48,16 @@ On iPhone, with your permission, Steady reads your daily steps, active energy, r
 energy and weight from Apple Health and shows them in the app (weight as a smoothed trend
 and that day's reading). Steady:
 
-- reads them fresh from Apple Health and doesn't save them, so they are never stored in
-  iCloud;
+- reads them fresh from Apple Health each time and doesn't save them, so Steady never puts
+  them in its iCloud storage or in its own data on the iPhone (and so they aren't in Steady's
+  part of an iCloud Backup or in the data export);
 - never writes anything to Apple Health;
 - never shares them with anyone or uses them for advertising.
 
-You can turn off Steady's access at any time in the Health app or in Settings → Privacy &
-Security → Health. The Mac app doesn't use Apple Health.
+Apple Health keeps its own copy of this data, and syncs it through iCloud if you've turned
+on Health in iCloud. That's Apple's storage, managed in the Health app and your iCloud
+settings, not Steady's. You can turn off Steady's access at any time in the Health app or in
+Settings → Privacy & Security → Health. The Mac app doesn't use Apple Health.
 
 ## What Steady doesn't do
 

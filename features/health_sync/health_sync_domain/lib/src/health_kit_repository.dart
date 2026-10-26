@@ -30,6 +30,11 @@ abstract class HealthKitRepository {
   /// calendar day), sorted by date. A day with no samples still has a row,
   /// with `null` values. `Err(ValidationFailure)` if [start] is after
   /// [end], or either is outside the years 0000 to 9999.
+  ///
+  /// A `null` value is ambiguous: no samples that day, read access the user
+  /// didn't allow (HealthKit doesn't say which), or, for weight, a
+  /// permission sheet not shown yet. Don't present it as "nothing recorded"
+  /// unless the same type has a value elsewhere in the range.
   ResultFuture<List<HealthDayTotals>> dailyTotals(DateTime start, DateTime end);
 
   /// The unit the Health app shows weight in, so Steady shows the same.
