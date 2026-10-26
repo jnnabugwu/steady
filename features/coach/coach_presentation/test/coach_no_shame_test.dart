@@ -42,12 +42,21 @@ void main() {
   }
 
   void review(WidgetTester tester, String screen) {
-    for (final text in tester.widgetList<Text>(find.byType(Text))) {
+    // The colour each text is drawn in, including one it inherits from the
+    // theme or an enclosing DefaultTextStyle, not only one set on it.
+    for (final element in find.byType(Text).evaluate()) {
+      final text = element.widget as Text;
       final data = text.data ?? text.textSpan?.toPlainText() ?? '';
       expect(forbidden.hasMatch(data), isFalse, reason: '$screen: "$data"');
-      if (text.style?.color case final color?) {
+      final color =
+          text.style?.color ?? DefaultTextStyle.of(element).style.color;
+      if (color != null) {
         expect(trafficLight(color), isFalse, reason: '$screen: "$data"');
       }
+    }
+    // Plain fills, which aren't a DecoratedBox.
+    for (final box in tester.widgetList<ColoredBox>(find.byType(ColoredBox))) {
+      expect(trafficLight(box.color), isFalse, reason: '$screen fill');
     }
     for (final box in tester.widgetList<DecoratedBox>(
       find.byType(DecoratedBox),
@@ -67,9 +76,10 @@ void main() {
         }
       }
     }
-    // So would a red or green glyph.
-    for (final icon in tester.widgetList<Icon>(find.byType(Icon))) {
-      if (icon.color case final color?) {
+    // So would a red or green glyph, set on it or inherited.
+    for (final element in find.byType(Icon).evaluate()) {
+      final icon = element.widget as Icon;
+      if (icon.color ?? IconTheme.of(element).color case final color?) {
         expect(trafficLight(color), isFalse, reason: '$screen icon');
       }
     }

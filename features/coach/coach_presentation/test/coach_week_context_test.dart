@@ -184,6 +184,23 @@ void main() {
     expect(text, isNot(contains('may not be shared')));
   });
 
+  test(
+    "a day whose check-in couldn't be read says so, not 'no check-in'",
+    () async {
+      checkIns.failingDays.add(DateTime(2026, 10, 20));
+      final data = await build()(
+        first: window.first,
+        last: window.last,
+        now: now,
+      );
+      final text = formatCoachWeek(data);
+      expect(text, contains("Tue Oct 20: check-in couldn't be read"));
+      expect(text, contains('Mon Oct 19: logged fully'));
+      // A day with nothing logged is still just that.
+      expect(text, contains('Thu Oct 22: no check-in'));
+    },
+  );
+
   test('a source that throws is caught and noted, never fatal', () async {
     final data = await BuildCoachWeekContext(
       checkIns: _ThrowingCheckIns(),

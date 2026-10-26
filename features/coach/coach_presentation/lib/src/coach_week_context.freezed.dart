@@ -16,8 +16,11 @@ T _$identity<T>(T value) => value;
 mixin _$CoachDayData {
 
 /// The day, at local midnight.
- DateTime get date;/// The end-of-day check-in, or `null` if there was none.
- CheckInStatus? get status;/// Calories eaten (from a Cal AI import), or `null` if none.
+ DateTime get date;/// The end-of-day check-in, or `null` if there was none (or it
+/// couldn't be read: see [checkInUnreadable]).
+ CheckInStatus? get status;/// Whether this day's check-in couldn't be read, so `null` [status]
+/// isn't a day without one.
+ bool get checkInUnreadable;/// Calories eaten (from a Cal AI import), or `null` if none.
  int? get caloriesEaten;/// Steps from Apple Health, or `null` if unknown.
  int? get steps;/// Active energy from Apple Health, kcal, or `null` if unknown.
  int? get activeEnergy;/// Basal (resting) energy from Apple Health, kcal, or `null`.
@@ -33,20 +36,20 @@ $CoachDayDataCopyWith<CoachDayData> get copyWith => _$CoachDayDataCopyWithImpl<C
 @override
 bool operator ==(Object other) {
   final _this = this as CoachDayData;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoachDayData&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.caloriesEaten, _this.caloriesEaten) || other.caloriesEaten == _this.caloriesEaten)&&(identical(other.steps, _this.steps) || other.steps == _this.steps)&&(identical(other.activeEnergy, _this.activeEnergy) || other.activeEnergy == _this.activeEnergy)&&(identical(other.basalEnergy, _this.basalEnergy) || other.basalEnergy == _this.basalEnergy));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is CoachDayData&&(identical(other.date, _this.date) || other.date == _this.date)&&(identical(other.status, _this.status) || other.status == _this.status)&&(identical(other.checkInUnreadable, _this.checkInUnreadable) || other.checkInUnreadable == _this.checkInUnreadable)&&(identical(other.caloriesEaten, _this.caloriesEaten) || other.caloriesEaten == _this.caloriesEaten)&&(identical(other.steps, _this.steps) || other.steps == _this.steps)&&(identical(other.activeEnergy, _this.activeEnergy) || other.activeEnergy == _this.activeEnergy)&&(identical(other.basalEnergy, _this.basalEnergy) || other.basalEnergy == _this.basalEnergy));
 }
 
 
 @override
 int get hashCode {
   final _this = this as CoachDayData;
-  return Object.hash(runtimeType,_this.date,_this.status,_this.caloriesEaten,_this.steps,_this.activeEnergy,_this.basalEnergy);
+  return Object.hash(runtimeType,_this.date,_this.status,_this.checkInUnreadable,_this.caloriesEaten,_this.steps,_this.activeEnergy,_this.basalEnergy);
 }
 
 @override
 String toString() {
   final _this = this as CoachDayData;
-  return 'CoachDayData(date: ${_this.date}, status: ${_this.status}, caloriesEaten: ${_this.caloriesEaten}, steps: ${_this.steps}, activeEnergy: ${_this.activeEnergy}, basalEnergy: ${_this.basalEnergy})';
+  return 'CoachDayData(date: ${_this.date}, status: ${_this.status}, checkInUnreadable: ${_this.checkInUnreadable}, caloriesEaten: ${_this.caloriesEaten}, steps: ${_this.steps}, activeEnergy: ${_this.activeEnergy}, basalEnergy: ${_this.basalEnergy})';
 }
 
 
@@ -57,7 +60,7 @@ abstract mixin class $CoachDayDataCopyWith<$Res>  {
   factory $CoachDayDataCopyWith(CoachDayData value, $Res Function(CoachDayData) _then) = _$CoachDayDataCopyWithImpl;
 @useResult
 $Res call({
- DateTime date, CheckInStatus? status, int? caloriesEaten, int? steps, int? activeEnergy, int? basalEnergy
+ DateTime date, CheckInStatus? status, bool checkInUnreadable, int? caloriesEaten, int? steps, int? activeEnergy, int? basalEnergy
 });
 
 
@@ -74,11 +77,12 @@ class _$CoachDayDataCopyWithImpl<$Res>
 
 /// Create a copy of CoachDayData
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? status = freezed,Object? caloriesEaten = freezed,Object? steps = freezed,Object? activeEnergy = freezed,Object? basalEnergy = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? date = null,Object? status = freezed,Object? checkInUnreadable = null,Object? caloriesEaten = freezed,Object? steps = freezed,Object? activeEnergy = freezed,Object? basalEnergy = freezed,}) {
   return _then(CoachDayData(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,status: freezed == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as CheckInStatus?,caloriesEaten: freezed == caloriesEaten ? _self.caloriesEaten : caloriesEaten // ignore: cast_nullable_to_non_nullable
+as CheckInStatus?,checkInUnreadable: null == checkInUnreadable ? _self.checkInUnreadable : checkInUnreadable // ignore: cast_nullable_to_non_nullable
+as bool,caloriesEaten: freezed == caloriesEaten ? _self.caloriesEaten : caloriesEaten // ignore: cast_nullable_to_non_nullable
 as int?,steps: freezed == steps ? _self.steps : steps // ignore: cast_nullable_to_non_nullable
 as int?,activeEnergy: freezed == activeEnergy ? _self.activeEnergy : activeEnergy // ignore: cast_nullable_to_non_nullable
 as int?,basalEnergy: freezed == basalEnergy ? _self.basalEnergy : basalEnergy // ignore: cast_nullable_to_non_nullable
@@ -167,10 +171,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime date,  CheckInStatus? status,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( DateTime date,  CheckInStatus? status,  bool checkInUnreadable,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _CoachDayData() when $default != null:
-return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
+return $default(_that.date,_that.status,_that.checkInUnreadable,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
   return orElse();
 
 }
@@ -188,10 +192,10 @@ return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.ac
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime date,  CheckInStatus? status,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( DateTime date,  CheckInStatus? status,  bool checkInUnreadable,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)  $default,) {final _that = this;
 switch (_that) {
 case _CoachDayData():
-return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
+return $default(_that.date,_that.status,_that.checkInUnreadable,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -208,10 +212,10 @@ return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.ac
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime date,  CheckInStatus? status,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( DateTime date,  CheckInStatus? status,  bool checkInUnreadable,  int? caloriesEaten,  int? steps,  int? activeEnergy,  int? basalEnergy)?  $default,) {final _that = this;
 switch (_that) {
 case _CoachDayData() when $default != null:
-return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
+return $default(_that.date,_that.status,_that.checkInUnreadable,_that.caloriesEaten,_that.steps,_that.activeEnergy,_that.basalEnergy);case _:
   return null;
 
 }
@@ -223,13 +227,17 @@ return $default(_that.date,_that.status,_that.caloriesEaten,_that.steps,_that.ac
 
 
 class _CoachDayData implements CoachDayData {
-  const _CoachDayData({required this.date, this.status, this.caloriesEaten, this.steps, this.activeEnergy, this.basalEnergy});
+  const _CoachDayData({required this.date, this.status, this.checkInUnreadable = false, this.caloriesEaten, this.steps, this.activeEnergy, this.basalEnergy});
   
 
 /// The day, at local midnight.
 @override final  DateTime date;
-/// The end-of-day check-in, or `null` if there was none.
+/// The end-of-day check-in, or `null` if there was none (or it
+/// couldn't be read: see [checkInUnreadable]).
 @override final  CheckInStatus? status;
+/// Whether this day's check-in couldn't be read, so `null` [status]
+/// isn't a day without one.
+@override@JsonKey() final  bool checkInUnreadable;
 /// Calories eaten (from a Cal AI import), or `null` if none.
 @override final  int? caloriesEaten;
 /// Steps from Apple Health, or `null` if unknown.
@@ -249,18 +257,18 @@ _$CoachDayDataCopyWith<_CoachDayData> get copyWith => __$CoachDayDataCopyWithImp
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoachDayData&&(identical(other.date, date) || other.date == date)&&(identical(other.status, status) || other.status == status)&&(identical(other.caloriesEaten, caloriesEaten) || other.caloriesEaten == caloriesEaten)&&(identical(other.steps, steps) || other.steps == steps)&&(identical(other.activeEnergy, activeEnergy) || other.activeEnergy == activeEnergy)&&(identical(other.basalEnergy, basalEnergy) || other.basalEnergy == basalEnergy));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _CoachDayData&&(identical(other.date, date) || other.date == date)&&(identical(other.status, status) || other.status == status)&&(identical(other.checkInUnreadable, checkInUnreadable) || other.checkInUnreadable == checkInUnreadable)&&(identical(other.caloriesEaten, caloriesEaten) || other.caloriesEaten == caloriesEaten)&&(identical(other.steps, steps) || other.steps == steps)&&(identical(other.activeEnergy, activeEnergy) || other.activeEnergy == activeEnergy)&&(identical(other.basalEnergy, basalEnergy) || other.basalEnergy == basalEnergy));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,date,status,caloriesEaten,steps,activeEnergy,basalEnergy);
+    return Object.hash(runtimeType,date,status,checkInUnreadable,caloriesEaten,steps,activeEnergy,basalEnergy);
 }
 
 @override
 String toString() {
-    return 'CoachDayData(date: $date, status: $status, caloriesEaten: $caloriesEaten, steps: $steps, activeEnergy: $activeEnergy, basalEnergy: $basalEnergy)';
+    return 'CoachDayData(date: $date, status: $status, checkInUnreadable: $checkInUnreadable, caloriesEaten: $caloriesEaten, steps: $steps, activeEnergy: $activeEnergy, basalEnergy: $basalEnergy)';
 }
 
 
@@ -271,7 +279,7 @@ abstract mixin class _$CoachDayDataCopyWith<$Res> implements $CoachDayDataCopyWi
   factory _$CoachDayDataCopyWith(_CoachDayData value, $Res Function(_CoachDayData) _then) = __$CoachDayDataCopyWithImpl;
 @override @useResult
 $Res call({
- DateTime date, CheckInStatus? status, int? caloriesEaten, int? steps, int? activeEnergy, int? basalEnergy
+ DateTime date, CheckInStatus? status, bool checkInUnreadable, int? caloriesEaten, int? steps, int? activeEnergy, int? basalEnergy
 });
 
 
@@ -288,11 +296,12 @@ class __$CoachDayDataCopyWithImpl<$Res>
 
 /// Create a copy of CoachDayData
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? status = freezed,Object? caloriesEaten = freezed,Object? steps = freezed,Object? activeEnergy = freezed,Object? basalEnergy = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? date = null,Object? status = freezed,Object? checkInUnreadable = null,Object? caloriesEaten = freezed,Object? steps = freezed,Object? activeEnergy = freezed,Object? basalEnergy = freezed,}) {
   return _then(_CoachDayData(
 date: null == date ? _self.date : date // ignore: cast_nullable_to_non_nullable
 as DateTime,status: freezed == status ? _self.status : status // ignore: cast_nullable_to_non_nullable
-as CheckInStatus?,caloriesEaten: freezed == caloriesEaten ? _self.caloriesEaten : caloriesEaten // ignore: cast_nullable_to_non_nullable
+as CheckInStatus?,checkInUnreadable: null == checkInUnreadable ? _self.checkInUnreadable : checkInUnreadable // ignore: cast_nullable_to_non_nullable
+as bool,caloriesEaten: freezed == caloriesEaten ? _self.caloriesEaten : caloriesEaten // ignore: cast_nullable_to_non_nullable
 as int?,steps: freezed == steps ? _self.steps : steps // ignore: cast_nullable_to_non_nullable
 as int?,activeEnergy: freezed == activeEnergy ? _self.activeEnergy : activeEnergy // ignore: cast_nullable_to_non_nullable
 as int?,basalEnergy: freezed == basalEnergy ? _self.basalEnergy : basalEnergy // ignore: cast_nullable_to_non_nullable

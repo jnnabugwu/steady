@@ -84,6 +84,11 @@ void main() {
       tester.widget<Text>(find.byKey(const Key('exportContentsLine'))).data,
       'Includes daily metrics and check-ins.',
     );
+    expect(
+      tester.widget<Text>(find.byKey(const Key('exportStorageLine'))).data,
+      'Steady keeps your data in your iCloud account. Save a copy so you '
+      'keep it even if you lose access to that account.',
+    );
     for (final format in ExportFormat.values) {
       expect(onPressed(tester, format), isNotNull);
     }
@@ -100,6 +105,13 @@ void main() {
       'Includes daily metrics and check-ins. The JSON file also includes '
       "each coach session's date, type and summary, but not the "
       'conversation itself.',
+    );
+    // Coach history isn't in iCloud storage: say where it is.
+    expect(
+      tester.widget<Text>(find.byKey(const Key('exportStorageLine'))).data,
+      'Steady keeps your daily metrics and check-ins in your iCloud account, '
+      'and coach conversations only on this iPhone. Save a copy so you keep '
+      'them even if you lose access to that account or this iPhone.',
     );
   });
 

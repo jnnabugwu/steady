@@ -16,8 +16,13 @@ abstract class CoachDayData with _$CoachDayData {
     /// The day, at local midnight.
     required DateTime date,
 
-    /// The end-of-day check-in, or `null` if there was none.
+    /// The end-of-day check-in, or `null` if there was none (or it
+    /// couldn't be read: see [checkInUnreadable]).
     CheckInStatus? status,
+
+    /// Whether this day's check-in couldn't be read, so `null` [status]
+    /// isn't a day without one.
+    @Default(false) bool checkInUnreadable,
 
     /// Calories eaten (from a Cal AI import), or `null` if none.
     int? caloriesEaten,
@@ -188,6 +193,7 @@ class BuildCoachWeekContext {
               Ok(:final value) => value,
               Err() => null,
             },
+            checkInUnreadable: statuses[i] is Err,
             caloriesEaten: eaten[day],
             steps: totals[day]?.steps,
             activeEnergy: totals[day]?.caloriesBurnedActive,
@@ -275,6 +281,7 @@ String _dayLine(CoachDayData day) {
       CheckInStatus.logged => 'logged fully',
       CheckInStatus.partial => 'logged partly',
       CheckInStatus.skipped => 'skipped logging',
+      null when day.checkInUnreadable => "check-in couldn't be read",
       null => 'no check-in',
     },
     if (day.caloriesEaten case final kcal?) 'ate $kcal kcal',

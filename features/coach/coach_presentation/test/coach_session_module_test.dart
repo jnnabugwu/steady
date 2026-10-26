@@ -249,6 +249,42 @@ void main() {
     expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
   });
 
+  testWidgets('a start that fails offers Try again, which starts the coach', (
+    tester,
+  ) async {
+    model.startResult = const Err(PlatformChannelFailure('boom'));
+    await pump(tester);
+    expect(find.byKey(const Key('coachFailedToStart')), findsOneWidget);
+
+    model.startResult = null;
+    await tester.tap(find.byKey(const Key('coachRetryStart')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+  });
+
+  testWidgets('losing the model mid-conversation keeps the conversation on '
+      'screen, with Try again and End', (tester) async {
+    await pump(tester);
+    model
+      ..failNext = const CoachInferenceFailure(
+        'full',
+        reason: CoachInferenceFailureReason.contextExceeded,
+      )
+      ..startResult = const Err(PlatformChannelFailure('boom'));
+    await send(tester, 'Hello');
+    expect(find.byKey(const Key('coachLostSession')), findsOneWidget);
+    expect(find.text('Hello'), findsOneWidget);
+    expect(find.byKey(const Key('coachSessionEnd')), findsOneWidget);
+
+    model.startResult = null;
+    await tester.tap(find.byKey(const Key('coachRetryStart')));
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachLostSession')), findsNothing);
+    expect(find.text('Hello'), findsOneWidget);
+  });
+
   testWidgets('no "Check again" where it could never help', (tester) async {
     model.availability = const Err(CoachDeviceNotEligibleFailure());
     await pump(tester);

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
@@ -45,18 +47,34 @@ Future<CoachSession?> coachStoredSession(Ref ref, String id) async =>
     };
 
 /// Which coach history a live session belongs to: moves on each time
-/// "Delete coach history" starts. A session that opened before then saves
+/// "Delete coach history" succeeds. A session that opened before then saves
 /// nothing more, so one still finishing its summary in the background
 /// can't bring itself back after the delete (`CoachSessionController`).
+///
+/// While a delete runs, a session's save waits for it ([idle]) and then
+/// checks the epoch: a delete that succeeds refuses it, one that fails
+/// leaves every open session saving as before.
 class CoachHistoryEpoch {
   var _value = 0;
+  Completer<void>? _deleting;
 
-  /// The current epoch.
+  /// The current epoch: how many deletes have succeeded.
   int get value => _value;
 
-  /// Moves to a new epoch. Called by "Delete coach history" before it
-  /// deletes anything.
-  void advance() => _value++;
+  /// Completes once no delete is running.
+  Future<void> get idle => _deleting?.future ?? Future<void>.value();
+
+  /// Called by "Delete coach history" before it deletes anything.
+  void beginDelete() => _deleting ??= Completer<void>();
+
+  /// Called once the delete is over; moves to a new epoch only if it
+  /// [succeeded].
+  void endDelete({required bool succeeded}) {
+    if (succeeded) _value++;
+    final deleting = _deleting;
+    _deleting = null;
+    deleting?.complete();
+  }
 }
 
 /// The one [CoachHistoryEpoch]. `keepAlive`: it must outlive every session

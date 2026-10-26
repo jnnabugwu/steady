@@ -602,10 +602,11 @@ class CoachSessionController extends _$CoachSessionController {
   /// Domain event: CoachStartRetried.
   ///
   /// Tries again after the coach couldn't start or lost its model session
-  /// ("Check again"): checks availability and starts afresh, or, mid-way
-  /// through a conversation, moves it to a fresh model session carrying
-  /// the last few messages. Ignored unless unavailable or failed to start,
-  /// once ending, or once disposed.
+  /// ("Check again"): checks availability and starts afresh (before the
+  /// person has said anything, including a weekly session that failed at
+  /// Begin), or, mid-way through a conversation, moves it to a fresh model
+  /// session carrying the last few messages. Ignored unless unavailable or
+  /// failed to start, once ending, or once disposed.
   Future<void> retryCoachStart() async {
     if (!ref.mounted || _ending) return;
     if (state.phase != CoachSessionPhase.unavailable &&
@@ -613,7 +614,18 @@ class CoachSessionController extends _$CoachSessionController {
       return;
     }
     state = state.copyWith(phase: CoachSessionPhase.starting, failure: null);
-    if (_conversation == null) return await _run(_start);
+    // Until the person has said something there's nothing to carry over:
+    // start again from the top, which for the weekly session also
+    // re-checks the week and waits for Begin.
+    if (_conversation == null || !state.hasUserMessages) {
+      _endModel();
+      _conversation = null;
+      state = state.copyWith(
+        topicIndex: -1,
+        session: state.session.copyWith(messages: const []),
+      );
+      return await _run(_start);
+    }
     await _run(() async {
       final failure = await _moveToFreshSession(summarise: false);
       if (!ref.mounted || _ending) return;
@@ -648,7 +660,9 @@ class CoachSessionController extends _$CoachSessionController {
   /// its summary in the background mustn't bring itself back.
   Future<void> _save() async {
     if (!state.hasUserMessages) return;
-    if (ref.read(coachHistoryEpochProvider).value != _historyEpoch) return;
+    final epoch = ref.read(coachHistoryEpochProvider);
+    await epoch.idle;
+    if (!ref.mounted || epoch.value != _historyEpoch) return;
     final session = state.session;
     Result<Unit> result;
     try {

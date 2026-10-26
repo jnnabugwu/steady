@@ -4,6 +4,7 @@ import 'package:checkin_domain/checkin_domain.dart';
 import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_domain/cravings_domain.dart';
+import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
@@ -162,6 +163,26 @@ void main() {
       // The session primed with the old week is gone; the coach opened
       // logging in the new one.
       expect(model.ended, contains('s0'));
+      expect(state().topic, WeeklyTopic.logging);
+      expect(state().phase, CoachSessionPhase.ready);
+    });
+
+    test('"Check again" after Begin failed starts over: the week is '
+        're-checked and the session waits for Begin', () async {
+      final controller = await start();
+      checkIns.failure = const UnknownFailure('down');
+      await controller.startWeeklySession();
+      expect(state().phase, CoachSessionPhase.failedToStart);
+
+      checkIns.failure = null;
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.awaitingStart);
+      expect(state().topicIndex, -1);
+      expect(state().session.messages, isEmpty);
+      expect(model.instructions, hasLength(2));
+      expect(model.ended, contains('s0'));
+
+      await controller.startWeeklySession();
       expect(state().topic, WeeklyTopic.logging);
       expect(state().phase, CoachSessionPhase.ready);
     });

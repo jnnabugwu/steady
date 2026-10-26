@@ -491,6 +491,24 @@ void main() {
       expect(repository.sessions, isEmpty);
     });
 
+    test('a delete that fails leaves an open session saving', () async {
+      final controller = await start();
+      await controller.sendCoachMessage('Hi');
+      container.listen(coachHistoryControllerProvider, (_, _) {});
+      await container.read(coachHistoryControllerProvider.future);
+      repository.onDeleteAll = () async =>
+          const Err(CoachHistoryStorageFailure('locked'));
+      await container
+          .read(coachHistoryControllerProvider.notifier)
+          .deleteCoachHistory();
+
+      await controller.sendCoachMessage('Still here');
+      expect(
+        repository.sessions.single.messages.map((m) => m.text),
+        contains('Still here'),
+      );
+    });
+
     test('a session opened after a delete saves as usual', () async {
       await start();
       container.listen(coachHistoryControllerProvider, (_, _) {});

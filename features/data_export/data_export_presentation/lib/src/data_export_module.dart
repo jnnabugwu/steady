@@ -79,10 +79,20 @@ class DataExportModule extends ConsumerWidget {
                           style: SteadyType.cardTitle,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Steady keeps your data only in your iCloud account. '
-                          'Save a copy so you keep it even if you lose access '
-                          'to that account.',
+                        // Where it lives: synced data is in iCloud (CloudKit);
+                        // coach conversations never leave the iPhone except
+                        // in its own device backup (CLAUDE.md §7, §11).
+                        Text(
+                          hasCoach
+                              ? 'Steady keeps your daily metrics and check-ins '
+                                    'in your iCloud account, and coach '
+                                    'conversations only on this iPhone. Save '
+                                    'a copy so you keep them even if you lose '
+                                    'access to that account or this iPhone.'
+                              : 'Steady keeps your data in your iCloud '
+                                    'account. Save a copy so you keep it even '
+                                    'if you lose access to that account.',
+                          key: const Key('exportStorageLine'),
                           style: SteadyType.body,
                         ),
                         const SizedBox(height: 8),

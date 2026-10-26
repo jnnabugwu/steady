@@ -24,13 +24,16 @@ class CoachHistoryController extends _$CoachHistoryController {
   Future<void> deleteCoachHistory() async {
     if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
-    // Before the delete, so a save that starts while it runs is refused
-    // too, not queued behind it.
-    ref.read(coachHistoryEpochProvider).advance();
+    // Before the delete, so a save that starts while it runs waits for it
+    // rather than queuing behind it; only a delete that succeeds moves the
+    // epoch on, so a failed one leaves open sessions saving.
+    final epoch = ref.read(coachHistoryEpochProvider)..beginDelete();
     final Result<Unit> result;
     try {
       result = await ref.read(coachRepositoryProvider).deleteAll();
+      epoch.endDelete(succeeded: result is Ok);
     } on Object catch (error, stackTrace) {
+      epoch.endDelete(succeeded: false);
       if (!ref.mounted) return;
       state = AsyncError(
         error is Failure

@@ -353,8 +353,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [x] Privacy policy written: `docs/PRIVACY.md` (public on GitHub; required for HealthKit).
 - [x] `NSHealthShareUsageDescription` says the values stay on the iPhone and are never stored
       in iCloud or written to Apple Health.
-- [ ] A short "not medical advice" note for the coach: the copy is `CoachCopy.notMedicalAdvice`
-      and it's in `docs/PRIVACY.md`; showing it waits for the coach screens (#81).
+- [x] A short "not medical advice" note for the coach: `CoachCopy.notMedicalAdvice`, shown
+      on the Coach tab, at the top of every session and on the weekly intro, and in
+      `docs/PRIVACY.md`.
 - [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
       "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
       App Review is an early signal only (it's lighter than App Store review); full App

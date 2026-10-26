@@ -66,18 +66,36 @@ void main() {
     );
   });
 
-  test('advances the history epoch before it deletes', () async {
+  test('marks a delete as running before it deletes, and advances the '
+      'history epoch once it succeeds', () async {
     container.listen(coachHistoryControllerProvider, (_, _) {});
     await settled();
     final epoch = container.read(coachHistoryEpochProvider);
-    int? seen;
+    var idleDuringDelete = true;
     repository.onDeleteAll = () async {
-      seen = epoch.value;
+      var idle = false;
+      unawaited(epoch.idle.then((_) => idle = true));
+      await pumpEventQueue();
+      idleDuringDelete = idle;
       repository.sessions.clear();
       return const Ok(unit);
     };
     await notifier().deleteCoachHistory();
-    expect(seen, 1);
+    expect(idleDuringDelete, isFalse);
+    expect(epoch.value, 1);
+  });
+
+  test('a delete that fails leaves the epoch where it was', () async {
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    repository.onDeleteAll = () async =>
+        const Err(CoachHistoryStorageFailure('locked'));
+    await notifier().deleteCoachHistory();
+    expect(container.read(coachHistoryEpochProvider).value, 0);
+
+    repository.onDeleteAll = () async => throw StateError('boom');
+    await notifier().deleteCoachHistory();
+    expect(container.read(coachHistoryEpochProvider).value, 0);
   });
 
   test('an Err becomes an AsyncError carrying that Failure', () async {

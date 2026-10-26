@@ -128,7 +128,9 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
     final canEnd =
         session.hasUserMessages &&
         (session.phase == CoachSessionPhase.ready ||
-            session.phase == CoachSessionPhase.replying);
+            session.phase == CoachSessionPhase.replying ||
+            session.phase == CoachSessionPhase.unavailable ||
+            session.phase == CoachSessionPhase.failedToStart);
 
     return Scaffold(
       headers: [
@@ -183,6 +185,22 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   ],
                 ),
               ),
+              // Lost mid-conversation: keep what was said on screen, with
+              // the way back under it.
+              CoachSessionPhase.unavailable || CoachSessionPhase.failedToStart
+                  when session.hasUserMessages =>
+                _Conversation(
+                  state: session,
+                  scroll: _scroll,
+                  input: _input,
+                  onSend: _send,
+                  onStop: () => unawaited(controller.stopCoachReply()),
+                  onRetrySave: () => unawaited(controller.retryCoachSave()),
+                  onRetryStart: () => unawaited(controller.retryCoachStart()),
+                  onNextTopic: () =>
+                      unawaited(controller.moveToNextWeeklyTopic()),
+                  onDone: widget.onClosed,
+                ),
               CoachSessionPhase.unavailable => _Centered(
                 child: CoachUnavailableCard(
                   failure:
@@ -191,11 +209,14 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   onRetry: () => unawaited(controller.retryCoachStart()),
                 ),
               ),
-              CoachSessionPhase.failedToStart => const _Centered(
+              CoachSessionPhase.failedToStart => _Centered(
                 child: _NoteCard(
-                  key: Key('coachFailedToStart'),
+                  key: const Key('coachFailedToStart'),
                   title: "Couldn't start the coach",
-                  body: 'Close this and try again in a moment.',
+                  body: 'Try again in a moment.',
+                  action: _TryAgainButton(
+                    onPressed: () => unawaited(controller.retryCoachStart()),
+                  ),
                 ),
               ),
               CoachSessionPhase.notEnoughCheckIns => _Centered(
@@ -220,6 +241,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                 onSend: _send,
                 onStop: () => unawaited(controller.stopCoachReply()),
                 onRetrySave: () => unawaited(controller.retryCoachSave()),
+                onRetryStart: () => unawaited(controller.retryCoachStart()),
                 onNextTopic: () =>
                     unawaited(controller.moveToNextWeeklyTopic()),
                 onDone: widget.onClosed,
@@ -236,12 +258,18 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
 String _weekLabel(CoachSessionState state) =>
     coachWeekLabel(state.weekFirst!, state.weekLast!);
 
-/// A short title and line in a coach card.
+/// A short title and line in a coach card, with an optional [action].
 class _NoteCard extends StatelessWidget {
-  const _NoteCard({required this.title, required this.body, super.key});
+  const _NoteCard({
+    required this.title,
+    required this.body,
+    this.action,
+    super.key,
+  });
 
   final String title;
   final String body;
+  final Widget? action;
 
   @override
   Widget build(BuildContext context) => GlassCard(
@@ -256,7 +284,25 @@ class _NoteCard extends StatelessWidget {
           child: Text(title, style: SteadyType.cardTitle),
         ),
         Text(body, style: SteadyType.body),
+        if (action case final action?) ...[const SizedBox(height: 8), action],
       ],
+    ),
+  );
+}
+
+/// "Try again" after the coach couldn't start (`retryCoachStart`).
+class _TryAgainButton extends StatelessWidget {
+  const _TryAgainButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 44,
+    child: OutlineButton(
+      key: const Key('coachRetryStart'),
+      onPressed: onPressed,
+      child: const Text('Try again'),
     ),
   );
 }
@@ -408,6 +454,7 @@ class _Conversation extends StatelessWidget {
     required this.onSend,
     required this.onStop,
     required this.onRetrySave,
+    required this.onRetryStart,
     required this.onNextTopic,
     required this.onDone,
   });
@@ -418,6 +465,7 @@ class _Conversation extends StatelessWidget {
   final VoidCallback onSend;
   final VoidCallback onStop;
   final VoidCallback onRetrySave;
+  final VoidCallback onRetryStart;
   final VoidCallback onNextTopic;
   final VoidCallback onDone;
 
@@ -497,6 +545,27 @@ class _Conversation extends StatelessWidget {
                     child: CoachHelpCard(),
                   ),
               ],
+              if (phase == CoachSessionPhase.unavailable)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: CoachUnavailableCard(
+                    failure:
+                        failure ?? const CoachModelUnavailableUnknownFailure(),
+                    onRetry: onRetryStart,
+                  ),
+                ),
+              if (phase == CoachSessionPhase.failedToStart)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 14),
+                  child: _NoteCard(
+                    key: const Key('coachLostSession'),
+                    title: 'The coach lost its place',
+                    body:
+                        'What you said is still here. Try again to carry '
+                        'on, or end the conversation.',
+                    action: _TryAgainButton(onPressed: onRetryStart),
+                  ),
+                ),
               if (state.saveFailed)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
