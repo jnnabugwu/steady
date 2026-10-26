@@ -1,0 +1,125 @@
+# Steady's ship lanes. Run from app/ios:
+#
+#   bundle exec fastlane ios beta      # build, sign, verify, upload to TestFlight
+#   bundle exec fastlane ios release   # submit a TestFlight build for App Review
+#
+# Nothing here runs on its own: .github/workflows/ship-ios.yml calls one lane
+# when you start it by hand (Actions > Ship iOS > Run workflow). Setup, secrets
+# and the one-time match step: docs/fastlane.md.
+#
+# Environment (GitHub Actions secrets on CI; export them locally):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8   App Store Connect API key (.p8 contents)
+#   MATCH_GIT_URL, MATCH_PASSWORD           signing assets repo + its passphrase
+#   MATCH_GIT_BASIC_AUTHORIZATION           CI only: base64 "user:token" for that repo
+#   BUILD_NUMBER                            release only, optional: build to submit
+
+default_platform(:ios)
+
+APP_DIR = File.expand_path("../..", __dir__)
+ROOT = File.expand_path("..", APP_DIR)
+BUNDLE_ID = "com.jmagic.steady"
+TEAM_ID = "UXZV3C926U"
+PBXPROJ = File.expand_path("../Runner.xcodeproj/project.pbxproj", __dir__)
+
+# app/pubspec.yaml's `version: 1.0.0+3` as ["1.0.0", 3].
+def pubspec_version
+  line = File.read(File.join(APP_DIR, "pubspec.yaml"))[/^version:\s*(\S+)/, 1]
+  name, number = line.to_s.split("+")
+  UI.user_error!("app/pubspec.yaml version '#{line}' isn't of the form 1.0.0+1") unless name && number.to_s.match?(/\A\d+\z/)
+  [name, number.to_i]
+end
+
+platform :ios do
+  before_all do
+    # On CI: a temporary keychain for match's certificate. A no-op on your Mac.
+    setup_ci
+    # Every App Store Connect action below picks this key up from the lane
+    # context: no Apple ID, password or 2FA prompt.
+    app_store_connect_api_key(
+      key_id: ENV.fetch("ASC_KEY_ID"),
+      issuer_id: ENV.fetch("ASC_ISSUER_ID"),
+      key_content: ENV.fetch("ASC_KEY_P8")
+    )
+  end
+
+  desc "Build a signed IPA, check it with scripts/verify-ios-ipa.sh, upload to TestFlight"
+  lane :beta do
+    version, pubspec_build = pubspec_version
+    # TestFlight rejects a build number it has seen, so take the next one after
+    # both TestFlight's latest and the pubspec's. Nothing is committed back.
+    build = [latest_testflight_build_number(app_identifier: BUNDLE_ID, initial_build_number: 0),
+             pubspec_build].max + 1
+    UI.important("Building Steady #{version} (#{build})")
+
+    match(type: "appstore", readonly: true)
+
+    # Xcode signs Runner automatically for day-to-day work; the archive needs
+    # match's distribution profile. Switch Runner to manual signing for this
+    # build only, then put the project file back exactly as it was.
+    original_pbxproj = File.read(PBXPROJ)
+    begin
+      update_code_signing_settings(
+        path: "Runner.xcodeproj",
+        targets: ["Runner"],
+        build_configurations: ["Release"],
+        use_automatic_signing: false,
+        team_id: TEAM_ID,
+        code_sign_identity: "Apple Distribution",
+        sdk: "iphoneos*",
+        profile_name: ENV.fetch("sigh_#{BUNDLE_ID}_appstore_profile-name")
+      )
+
+      # Flutter writes the version and build number into Generated.xcconfig;
+      # gym then archives and exports with match's profile.
+      Dir.chdir(APP_DIR) do
+        sh("flutter", "pub", "get")
+        sh("flutter", "build", "ios", "--release", "--config-only", "--no-codesign",
+           "--build-name=#{version}", "--build-number=#{build}")
+      end
+      ipa = build_app(
+        workspace: "Runner.xcworkspace",
+        scheme: "Runner",
+        configuration: "Release",
+        export_method: "app-store",
+        archive_path: File.join(APP_DIR, "build/ios/archive/Runner.xcarchive"),
+        output_directory: File.join(APP_DIR, "build/ios/ipa"),
+        output_name: "steady.ipa"
+      )
+    ensure
+      File.write(PBXPROJ, original_pbxproj)
+    end
+
+    # Same gate as a local scripts/build-ios-ipa.sh build: team, HealthKit,
+    # iCloud container, production push, iPhone-only. Fails before upload.
+    sh(File.join(ROOT, "scripts/verify-ios-ipa.sh"), ipa, version, build.to_s)
+
+    # Upload only. Adding the build to a tester group and Beta App Review stay
+    # in App Store Connect (docs/testflight.md).
+    upload_to_testflight(ipa: ipa, skip_waiting_for_build_processing: true)
+  end
+
+  desc "Submit a TestFlight build of the pubspec version for App Store review"
+  lane :release do
+    version, = pubspec_version
+    requested = ENV["BUILD_NUMBER"].to_s.strip
+    build = requested.empty? ? latest_testflight_build_number(app_identifier: BUNDLE_ID, version: version, initial_build_number: 0) : requested
+    UI.user_error!("No TestFlight build of #{version} yet: run the beta lane first") if build.to_s == "0"
+    UI.important("Submitting Steady #{version} (#{build}) for App Review")
+
+    # Ships the exact binary testers had: no rebuild, no upload. Metadata and
+    # screenshots are edited in App Store Connect, not from this repo.
+    upload_to_app_store(
+      app_identifier: BUNDLE_ID,
+      app_version: version,
+      build_number: build.to_s,
+      skip_binary_upload: true,
+      skip_metadata: true,
+      skip_screenshots: true,
+      submit_for_review: true,
+      # Approval doesn't publish it: you press "Release" in App Store Connect.
+      automatic_release: false,
+      run_precheck_before_submit: false,
+      force: true # no HTML preview to confirm; CI can't answer it
+    )
+  end
+end

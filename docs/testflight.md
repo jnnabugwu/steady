@@ -60,6 +60,8 @@ Either:
   Distribute App → App Store Connect → Upload.
 - **Xcode:** open `app/ios/Runner.xcworkspace`, select "Any iOS Device (arm64)", Product →
   Archive, then Organizer → Distribute App → App Store Connect → Upload.
+- **GitHub Actions:** Actions → Ship iOS → Run workflow → lane `beta` builds, checks and
+  uploads it with fastlane. One-time setup (API key, match, secrets): [`docs/fastlane.md`](fastlane.md).
 
 The entitlements say `aps-environment: development`; App Store distribution signing switches
 it to production. In Organizer, check the signed entitlements before uploading if unsure.

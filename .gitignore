@@ -46,3 +46,15 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# fastlane (app/ios/fastlane) run output
+app/ios/fastlane/README.md
+app/ios/fastlane/report.xml
+app/ios/fastlane/Preview.html
+app/ios/fastlane/test_output/
+app/ios/fastlane/screenshots/
+*.ipa
+*.dSYM.zip
+*.mobileprovision
+*.p8
+*.p12

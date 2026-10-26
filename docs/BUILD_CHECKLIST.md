@@ -287,6 +287,10 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [ ] Entitlements: HealthKit (iOS only); check whether Foundation Models needs one on iOS
       (#79). CloudKit container entitlement is set.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
+- [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
+      run only from Actions → Ship iOS (`docs/fastlane.md`).
+- [ ] fastlane one-time setup: App Store Connect API key, private match repo, repo secrets
+      (`docs/fastlane.md`).
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
       friends' iPhones. HealthKit and SwiftData/CloudKit don't need A17 Pro+. SwiftData

@@ -1,0 +1,63 @@
+name: Ship iOS
+
+# Manual only: nothing here runs on a push or a PR. Start it from
+# Actions > Ship iOS > Run workflow. Setup and secrets: docs/fastlane.md.
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'beta: build + upload to TestFlight. release: submit a TestFlight build for App Store review.'
+        type: choice
+        options: [beta, release]
+        default: beta
+      build_number:
+        description: 'release only: the TestFlight build to submit (blank = latest for the pubspec version)'
+        required: false
+        default: ''
+
+# One upload at a time; a second run waits instead of racing for a build number.
+concurrency:
+  group: ship-ios
+  cancel-in-progress: false
+
+jobs:
+  ship:
+    # Uploads need the iOS 26 SDK, so Xcode 26.
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # `release` only talks to App Store Connect: no Flutter, no Xcode build.
+      - uses: subosito/flutter-action@v2
+        if: inputs.lane == 'beta'
+        with:
+          flutter-version: '3.47.5'
+          channel: stable
+          cache: true
+
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: app/ios
+
+      - name: Xcode version
+        if: inputs.lane == 'beta'
+        run: xcodebuild -version
+
+      - name: fastlane ${{ inputs.lane }}
+        working-directory: app/ios
+        env:
+          # fastlane warns, and xcpretty can mangle output, without a UTF-8 locale.
+          LC_ALL: en_US.UTF-8
+          LANG: en_US.UTF-8
+          LANE: ${{ inputs.lane }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          MATCH_GIT_URL: ${{ secrets.MATCH_GIT_URL }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_GIT_BASIC_AUTHORIZATION: ${{ secrets.MATCH_GIT_BASIC_AUTHORIZATION }}
+        run: bundle exec fastlane ios "$LANE"

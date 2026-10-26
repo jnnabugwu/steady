@@ -133,6 +133,7 @@ steady/
     ├── steady_product_overview.md
     ├── technical_decisions.md        # Decision records (D1–D6 and others)
     ├── BUILD_CHECKLIST.md            # What's built vs. outstanding
+    ├── fastlane.md                   # Manual TestFlight / App Store lanes (Ship iOS workflow)
     └── freezed_riverpod_migration.md # Migration plan + factory run record
 ```
 

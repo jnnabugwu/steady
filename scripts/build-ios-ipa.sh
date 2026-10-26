@@ -22,9 +22,9 @@
 # last one uploaded for the same version: use --bump or --build.
 #
 # Output: app/build/ios/ipa/*.ipa and app/build/ios/archive/Runner.xcarchive.
-# The script then checks the signed app's entitlements and Info.plist for
-# what App Review sees: team, HealthKit, the iCloud container, production
-# push, the encryption flag, and iPhone-only.
+# The script then checks the signed app with scripts/verify-ios-ipa.sh:
+# team, HealthKit, the iCloud container, production push, the encryption
+# flag, and iPhone-only.
 #
 # No flavors, env files or CocoaPods: Steady has no backend, and plugins are
 # integrated with Swift Package Manager.
@@ -35,8 +35,6 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT/app"
 TEAM_ID="UXZV3C926U"
-BUNDLE_ID="com.jmagic.steady"
-ICLOUD_CONTAINER="iCloud.com.jmagic.steady"
 
 PULL=0; CLEAN=0; BUMP=0; CHECK=0; OPEN=0; SET_BUILD=""
 while [ $# -gt 0 ]; do
@@ -122,49 +120,7 @@ IPA=$(ls -t build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)
 [ -n "$IPA" ] || die "no .ipa was exported; check signing in Xcode (see above)"
 
 # --- verify what App Review will see ---
-step "Verify $IPA"
-TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-unzip -q "$IPA" -d "$TMP"
-APP="$TMP/Payload/$(ls "$TMP/Payload" | head -1)"
-codesign -d --entitlements :- "$APP" > "$TMP/ent.plist" 2>/dev/null || die "couldn't read entitlements"
-PLIST="$APP/Info.plist"
-
-FAILED=0
-check() { # check <description> <expected> <actual>
-  if [ "$2" = "$3" ]; then
-    printf '  \033[32m✓\033[0m %s: %s\n' "$1" "$3"
-  else
-    printf '  \033[31m✗\033[0m %s: expected %s, got %s\n' "$1" "$2" "${3:-<missing>}"
-    FAILED=1
-  fi
-}
-ent()  { /usr/libexec/PlistBuddy -c "Print :$1" "$TMP/ent.plist" 2>/dev/null || true; }
-info() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST" 2>/dev/null || true; }
-
-check "Team"                 "$TEAM_ID" "$(ent com.apple.developer.team-identifier)"
-check "Bundle ID"            "$BUNDLE_ID" "$(info CFBundleIdentifier)"
-check "Version"              "$VNAME ($VNUM)" "$(info CFBundleShortVersionString) ($(info CFBundleVersion))"
-check "Push environment"     "production" "$(ent aps-environment)"
-check "HealthKit"            "true" "$(ent com.apple.developer.healthkit)"
-check "iCloud container"     "$ICLOUD_CONTAINER" "$(ent com.apple.developer.icloud-container-identifiers:0)"
-check "iCloud service"       "CloudKit" "$(ent com.apple.developer.icloud-services:0)"
-check "Non-exempt encryption" "false" "$(info ITSAppUsesNonExemptEncryption)"
-# The whole array, so an iPhone+iPad build ([1,2]) can't pass.
-check "Device family"        "[1]" "$(plutil -extract UIDeviceFamily json -o - "$PLIST" 2>/dev/null || true)"
-check "iCloud sync enabled"  "true" "$(info SteadyCloudKitEnabled)"
-# App Store Connect rejects a HealthKit app missing either purpose string,
-# even one that never writes to Apple Health (ITMS-90683).
-for key in NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
-  [ -n "$(info "$key")" ] \
-    && printf '  \033[32m✓\033[0m %s present\n' "$key" \
-    || { printf '  \033[31m✗\033[0m %s missing\n' "$key"; FAILED=1; }
-done
-codesign -dv --verbose=2 "$APP" 2>&1 | grep -E 'Authority=Apple Distribution' | sed 's/^/  /' || true
-PROFILE=$(security cms -D -i "$APP/embedded.mobileprovision" 2>/dev/null \
-          | plutil -extract Name raw -o - - 2>/dev/null || echo '?')
-echo "  Provisioning profile: $PROFILE"
-
-[ "$FAILED" = 0 ] || die "the IPA doesn't match what Steady ships; don't upload it (see ✗ above)"
+"$ROOT/scripts/verify-ios-ipa.sh" "$IPA" "$VNAME" "$VNUM"
 
 SIZE=$(du -h "$IPA" | awk '{print $1}')
 printf '\n\033[1;32mDONE\033[0m  app/%s  (%s)  version %s (%s)\n' "$IPA" "$SIZE" "$VNAME" "$VNUM"
