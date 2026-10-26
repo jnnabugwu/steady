@@ -1,0 +1,10 @@
+# Signing assets for the App Store build: one Apple Distribution certificate
+# and one App Store provisioning profile, stored encrypted in a private git
+# repo (MATCH_GIT_URL) under MATCH_PASSWORD. CI reads them (readonly); only
+# `bundle exec fastlane match appstore` on your Mac creates or renews them.
+# Setup: docs/fastlane.md.
+git_url(ENV["MATCH_GIT_URL"])
+storage_mode("git")
+type("appstore")
+app_identifier(["com.jmagic.steady"])
+team_id("UXZV3C926U")

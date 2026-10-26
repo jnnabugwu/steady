@@ -1,0 +1,4 @@
+# Who the lanes act for. Authentication itself is the App Store Connect API
+# key loaded in the Fastfile (no Apple ID password, no 2FA prompt on CI).
+app_identifier("com.jmagic.steady")
+team_id("UXZV3C926U")

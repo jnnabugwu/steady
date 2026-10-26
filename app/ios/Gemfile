@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+# fastlane for the TestFlight / App Store lanes in fastlane/Fastfile.
+# Run through Bundler so CI and your Mac use the same version:
+#   bundle install && bundle exec fastlane beta
+gem "fastlane", "~> 2.241"
