@@ -167,7 +167,8 @@ App Store Connect → the app → **+ Version** (1.0.0), then:
 - **Promotional text / description / keywords:** a starting point, edit freely:
   - **Name:** Steady (30 max). **Subtitle:** "Track calmly, see your week" (30 max).
   - **Keywords** (100 max): `calorie,tracking,check-in,steps,weight trend,cravings,coach,
-    cal ai,habit,health`
+    habit,health,food log`. Never another app's name (guideline 2.3.7): "Cal AI" belongs in
+    the description, as what Steady imports, not in the keywords.
   - **Description:** "Steady sits next to the food tracker you already use. Import your
     Cal AI export to see what you ate beside what you burned, your steps and your weight
     trend from Apple Health. Each evening, a one-tap check-in records how tracking went:
