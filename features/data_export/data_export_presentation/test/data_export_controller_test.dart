@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
@@ -106,7 +108,10 @@ void main() {
       final file = sharer.sharedFiles.single;
       expect(file.fileName, 'steady-export-2026-10-22.json');
       expect(file.mimeType, 'application/json');
-      expect(file.contents, contains('"schemaVersion": 1'));
+      expect(file.contents, contains('"schemaVersion": 2'));
+      // No coach bound (the Mac): no coach sessions key at all.
+      final json = jsonDecode(file.contents) as Map<String, Object?>;
+      expect(json.containsKey('coachSessions'), isFalse);
     });
 
     test('a dismissed share sheet is data(dismissed), not an error', () async {
@@ -188,9 +193,10 @@ void main() {
       ]);
       expect(
         sharer.sharedFiles.single,
-        ExportBundle(exportedAt: now, dailyMetrics: const []).toFile(
-          ExportFormat.csv,
-        ),
+        ExportBundle(
+          exportedAt: now,
+          dailyMetrics: const [],
+        ).toFile(ExportFormat.csv),
       );
       // Header only: no day rows.
       expect(
@@ -230,6 +236,165 @@ void main() {
 
       expect(states.last, isA<AsyncData<ExportReceipt?>>());
       expect(sharer.sharedFiles, hasLength(1));
+    });
+  });
+
+  group('with the coach (iPhone)', () {
+    final sessionStart = DateTime(2026, 10, 23, 19);
+    final session = CoachSession(
+      id: 'w1',
+      kind: CoachSessionKind.weekly,
+      startedAt: sessionStart,
+      summary: 'Steps were steady this week.',
+      messages: [
+        CoachMessage(
+          role: CoachMessageRole.user,
+          text: 'A private thing I said',
+          at: sessionStart,
+        ),
+      ],
+    );
+    late FakeCoachRepository coach;
+    late ProviderContainer withCoach;
+
+    setUp(() {
+      coach = FakeCoachRepository(onList: () => Ok([session]));
+      withCoach = ProviderContainer.test(
+        overrides: [
+          exportDailyMetricRepositoryProvider.overrideWithValue(repository),
+          exportCoachRepositoryProvider.overrideWithValue(coach),
+          exportFileSharerProvider.overrideWithValue(sharer.call),
+          exportClockProvider.overrideWithValue(() => now),
+        ],
+      )..listen(dataExportControllerProvider, (_, _) {});
+    });
+
+    Future<void> export(ExportFormat format) => withCoach
+        .read(dataExportControllerProvider.notifier)
+        .exportData(format);
+
+    test("the JSON has each session's date, kind and summary, not the "
+        'transcript', () async {
+      await export(ExportFormat.json);
+
+      final contents = sharer.sharedFiles.single.contents;
+      final json = jsonDecode(contents) as Map<String, Object?>;
+      expect(json['coachSessions'], [
+        {
+          'date': '2026-10-23',
+          'kind': 'weekly',
+          'summary': 'Steps were steady this week.',
+        },
+      ]);
+      expect(contents, isNot(contains('A private thing I said')));
+      expect(coach.listCalls, 1);
+    });
+
+    test('the CSV stays one row per day, with no coach content', () async {
+      await export(ExportFormat.csv);
+
+      final contents = sharer.sharedFiles.single.contents;
+      // A header, one line per day, and the empty string after the last
+      // CRLF.
+      expect(contents.split('\r\n'), hasLength(rows.length + 2));
+      expect(contents, isNot(contains('Steps were steady')));
+    });
+
+    test(
+      'the receipt says nothing was left out when the coach reads',
+      () async {
+        await export(ExportFormat.json);
+
+        expect(
+          withCoach
+              .read(dataExportControllerProvider)
+              .value
+              ?.coachHistoryLeftOut,
+          isNull,
+        );
+      },
+    );
+
+    test('no sessions yet: coachSessions is [] and nothing was left '
+        'out', () async {
+      coach.onList = () => const Ok([]);
+      await export(ExportFormat.json);
+
+      final json = jsonDecode(
+        sharer.sharedFiles.single.contents,
+      ) as Map<String, Object?>;
+      expect(json['coachSessions'], isEmpty);
+      expect(
+        withCoach.read(dataExportControllerProvider).value?.coachHistoryLeftOut,
+        isNull,
+      );
+    });
+
+    group('a coach read Err', () {
+      setUp(() {
+        coach.onList = () =>
+            const Err(CoachHistoryUnreadableFailure('unreadable'));
+      });
+
+      test('still exports the JSON, with every day and coachSessions null, '
+          'and the receipt says the coach was left out', () async {
+        await export(ExportFormat.json);
+
+        final json = jsonDecode(
+          sharer.sharedFiles.single.contents,
+        ) as Map<String, Object?>;
+        expect(json['dailyMetrics'], hasLength(rows.length));
+        expect(json.containsKey('coachSessions'), isTrue);
+        expect(json['coachSessions'], isNull);
+        expect(
+          withCoach.read(dataExportControllerProvider),
+          _isData(
+            const ExportReceipt(
+              format: ExportFormat.json,
+              fileName: 'steady-export-2026-10-22.json',
+              dayCount: 2,
+              outcome: ExportShareOutcome.shared,
+              coachHistoryLeftOut: CoachHistoryLeftOut.unreadable,
+            ),
+          ),
+        );
+      });
+
+      test(
+        'a storage failure is left out as readFailed, not unreadable',
+        () async {
+          coach.onList = () => const Err(CoachHistoryStorageFailure('locked'));
+          await export(ExportFormat.json);
+
+          expect(sharer.sharedFiles, hasLength(1));
+          expect(
+            withCoach
+                .read(dataExportControllerProvider)
+                .value
+                ?.coachHistoryLeftOut,
+            CoachHistoryLeftOut.readFailed,
+          );
+        },
+      );
+
+      test('leaves the CSV as it always is, with nothing left out', () async {
+        await export(ExportFormat.csv);
+
+        expect(
+          sharer.sharedFiles.single.contents,
+          ExportBundle(
+            exportedAt: now,
+            dailyMetrics: rows,
+          ).toFile(ExportFormat.csv).contents,
+        );
+        expect(
+          withCoach
+              .read(dataExportControllerProvider)
+              .value
+              ?.coachHistoryLeftOut,
+          isNull,
+        );
+      });
     });
   });
 }

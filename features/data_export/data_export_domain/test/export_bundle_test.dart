@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -118,8 +119,8 @@ void main() {
       final json = decode(bundle(const []));
 
       expect(json.keys, ['schemaVersion', 'exportedAt', 'dailyMetrics']);
-      expect(json['schemaVersion'], 1);
-      expect(ExportBundle.schemaVersion, 1);
+      expect(json['schemaVersion'], 2);
+      expect(ExportBundle.schemaVersion, 2);
       expect(json['exportedAt'], exportedAt.toUtc().toIso8601String());
       expect(json['exportedAt'], endsWith('Z'));
       expect(json['dailyMetrics'], isEmpty);
@@ -160,6 +161,126 @@ void main() {
         'loggingStatus': 'partial',
       });
       expect(days[1].values.skip(1), everyElement(isNull));
+    });
+  });
+
+  group('coach sessions', () {
+    final transcript = [
+      CoachMessage(
+        role: CoachMessageRole.user,
+        text: 'Something only the coach heard',
+        at: DateTime(2026, 10, 23, 19),
+      ),
+    ];
+    final weekly = CoachSession(
+      id: 'w',
+      kind: CoachSessionKind.weekly,
+      // Late evening local: the date is the local calendar date.
+      startedAt: DateTime(2026, 10, 23, 23, 30),
+      endedAt: DateTime(2026, 10, 23, 23, 45),
+      summary: 'Steps held at about 8,000; Thursday was "partial".',
+      messages: transcript,
+    );
+    final chat = CoachSession(
+      id: 'c',
+      kind: CoachSessionKind.chat,
+      startedAt: DateTime(2026, 10, 20, 8),
+      messages: transcript,
+    );
+
+    ExportBundle withCoach(List<CoachSession>? sessions) => ExportBundle(
+      exportedAt: exportedAt,
+      dailyMetrics: [fullDay],
+      coachSessions: sessions,
+    );
+
+    Map<String, Object?> decode(ExportBundle b) =>
+        jsonDecode(b.encodeJson()) as Map<String, Object?>;
+
+    test('JSON: date, kind and summary per session, oldest first', () {
+      final json = decode(withCoach([weekly, chat]));
+
+      expect(json.keys, [
+        'schemaVersion',
+        'exportedAt',
+        'dailyMetrics',
+        'coachSessions',
+      ]);
+      expect(ExportBundle.coachSessionColumns, ['date', 'kind', 'summary']);
+      expect(json['coachSessions'], [
+        {'date': '2026-10-20', 'kind': 'chat', 'summary': null},
+        {
+          'date': '2026-10-23',
+          'kind': 'weekly',
+          'summary': 'Steps held at about 8,000; Thursday was "partial".',
+        },
+      ]);
+    });
+
+    test('JSON never carries the transcript', () {
+      final encoded = withCoach([weekly, chat]).encodeJson();
+      expect(encoded, isNot(contains('Something only the coach heard')));
+      expect(encoded, isNot(contains('messages')));
+      expect(encoded, isNot(contains('endedAt')));
+    });
+
+    test('JSON: an empty list is a coach with no sessions yet', () {
+      expect(decode(withCoach(const []))['coachSessions'], isEmpty);
+    });
+
+    test('JSON: no coach on this device (null) leaves the key out', () {
+      expect(decode(withCoach(null)).containsKey('coachSessions'), isFalse);
+      expect(decode(bundle([fullDay])).containsKey('coachSessions'), isFalse);
+    });
+
+    final unreadable = ExportBundle(
+      exportedAt: exportedAt,
+      dailyMetrics: [fullDay],
+      coachHistoryFailure: const CoachHistoryUnreadableFailure('corrupt'),
+    );
+
+    test('JSON: unreadable coach history is null, distinct from [] and '
+        'absent, and the daily rows are all there', () {
+      final json = decode(unreadable);
+      expect(json.containsKey('coachSessions'), isTrue);
+      expect(json['coachSessions'], isNull);
+      expect(json['schemaVersion'], 2);
+      expect(json['dailyMetrics'], decode(bundle([fullDay]))['dailyMetrics']);
+
+      final states = [
+        decode(withCoach(const []))['coachSessions'],
+        json['coachSessions'],
+        decode(withCoach(null)).containsKey('coachSessions'),
+      ];
+      expect(states, [isEmpty, isNull, isFalse]);
+    });
+
+    test('the failure is never written to the file', () {
+      expect(unreadable.encodeJson(), isNot(contains('corrupt')));
+      expect(unreadable.encodeCsv(), isNot(contains('corrupt')));
+    });
+
+    test('CSV is unchanged by unreadable coach history', () {
+      expect(unreadable.encodeCsv(), bundle([fullDay]).encodeCsv());
+    });
+
+    test('unreadable coach history carries no sessions', () {
+      expect(
+        () => ExportBundle(
+          exportedAt: exportedAt,
+          dailyMetrics: const [],
+          coachSessions: const [],
+          coachHistoryFailure: const CoachHistoryUnreadableFailure('x'),
+        ),
+        throwsA(isA<AssertionError>()),
+      );
+    });
+
+    test('CSV is unchanged by coach sessions: one row per day', () {
+      expect(
+        withCoach([weekly, chat]).encodeCsv(),
+        bundle([fullDay]).encodeCsv(),
+      );
     });
   });
 

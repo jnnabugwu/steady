@@ -4,7 +4,9 @@ enum ExportFormat {
   /// only.
   csv(fileExtension: 'csv', mimeType: 'text/csv'),
 
-  /// Everything, in a versioned shape a future import can restore from.
+  /// Everything the CSV has, plus (on the iPhone) each coach session's
+  /// date, kind and summary, in a versioned shape a future import can
+  /// restore from.
   json(fileExtension: 'json', mimeType: 'application/json');
 
   ExportFormat({required this.fileExtension, required this.mimeType});

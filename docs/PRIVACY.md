@@ -42,6 +42,31 @@ food it was, calories, your location or any notes.
   the phone may still contain them until that backup is replaced or deleted.
 - They aren't included in the data export.
 
+## Coach
+
+The coach isn't in Steady yet. This section describes how it handles your data from the
+version that adds it, including its Settings → Coach controls and its part of the data
+export; until then, Steady has no coach and keeps no coach data.
+
+On iPhone, Steady's coach talks with you about your week: what you logged, your check-ins,
+your steps and your craving check-ins. It uses Apple's on-device model (Apple Intelligence),
+so it works only on an iPhone that supports Apple Intelligence, with it turned on.
+
+- The coach runs **entirely on your iPhone**. What you type and what it replies are never
+  sent to a server, to the developer or to Apple's cloud models.
+- Your conversations with the coach (the transcript and a short summary of each session)
+  stay **on that iPhone**, like craving check-ins. Steady doesn't put them in iCloud storage
+  or sync them to your other devices, and the Mac app has no coach. If your iPhone backs up
+  to iCloud, iOS includes them in that device backup like any other app data.
+- You can delete them at any time in Steady's Settings → Coach → "Delete coach history".
+  Deleting the app also removes them from the iPhone; an earlier iCloud Backup of the phone
+  may still contain them until that backup is replaced or deleted.
+- The data export (JSON) includes each coach session's date, kind (weekly check-in or chat)
+  and summary, not the full transcript. A summary may mention numbers the coach talked
+  about, such as your steps.
+- The coach isn't medical advice and can't diagnose or treat anything. It won't set calorie
+  targets, weight goals or diets. For questions about your health, talk to a doctor.
+
 ## Apple Health
 
 On iPhone, with your permission, Steady reads your daily steps, active energy, resting
@@ -63,7 +88,8 @@ Settings → Privacy & Security → Health. The Mac app doesn't use Apple Health
 
 ## What Steady doesn't do
 
-- No Steady servers: nothing is sent to the developer or to anyone else.
+- No Steady servers: nothing is sent to the developer or to anyone else. That includes the
+  coach, which runs on the iPhone itself.
 - No analytics, advertising or tracking, and no third-party services that receive your data.
 - No selling or sharing of your data.
 
@@ -78,7 +104,8 @@ where you send it through the system share sheet. Steady doesn't send it anywher
 
 - **Export:** in Steady's Settings you can export your data as CSV or JSON.
 - **Delete:** deleting the app removes its data from that device. Craving check-ins can also
-  be deleted on their own in Settings → Cravings. To delete the copy in
+  be deleted on their own in Settings → Cravings, and coach conversations in Settings →
+  Coach. To delete the copy in
   iCloud, go to Settings → [your name] → iCloud → Manage Storage (on Mac: System Settings →
   [your name] → iCloud → Manage) and delete Steady's data.
 

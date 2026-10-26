@@ -27,7 +27,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       `packages_native/*` skeleton per CLAUDE.md §2, all packages `flutter pub get`/
       `flutter analyze` clean.
 - [x] FFCA path-dependency graph wired: each `_data`/`_presentation` → its own `_domain`;
-      `coach_presentation` → `metrics_domain` + `checkin_domain`; nothing crosses into
+      `coach_presentation` → `metrics_domain` + `checkin_domain` + `cravings_domain` +
+      `health_sync_domain`; nothing crosses into
       another feature's `_data`/`_presentation` (CLAUDE.md §2/§3).
 - [x] `app/lib/app_router.dart` holds `routerProvider` and the typed routes;
       `app/lib/providers.dart` holds DI (`bootstrap.dart` and `get_it` are gone).
@@ -47,8 +48,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [ ] Each feature's `_presentation` package exposes a `Module` widget with typed
       callbacks (see CLAUDE.md §5's `CheckInModule` example) — features never import the
       router or each other's routes; only `app_router.dart` wires callbacks to routes.
-      Done for checkin, metrics (`MetricsHistoryModule`) and pdf_import (`PdfImportModule`);
-      not yet for coach.
+      Done for checkin, metrics (`MetricsHistoryModule`), pdf_import (`PdfImportModule`)
+      and coach (`CoachHomeModule`, `CoachSessionModule`, `CoachTranscriptModule`).
 - [x] Feature screens use `shadcn_flutter`/`ui_kit` widgets only, never Material (decided
       2026-10-22; CLAUDE.md §5, "App shell"). `CheckInModule` is converted and `main.dart`
       has no Material localizations delegate.
@@ -82,8 +83,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] Each `*_presentation` package declares its repository providers (throw unless
       overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
-      checkin, metrics, pdf_import. `coach_presentation` has none (no repository interface
-      in `coach_domain` yet).
+      checkin, metrics, pdf_import, cravings, coach (`coachRepositoryProvider`, bound on
+      iOS only). `coach_presentation` also declares `coachModelProvider` — the on-device
+      model, an inference port rather than a repository — bound on iOS only.
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -178,25 +180,66 @@ items land; don't let it drift into a change log — keep it a current-state che
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
 "The coach runs on the iPhone").
 
-- [ ] `coach_data`: Apple Foundation Models channel in `app/ios` only, with typed
-      `Failure`s for each unavailable reason (no Apple Intelligence, turned off, model not
-      ready). No macOS implementation at all.
-- [ ] Transcripts and summaries in a device-only store, like `cravings_data`: never in
-      the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
-      coach history.
-- [ ] Data export includes each session's date, kind and summary (not the transcript).
-      The summary prompt asks for tracking habits and next week's plan, leaving out
-      cravings and exact numbers (cravings aren't in the export). A model can't be held to
-      that every time, so a summary may still mention a Health number or a craving
-      (CLAUDE.md §7, PRIVACY.md).
-- [ ] `coach_presentation`: weekly 5-minute session + chat on the iPhone, with the
-      context built from metrics, check-ins, Health totals and cravings (domains only).
-- [ ] Nudge card: "Talk now" where the model is available, an explanation where it
-      isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
-- [ ] Tone constraints from the product doc: coach, not therapist; never prescribes
-      calorie targets; no streaks/shame visuals (already reflected in the single-hue
-      logging-status ladder — don't reintroduce red/yellow/green anywhere in this
-      feature's UI).
+- [x] `coach_data`: Apple Foundation Models channel in `app/ios` only
+      (`CoachChannel.swift`, `MethodChannelCoachModel`), with typed `Failure`s for each
+      unavailable reason (device not eligible, Apple Intelligence off, model not ready, iOS
+      older than 26) and for failed replies. Replies stream as cumulative snapshots. Context
+      limit: 4,096 tokens on iOS 26 (`CoachModelChannel.defaultContextSize`; the device
+      reports its own at runtime). No macOS implementation at all (#79).
+- [ ] The #79 "done when" on hardware: a debug build on a supported iPhone streams a
+      reply, and an unsupported iPhone (or Apple Intelligence off) shows a clear message.
+      The message exists now (the Coach tab and the session screen, #80); checking it on
+      hardware is still open.
+- [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
+      the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
+      `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
+      (`coach_sessions.json` in app support) in `coach_data`, bound only by
+      `appProviderOverridesFor(isIOS: true)`. Settings → Coach → "Delete coach history"
+      (#78).
+- [x] Data export includes each session's date, kind and summary (not the transcript):
+      the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
+      per day. Coach history that can't be read doesn't block the export (decided
+      2026-10-25): `coachSessions` is `null` and the screen says it was left out; it's
+      the one exception to "an export is never partial" (#78).
+- [x] Coach summary prompt (#79/#82): summaries run in their own model session under
+      `CoachInstructions.summary` (not the coaching instructions, which ask questions),
+      asking for tracking habits and next week's plan, leaving out cravings and exact
+      numbers (cravings aren't in the export). A model can't be held to that every time,
+      so a summary may still mention a Health number or a craving (CLAUDE.md §7,
+      PRIVACY.md).
+- [x] `coach_presentation`: chat on the iPhone (#80). The Coach tab (iPhone only; the Mac
+      has the shell branch but no tab, and `/coach` redirects home), a live session with a
+      streaming reply, a stop button, the transcript saved as it grows and a model-written
+      summary at the end, and past sessions with a read-only transcript. Context from
+      metrics, check-ins, live Health totals and cravings, domains only
+      (`BuildCoachWeekContext`), kept inside the 4,096-token window by
+      `CoachConversation` (tests: `coach_context_budget_test.dart`). Unavailable states per
+      typed reason; the "not medical advice" note on the tab and in every session, the help
+      line when guardrails stop a reply.
+- [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
+      Intelligence off / model not ready).
+- [x] `coach_presentation`: the weekly 5-minute session (#81). The last completed
+      Friday→Thursday week; doesn't start with fewer than 4 of 7 days checked in
+      (`CheckWeeklyReadiness`); logging, steps, cravings (when there were any) and next week
+      as separate topics; a stored summary. `/weekly-check-in`, from the nudge and the
+      Coach tab.
+- [x] Nudge card (`CoachNudgeCard` in `TodayScreen.coachNudge`): "Talk now" / "Not
+      tonight" where the model is available, an explanation where it isn't; nothing on the
+      Mac. Shown Friday to Sunday from check-in data only (#81).
+- [x] Tone and safety instructions in one place: `CoachInstructions` in `coach_domain`
+      (coach, not therapist; never originates calorie targets, weight goals, deficits or
+      diets, including from craving data; no streaks or shame; points to ANAD and 988 and
+      doesn't coach through disordered eating or a crisis), with a test per constraint (#82).
+- [x] UI review of coach screens against the no-shame rules (#82): teal ladder and
+      neutrals only, no streaks, scores, grades or praise/blame words, topics shown as a
+      position, never a checkmark. `coach_no_shame_test.dart` sweeps the Coach tab, the
+      nudge, a weekly session, a thin week, a past transcript and Settings' Coach card
+      with its delete dialog — text, fills, borders and icons — in both available and
+      unavailable states. "Delete coach history" is teal like the rest (#78), not the
+      theme's destructive red; its wording and the confirm dialog carry the warning.
+- [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
+      coach summaries all in one release), drop the "The coach isn't in Steady yet"
+      paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.
 
 ## Feature: notifications — dropped
 
@@ -284,8 +327,10 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       only).
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
-- [ ] Entitlements: HealthKit (iOS only); check whether Foundation Models needs one on iOS
-      (#79). CloudKit container entitlement is set.
+- [ ] Entitlements: HealthKit (iOS only). Foundation Models needs none on iOS: checked
+      against the iOS 27.1 SDK (#79); only Apple's server model,
+      `PrivateCloudComputeLanguageModel`, needs a managed entitlement, and Steady doesn't use
+      it. CloudKit container entitlement is set.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:
@@ -308,7 +353,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
 - [x] Privacy policy written: `docs/PRIVACY.md` (public on GitHub; required for HealthKit).
 - [x] `NSHealthShareUsageDescription` says the values stay on the iPhone and are never stored
       in iCloud or written to Apple Health.
-- [ ] A short "not medical advice" note for the coach (when the coach is built).
+- [x] A short "not medical advice" note for the coach: `CoachCopy.notMedicalAdvice`, shown
+      on the Coach tab, at the top of every session and on the weekly intro, and in
+      `docs/PRIVACY.md`.
 - [ ] Open risk: App Review may treat calories eaten and check-ins synced via CloudKit as
       "personal health information" (5.1.3(ii)). The first external TestFlight build's Beta
       App Review is an early signal only (it's lighter than App Store review); full App
@@ -319,7 +366,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       Settings". No sign-in screen or redirect. Decision record:
       `docs/technical_decisions.md`, "iCloud is optional: a banner, not a gate".
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
-      metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
+      metrics and check-ins, and on the iPhone each coach session's date, kind and summary
+      (JSON only). Never partial, except that unreadable coach history is left out (and
+      the screen says so) rather than failing the export.
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.
 - [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English

@@ -52,7 +52,7 @@ final class DataExportControllerProvider
 }
 
 String _$dataExportControllerHash() =>
-    r'6c32f53e6be9b73d4d89f630a1f6f0c97dc470d9';
+    r'6cda5b189c40691d7bde32446c04d0442ad160af';
 
 /// The data export screen's state: `null` until the first export finishes,
 /// then the latest [ExportReceipt].

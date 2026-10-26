@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/src/data_export_controller.dart';
+import 'package:data_export_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -42,6 +43,8 @@ class DataExportModule extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final export = ref.watch(dataExportControllerProvider);
+    // The coach (and so its sessions in the export) is iPhone only.
+    final hasCoach = ref.watch(exportCoachRepositoryProvider) != null;
 
     return Scaffold(
       headers: [_Header(onBack: onBack)],
@@ -76,16 +79,31 @@ class DataExportModule extends ConsumerWidget {
                           style: SteadyType.cardTitle,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Steady keeps your data only in your iCloud account. '
-                          'Save a copy so you keep it even if you lose access '
-                          'to that account.',
+                        // Where it lives: synced data is in iCloud (CloudKit);
+                        // coach conversations never leave the iPhone except
+                        // in its own device backup (CLAUDE.md §7, §11).
+                        Text(
+                          hasCoach
+                              ? 'Steady keeps your daily metrics and check-ins '
+                                    'in your iCloud account, and coach '
+                                    'conversations only on this iPhone. Save '
+                                    'a copy so you keep them even if you lose '
+                                    'access to that account or this iPhone.'
+                              : 'Steady keeps your data in your iCloud '
+                                    'account. Save a copy so you keep it even '
+                                    'if you lose access to that account.',
+                          key: const Key('exportStorageLine'),
                           style: SteadyType.body,
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          'Includes daily metrics and check-ins. Coach '
-                          "sessions aren't included yet.",
+                          hasCoach
+                              ? 'Includes daily metrics and check-ins. The '
+                                    'JSON file also includes each coach '
+                                    "session's date, type and summary, but "
+                                    'not the conversation itself.'
+                              : 'Includes daily metrics and check-ins.',
+                          key: const Key('exportContentsLine'),
                           style: SteadyType.body.copyWith(
                             fontSize: 13,
                             color: SteadyColors.textMuted,
@@ -149,14 +167,34 @@ class DataExportModule extends ConsumerWidget {
     );
   }
 
-  static String _receiptMessage(ExportReceipt receipt) =>
-      switch (receipt.outcome) {
-        ExportShareOutcome.shared =>
-          'Exported ${receipt.dayCount} '
-              '${receipt.dayCount == 1 ? 'day' : 'days'} '
-              'to ${receipt.fileName}.',
-        ExportShareOutcome.dismissed => 'Export cancelled. Nothing was saved.',
-      };
+  static String _receiptMessage(ExportReceipt receipt) {
+    switch (receipt.outcome) {
+      case ExportShareOutcome.shared:
+        final days = receipt.dayCount == 1 ? 'day' : 'days';
+        final exported =
+            'Exported ${receipt.dayCount} $days to ${receipt.fileName}.';
+        return switch (receipt.coachHistoryLeftOut) {
+          null => exported,
+          CoachHistoryLeftOut.unreadable => '$exported $coachUnreadableNote',
+          CoachHistoryLeftOut.readFailed => '$exported $coachReadFailedNote',
+        };
+      case ExportShareOutcome.dismissed:
+        return 'Export cancelled. Nothing was saved.';
+    }
+  }
+
+  /// Added to the receipt when a JSON export left out coach history that
+  /// isn't in Steady's format, which only deleting it fixes.
+  static const coachUnreadableNote =
+      "Coach history couldn't be read, so it was left out. You can delete "
+      'it in Settings → Coach.';
+
+  /// Added to the receipt when a JSON export left out coach history
+  /// because reading it failed (a file-system error), which may not
+  /// happen again.
+  static const coachReadFailedNote =
+      "Coach history couldn't be read just now, so it was left out. Export "
+      'again to include it.';
 }
 
 /// The Pass 02 screen header: a round glass back button above the 34px

@@ -5,18 +5,32 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:coach_presentation/coach_presentation.dart'
+    show coachSupportAvailableProvider;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// The shell's tabs, in branch order (`AppShellRoute`'s branches).
-///
-/// The Coach tab joins once the coach screen exists; until then it isn't
-/// shown at all, rather than being a dead tab.
+/// Every tab, in branch order (`AppShellRoute`'s branches): Today, Week,
+/// Coach, Settings.
 const appShellTabs = <GlassTabItem>[
   GlassTabItem(icon: LucideIcons.sun, label: 'Today'),
   GlassTabItem(icon: LucideIcons.chartColumn, label: 'Week'),
+  GlassTabItem(icon: LucideIcons.messageCircle, label: 'Coach'),
   GlassTabItem(icon: LucideIcons.settings, label: 'Settings'),
+];
+
+/// The Coach tab's branch index in [appShellTabs].
+const coachBranchIndex = 2;
+
+/// The branch indexes the bar shows, in order. The Coach tab only where
+/// the coach exists (the iPhone, [coach]); the Mac shows Today, Week and
+/// Settings, and its Coach branch is never visited (its route redirects
+/// home there, CLAUDE.md §11).
+List<int> visibleBranches({required bool coach}) => [
+  for (var i = 0; i < appShellTabs.length; i++)
+    if (coach || i != coachBranchIndex) i,
 ];
 
 /// Lays [navigationShell] (the current branch's navigator) out full-screen
@@ -31,7 +45,7 @@ const appShellTabs = <GlassTabItem>[
 /// keeps its last card's buttons above the bar, and a scroll view that
 /// pads its end by `MediaQuery.paddingOf(context).bottom` scrolls under it
 /// and still stops with its last item clear of it.
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   /// Creates the shell around [navigationShell].
   const AppShell({required this.navigationShell, super.key});
 
@@ -56,7 +70,10 @@ class AppShell extends StatelessWidget {
       math.max(barMargin, systemBottom);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final branches = visibleBranches(
+      coach: ref.watch(coachSupportAvailableProvider),
+    );
     final media = MediaQuery.of(context);
     final systemBottom = media.padding.bottom;
     final inset = bottomInset(systemBottom);
@@ -79,8 +96,8 @@ class AppShell extends StatelessWidget {
           bottom: 0,
           child: GlassTabBar(
             key: const Key('appTabBar'),
-            items: appShellTabs,
-            selectedIndex: navigationShell.currentIndex,
+            items: [for (final i in branches) appShellTabs[i]],
+            selectedIndex: branches.indexOf(navigationShell.currentIndex),
             margin: EdgeInsets.fromLTRB(
               barMargin,
               0,
@@ -89,9 +106,9 @@ class AppShell extends StatelessWidget {
             ),
             // Re-tapping the current tab pops its stack back to the tab's
             // root (e.g. from a check-in back to Today).
-            onSelected: (index) => navigationShell.goBranch(
-              index,
-              initialLocation: index == navigationShell.currentIndex,
+            onSelected: (tab) => navigationShell.goBranch(
+              branches[tab],
+              initialLocation: branches[tab] == navigationShell.currentIndex,
             ),
           ),
         ),

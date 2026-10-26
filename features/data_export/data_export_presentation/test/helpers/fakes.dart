@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:failures/failures.dart';
@@ -38,10 +39,8 @@ class FakeDailyMetricRepository implements DailyMetricRepository {
   }) => throw UnimplementedError();
 
   @override
-  ResultFuture<Unit> clearFields(
-    DateTime date,
-    Set<DailyMetricField> fields,
-  ) => throw UnimplementedError();
+  ResultFuture<Unit> clearFields(DateTime date, Set<DailyMetricField> fields) =>
+      throw UnimplementedError();
 
   @override
   ResultFuture<Unit> delete(DateTime date) => throw UnimplementedError();
@@ -68,4 +67,33 @@ class FakeExportSharer {
     origins.add(sharePositionOrigin);
     return await onShare(file);
   }
+}
+
+/// Hand-written fake `CoachRepository`: `listSessions` returns whatever
+/// [onList] returns and counts calls. The export never writes, so the
+/// other methods throw.
+class FakeCoachRepository implements CoachRepository {
+  FakeCoachRepository({FutureOr<Result<List<CoachSession>>> Function()? onList})
+    : onList = onList ?? (() => const Ok([]));
+
+  FutureOr<Result<List<CoachSession>>> Function() onList;
+
+  int listCalls = 0;
+
+  @override
+  ResultFuture<List<CoachSession>> listSessions() async {
+    listCalls++;
+    return await onList();
+  }
+
+  @override
+  ResultFuture<CoachSession?> getSession(String id) =>
+      throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> saveSession(CoachSession session) =>
+      throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> deleteAll() => throw UnimplementedError();
 }

@@ -12,9 +12,10 @@
 /// **The shell** ([AppShellRoute], issue #66) is a typed
 /// `StatefulShellRoute` with one branch per tab of the floating
 /// [GlassTabBar] (`app_shell.dart`): Today (`/`, [HomeRoute]), Week
-/// (`/week`, [WeekRoute]) and Settings (`/settings`, [SettingsRoute]). Each
-/// branch keeps its own navigation stack. The Coach tab joins once the
-/// coach screen exists.
+/// (`/week`, [WeekRoute]), Coach (`/coach`, [CoachRoute], iPhone only) and
+/// Settings (`/settings`, [SettingsRoute]). Each branch keeps its own
+/// navigation stack. On the Mac the bar has no Coach tab and `/coach`
+/// redirects home (CLAUDE.md §11).
 ///
 /// [CheckInRoute] (`/checkin/<date>`) is nested under [HomeRoute] in the
 /// Today branch: a cold start from a deep link lands on Today with the
@@ -25,16 +26,19 @@
 /// [ImportRoute] (`/import`) stays top-level, on the root navigator over
 /// the shell, pushed from the import actions.
 ///
-/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" (iPhone),
-/// "Sample data" and the data export (and, in debug builds, the Developer
-/// card). [CravingRoute] (`/craving`, iPhone only) is the craving flow,
-/// pushed from the Today screen's "Having a craving?" button.
+/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" and
+/// "Coach" (iPhone), "Sample data" and the data export (and, in debug
+/// builds, the Developer card). [CravingRoute] (`/craving`, iPhone only)
+/// is the craving flow, pushed from the Today screen's "Having a craving?"
+/// button.
 library;
 
 import 'dart:async';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_domain/coach_domain.dart' show CoachSessionKind;
+import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:flutter/widgets.dart';
@@ -98,6 +102,17 @@ GoRouter router(Ref ref) {
     TypedStatefulShellBranch<WeekBranch>(
       routes: [TypedGoRoute<WeekRoute>(path: '/week')],
     ),
+    TypedStatefulShellBranch<CoachBranch>(
+      routes: [
+        TypedGoRoute<CoachRoute>(
+          path: '/coach',
+          routes: [
+            TypedGoRoute<CoachChatRoute>(path: 'chat'),
+            TypedGoRoute<CoachTranscriptRoute>(path: 'sessions/:sessionId'),
+          ],
+        ),
+      ],
+    ),
     TypedStatefulShellBranch<SettingsBranch>(
       routes: [TypedGoRoute<SettingsRoute>(path: '/settings')],
     ),
@@ -127,6 +142,15 @@ class WeekBranch extends StatefulShellBranchData {
   const WeekBranch();
 }
 
+/// The Coach tab's branch (iPhone only): [CoachRoute] and what's pushed on
+/// it. The branch exists on the Mac too, since typed shell branches are
+/// fixed at compile time, but the Mac's bar has no Coach tab and
+/// [CoachRoute] redirects home there, so nothing in it is ever built.
+class CoachBranch extends StatefulShellBranchData {
+  /// Creates the Coach branch.
+  const CoachBranch();
+}
+
 /// The Settings tab's branch: [SettingsRoute].
 class SettingsBranch extends StatefulShellBranchData {
   /// Creates the Settings branch.
@@ -140,8 +164,9 @@ class SettingsBranch extends StatefulShellBranchData {
 /// platform channel, and "Having a craving?" (iPhone only) opens
 /// [CravingRoute].
 ///
-/// The coach nudge slot stays empty: `coach_presentation` has nothing to
-/// say yet, and the nudge is hidden until it does.
+/// The coach nudge slot holds coach's [CoachNudgeCard]: on an iPhone, from
+/// Friday to Sunday, when last week's weekly check-in is ready. Its "Talk
+/// now" opens [CoachWeeklyRoute].
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -153,6 +178,12 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       onImportRequested: () => unawaited(_import(context, container)),
       onOpenAccountSettings: () => unawaited(_openAccountSettings(container)),
       onCravingRequested: () => unawaited(_craving(context, container)),
+      // Renders nothing on the Mac, and nothing on the iPhone unless the
+      // weekly check-in is ready (check-in data only, #81).
+      coachNudge: CoachNudgeCard(
+        onTalkNow: () =>
+            unawaited(const CoachWeeklyRoute().push<void>(context)),
+      ),
     );
   }
 
@@ -223,12 +254,12 @@ class WeekRoute extends GoRouteData with $WeekRoute {
   }
 }
 
-/// `/settings`, the Settings tab: the settings screen (`DataExportModule`), with the Apple
-/// Health section ([AppleHealthCard]), "Cravings" ([CravingSettingsCard],
-/// iPhone only), "Sample data" ([SampleDataCard],
-/// shown only while the sample export's days are in the store) and the
-/// debug-only Developer card
-/// ([developerSettingsSections]) composed in above the export.
+/// `/settings`, the Settings tab: the settings screen (`DataExportModule`),
+/// with the Apple Health section ([AppleHealthCard]), "Cravings"
+/// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
+/// iPhone only), "Sample data" ([SampleDataCard], shown only while the
+/// sample export's days are in the store) and the debug-only Developer
+/// card ([developerSettingsSections]) composed in above the export.
 ///
 /// The root of its own tab, so there's nothing to pop: back switches to
 /// the Today tab, on a cold start straight to `/settings` too.
@@ -242,12 +273,115 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
         context.canPop() ? context.pop() : const HomeRoute().go(context),
     sections: [
       const AppleHealthCard(),
-      // Renders nothing on macOS.
+      // Both render nothing on macOS.
       const CravingSettingsCard(),
+      const CoachSettingsCard(),
       const SampleDataCard(),
       ...developerSettingsSections(),
     ],
   );
+}
+
+/// `/coach`, the Coach tab (iPhone only, #80): [CoachHomeModule], to start
+/// a chat ([CoachChatRoute]) or read a past one ([CoachTranscriptRoute]).
+///
+/// `/` where this device has no coach, else `null` (stay put).
+///
+/// Shared by [CoachRoute] and [CoachWeeklyRoute] so the two can't drift
+/// apart: the Mac must be able to reach neither, including by a typed-in
+/// link.
+String? _homeWhereNoCoach(BuildContext context) =>
+    ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(coachSupportAvailableProvider)
+    ? null
+    : const HomeRoute().location;
+
+/// Where the coach doesn't exist (the Mac, `coachSupportAvailableProvider`
+/// `false`) it redirects to `/`, and so does every route under it (a
+/// parent's redirect runs for its children too), so no coach screen can
+/// open there, even from a typed-in link.
+class CoachRoute extends GoRouteData with $CoachRoute {
+  /// Creates the Coach tab's route.
+  const CoachRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      _homeWhereNoCoach(context);
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
+    onChatRequested: () =>
+        unawaited(const CoachChatRoute().push<void>(context)),
+    onWeeklyRequested: () =>
+        unawaited(const CoachWeeklyRoute().push<void>(context)),
+    onSessionSelected: (id) =>
+        unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
+  );
+}
+
+/// `/coach/chat`: a new chat with the coach ([CoachSessionModule]).
+///
+/// Presented on the root navigator, over the shell and its tab bar: the
+/// message box sits where the bar would. Closing returns to the Coach tab;
+/// the session finishes its summary in the background and refreshes the
+/// tab's list itself.
+class CoachChatRoute extends GoRouteData with $CoachChatRoute {
+  /// Creates the chat route.
+  const CoachChatRoute();
+
+  /// Presents the chat over the shell rather than inside the Coach tab.
+  static final GlobalKey<NavigatorState> $parentNavigatorKey =
+      _rootNavigatorKey;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
+    onClosed: () =>
+        context.canPop() ? context.pop() : const CoachRoute().go(context),
+  );
+}
+
+/// `/weekly-check-in`: the weekly 5-minute session (#81,
+/// [CoachSessionModule] with `CoachSessionKind.weekly`), iPhone only.
+///
+/// Top-level, on the root navigator over the shell, because it's opened
+/// from two tabs: the Today nudge's "Talk now" and the Coach tab's weekly
+/// card. Closing returns to whichever opened it. Redirects home where the
+/// coach doesn't exist (the Mac), like [CoachRoute].
+@TypedGoRoute<CoachWeeklyRoute>(path: '/weekly-check-in')
+class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
+  /// Creates the weekly session's route.
+  const CoachWeeklyRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      _homeWhereNoCoach(context);
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
+    kind: CoachSessionKind.weekly,
+    onClosed: () =>
+        context.canPop() ? context.pop() : const CoachRoute().go(context),
+  );
+}
+
+/// `/coach/sessions/<id>`: one past session's transcript, read-only
+/// ([CoachTranscriptModule]), inside the Coach tab.
+class CoachTranscriptRoute extends GoRouteData with $CoachTranscriptRoute {
+  /// Creates the transcript route for [sessionId].
+  const CoachTranscriptRoute({required this.sessionId});
+
+  /// The stored session's id.
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      CoachTranscriptModule(
+        sessionId: sessionId,
+        onBack: () =>
+            context.canPop() ? context.pop() : const CoachRoute().go(context),
+      );
 }
 
 /// `/craving`: the craving flow ([CravingFlowModule]), iPhone only.
@@ -332,11 +466,22 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
-  /// Nothing happens on completion: the screen stays up showing the logged
-  /// status, with its "Share week" action still in reach.
+  /// On completion the screen stays up showing the logged status, with its
+  /// "Share week" action still in reach. The coach's weekly readiness is
+  /// read again: a check-in for a past day can change whether last week
+  /// passes the 4-of-7 rule, and so whether Today offers the nudge.
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CheckInModule(date: date, onCheckInCompleted: () {});
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return CheckInModule(
+      date: date,
+      onCheckInCompleted: () {
+        if (container.read(coachSupportAvailableProvider)) {
+          container.invalidate(weeklyReadinessProvider);
+        }
+      },
+    );
+  }
 }
 
 /// Path encoder for [CheckInRoute.date].
