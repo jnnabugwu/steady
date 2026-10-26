@@ -214,3 +214,58 @@ final class CoachStoredSessionFamily extends $Family
   @override
   String toString() => r'coachStoredSessionProvider';
 }
+
+/// The one [CoachHistoryEpoch]. `keepAlive`: it must outlive every session
+/// and the Settings card, or a recreated one would forget the delete.
+
+@ProviderFor(coachHistoryEpoch)
+final coachHistoryEpochProvider = CoachHistoryEpochProvider._();
+
+/// The one [CoachHistoryEpoch]. `keepAlive`: it must outlive every session
+/// and the Settings card, or a recreated one would forget the delete.
+
+final class CoachHistoryEpochProvider
+    extends
+        $FunctionalProvider<
+          CoachHistoryEpoch,
+          CoachHistoryEpoch,
+          CoachHistoryEpoch
+        >
+    with $Provider<CoachHistoryEpoch> {
+  /// The one [CoachHistoryEpoch]. `keepAlive`: it must outlive every session
+  /// and the Settings card, or a recreated one would forget the delete.
+  CoachHistoryEpochProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachHistoryEpochProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachHistoryEpochHash();
+
+  @$internal
+  @override
+  $ProviderElement<CoachHistoryEpoch> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  CoachHistoryEpoch create(Ref ref) {
+    return coachHistoryEpoch(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(CoachHistoryEpoch value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<CoachHistoryEpoch>(value),
+    );
+  }
+}
+
+String _$coachHistoryEpochHash() => r'a5bf468f9a4c11a5f9568b4e5e9d30ea43a807b8';

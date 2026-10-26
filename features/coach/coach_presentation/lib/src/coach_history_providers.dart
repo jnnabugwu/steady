@@ -43,3 +43,23 @@ Future<CoachSession?> coachStoredSession(Ref ref, String id) async =>
       Ok(:final value) => value,
       Err(:final failure) => throw failure,
     };
+
+/// Which coach history a live session belongs to: moves on each time
+/// "Delete coach history" starts. A session that opened before then saves
+/// nothing more, so one still finishing its summary in the background
+/// can't bring itself back after the delete (`CoachSessionController`).
+class CoachHistoryEpoch {
+  var _value = 0;
+
+  /// The current epoch.
+  int get value => _value;
+
+  /// Moves to a new epoch. Called by "Delete coach history" before it
+  /// deletes anything.
+  void advance() => _value++;
+}
+
+/// The one [CoachHistoryEpoch]. `keepAlive`: it must outlive every session
+/// and the Settings card, or a recreated one would forget the delete.
+@Riverpod(keepAlive: true)
+CoachHistoryEpoch coachHistoryEpoch(Ref ref) => CoachHistoryEpoch();
