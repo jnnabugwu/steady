@@ -109,15 +109,16 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] `DailyMetricRecord` follows the CloudKit constraints in `CLAUDE.md`: every attribute
       optional or defaulted, no `@Attribute(.unique)`, no relationships.
-- [ ] `@Model` schemas for later features (coach sessions, notes), same constraints:
+- [ ] `@Model` schemas for later features (notes; coach sessions are device-only, no
+      `@Model`), same constraints:
       optional relationships with inverses for to-many.
 - [x] CloudKit sync on: team `UXZV3C926U`, container `iCloud.com.jmagic.steady`, iCloud/CloudKit
       and push entitlements on both targets, `SteadyCloudKitEnabled` true and
       `SteadyCloudKitContainer` set in both Info.plists. Verified syncing Mac → iPhone.
 - [ ] Production CloudKit schema deployed (needed before any TestFlight/App Store build syncs);
       run the full-schema initializer and check every field first.
-- [ ] Conflict resolution: plain last-writer-wins everywhere, including coach
-      transcripts — no custom merge logic, accepted tradeoff per `CLAUDE.md`. Exception:
+- [ ] Conflict resolution: plain last-writer-wins everywhere — no custom merge logic,
+      accepted tradeoff per `CLAUDE.md` (coach transcripts don't sync). Exception:
       the same-day `DailyMetricRecord` duplicate merge above.
 - [ ] No security-rules layer (single-user private database) — don't build one.
 
@@ -174,16 +175,24 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 ## Feature: coach (CLAUDE.md §11)
 
-- [ ] `coach_data` macOS implementation only: Apple Foundation Models platform channel.
-      **No iOS implementation at all** — not a disabled/flagged-off path, an absent one.
-      If `coach_presentation` branches on `Platform.isMacOS` correctly before ever
-      starting a session, the iOS gap should be unreachable from UI, not a runtime guard
-      to lean on.
-- [ ] `coach_presentation`: chat UI + weekly 15-minute session (macOS); read-only session
-      history view synced via CloudKit (iOS).
-- [ ] Nudge card CTA branches by platform: "Talk now" (macOS, starts a live session) vs.
-      "Continue on Mac" (iOS) — the nudge card itself needs check-in data, not inference,
-      to exist.
+Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
+"The coach runs on the iPhone").
+
+- [ ] `coach_data`: Apple Foundation Models channel in `app/ios` only, with typed
+      `Failure`s for each unavailable reason (no Apple Intelligence, turned off, model not
+      ready). No macOS implementation at all.
+- [ ] Transcripts and summaries in a device-only store, like `cravings_data`: never in
+      the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
+      coach history.
+- [ ] Data export includes each session's date, kind and summary (not the transcript).
+      The summary prompt asks for tracking habits and next week's plan, leaving out
+      cravings and exact numbers (cravings aren't in the export). A model can't be held to
+      that every time, so a summary may still mention a Health number or a craving
+      (CLAUDE.md §7, PRIVACY.md).
+- [ ] `coach_presentation`: weekly 5-minute session + chat on the iPhone, with the
+      context built from metrics, check-ins, Health totals and cravings (domains only).
+- [ ] Nudge card: "Talk now" where the model is available, an explanation where it
+      isn't; nothing on the Mac. The card needs check-in data, not inference, to exist.
 - [ ] Tone constraints from the product doc: coach, not therapist; never prescribes
       calorie targets; no streaks/shame visuals (already reflected in the single-hue
       logging-status ladder — don't reintroduce red/yellow/green anywhere in this
@@ -198,8 +207,8 @@ reminder"). The in-app nudge card on the check-in screen (Feature: coach) remain
 ## Feature: notes (RAG) — "designed, not yet built" (product doc §8)
 
 - [ ] `notes_data`: journal note entry — plain data entry, cross-platform (iOS can add/
-      edit notes; retrieval-into-coach-context is macOS-only per §11, since that's the
-      only place a session runs to retrieve into).
+      edit notes; retrieval-into-coach-context runs on the iPhone, where the coach runs,
+      per §11).
 - [ ] `packages_native/RAGKitCore` (Swift package, zero Flutter dependency,
       `swift test`-covered): `NLEmbedding`-based embedder, chunk store, cosine-similarity
       retrieval. "Path B" — chosen over Apple's native Spotlight RAG, which is blocked on
@@ -232,8 +241,7 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [x] The craving file stays in the user's own iOS device backup on purpose (a restored phone
       keeps its history); the Settings text and PRIVACY.md say so.
 - [ ] Not in v1: cravings in the data export; the soft help pointer after a week of frequent
-      strong cravings; the Mac weekly review's craving reflection (needs the iPhone→Mac
-      handoff).
+      strong cravings. The coach's weekly session reflects on cravings on the iPhone (#81).
 - [ ] Not yet run on a physical iPhone (VoiceOver announcements, reduced motion, the help
       link opening Safari).
 
@@ -244,17 +252,19 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       false on macOS. Decision record: `docs/technical_decisions.md`, "Health data stays on
       the iPhone (App Store 5.1.3)".
 - [x] Current state: Apple Health values are read live on iPhone and never
-      stored in the iCloud-synced store (App Store 5.1.3(ii)); the Mac and coach have no
-      Health data. The history merges them in memory (`healthDayTotalsProvider` in
+      stored in the iCloud-synced store (App Store 5.1.3(ii)); the Mac has no Health
+      data. The history merges them in memory (`healthDayTotalsProvider` in
       `metrics_presentation`); `app/test/health_access_test.dart` fails if any Health
       path writes the shared store. The week/share card and the data export carry no
-      Health values. Values an older build stored are removed at launch
+      Health fields of their own; once the coach exists, a coach summary in the JSON
+      export may mention numbers the coach discussed (CLAUDE.md §7). Values an older
+      build stored are removed at launch
       (`clearLegacyHealthFields`, run from `app/lib/main.dart`).
 - [x] Platform channels live directly in `app/ios` runner-adjacent code (no macOS
       implementation) — deliberately not extracted into a native package like `RAGKitCore`
       (less shared logic to isolate; mostly "call the native API, marshal the result").
-- [ ] Deferred: iPhone→Mac local handoff of Health context for the coach (nothing via
-      iCloud).
+- [ ] The coach reads Health totals on the iPhone, through `health_sync_domain` (§11);
+      no Health data goes to the Mac.
 
 ## Error handling (CLAUDE.md §9)
 
@@ -274,8 +284,8 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       only).
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
-- [ ] Entitlements: HealthKit (iOS only), Foundation Models (macOS only). CloudKit container
-      entitlement is set.
+- [ ] Entitlements: HealthKit (iOS only); check whether Foundation Models needs one on iOS
+      (#79). CloudKit container entitlement is set.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [ ] Real app icons (currently placeholder from scaffold).
 - [ ] Decide iOS's hardware/OS floor (`CLAUDE.md` §11). Now has a reason to resolve:

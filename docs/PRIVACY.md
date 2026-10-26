@@ -52,7 +52,9 @@ and that day's reading). Steady:
   them in its iCloud storage or in its own data on the iPhone (and so they aren't in Steady's
   part of an iCloud Backup or in the data export);
 - never writes anything to Apple Health;
-- never shares them with anyone or uses them for advertising.
+- never shares them with anyone, and never uses them for advertising. An export you make
+  yourself (Settings → Export) includes a short summary of each coach session, and a
+  summary may mention a number the coach discussed.
 
 Apple Health keeps its own copy of this data, and syncs it through iCloud if you've turned
 on Health in iCloud. That's Apple's storage, managed in the Health app and your iCloud
