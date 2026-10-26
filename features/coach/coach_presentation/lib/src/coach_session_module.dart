@@ -197,6 +197,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   onStop: () => unawaited(controller.stopCoachReply()),
                   onRetrySave: () => unawaited(controller.retryCoachSave()),
                   onRetryStart: () => unawaited(controller.retryCoachStart()),
+                  onKeepGoing: () => unawaited(controller.keepGoing()),
                   onNextTopic: () =>
                       unawaited(controller.moveToNextWeeklyTopic()),
                   onDone: widget.onClosed,
@@ -242,6 +243,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                 onStop: () => unawaited(controller.stopCoachReply()),
                 onRetrySave: () => unawaited(controller.retryCoachSave()),
                 onRetryStart: () => unawaited(controller.retryCoachStart()),
+                onKeepGoing: () => unawaited(controller.keepGoing()),
                 onNextTopic: () =>
                     unawaited(controller.moveToNextWeeklyTopic()),
                 onDone: widget.onClosed,
@@ -455,6 +457,7 @@ class _Conversation extends StatelessWidget {
     required this.onStop,
     required this.onRetrySave,
     required this.onRetryStart,
+    required this.onKeepGoing,
     required this.onNextTopic,
     required this.onDone,
   });
@@ -466,6 +469,7 @@ class _Conversation extends StatelessWidget {
   final VoidCallback onStop;
   final VoidCallback onRetrySave;
   final VoidCallback onRetryStart;
+  final VoidCallback onKeepGoing;
   final VoidCallback onNextTopic;
   final VoidCallback onDone;
 
@@ -608,6 +612,20 @@ class _Conversation extends StatelessWidget {
             ],
           ),
         ),
+        // The last reply ran into the reply cap and was cut back to its
+        // last full sentence (`CoachKeepGoing`).
+        if (state.replyCutOff && phase == CoachSessionPhase.ready)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: SizedBox(
+              height: 44,
+              child: OutlineButton(
+                key: const Key('coachKeepGoing'),
+                onPressed: onKeepGoing,
+                child: const Center(child: Text('Keep going')),
+              ),
+            ),
+          ),
         if (next != null && phase == CoachSessionPhase.ready)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),

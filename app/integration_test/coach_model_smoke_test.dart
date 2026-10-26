@@ -65,8 +65,11 @@ void main() {
       )) {
         switch (event) {
           case Ok(:final value):
-            snapshots.add(value);
-            debugPrint('steady/coach snapshot ${snapshots.length}: $value');
+            snapshots.add(value.text);
+            debugPrint(
+              'steady/coach snapshot ${snapshots.length} '
+              '(${value.outputTokens ?? 'no'} tokens): ${value.text}',
+            );
           case Err(:final failure):
             fail('Reply failed: ${failure.runtimeType}: ${failure.message}');
         }
@@ -88,7 +91,7 @@ void main() {
         session,
         'Tell me a long story about a walk in the park.',
       )) {
-        expect(event, isA<Ok<String>>());
+        expect(event, isA<Ok<CoachReplySnapshot>>());
         cancelledAfter++;
         expect(await model.cancelResponse(session), isA<Ok<Unit>>());
       }
@@ -102,12 +105,12 @@ void main() {
           .streamResponse(session, 'Say hello in three words.')
           .last;
       debugPrint('steady/coach after cancel: $after');
-      expect(after, isA<Ok<String>>());
+      expect(after, isA<Ok<CoachReplySnapshot>>());
 
       expect(await model.endSession(session), isA<Ok<Unit>>());
       final ended = await model.streamResponse(session, 'Hello?').single;
       expect(
-        (ended as Err<String>).failure,
+        (ended as Err<CoachReplySnapshot>).failure,
         isA<CoachInferenceFailure>().having(
           (f) => f.reason,
           'reason',

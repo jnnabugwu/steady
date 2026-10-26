@@ -66,7 +66,7 @@ class _FakeCoachModel implements CoachModel {
   }) async => const Err(CoachDeviceNotEligibleFailure());
 
   @override
-  Stream<Result<String>> streamResponse(
+  Stream<Result<CoachReplySnapshot>> streamResponse(
     CoachModelSession session,
     String prompt,
   ) => const Stream.empty();

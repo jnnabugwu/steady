@@ -803,9 +803,20 @@ context window (4,096 tokens on iOS 26) without summarising itself partway throu
   three characters per token (an over-estimate) and sends a turn only if its prompt, a
   full 512-token reply and a 256-token margin still fit; otherwise the older turns are
   summarised by the model in a separate session and the chat moves to a fresh session,
-  carrying that summary and the last few messages in its first prompt. The data goes in
-  the instructions; anything the person typed only ever goes in prompts. The stored
+  carrying that summary and the last few messages in its first prompt. That carried
+  summary is asked under `CoachInstructions.contextSummary`, which keeps cravings and the
+  numbers talked about, since the coach needs them; only the stored end summary uses
+  `CoachInstructions.summary`, which leaves both out (§7). The data goes in the
+  instructions; anything the person typed only ever goes in prompts. The stored
   transcript is always the whole conversation.
+- **A reply cut off at the 512-token cap ("Keep going"):** Foundation Models gives no stop
+  reason, so `CoachKeepGoing.wasCutOff` uses the reply's output token count where the
+  model reports it (`CoachReplySnapshot.outputTokens`, iOS 27's `Snapshot.usage`) and, on
+  iOS 26, a long reply that doesn't end a sentence. A cut-off reply is shown and stored up
+  to its last complete sentence (`CoachKeepGoing.trim`), and the screen offers **Keep
+  going** (`keepGoing`): the person's turn reads "Keep going" and the coach is asked to
+  carry on. The window still counts the whole generated reply, which the model's own
+  transcript holds.
 - **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach
   can't run here, per typed failure, and the past sessions), a live session
   (`CoachSessionModule`, `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`,

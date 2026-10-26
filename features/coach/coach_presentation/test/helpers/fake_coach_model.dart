@@ -51,7 +51,12 @@ class FakeCoachModel implements CoachModel {
 
   int availabilityChecks = 0;
   var _next = 0;
-  StreamController<Result<String>>? _open;
+  StreamController<Result<CoachReplySnapshot>>? _open;
+
+  /// The token count the next automatic reply reports (iOS 27's
+  /// `Snapshot.usage`), or `null` for none, as on iOS 26. Consumed by one
+  /// reply.
+  int? outputTokensNext;
 
   /// Whether a reply stream is open.
   bool get replying => _open != null;
@@ -76,7 +81,7 @@ class FakeCoachModel implements CoachModel {
   }
 
   @override
-  Stream<Result<String>> streamResponse(
+  Stream<Result<CoachReplySnapshot>> streamResponse(
     CoachModelSession session,
     String prompt,
   ) {
@@ -89,10 +94,15 @@ class FakeCoachModel implements CoachModel {
     if (!manualReplies || summary) {
       final text = replyFor(prompt);
       final half = text.substring(0, text.length ~/ 2);
-      return Stream.fromIterable([Ok(half), Ok(text)]);
+      final tokens = summary ? null : outputTokensNext;
+      if (!summary) outputTokensNext = null;
+      return Stream.fromIterable([
+        Ok(CoachReplySnapshot(text: half)),
+        Ok(CoachReplySnapshot(text: text, outputTokens: tokens)),
+      ]);
     }
     cancelled = false;
-    final controller = StreamController<Result<String>>(
+    final controller = StreamController<Result<CoachReplySnapshot>>(
       onCancel: () {
         cancelled = true;
         _open = null;
@@ -102,8 +112,11 @@ class FakeCoachModel implements CoachModel {
     return controller.stream;
   }
 
-  /// Pushes [snapshot] (the whole reply so far) on the open reply.
-  void reply(String snapshot) => _open!.add(Ok(snapshot));
+  /// Pushes [snapshot] (the whole reply so far, with [outputTokens] if the
+  /// model reports them) on the open reply.
+  void reply(String snapshot, {int? outputTokens}) => _open!.add(
+    Ok(CoachReplySnapshot(text: snapshot, outputTokens: outputTokens)),
+  );
 
   /// Fails the open reply with [failure], and closes it: `CoachModel`
   /// says a reply's stream ends after one `Err`.

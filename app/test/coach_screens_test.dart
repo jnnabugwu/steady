@@ -359,14 +359,16 @@ class _FakeModel implements CoachModel {
   }) async => Ok(CoachModelSession(id: 's${_next++}'));
 
   @override
-  Stream<Result<String>> streamResponse(
+  Stream<Result<CoachReplySnapshot>> streamResponse(
     CoachModelSession session,
     String prompt,
   ) => Stream.fromIterable([
     Ok(
-      prompt.startsWith(CoachInstructions.summaryRequest)
-          ? 'A short summary.'
-          : 'Coach reply.',
+      CoachReplySnapshot(
+        text: prompt.startsWith(CoachInstructions.summaryRequest)
+            ? 'A short summary.'
+            : 'Coach reply.',
+      ),
     ),
   ]);
 

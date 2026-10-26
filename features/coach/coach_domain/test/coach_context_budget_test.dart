@@ -108,6 +108,21 @@ void main() {
       expect(c.window.map((m) => m.text), ['abc', 'abcdef']);
     });
 
+    test('counts what the model generated when the stored reply is trimmed '
+        '(a cut-off reply, "Keep going")', () {
+      final c = CoachConversation.start(instructions: instructions).afterTurn(
+        prompt: 'abc',
+        message: user('abc'),
+        reply: coach('abc'),
+        generated: 'abcdefghi',
+      );
+      expect(
+        c.sessionTokens,
+        estimateCoachTokens(instructions) + 1 + 3 + 2 * coachTurnOverheadTokens,
+      );
+      expect(c.window.last.text, 'abc');
+    });
+
     test('a fresh session carries the summary and the last messages into '
         'its first prompt only', () {
       var c = CoachConversation.start(instructions: instructions);

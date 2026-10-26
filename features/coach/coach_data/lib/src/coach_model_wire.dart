@@ -30,7 +30,12 @@ abstract final class CoachModelChannel {
   ///
   /// Every event is a map tagged with that `requestId`, so an event from an
   /// earlier listen can be told apart and dropped:
-  /// - `{requestId, snapshot: String}`: the whole reply so far;
+  /// - `{requestId, snapshot: String, outputTokens: int?}`: the whole reply
+  ///   so far, and how many tokens the model has generated for it, where
+  ///   Foundation Models reports that (`Snapshot.usage`, iOS 27 and later;
+  ///   absent on iOS 26). It's the only sign that a reply reached
+  ///   [maximumResponseTokens]: Foundation Models gives no stop reason
+  ///   (`CoachKeepGoing` in `coach_domain`);
   /// - `{requestId, done: true}`: the reply finished;
   /// - `{requestId, error: String, message: String?, reason: String?}`:
   ///   the reply failed, `error` one of [inferenceCodes]' keys,

@@ -285,6 +285,28 @@ void main() {
     expect(find.text('Hello'), findsOneWidget);
   });
 
+  testWidgets('a reply cut off at the cap offers Keep going, which asks '
+      'the coach to carry on', (tester) async {
+    model
+      ..manualReplies = false
+      ..replyFor = ((_) => 'You logged five days. On Friday you')
+      ..outputTokensNext = coachMaxReplyTokens;
+    await pump(tester);
+    await send(tester, 'How was my week?');
+    expect(find.text('You logged five days.'), findsOneWidget);
+    final keepGoing = find.byKey(const Key('coachKeepGoing'));
+    expect(keepGoing, findsOneWidget);
+    expect(tester.getSize(keepGoing).height, greaterThanOrEqualTo(44));
+
+    model.replyFor = (_) => 'On Friday you logged partly.';
+    await tester.tap(keepGoing);
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Keep going'), findsOneWidget); // the person's turn
+    expect(find.text('On Friday you logged partly.'), findsOneWidget);
+    expect(keepGoing, findsNothing);
+  });
+
   testWidgets('no "Check again" where it could never help', (tester) async {
     model.availability = const Err(CoachDeviceNotEligibleFailure());
     await pump(tester);
