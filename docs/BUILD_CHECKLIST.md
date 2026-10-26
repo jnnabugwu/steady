@@ -237,9 +237,9 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       with its delete dialog — text, fills, borders and icons — in both available and
       unavailable states. "Delete coach history" is teal like the rest (#78), not the
       theme's destructive red; its wording and the confirm dialog carry the warning.
-- [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
-      coach summaries all in one release), drop the "The coach isn't in Steady yet"
-      paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.
+- [x] The coach ships in one release (screens, storage, Settings → Coach delete and the
+      export's coach summaries), so `docs/PRIVACY.md`'s Coach section no longer says "The
+      coach isn't in Steady yet". Effective date 26 October 2026.
 
 ## Feature: notifications — dropped
 
