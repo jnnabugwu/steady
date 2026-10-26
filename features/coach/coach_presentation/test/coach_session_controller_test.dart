@@ -11,6 +11,7 @@ import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 
 void main() {
+  const summaryRequest = CoachInstructions.summaryRequest;
   late FakeCoachModel model;
   late FakeCoachRepository repository;
   late ProviderContainer container;
@@ -274,6 +275,11 @@ void main() {
       expect(model.cancelled, isTrue);
       expect(state().phase, CoachSessionPhase.ready);
       expect(state().session.messages.last.text, 'Tuesday was');
+      // Saved too, not only on screen.
+      expect(repository.sessions.single.messages.map((m) => m.text), [
+        'Tell me about Tuesday.',
+        'Tuesday was',
+      ]);
     });
 
     test('a stop before any snapshot adds no coach message', () async {
@@ -372,6 +378,137 @@ void main() {
       expect(repository.sessions.single.summary, 'A short summary.');
     });
 
+    test('closing while the first message is still saving asks for no '
+        'reply, and ends with the summary', () async {
+      final controller = await start();
+      final saving = Completer<void>();
+      repository.onSave = (session) async {
+        await saving.future;
+        repository.onSave = null;
+        return await repository.saveSession(session);
+      };
+      unawaited(controller.sendCoachMessage('Hi'));
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.replying);
+
+      final ending = controller.endCoachSession();
+      await pumpEventQueue();
+      // Nothing is summarised while the turn is still saving.
+      expect(model.prompts, isEmpty);
+      saving.complete();
+      await ending;
+      await pumpEventQueue();
+
+      // The turn stopped after its save: the only prompt is the summary.
+      expect(model.prompts.single.prompt, startsWith(summaryRequest));
+      expect(state().phase, CoachSessionPhase.ended);
+      expect(repository.sessions.single.messages.single.text, 'Hi');
+      expect(repository.sessions.single.summary, 'A short summary.');
+    });
+
+    test('ending during a move to a fresh model session waits for it, and '
+        'the turn sends nothing more', () async {
+      final controller = await start();
+      final starting = Completer<void>();
+      model
+        ..failNext = const CoachInferenceFailure(
+          'full',
+          reason: CoachInferenceFailureReason.contextExceeded,
+        )
+        // Hold the fresh session's start, mid-move.
+        ..beforeStart = () {
+          model.beforeStart = null;
+          return starting.future;
+        };
+      unawaited(controller.sendCoachMessage('Hello'));
+      await pumpEventQueue();
+
+      final ending = controller.endCoachSession();
+      await pumpEventQueue();
+      starting.complete();
+      await ending;
+      await pumpEventQueue();
+
+      // The overflowed reply isn't retried after the session ended.
+      expect(model.prompts.where((p) => p.prompt == 'Hello'), hasLength(1));
+      expect(model.prompts.last.prompt, startsWith(summaryRequest));
+      // Every model session started is ended, the fresh one included.
+      expect(model.ended.toSet(), {'s0', 's1', 's2'});
+      expect(state().phase, CoachSessionPhase.ended);
+      expect(repository.sessions.single.summary, 'A short summary.');
+    });
+
+    test('ending mid-reply and closing the screen at once still stores the '
+        'summary (the keep-alive comes first)', () async {
+      model.manualReplies = true;
+      container = ProviderContainer.test(
+        overrides: coachTestOverrides(model: model, repository: repository),
+      );
+      final sub = container.listen(provider, (_, _) {});
+      await pumpEventQueue();
+      final controller = container.read(provider.notifier);
+      unawaited(controller.sendCoachMessage('Hi'));
+      await pumpEventQueue();
+      model.reply('Hello th');
+      await pumpEventQueue();
+
+      final ending = controller.endCoachSession();
+      sub.close();
+      await ending;
+      await pumpEventQueue();
+
+      final stored = repository.sessions.single;
+      expect(stored.messages.map((m) => m.text), ['Hi', 'Hello th']);
+      expect(stored.summary, 'A short summary.');
+      expect(stored.endedAt, isNotNull);
+    });
+
+    test('a session finishing in the background after "Delete coach '
+        'history" saves nothing more', () async {
+      final controller = await start();
+      await controller.sendCoachMessage('Hi');
+      expect(repository.sessions, hasLength(1));
+
+      // Hold the summary's model session while the history is deleted.
+      final starting = Completer<void>();
+      model.beforeStart = () {
+        model.beforeStart = null;
+        return starting.future;
+      };
+      final ending = controller.endCoachSession();
+      await pumpEventQueue();
+      container.listen(coachHistoryControllerProvider, (_, _) {});
+      await container.read(coachHistoryControllerProvider.future);
+      await container
+          .read(coachHistoryControllerProvider.notifier)
+          .deleteCoachHistory();
+      expect(repository.sessions, isEmpty);
+
+      starting.complete();
+      await ending;
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.ended);
+      expect(repository.sessions, isEmpty);
+    });
+
+    test('a session opened after a delete saves as usual', () async {
+      await start();
+      container.listen(coachHistoryControllerProvider, (_, _) {});
+      await container.read(coachHistoryControllerProvider.future);
+      await container
+          .read(coachHistoryControllerProvider.notifier)
+          .deleteCoachHistory();
+
+      final next = coachSessionControllerProvider(
+        CoachSessionKind.chat,
+        'session-2',
+      );
+      container.listen(next, (_, _) {});
+      await pumpEventQueue();
+      await container.read(next.notifier).sendCoachMessage('Hi again');
+      expect(repository.sessions.single.id, 'session-2');
+    });
+
     test('is ignored once ended', () async {
       final controller = await start();
       await controller.sendCoachMessage('Hi');
@@ -379,6 +516,59 @@ void main() {
       final prompts = model.prompts.length;
       await controller.endCoachSession();
       expect(model.prompts, hasLength(prompts));
+    });
+  });
+
+  group('retryCoachStart', () {
+    test('after an unavailable start, checks again and starts', () async {
+      model.availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+      final controller = await start();
+      expect(state().phase, CoachSessionPhase.unavailable);
+
+      model.availability = const Ok(CoachModelInfo(contextSize: 4096));
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(state().failure, isNull);
+      expect(model.availabilityChecks, 2);
+      expect(model.instructions, hasLength(1));
+    });
+
+    test('still unavailable says so again', () async {
+      model.availability = const Err(CoachModelNotReadyFailure());
+      final controller = await start();
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachModelNotReadyFailure>());
+      expect(model.availabilityChecks, 2);
+    });
+
+    test('mid-conversation, moves to a fresh model session and the chat '
+        'goes on', () async {
+      final controller = await start();
+      model
+        ..failNext = const CoachInferenceFailure(
+          'full',
+          reason: CoachInferenceFailureReason.contextExceeded,
+        )
+        ..startResult = const Err(PlatformChannelFailure('boom'));
+      await controller.sendCoachMessage('Hello');
+      expect(state().phase, CoachSessionPhase.failedToStart);
+
+      model.startResult = null;
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(state().session.messages.first.text, 'Hello');
+
+      await controller.sendCoachMessage('Are you there?');
+      expect(model.prompts.last.prompt, contains('Are you there?'));
+      expect(state().session.messages.last.text, 'Coach reply.');
+    });
+
+    test('is ignored when the session is ready', () async {
+      final controller = await start();
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(model.availabilityChecks, 1);
     });
   });
 

@@ -24,7 +24,7 @@ import 'package:ui_kit/ui_kit.dart';
 ///   Closing (X) ends the session too, in the background, and leaves at
 ///   once; a session where the person said nothing records nothing.
 /// - **Unavailable:** the model's typed failure, through
-///   [CoachUnavailableCard].
+///   [CoachUnavailableCard], with "Check again" where that could help.
 /// - **Safety:** `CoachCopy.notMedicalAdvice` at the top, and
 ///   `CoachCopy.helpLine` when Apple's guardrails stop a reply (#82).
 /// - **Accessibility:** every target at least 44pt; screen readers hear
@@ -184,6 +184,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   failure:
                       session.failure ??
                       const CoachModelUnavailableUnknownFailure(),
+                  onRetry: () => unawaited(controller.retryCoachStart()),
                 ),
               ),
               _ => _Conversation(
