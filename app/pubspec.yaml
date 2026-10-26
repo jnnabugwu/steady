@@ -41,6 +41,13 @@ dependencies:
   checkin_presentation:
     path: ../features/checkin/checkin_presentation
 
+  coach_data:
+    path: ../features/coach/coach_data
+  coach_domain:
+    path: ../features/coach/coach_domain
+  coach_presentation:
+    path: ../features/coach/coach_presentation
+
   cravings_data:
     path: ../features/cravings/cravings_data
   cravings_domain:

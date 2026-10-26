@@ -1,3 +1,4 @@
+import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/src/export_bundle.dart';
 import 'package:failures/failures.dart';
@@ -50,24 +51,57 @@ DateTime get exportRangeEnd =>
 DateTime _midnightOf(DateTime moment) =>
     DateTime(moment.year, moment.month, moment.day);
 
-/// Reads every `DailyMetric` row through [repository] and bundles it for
-/// export, stamped [exportedAt].
+/// Reads every `DailyMetric` row through [repository], and every coach
+/// session through [coachRepository] when there is one (the iPhone), and
+/// bundles them for export, stamped [exportedAt].
 ///
 /// Uses the existing [DailyMetricRepository.getRange] with an all-time
 /// span ([exportRangeStart] to [exportRangeEnd]) instead of adding a
-/// "read everything" method to the shared interface.
+/// "read everything" method to the shared interface. A `null`
+/// [coachRepository] (the Mac, which has no coach) leaves
+/// `ExportBundle.coachSessions` `null`.
 ///
-/// A repository `Err` is passed through unchanged, so no bundle (and no
-/// file) is ever built from a failed or partial read.
+/// A daily-metrics `Err` is passed through unchanged, so no bundle (and no
+/// file) is ever built from a failed or partial read of the rows. The coach
+/// store is read only after that read succeeds.
+///
+/// **The one exception: coach history** (decided 2026-10-25). A coach
+/// `Err` (a corrupt `coach_sessions.json`, or a file-system error) doesn't
+/// fail the export: the bundle keeps every daily row, with no sessions and
+/// the failure in `ExportBundle.coachHistoryFailure`, so the JSON says the
+/// coach section was left out and the screen tells the person what to do
+/// (delete it if it's corrupt, export again if the read just failed).
+/// Otherwise a corrupt coach file would block exporting their metrics
+/// until they deleted coach history.
 ResultFuture<ExportBundle> readExportBundle(
   DailyMetricRepository repository, {
   required DateTime exportedAt,
+  CoachRepository? coachRepository,
 }) async {
   final result = await repository.getRange(exportRangeStart, exportRangeEnd);
-  return switch (result) {
-    Ok(:final value) => Ok(
-      ExportBundle(exportedAt: exportedAt, dailyMetrics: value),
+  final List<DailyMetric> dailyMetrics;
+  switch (result) {
+    case Ok(:final value):
+      dailyMetrics = value;
+    case Err(:final failure):
+      return Err(failure);
+  }
+  List<CoachSession>? coachSessions;
+  Failure? coachHistoryFailure;
+  if (coachRepository != null) {
+    switch (await coachRepository.listSessions()) {
+      case Ok(:final value):
+        coachSessions = value;
+      case Err(:final failure):
+        coachHistoryFailure = failure;
+    }
+  }
+  return Ok(
+    ExportBundle(
+      exportedAt: exportedAt,
+      dailyMetrics: dailyMetrics,
+      coachSessions: coachSessions,
+      coachHistoryFailure: coachHistoryFailure,
     ),
-    Err(:final failure) => Err(failure),
-  };
+  );
 }

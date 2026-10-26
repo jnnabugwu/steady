@@ -137,9 +137,9 @@ steady/
 ```
 
 Each `*_presentation` package that needs a repository declares its providers in
-`lib/src/providers.dart` (§9): `checkin_presentation`, `cravings_presentation`,
-`metrics_presentation` and `pdf_import_presentation` today. `coach_presentation` has none yet, because
-`coach_domain` has no repository interface. Generated files (`*.g.dart`,
+`lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation`,
+`cravings_presentation`, `metrics_presentation` and `pdf_import_presentation` today.
+Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
 
@@ -574,17 +574,25 @@ code, because "local-only" is just SwiftData without sync. Decision record:
 iCloud private database; nothing in this section changes per user. Since other people's data is
 now involved, the account-loss mitigation is a user-triggered data export (CSV/JSON) rather
 than any backend copy: Settings → Export (`features/data_export`), handed to the system share
-sheet. It covers daily metrics and check-in statuses, and (once the coach exists) each coach
-session's date, kind and summary, not the full transcript (decided 2026-10-24). A summary may
+sheet. It covers daily metrics and check-in statuses, and on the iPhone each coach session's
+date, kind and summary, not the full transcript (decided 2026-10-24; JSON only, as
+`coachSessions`, read through `CoachRepository`; the CSV stays one row per day). A summary may
 mention Health numbers the coach discussed. The summary prompt asks for tracking habits and
 next week's plan, leaving out cravings and exact numbers (cravings aren't exported), but a
 model can't be held to that every time, so the docs don't promise it. That's accepted, and it isn't a 5.1.3 exception:
 the guideline bars storing health information in iCloud, and the invariant it protects —
 Health values are never written to the synced store or Steady's CloudKit container — still
 holds. An export is a local file the user chooses to share, so those numbers leave the phone
-only by their own hand. The JSON's `schemaVersion` marks the change. Data the user hasn't
-exported is still lost with the Apple ID, because CloudKit's private database has no separate
-backup.
+only by their own hand. The JSON's `schemaVersion` (2) marks the change. An export is never
+partial: a failed read of the daily rows fails it, and no file is shared. **The one exception
+is coach history** (decided 2026-10-25): if `coach_sessions.json` can't be read, the export
+still goes ahead with every daily row, the JSON's `coachSessions` is `null` (distinct from `[]`,
+no sessions, and from the key being absent, no coach on this device), and the screen says
+so. For a corrupt file it says "Coach history couldn't be read, so it was left out. You can
+delete it in Settings → Coach." For a file-system error, which may not recur, it says "Coach
+history couldn't be read just now, so it was left out. Export again to include it." The CSV
+is unaffected. Data the user hasn't exported is still lost with the Apple ID, because
+CloudKit's private database has no separate backup.
 
 **Cravings are device-only, by design.** Craving check-ins (`features/cravings`) are the
 one data type that is *not* SwiftData/CloudKit: `cravings_data` keeps them in a JSON file in

@@ -11,6 +11,8 @@ environment:
 dependencies:
   coach_domain:
     path: ../coach_domain
+  failures:
+    path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
 

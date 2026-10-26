@@ -82,8 +82,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 - [x] Each `*_presentation` package declares its repository providers (throw unless
       overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
-      checkin, metrics, pdf_import. `coach_presentation` has none (no repository interface
-      in `coach_domain` yet).
+      checkin, metrics, pdf_import, cravings, coach (`coachRepositoryProvider`, bound on
+      iOS only).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -181,14 +181,20 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [ ] `coach_data`: Apple Foundation Models channel in `app/ios` only, with typed
       `Failure`s for each unavailable reason (no Apple Intelligence, turned off, model not
       ready). No macOS implementation at all.
-- [ ] Transcripts and summaries in a device-only store, like `cravings_data`: never in
-      the CloudKit store (5.1.3), so no `@Model` for coach sessions. Settings can delete
-      coach history.
-- [ ] Data export includes each session's date, kind and summary (not the transcript).
-      The summary prompt asks for tracking habits and next week's plan, leaving out
-      cravings and exact numbers (cravings aren't in the export). A model can't be held to
-      that every time, so a summary may still mention a Health number or a craving
-      (CLAUDE.md §7, PRIVACY.md).
+- [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
+      the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
+      `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
+      (`coach_sessions.json` in app support) in `coach_data`, bound only by
+      `appProviderOverridesFor(isIOS: true)`. Settings → Coach → "Delete coach history".
+- [x] Data export includes each session's date, kind and summary (not the transcript):
+      the JSON's `coachSessions`, `schemaVersion` 2, iPhone only. The CSV stays one row
+      per day. Coach history that can't be read doesn't block the export (decided
+      2026-10-25): `coachSessions` is `null` and the screen says it was left out; it's
+      the one exception to "an export is never partial".
+- [ ] Coach summary prompt (#79/#82): asks for tracking habits and next week's plan,
+      leaving out cravings and exact numbers (cravings aren't in the export). A model
+      can't be held to that every time, so a summary may still mention a Health number or
+      a craving (CLAUDE.md §7, PRIVACY.md).
 - [ ] `coach_presentation`: weekly 5-minute session + chat on the iPhone, with the
       context built from metrics, check-ins, Health totals and cravings (domains only).
 - [ ] Nudge card: "Talk now" where the model is available, an explanation where it
@@ -319,7 +325,9 @@ Decision record: `docs/technical_decisions.md`, "Sharing is share cards, not liv
       Settings". No sign-in screen or redirect. Decision record:
       `docs/technical_decisions.md`, "iCloud is optional: a banner, not a gate".
 - [x] Data export (CSV/JSON), user-triggered — the account-loss mitigation (§7). Covers daily
-      metrics and check-ins; coach sessions aren't included yet (no coach repository exists).
+      metrics and check-ins, and on the iPhone each coach session's date, kind and summary
+      (JSON only). Never partial, except that unreadable coach history is left out (and
+      the screen says so) rather than failing the export.
 - [ ] Crash visibility: start with TestFlight / Xcode Organizer crash reports (no SDK, no
       server) before considering a third-party service.
 - [ ] Parser fixtures from friends' Cal AI exports: confirm the parser's assumptions (English
