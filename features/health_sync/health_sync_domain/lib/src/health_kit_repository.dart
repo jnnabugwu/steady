@@ -1,6 +1,7 @@
 import 'package:failures/failures.dart';
 import 'package:health_sync_domain/src/health_authorization_status.dart';
 import 'package:health_sync_domain/src/health_day_totals.dart';
+import 'package:health_sync_domain/src/weight_unit.dart';
 
 /// Reads daily totals from Apple Health. Read-only: Steady never writes to
 /// Health.
@@ -17,8 +18,8 @@ abstract class HealthKitRepository {
   /// [HealthAuthorizationStatus] for why that's all HealthKit says.
   ResultFuture<HealthAuthorizationStatus> authorizationStatus();
 
-  /// Shows the read-permission sheet for step count, active energy and
-  /// basal energy, if it hasn't been shown for all three already (iOS
+  /// Shows the read-permission sheet for step count, active energy, basal
+  /// energy and weight, if it hasn't been shown for all four already (iOS
   /// shows it at most once per type; after that this returns at once).
   ///
   /// `Ok` means the request completed, not that the user allowed anything.
@@ -30,4 +31,8 @@ abstract class HealthKitRepository {
   /// with `null` values. `Err(ValidationFailure)` if [start] is after
   /// [end], or either is outside the years 0000 to 9999.
   ResultFuture<List<HealthDayTotals>> dailyTotals(DateTime start, DateTime end);
+
+  /// The unit the Health app shows weight in, so Steady shows the same.
+  /// Fails until the permission sheet has been shown.
+  ResultFuture<WeightUnit> preferredWeightUnit();
 }

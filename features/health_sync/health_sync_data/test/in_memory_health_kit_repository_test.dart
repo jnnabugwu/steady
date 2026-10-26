@@ -101,5 +101,14 @@ void main() {
       await repo.dailyTotals(DateTime(2026), DateTime(2026)),
       isA<Err<List<HealthDayTotals>>>(),
     );
+    expect(await repo.preferredWeightUnit(), isA<Err<WeightUnit>>());
+  });
+
+  test('preferredWeightUnit returns weightUnit', () async {
+    final repo = InMemoryHealthKitRepository(weightUnit: WeightUnit.pounds);
+    expect(
+      await repo.preferredWeightUnit(),
+      isA<Ok<WeightUnit>>().having((r) => r.value, 'value', WeightUnit.pounds),
+    );
   });
 }

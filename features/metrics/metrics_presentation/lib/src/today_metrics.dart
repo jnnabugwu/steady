@@ -5,6 +5,7 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/src/live_health.dart';
 import 'package:metrics_presentation/src/metric_format.dart';
 import 'package:metrics_presentation/src/providers.dart';
+import 'package:metrics_presentation/src/today_weight.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -59,6 +60,9 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// days gets no tile, so the Mac, which has no Health, shows only what it
 /// has. A metric with values this week but none on [date] shows "—".
 ///
+/// Below the tiles, a [TodayWeightCard] when Health has a weight reading in
+/// the window (iPhone only): the smoothed trend, and today's reading.
+///
 /// With no metric at all this week, a short glass card says so. Lays
 /// itself out at full width with no outer padding; the app's Today screen
 /// places it.
@@ -79,6 +83,7 @@ class TodayMetricTiles extends ConsumerWidget {
     final health =
         ref.watch(healthDayTotalsProvider(window.start, window.end)).value ??
         const <DateTime, HealthDayTotals>{};
+    final weight = _weightCard(ref, day, health);
 
     return switch (stored) {
       AsyncValue(:final error?) => _Message(
@@ -90,7 +95,14 @@ class TodayMetricTiles extends ConsumerWidget {
         // error would otherwise stay up until something else invalidates.
         onRetry: () => ref.invalidate(todayMetricsProvider(day)),
       ),
-      AsyncValue(:final value?) => _tiles(day, mergeLiveHealth(value, health)),
+      AsyncValue(:final value?) => switch (weight) {
+        null => _tiles(day, mergeLiveHealth(value, health)),
+        final weight => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: 12,
+          children: [_tiles(day, mergeLiveHealth(value, health)), weight],
+        ),
+      },
       _ => const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
@@ -98,6 +110,26 @@ class TodayMetricTiles extends ConsumerWidget {
         ),
       ),
     };
+  }
+
+  /// The weight card, or `null` with no reading in [health] or while the
+  /// unit is still loading. A unit that fails to load (e.g. before the
+  /// permission sheet) falls back to kilograms rather than hiding weight.
+  Widget? _weightCard(
+    WidgetRef ref,
+    DateTime day,
+    Map<DateTime, HealthDayTotals> health,
+  ) {
+    final trendKg = weightTrendKg(health.values);
+    if (trendKg == null) return null;
+    final unit = ref.watch(healthWeightUnitProvider);
+    final resolved = unit.hasError ? WeightUnit.kilograms : unit.value;
+    if (resolved == null) return null;
+    return TodayWeightCard(
+      trendKg: trendKg,
+      todayKg: health[day]?.weightKg,
+      unit: resolved,
+    );
   }
 
   Widget _tiles(DateTime day, List<DailyMetric> merged) {

@@ -44,8 +44,9 @@ food it was, calories, your location or any notes.
 
 ## Apple Health
 
-On iPhone, with your permission, Steady reads your daily steps, active energy and resting
-energy from Apple Health and shows them in the app. Steady:
+On iPhone, with your permission, Steady reads your daily steps, active energy, resting
+energy and weight from Apple Health and shows them in the app (weight as a smoothed trend
+and that day's reading). Steady:
 
 - reads them fresh from Apple Health and doesn't save them, so they are never stored in
   iCloud;

@@ -1,5 +1,6 @@
-/// Apple Health values (steps, burned calories) in the history: read live,
-/// held in memory, **never written** to the shared `DailyMetric` store.
+/// Apple Health values (steps, burned calories, weight) in the history and
+/// on Today: read live, held in memory, **never written** to the shared
+/// `DailyMetric` store.
 ///
 /// That store is SwiftData mirrored to the user's iCloud (CloudKit), and
 /// App Store guideline 5.1.3(ii) forbids storing personal health
@@ -85,10 +86,29 @@ Future<Map<DateTime, HealthDayTotals>> healthDayTotals(
   };
 }
 
+/// The unit the Health app shows weight in, for Today's weight card.
+/// Kilograms where [metricsHealthKitRepositoryProvider] is `null` (macOS,
+/// which has no weight to show anyway). A Health error throws its
+/// [Failure] into `AsyncError`; until the permission sheet has been shown,
+/// that's the expected answer.
+///
+/// Auto-dispose like [healthDayTotalsProvider], and invalidated with it on
+/// every refresh, so a unit changed in the Health app shows on return.
+@Riverpod(retry: _retryUnlessFailure)
+Future<WeightUnit> healthWeightUnit(Ref ref) async {
+  final health = ref.watch(metricsHealthKitRepositoryProvider);
+  if (health == null) return WeightUnit.kilograms;
+  return switch (await health.preferredWeightUnit()) {
+    Ok(:final value) => value,
+    Err(:final failure) => throw failure,
+  };
+}
+
 /// The history's days: each stored row's own fields (calories eaten,
 /// logging status) with that day's live Health values, plus a day for every
-/// [health] date that has no stored row (steps on a day with no PDF import).
-/// Newest first.
+/// [health] date that has steps or energy but no stored row (steps on a day
+/// with no PDF import). Weight isn't a `DailyMetric` field, so a day with
+/// only a weight reading adds no row. Newest first.
 ///
 /// In memory only: the result is for display and must never be passed to
 /// `DailyMetricRepository` (see the library comment). A stored row's own
@@ -108,7 +128,7 @@ List<DailyMetric> mergeLiveHealth(
         caloriesBurnedBasal: health[date]?.caloriesBurnedBasal,
       ),
     for (final MapEntry(key: date, value: day) in health.entries)
-      if (!byDate.containsKey(date))
+      if (!byDate.containsKey(date) && day.hasActivity)
         DailyMetric(
           date: date,
           steps: day.steps,

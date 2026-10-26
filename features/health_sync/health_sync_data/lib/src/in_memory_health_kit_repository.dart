@@ -16,6 +16,7 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
   /// Creates the repository, starting at [status] with [days] of data.
   InMemoryHealthKitRepository({
     this.status = HealthAuthorizationStatus.notDetermined,
+    this.weightUnit = WeightUnit.kilograms,
     Iterable<HealthDayTotals> days = const [],
   }) : days = {
          for (final d in days)
@@ -24,6 +25,9 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
 
   /// What [authorizationStatus] returns.
   HealthAuthorizationStatus status;
+
+  /// What [preferredWeightUnit] returns.
+  WeightUnit weightUnit;
 
   /// Health's data, by local midnight.
   final Map<DateTime, HealthDayTotals> days;
@@ -83,6 +87,9 @@ class InMemoryHealthKitRepository implements HealthKitRepository {
         days[d] ?? HealthDayTotals(date: d),
     ]);
   }
+
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() async => _or(() => weightUnit);
 
   Result<T> _or<T>(T Function() value) {
     final failure = this.failure;

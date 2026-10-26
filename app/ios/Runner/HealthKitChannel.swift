@@ -9,8 +9,8 @@ import HealthKit
 /// these values live and never stores them in the iCloud-synced store (App
 /// Store guideline 5.1.3(ii)).
 ///
-/// Read-only. Steady asks to read step count, active energy and basal energy,
-/// and never asks to write anything to Health.
+/// Read-only. Steady asks to read step count, active energy, basal energy
+/// and body mass (weight, #128), and never asks to write anything to Health.
 ///
 /// Methods:
 /// - `isAvailable` returns `HKHealthStore.isHealthDataAvailable()`.
@@ -21,12 +21,18 @@ import HealthKit
 /// - `requestAuthorization` shows the read-permission sheet if needed and
 ///   returns `nil` once it's dismissed (or at once, if it was shown before).
 /// - `dailyTotals({start, end})`, both `yyyy-MM-dd`, inclusive, returns one
-///   `{date, steps, activeKcal, basalKcal}` map per **local calendar day**.
-///   Sums come from an `HKStatisticsCollectionQuery` (`.cumulativeSum`,
-///   anchored at local midnight, one-day interval), so Health's own
-///   de-duplication across iPhone and Watch applies, the same numbers the
-///   Health app shows. A type with no samples that day is `nil`, never 0.
-///   kcal and steps are rounded to whole numbers.
+///   `{date, steps, activeKcal, basalKcal, weightKg}` map per **local
+///   calendar day**. Sums come from an `HKStatisticsCollectionQuery`
+///   (`.cumulativeSum`, anchored at local midnight, one-day interval), so
+///   Health's own de-duplication across iPhone and Watch applies, the same
+///   numbers the Health app shows. A type with no samples that day is `nil`,
+///   never 0. kcal and steps are rounded to whole numbers. `weightKg` is the
+///   day's most recent body mass reading (`.discreteMostRecent`), not a sum,
+///   unrounded. A weight query before weight's permission sheet was shown is
+///   `nil` rather than an error, so people who connected Health before
+///   weight existed keep their steps until they're asked about weight.
+/// - `preferredWeightUnit` returns `kg`, `lb` or `st`: the unit the Health
+///   app shows weight in. Anything else is `kg`.
 ///
 /// Errors are `FlutterError`s: code `unavailable` when Health isn't
 /// available on this device, `authorizationNotDetermined` when `dailyTotals`
@@ -53,8 +59,11 @@ private final class HealthKitHandler {
   private static let stepCount = HKQuantityType(.stepCount)
   private static let activeEnergy = HKQuantityType(.activeEnergyBurned)
   private static let basalEnergy = HKQuantityType(.basalEnergyBurned)
+  private static let bodyMass = HKQuantityType(.bodyMass)
 
-  private static let readTypes: Set<HKObjectType> = [stepCount, activeEnergy, basalEnergy]
+  private static let readTypes: Set<HKObjectType> = [
+    stepCount, activeEnergy, basalEnergy, bodyMass,
+  ]
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
     switch call.method {
@@ -66,6 +75,8 @@ private final class HealthKitHandler {
       requestAuthorization(result)
     case "dailyTotals":
       dailyTotals(call.arguments, result)
+    case "preferredWeightUnit":
+      preferredWeightUnit(result)
     default:
       result(FlutterMethodNotImplemented)
     }
@@ -120,6 +131,34 @@ private final class HealthKitHandler {
     }
   }
 
+  private func preferredWeightUnit(_ result: @escaping FlutterResult) {
+    guard HKHealthStore.isHealthDataAvailable() else {
+      result(Self.unavailableError)
+      return
+    }
+    store.preferredUnits(for: [Self.bodyMass]) { units, error in
+      DispatchQueue.main.async {
+        if let error = error {
+          let notDetermined =
+            (error as? HKError)?.code == .errorAuthorizationNotDetermined
+          result(
+            FlutterError(
+              code: notDetermined ? "authorizationNotDetermined" : "queryFailed",
+              message: error.localizedDescription, details: nil))
+          return
+        }
+        let unit = units[Self.bodyMass]
+        if unit == HKUnit.pound() {
+          result("lb")
+        } else if unit == HKUnit.stone() {
+          result("st")
+        } else {
+          result("kg")
+        }
+      }
+    }
+  }
+
   // MARK: - dailyTotals
 
   private static func dayFormatter() -> DateFormatter {
@@ -166,15 +205,20 @@ private final class HealthKitHandler {
     var sums: [HKQuantityType: [String: Double]] = [:]
     var firstError: Error?
 
-    let units: [(HKQuantityType, HKUnit)] = [
-      (Self.stepCount, .count()),
-      (Self.activeEnergy, .kilocalorie()),
-      (Self.basalEnergy, .kilocalorie()),
+    // Weight is the one type whose "not asked yet" is `nil`, not an error
+    // (see the channel comment).
+    let queries: [(HKQuantityType, HKUnit, HKStatisticsOptions, Bool)] = [
+      (Self.stepCount, .count(), .cumulativeSum, false),
+      (Self.activeEnergy, .kilocalorie(), .cumulativeSum, false),
+      (Self.basalEnergy, .kilocalorie(), .cumulativeSum, false),
+      (Self.bodyMass, .gramUnit(with: .kilo), .discreteMostRecent, true),
     ]
-    for (type, unit) in units {
+    for (type, unit, options, notDeterminedIsEmpty) in queries {
       group.enter()
-      querySums(
-        type: type, unit: unit, start: start, endExclusive: endExclusive, formatter: formatter
+      queryDaily(
+        type: type, unit: unit, options: options,
+        notDeterminedIsEmpty: notDeterminedIsEmpty,
+        start: start, endExclusive: endExclusive, formatter: formatter
       ) { byDay, error in
         lock.lock()
         if let error = error, firstError == nil { firstError = error }
@@ -206,6 +250,7 @@ private final class HealthKitHandler {
           "steps": Self.rounded(sums[Self.stepCount]?[key]),
           "activeKcal": Self.rounded(sums[Self.activeEnergy]?[key]),
           "basalKcal": Self.rounded(sums[Self.basalEnergy]?[key]),
+          "weightKg": sums[Self.bodyMass]?[key] ?? NSNull(),
         ])
         guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
         day = next
@@ -220,10 +265,12 @@ private final class HealthKitHandler {
     return Int(value.rounded())
   }
 
-  /// Per-day sums of [type] in [unit], keyed by `yyyy-MM-dd`. Days without
-  /// samples are absent from the dictionary.
-  private func querySums(
-    type: HKQuantityType, unit: HKUnit, start: Date, endExclusive: Date,
+  /// Per-day values of [type] in [unit], keyed by `yyyy-MM-dd`: the sum
+  /// for `.cumulativeSum`, the latest reading for `.discreteMostRecent`.
+  /// Days without samples are absent from the dictionary.
+  private func queryDaily(
+    type: HKQuantityType, unit: HKUnit, options: HKStatisticsOptions,
+    notDeterminedIsEmpty: Bool, start: Date, endExclusive: Date,
     formatter: DateFormatter,
     completion: @escaping ([String: Double], Error?) -> Void
   ) {
@@ -232,14 +279,17 @@ private final class HealthKitHandler {
     let query = HKStatisticsCollectionQuery(
       quantityType: type,
       quantitySamplePredicate: predicate,
-      options: .cumulativeSum,
+      options: options,
       anchorDate: start,
       intervalComponents: DateComponents(day: 1))
     query.initialResultsHandler = { _, collection, error in
       if let error = error {
         // No data (including read access the user didn't allow) is not an
         // error to Steady: those days are just `nil`.
-        if let hkError = error as? HKError, hkError.code == .errorNoData {
+        if let hkError = error as? HKError,
+          hkError.code == .errorNoData
+            || (notDeterminedIsEmpty && hkError.code == .errorAuthorizationNotDetermined)
+        {
           completion([:], nil)
         } else {
           completion([:], error)
@@ -248,10 +298,13 @@ private final class HealthKitHandler {
       }
       var byDay: [String: Double] = [:]
       for statistics in collection?.statistics() ?? [] {
-        guard let sum = statistics.sumQuantity() else { continue }
+        let quantity =
+          options.contains(.discreteMostRecent)
+          ? statistics.mostRecentQuantity() : statistics.sumQuantity()
+        guard let quantity = quantity else { continue }
         // Each interval starts at a local midnight (the anchor), so its
         // start date names the calendar day.
-        byDay[formatter.string(from: statistics.startDate)] = sum.doubleValue(for: unit)
+        byDay[formatter.string(from: statistics.startDate)] = quantity.doubleValue(for: unit)
       }
       completion(byDay, nil)
     }

@@ -2,14 +2,14 @@
 /// re-reading Health live at launch, on every return to the foreground and
 /// from Settings' "Refresh".
 ///
-/// **Nothing here stores Health data.** Steps and burned calories are read
-/// live by `healthDayTotalsProvider` (`metrics_presentation`) while a screen
-/// shows them, and are never written to the shared `DailyMetric` store,
-/// which is mirrored to iCloud: App Store guideline 5.1.3(ii) forbids
+/// **Nothing here stores Health data.** Steps, burned calories and weight
+/// are read live by `healthDayTotalsProvider` (`metrics_presentation`) while
+/// a screen shows them, and are never written to the shared `DailyMetric`
+/// store, which is mirrored to iCloud: App Store guideline 5.1.3(ii) forbids
 /// storing personal health information there. "Refreshing" is only
-/// invalidating that provider, so it reads Health again. The Mac and the
-/// coach have no Health data. `test/health_access_test.dart` guards that no
-/// Health path writes the store.
+/// invalidating the Health providers, so they read Health again. The Mac and
+/// the coach have no Health data. `test/health_access_test.dart` guards that
+/// no Health path writes the store.
 ///
 /// Lives in the app layer because `health_sync` is headless (no
 /// `*_presentation` package). On macOS [healthKitRepositoryProvider] is
@@ -65,8 +65,9 @@ class HealthAccessController extends _$HealthAccessController {
   /// Domain event: HealthDataRefreshed.
   ///
   /// Shows Health's read-permission sheet if it has never been shown, then
-  /// invalidates `healthDayTotalsProvider`, so every screen showing Health
-  /// values reads them from Health again (today's steps keep counting).
+  /// invalidates `healthDayTotalsProvider` and `healthWeightUnitProvider`,
+  /// so every screen showing Health values reads them from Health again
+  /// (today's steps keep counting).
   /// Writes nothing anywhere.
   ///
   /// Never throws: a failure becomes an `AsyncError` carrying the
@@ -103,7 +104,9 @@ class HealthAccessController extends _$HealthAccessController {
     if (!ref.mounted) return;
     state = AsyncData(status);
     if (status == HealthAuthorizationStatus.requested) {
-      ref.invalidate(healthDayTotalsProvider);
+      ref
+        ..invalidate(healthDayTotalsProvider)
+        ..invalidate(healthWeightUnitProvider);
     }
   }
 

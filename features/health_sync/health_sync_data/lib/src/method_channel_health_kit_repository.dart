@@ -80,6 +80,16 @@ class MethodChannelHealthKitRepository implements HealthKitRepository {
     );
   }
 
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() => _call(
+    'Could not read the weight unit from Apple Health',
+    () async => weightUnitFromWire(
+      await _channel.invokeMethod<Object?>(
+        HealthKitChannel.preferredWeightUnitMethod,
+      ),
+    ),
+  );
+
   /// Runs [body], mapping every exception to a [Failure] described by
   /// [what].
   Future<Result<T>> _call<T>(String what, Future<T> Function() body) async {

@@ -103,5 +103,37 @@ void main() {
         DailyMetric(date: DateTime(2026, 10, 20), caloriesEaten: 2000),
       ]);
     });
+
+    test('a day with only a weight reading adds no row', () {
+      final weighed = DateTime(2026, 10, 21);
+      final merged = mergeLiveHealth(
+        [DailyMetric(date: day, caloriesEaten: 1800)],
+        {weighed: HealthDayTotals(date: weighed, weightKg: 80.4)},
+      );
+      expect(merged, [DailyMetric(date: day, caloriesEaten: 1800)]);
+    });
+  });
+
+  group('healthWeightUnitProvider', () {
+    test('is kilograms without a Health source (macOS)', () async {
+      final container = ProviderContainer.test();
+      expect(
+        await container.read(healthWeightUnitProvider.future),
+        WeightUnit.kilograms,
+      );
+    });
+
+    test("is Health's preferred unit", () async {
+      final health = FakeHealthKitRepository(weightUnit: WeightUnit.pounds);
+      final container = ProviderContainer.test(
+        overrides: [
+          metricsHealthKitRepositoryProvider.overrideWithValue(health),
+        ],
+      );
+      expect(
+        await container.read(healthWeightUnitProvider.future),
+        WeightUnit.pounds,
+      );
+    });
   });
 }
