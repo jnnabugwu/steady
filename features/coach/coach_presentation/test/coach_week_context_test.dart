@@ -1,9 +1,11 @@
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_domain/cravings_domain.dart';
+import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
+import 'package:metrics_domain/metrics_domain.dart';
 
 import 'helpers/fake_domains.dart';
 
@@ -161,6 +163,46 @@ void main() {
     expect(text, contains('Craving check-ins are not available.'));
   });
 
+  test('Health read but empty for every day says it may not be shared, '
+      'not that there was no movement', () async {
+    health.totals.clear();
+    final data = await build()(
+      first: window.first,
+      last: window.last,
+      now: now,
+    );
+    expect(data.healthRead, isTrue);
+    final text = formatCoachWeek(data);
+    expect(text, contains('Health may not be shared with Steady'));
+    expect(text, isNot(contains('Steps and burned energy are not available.')));
+  });
+
+  test('Health with values on some days adds no such note', () async {
+    final text = formatCoachWeek(
+      await build()(first: window.first, last: window.last, now: now),
+    );
+    expect(text, isNot(contains('may not be shared')));
+  });
+
+  test('a source that throws is caught and noted, never fatal', () async {
+    final data = await BuildCoachWeekContext(
+      checkIns: _ThrowingCheckIns(),
+      metrics: _ThrowingMetrics(),
+      health: _ThrowingHealth(),
+      cravings: _ThrowingCravings(),
+    )(first: window.first, last: window.last, now: now);
+    expect(data.checkInsRead, isFalse);
+    expect(data.caloriesRead, isFalse);
+    expect(data.healthRead, isFalse);
+    expect(data.cravingsRead, isFalse);
+    expect(data.days, hasLength(7));
+    final text = formatCoachWeek(data);
+    expect(text, contains('Some check-ins could not be read.'));
+    expect(text, contains('Calories eaten could not be read.'));
+    expect(text, contains('Steps and burned energy are not available.'));
+    expect(text, contains('Craving check-ins are not available.'));
+  });
+
   test('a full week with every value stays under the cap', () async {
     for (var i = 0; i < 7; i++) {
       final day = DateTime(2026, 10, 19 + i);
@@ -189,4 +231,61 @@ void main() {
     // Nothing was cut: the last line is complete.
     expect(text, endsWith('not sure 28.'));
   });
+}
+
+/// Repositories that throw instead of returning `Err`, for `_guard`.
+class _ThrowingCheckIns implements CheckInRepository {
+  @override
+  ResultFuture<CheckInStatus?> getStatus(DateTime date) =>
+      throw StateError('check-ins broke');
+
+  @override
+  ResultFuture<Unit> logCheckIn(DateTime date, CheckInStatus status) =>
+      throw UnimplementedError();
+}
+
+class _ThrowingMetrics implements MetricsRepository {
+  @override
+  ResultFuture<List<DailyMetric>> getRange(DateTime start, DateTime end) =>
+      throw StateError('metrics broke');
+
+  @override
+  ResultFuture<List<WeeklyBucket>> getWeeks(
+    DateTime start,
+    DateTime end, {
+    int anchorWeekday = DateTime.friday,
+  }) => throw UnimplementedError();
+}
+
+class _ThrowingHealth implements HealthKitRepository {
+  @override
+  ResultFuture<List<HealthDayTotals>> dailyTotals(
+    DateTime start,
+    DateTime end,
+  ) => throw StateError('health broke');
+
+  @override
+  ResultFuture<HealthAuthorizationStatus> authorizationStatus() =>
+      throw UnimplementedError();
+
+  @override
+  ResultFuture<bool> isAvailable() => throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> requestAuthorization() => throw UnimplementedError();
+
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() => throw UnimplementedError();
+}
+
+class _ThrowingCravings implements CravingRepository {
+  @override
+  ResultFuture<List<CravingEvent>> getBetween(DateTime start, DateTime end) =>
+      throw StateError('cravings broke');
+
+  @override
+  ResultFuture<Unit> save(CravingEvent event) => throw UnimplementedError();
+
+  @override
+  ResultFuture<Unit> deleteAll() => throw UnimplementedError();
 }

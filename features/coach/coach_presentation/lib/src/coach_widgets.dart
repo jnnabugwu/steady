@@ -1,4 +1,5 @@
 import 'package:coach_domain/coach_domain.dart';
+import 'package:coach_presentation/src/date_labels.dart';
 import 'package:failures/failures.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -301,23 +302,5 @@ String coachSessionKindLabel(CoachSessionKind kind) => switch (kind) {
 /// A session's date, e.g. "Sat, Oct 24", in local time.
 String coachSessionDateLabel(DateTime at) {
   final local = at.toLocal();
-  return '${_weekdays[local.weekday - 1]}, ${_months[local.month - 1]} '
-      '${local.day}';
+  return '${shortWeekday(local)}, ${shortMonth(local)} ${local.day}';
 }
-
-const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];

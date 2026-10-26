@@ -1,4 +1,5 @@
 import 'package:checkin_domain/checkin_domain.dart';
+import 'package:coach_presentation/src/date_labels.dart';
 import 'package:cravings_domain/cravings_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -226,7 +227,9 @@ const int coachWeekContextMaxChars = 1200;
 /// The week's data as the compact text the coach's instructions carry.
 ///
 /// One line per day (`Mon Oct 19: logged; ate 2140 kcal; 8412 steps;
-/// burned 520 active + 1650 resting kcal`), then cravings: how many and
+/// burned 520 active + 1650 resting kcal`); a note when Health was read but
+/// gave nothing for any day, since that may mean it isn't shared; then
+/// cravings: how many and
 /// when, and with [includeCravingReasons] what was behind them. No
 /// craving line ever mentions food or calories. Capped at
 /// [coachWeekContextMaxChars].
@@ -243,6 +246,7 @@ String formatCoachWeek(
     if (!data.checkInsRead) 'Some check-ins could not be read.',
     if (!data.caloriesRead) 'Calories eaten could not be read.',
     if (!data.healthRead) 'Steps and burned energy are not available.',
+    if (data.healthRead && !data.days.any(_hasHealth)) _healthMaybeNotShared,
     _cravingLine(data, includeReasons: includeCravingReasons),
   ];
   final text = lines.join('\n');
@@ -250,6 +254,17 @@ String formatCoachWeek(
       ? text
       : text.substring(0, coachWeekContextMaxChars);
 }
+
+const _healthMaybeNotShared =
+    'No steps or burned energy came from Apple Health for these days. '
+    "Health may not be shared with Steady, so don't read that as no "
+    'movement.';
+
+/// Whether [day] has any Apple Health value. HealthKit never says whether
+/// read access was granted, so a run of days with none at all can mean
+/// Health isn't shared rather than no movement (`HealthKitRepository`).
+bool _hasHealth(CoachDayData day) =>
+    day.steps != null || day.activeEnergy != null || day.basalEnergy != null;
 
 String _dayLine(CoachDayData day) {
   final parts = [
@@ -301,22 +316,4 @@ String _reasonLabel(CravingReason reason) => switch (reason) {
   CravingReason.notSure => 'not sure',
 };
 
-String _date(DateTime d) =>
-    '${_weekdays[d.weekday - 1]} ${_months[d.month - 1]} ${d.day}';
-
-const _weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+String _date(DateTime d) => '${shortWeekday(d)} ${shortMonth(d)} ${d.day}';
