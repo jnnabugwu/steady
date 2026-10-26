@@ -1,3 +1,4 @@
+import 'package:coach_domain/src/coach_instructions.dart';
 import 'package:coach_domain/src/coach_session.dart';
 
 /// The most tokens one coach reply may use. The `steady/coach` channel
@@ -24,6 +25,14 @@ const int coachMaxReplyTokens = 512;
 /// Counted in Unicode code points, so an emoji or an accented letter isn't
 /// counted as several characters.
 int estimateCoachTokens(String text) {
+  final (:latin, :dense) = _runeCounts(text);
+  return _tokensFor(latin, dense);
+}
+
+/// [text]'s Latin and non-Latin code points. Additive: the counts of a
+/// joined text are the sums of its parts', which is what lets
+/// [coachSummaryPrompt] fit a transcript in one pass.
+({int latin, int dense}) _runeCounts(String text) {
   var latin = 0;
   var dense = 0;
   for (final rune in text.runes) {
@@ -33,8 +42,10 @@ int estimateCoachTokens(String text) {
       dense++;
     }
   }
-  return (latin / 3).ceil() + dense;
+  return (latin: latin, dense: dense);
 }
+
+int _tokensFor(int latin, int dense) => (latin / 3).ceil() + dense;
 
 /// The first code point past Basic Latin, Latin-1, Latin Extended-A/B and
 /// IPA extensions — i.e. where "about three characters per token" stops
@@ -86,17 +97,20 @@ class CoachContextBudget {
       replyTokens +
       marginTokens;
 
-  /// How many characters of prompt fit in a session that holds only
-  /// [instructionTokens] (a fresh one), at the estimate's three characters
-  /// per token. Never negative.
-  int promptRoomChars(int instructionTokens) {
+  /// How many tokens of prompt (by [estimateCoachTokens]) fit in a session
+  /// that holds only [instructionTokens] (a fresh one), with room left for
+  /// a full reply. Never negative.
+  ///
+  /// Tokens, not characters: a character allowance at the Latin rate would
+  /// let a CJK, Hangul or emoji prompt through at three times what fits.
+  int promptRoomTokens(int instructionTokens) {
     final tokens =
         contextSize -
         instructionTokens -
         2 * coachTurnOverheadTokens -
         replyTokens -
         marginTokens;
-    return tokens <= 0 ? 0 : tokens * 3;
+    return tokens <= 0 ? 0 : tokens;
   }
 }
 
@@ -270,20 +284,19 @@ class CoachConversation {
   );
 
   /// The prompt for the session's end summary of [all] the messages: the
-  /// whole transcript if it fits a fresh session, otherwise
-  /// [earlierSummary] and the current window (oldest dropped first).
-  /// `null` if there's nothing to summarise.
+  /// whole transcript if it fits a fresh summary session
+  /// ([CoachInstructions.summary]), otherwise [earlierSummary] and the
+  /// current window (oldest dropped first). `null` if there's nothing to
+  /// summarise.
   String? summaryPromptFor(
     List<CoachMessage> all, {
     required String request,
     required CoachContextBudget budget,
   }) {
-    final instructionTokens = estimateCoachTokens(instructions);
     final whole = coachSummaryPrompt(
       request: request,
       messages: all,
       budget: budget,
-      instructionTokens: instructionTokens,
     );
     if (whole != null && whole.contains(coachTranscriptLines(all))) {
       return whole;
@@ -293,7 +306,6 @@ class CoachConversation {
       messages: window,
       earlierSummary: earlierSummary,
       budget: budget,
-      instructionTokens: instructionTokens,
     );
   }
 
@@ -329,38 +341,70 @@ String coachTranscriptLines(Iterable<CoachMessage> messages) => [
 ].join('\n');
 
 /// The prompt asking the model for a short, neutral summary of a
-/// conversation, sent in a separate model session primed with the same
-/// instructions as the conversation itself.
+/// conversation, sent in a separate model session primed with
+/// [CoachInstructions.summary].
 ///
 /// The transcript is [earlierSummary] (if any) followed by [messages],
-/// dropping the oldest messages until the prompt fits a fresh session
-/// under [budget] after [instructionTokens]. Returns `null` if there's
-/// nothing to summarise.
+/// keeping the newest messages that fit a fresh session under [budget]
+/// after [instructionTokens] (by default the summary instructions'), by
+/// [estimateCoachTokens]. Returns `null` if there's nothing to summarise.
 String? coachSummaryPrompt({
   required String request,
   required List<CoachMessage> messages,
   required CoachContextBudget budget,
-  required int instructionTokens,
+  int? instructionTokens,
   String? earlierSummary,
 }) {
   if (messages.isEmpty && (earlierSummary == null || earlierSummary.isEmpty)) {
     return null;
   }
-  final room = budget.promptRoomChars(instructionTokens);
-  String build(List<CoachMessage> kept) => [
+  final room = budget.promptRoomTokens(
+    instructionTokens ?? estimateCoachTokens(CoachInstructions.summary),
+  );
+  final head = [
     request,
     if (earlierSummary != null && earlierSummary.isNotEmpty)
       'Summary of the start of the conversation:\n$earlierSummary',
-    if (kept.isNotEmpty) 'The conversation:\n${coachTranscriptLines(kept)}',
   ].join('\n\n');
-  var kept = messages;
-  var prompt = build(kept);
-  while (prompt.runes.length > room && kept.isNotEmpty) {
-    kept = kept.sublist(1);
-    prompt = build(kept);
+  const transcriptHeader = '\n\nThe conversation:\n';
+  // One pass, newest first, then one build. Rune counts add up, so the
+  // running counts give the joined prompt's estimate exactly: the newest
+  // messages that fit are kept, and no more.
+  var (:latin, :dense) = _runeCounts('$head$transcriptHeader');
+  var first = messages.length;
+  for (var i = messages.length - 1; i >= 0; i--) {
+    final line = _runeCounts(coachTranscriptLines([messages[i]]));
+    // Every line after the first adds the newline that joins it.
+    final newline = first == messages.length ? 0 : 1;
+    final nextLatin = latin + line.latin + newline;
+    final nextDense = dense + line.dense;
+    if (_tokensFor(nextLatin, nextDense) > room) break;
+    latin = nextLatin;
+    dense = nextDense;
+    first = i;
   }
-  if (prompt.runes.length > room) {
-    prompt = String.fromCharCodes(prompt.runes.take(room));
+  final kept = messages.sublist(first);
+  final prompt = kept.isEmpty
+      ? head
+      : '$head$transcriptHeader${coachTranscriptLines(kept)}';
+  return _takeTokens(prompt, room);
+}
+
+/// The longest start of [text] whose [estimateCoachTokens] is at most
+/// [maxTokens]: [text] itself if it fits.
+String _takeTokens(String text, int maxTokens) {
+  if (estimateCoachTokens(text) <= maxTokens) return text;
+  var latin = 0;
+  var dense = 0;
+  final kept = <int>[];
+  for (final rune in text.runes) {
+    if (rune < _firstNonLatinRune) {
+      latin++;
+    } else {
+      dense++;
+    }
+    if (_tokensFor(latin, dense) > maxTokens) break;
+    kept.add(rune);
   }
-  return prompt;
+  return String.fromCharCodes(kept);
 }

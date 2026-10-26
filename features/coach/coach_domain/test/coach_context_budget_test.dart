@@ -65,14 +65,14 @@ void main() {
         data,
       );
       expect(
-        budget.promptRoomChars(estimateCoachTokens(instructions)),
-        greaterThan(coachMaxMessageChars * 2),
+        budget.promptRoomTokens(estimateCoachTokens(instructions)),
+        greaterThan(2 * estimateCoachTokens('m' * coachMaxMessageChars)),
       );
     });
 
     test('prompt room is never negative', () {
       const tiny = CoachContextBudget(contextSize: 100);
-      expect(tiny.promptRoomChars(50), 0);
+      expect(tiny.promptRoomTokens(50), 0);
     });
   });
 
@@ -252,11 +252,107 @@ void main() {
         instructionTokens: instructionTokens,
       )!;
       expect(
-        prompt.runes.length,
-        lessThanOrEqualTo(budget.promptRoomChars(instructionTokens)),
+        estimateCoachTokens(prompt),
+        lessThanOrEqualTo(budget.promptRoomTokens(instructionTokens)),
       );
       expect(prompt, contains('39 '));
       expect(prompt, isNot(contains('Person: 0 ')));
+    });
+
+    // Sized by estimateCoachTokens, not by characters at the Latin rate:
+    // 400 CJK or emoji characters are about 400 tokens, not 133.
+    for (final (script, text) in [
+      ('CJK', '今天过得怎么样' * 57),
+      ('Hangul', '안녕하세요' * 80),
+      ('emoji', '🙂' * 400),
+    ]) {
+      test('a $script transcript fits a fresh session by token estimate', () {
+        final messages = [for (var i = 0; i < 40; i++) user('$i $text')];
+        final prompt = coachSummaryPrompt(
+          request: CoachInstructions.summaryRequest,
+          messages: messages,
+          budget: budget,
+          instructionTokens: instructionTokens,
+        )!;
+        expect(
+          estimateCoachTokens(prompt),
+          lessThanOrEqualTo(budget.promptRoomTokens(instructionTokens)),
+        );
+        expect(prompt, contains('Person: 39 '));
+        expect(prompt, isNot(contains('Person: 0 ')));
+      });
+    }
+
+    test('keeps exactly the newest messages that fit, however long the '
+        'transcript', () {
+      // 3,000 messages: the fit is one pass over them, newest first.
+      final messages = [for (var i = 0; i < 3000; i++) user('$i ${'z' * 90}')];
+      final prompt = coachSummaryPrompt(
+        request: CoachInstructions.summaryRequest,
+        messages: messages,
+        budget: budget,
+        instructionTokens: instructionTokens,
+      )!;
+      final room = budget.promptRoomTokens(instructionTokens);
+      expect(estimateCoachTokens(prompt), lessThanOrEqualTo(room));
+      expect(prompt, endsWith('Person: 2999 ${'z' * 90}'));
+      // The oldest message kept is preceded by one that wouldn't fit.
+      final firstKept = RegExp(r'Person: (\d+) ').firstMatch(prompt)!;
+      final first = int.parse(firstKept.group(1)!);
+      expect(first, greaterThan(0));
+      final withOneMore = coachTranscriptLines(messages.sublist(first - 1));
+      expect(
+        estimateCoachTokens(
+          '${CoachInstructions.summaryRequest}\n\nThe conversation:\n'
+          '$withOneMore',
+        ),
+        greaterThan(room),
+      );
+    });
+
+    test('an earlier summary too long for the room is cut to fit, by '
+        'tokens', () {
+      final prompt = coachSummaryPrompt(
+        request: CoachInstructions.summaryRequest,
+        messages: [user('Hi')],
+        earlierSummary: '周末' * 4000,
+        budget: budget,
+        instructionTokens: instructionTokens,
+      )!;
+      expect(
+        estimateCoachTokens(prompt),
+        budget.promptRoomTokens(instructionTokens),
+      );
+    });
+
+    test('a summary session is sized for the summary instructions by '
+        'default', () {
+      final messages = [for (var i = 0; i < 40; i++) user('$i ${'x' * 400}')];
+      final prompt = coachSummaryPrompt(
+        request: CoachInstructions.summaryRequest,
+        messages: messages,
+        budget: budget,
+      )!;
+      expect(
+        estimateCoachTokens(prompt),
+        lessThanOrEqualTo(
+          budget.promptRoomTokens(
+            estimateCoachTokens(CoachInstructions.summary),
+          ),
+        ),
+      );
+      // More room than under the coaching instructions with the data.
+      expect(
+        prompt.length,
+        greaterThan(
+          coachSummaryPrompt(
+            request: CoachInstructions.summaryRequest,
+            messages: messages,
+            budget: budget,
+            instructionTokens: instructionTokens,
+          )!.length,
+        ),
+      );
     });
 
     test('the end summary uses the whole transcript when it fits, else the '
