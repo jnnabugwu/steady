@@ -16,16 +16,25 @@ class FakeCoachRepository implements CoachRepository {
   /// Overrides [deleteAll]'s result; `null` clears and returns Ok.
   Future<Result<Unit>> Function()? onDeleteAll;
 
+  /// Overrides [listSessions]'s result; `null` lists what's stored.
+  Future<Result<List<CoachSession>>> Function()? onList;
+
   @override
-  ResultFuture<List<CoachSession>> listSessions() async =>
-      Ok([...sessions]..sort(compareCoachSessionsNewestFirst));
+  ResultFuture<List<CoachSession>> listSessions() async {
+    if (onList case final onList?) return await onList();
+    return Ok([...sessions]..sort(compareCoachSessionsNewestFirst));
+  }
 
   @override
   ResultFuture<CoachSession?> getSession(String id) async =>
       Ok(sessions.where((s) => s.id == id).firstOrNull);
 
+  /// Overrides [saveSession]'s result; `null` stores and returns Ok.
+  Future<Result<Unit>> Function(CoachSession session)? onSave;
+
   @override
   ResultFuture<Unit> saveSession(CoachSession session) async {
+    if (onSave case final onSave?) return await onSave(session);
     sessions
       ..removeWhere((s) => s.id == session.id)
       ..add(session);

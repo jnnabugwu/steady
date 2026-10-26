@@ -4,6 +4,8 @@ import 'dart:io';
 
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
+import 'package:coach_presentation/coach_presentation.dart'
+    show coachAvailabilityProvider, coachSupportAvailableProvider;
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -162,6 +164,10 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         );
         _refreshHealth();
         _rollOverDay();
+        // The person may have turned Apple Intelligence on meanwhile.
+        if (ref.read(coachSupportAvailableProvider)) {
+          ref.invalidate(coachAvailabilityProvider);
+        }
       },
     );
     _refreshHealth();

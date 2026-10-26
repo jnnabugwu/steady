@@ -138,7 +138,8 @@ steady/
 
 Each `*_presentation` package that needs a repository declares its providers in
 `lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation` (the coach
-store and the on-device model, both bound on iOS only), `cravings_presentation`,
+store, the on-device model and the context's sources, all bound on iOS only; the sources
+to the owning features' own repositories), `cravings_presentation`,
 `metrics_presentation` and `pdf_import_presentation` today. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
@@ -312,6 +313,7 @@ copy:
 | `healthKitRepositoryProvider` (declared directly in `app/lib/providers.dart`; `null` except on iOS) | `keepAlive: true` | Same reason: cheap and stateless. `health_sync` is headless, so the app layer declares it (§9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
+| `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
 
 Never mark a **family** `keepAlive`. Every argument value would live forever. If a family
@@ -416,9 +418,16 @@ deep linking at all.
 
 **Tabs.** `AppShellRoute` is a typed `StatefulShellRoute` (`app/lib/app_router.dart`),
 laid out by `AppShell` (`app/lib/app_shell.dart`) with the floating `GlassTabBar` over
-its content. Three branches, one per tab, each with its own navigation stack: Today
-(`/`, `HomeRoute`), Week (`/week`, `WeekRoute`, the metrics history) and Settings
-(`/settings`, `SettingsRoute`). The Coach tab joins once a coach screen exists.
+its content. Four branches, one per tab, each with its own navigation stack: Today
+(`/`, `HomeRoute`), Week (`/week`, `WeekRoute`, the metrics history), Coach (`/coach`,
+`CoachRoute`, iPhone only) and Settings (`/settings`, `SettingsRoute`). **The Coach tab is
+iPhone only:** typed shell branches are fixed at compile time, so the Mac has the branch
+but not the tab (`visibleBranches` in `app_shell.dart` maps the bar's tabs to branch
+indexes and drops Coach where `coachSupportAvailableProvider` is `false`), and
+`CoachRoute.redirect` sends `/coach` and everything under it home there, so no coach
+screen is ever built on the Mac. Under `/coach`: `CoachChatRoute` (`/coach/chat`, a live
+session, on the root navigator over the shell) and `CoachTranscriptRoute`
+(`/coach/sessions/<id>`, a past session, read-only, inside the tab).
 `CheckInRoute` (`/checkin/<date>`) and `CravingRoute` (`/craving`, iPhone only) are nested
 under `HomeRoute`, so Today is beneath them even on a cold start; the check-in keeps the
 tab bar, while `CravingRoute` is presented on the root navigator over the shell.
@@ -760,10 +769,22 @@ context window (4,096 tokens on iOS 26) without summarising itself partway throu
   where the model is available. Where it isn't, the card explains why instead of offering
   a session. Nothing on the Mac. The card itself needs check-in data, not inference.
 - **Context stays compact:** a short 7-day summary built from `metrics_domain`,
-  `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history. The
-  on-device model's context window is small (4,096 tokens on iOS 26, for instructions,
-  data, prompts and replies together; read at runtime as `CoachModelInfo.contextSize`), so
-  a long session summarises its older turns.
+  `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history
+  (`BuildCoachWeekContext`, a use case in `coach_presentation`, and `formatCoachWeek`, one
+  line per day, at most 1,200 characters). The on-device model's context window is small
+  (4,096 tokens on iOS 26, for instructions, data, prompts and replies together; read at
+  runtime as `CoachModelInfo.contextSize`). `CoachConversation` (`coach_domain`) counts
+  three characters per token (an over-estimate) and sends a turn only if its prompt, a
+  full 512-token reply and a 256-token margin still fit; otherwise the older turns are
+  summarised by the model in a separate session and the chat moves to a fresh session,
+  carrying that summary and the last few messages in its first prompt. The data goes in
+  the instructions; anything the person typed only ever goes in prompts. The stored
+  transcript is always the whole conversation.
+- **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach
+  can't run here, per typed failure, and the past sessions), a live session
+  (`CoachSessionModule`, `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`,
+  `endCoachSession`, which writes the summary the export carries) and a read-only
+  transcript (`CoachTranscriptModule`). Routes in §5, "Tabs".
 - **The model channel** (#79): `steady/coach` in `app/ios/Runner/CoachChannel.swift`,
   behind `CoachModel` (`coach_domain`). Replies stream as cumulative snapshots (the whole
   reply so far), and each unavailable reason (device not eligible, Apple Intelligence off,

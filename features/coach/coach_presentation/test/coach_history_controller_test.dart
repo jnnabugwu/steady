@@ -49,6 +49,37 @@ void main() {
     expect(repository.deleteAllCalls, 1);
   });
 
+  test('a successful delete re-reads an open transcript, which is now '
+      'gone', () async {
+    container.listen(coachStoredSessionProvider('a'), (_, _) {});
+    expect(
+      await container.read(coachStoredSessionProvider('a').future),
+      isNotNull,
+    );
+
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    await notifier().deleteCoachHistory();
+    expect(
+      await container.read(coachStoredSessionProvider('a').future),
+      isNull,
+    );
+  });
+
+  test('advances the history epoch before it deletes', () async {
+    container.listen(coachHistoryControllerProvider, (_, _) {});
+    await settled();
+    final epoch = container.read(coachHistoryEpochProvider);
+    int? seen;
+    repository.onDeleteAll = () async {
+      seen = epoch.value;
+      repository.sessions.clear();
+      return const Ok(unit);
+    };
+    await notifier().deleteCoachHistory();
+    expect(seen, 1);
+  });
+
   test('an Err becomes an AsyncError carrying that Failure', () async {
     container.listen(coachHistoryControllerProvider, (_, _) {});
     await settled();

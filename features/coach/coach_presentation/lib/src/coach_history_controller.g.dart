@@ -49,7 +49,7 @@ final class CoachHistoryControllerProvider
 }
 
 String _$coachHistoryControllerHash() =>
-    r'7ddbde0330b997d3bdd4c13bdc135dc0cb437db4';
+    r'8d35b0af498febd04858af896e43cd97ae884a2d';
 
 /// Settings' "Delete coach history".
 ///

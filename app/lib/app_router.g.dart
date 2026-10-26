@@ -45,6 +45,28 @@ RouteBase get $appShellRoute => StatefulShellRouteData.$route(
     StatefulShellBranchData.$branch(
       routes: [
         GoRouteData.$route(
+          path: '/coach',
+          hasOverriddenOnExit: false,
+          factory: $CoachRoute._fromState,
+          routes: [
+            GoRouteData.$route(
+              path: 'chat',
+              hasOverriddenOnExit: false,
+              parentNavigatorKey: CoachChatRoute.$parentNavigatorKey,
+              factory: $CoachChatRoute._fromState,
+            ),
+            GoRouteData.$route(
+              path: 'sessions/:sessionId',
+              hasOverriddenOnExit: false,
+              factory: $CoachTranscriptRoute._fromState,
+            ),
+          ],
+        ),
+      ],
+    ),
+    StatefulShellBranchData.$branch(
+      routes: [
+        GoRouteData.$route(
           path: '/settings',
           hasOverriddenOnExit: false,
           factory: $SettingsRoute._fromState,
@@ -129,6 +151,72 @@ mixin $WeekRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/week');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CoachRoute on GoRouteData {
+  static CoachRoute _fromState(GoRouterState state) => const CoachRoute();
+
+  @override
+  String get location => GoRouteData.$location('/coach');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CoachChatRoute on GoRouteData {
+  static CoachChatRoute _fromState(GoRouterState state) =>
+      const CoachChatRoute();
+
+  @override
+  String get location => GoRouteData.$location('/coach/chat');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $CoachTranscriptRoute on GoRouteData {
+  static CoachTranscriptRoute _fromState(GoRouterState state) =>
+      CoachTranscriptRoute(sessionId: state.pathParameters['sessionId']!);
+
+  CoachTranscriptRoute get _self => this as CoachTranscriptRoute;
+
+  @override
+  String get location => GoRouteData.$location(
+    '/coach/sessions/${Uri.encodeComponent(_self.sessionId)}',
+  );
 
   @override
   void go(BuildContext context) => context.go(location);

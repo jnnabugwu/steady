@@ -12,9 +12,10 @@
 /// **The shell** ([AppShellRoute], issue #66) is a typed
 /// `StatefulShellRoute` with one branch per tab of the floating
 /// [GlassTabBar] (`app_shell.dart`): Today (`/`, [HomeRoute]), Week
-/// (`/week`, [WeekRoute]) and Settings (`/settings`, [SettingsRoute]). Each
-/// branch keeps its own navigation stack. The Coach tab joins once the
-/// coach screen exists.
+/// (`/week`, [WeekRoute]), Coach (`/coach`, [CoachRoute], iPhone only) and
+/// Settings (`/settings`, [SettingsRoute]). Each branch keeps its own
+/// navigation stack. On the Mac the bar has no Coach tab and `/coach`
+/// redirects home (CLAUDE.md §11).
 ///
 /// [CheckInRoute] (`/checkin/<date>`) is nested under [HomeRoute] in the
 /// Today branch: a cold start from a deep link lands on Today with the
@@ -100,6 +101,17 @@ GoRouter router(Ref ref) {
     TypedStatefulShellBranch<WeekBranch>(
       routes: [TypedGoRoute<WeekRoute>(path: '/week')],
     ),
+    TypedStatefulShellBranch<CoachBranch>(
+      routes: [
+        TypedGoRoute<CoachRoute>(
+          path: '/coach',
+          routes: [
+            TypedGoRoute<CoachChatRoute>(path: 'chat'),
+            TypedGoRoute<CoachTranscriptRoute>(path: 'sessions/:sessionId'),
+          ],
+        ),
+      ],
+    ),
     TypedStatefulShellBranch<SettingsBranch>(
       routes: [TypedGoRoute<SettingsRoute>(path: '/settings')],
     ),
@@ -127,6 +139,15 @@ class TodayBranch extends StatefulShellBranchData {
 class WeekBranch extends StatefulShellBranchData {
   /// Creates the Week branch.
   const WeekBranch();
+}
+
+/// The Coach tab's branch (iPhone only): [CoachRoute] and what's pushed on
+/// it. The branch exists on the Mac too, since typed shell branches are
+/// fixed at compile time, but the Mac's bar has no Coach tab and
+/// [CoachRoute] redirects home there, so nothing in it is ever built.
+class CoachBranch extends StatefulShellBranchData {
+  /// Creates the Coach branch.
+  const CoachBranch();
 }
 
 /// The Settings tab's branch: [SettingsRoute].
@@ -251,6 +272,74 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       ...developerSettingsSections(),
     ],
   );
+}
+
+/// `/coach`, the Coach tab (iPhone only, #80): [CoachHomeModule], to start
+/// a chat ([CoachChatRoute]) or read a past one ([CoachTranscriptRoute]).
+///
+/// Where the coach doesn't exist (the Mac, `coachSupportAvailableProvider`
+/// `false`) it redirects to `/`, and so does every route under it (a
+/// parent's redirect runs for its children too), so no coach screen can
+/// open there, even from a typed-in link.
+class CoachRoute extends GoRouteData with $CoachRoute {
+  /// Creates the Coach tab's route.
+  const CoachRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(coachSupportAvailableProvider)
+      ? null
+      : const HomeRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
+    onChatRequested: () =>
+        unawaited(const CoachChatRoute().push<void>(context)),
+    onSessionSelected: (id) =>
+        unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
+  );
+}
+
+/// `/coach/chat`: a new chat with the coach ([CoachSessionModule]).
+///
+/// Presented on the root navigator, over the shell and its tab bar: the
+/// message box sits where the bar would. Closing returns to the Coach tab;
+/// the session finishes its summary in the background and refreshes the
+/// tab's list itself.
+class CoachChatRoute extends GoRouteData with $CoachChatRoute {
+  /// Creates the chat route.
+  const CoachChatRoute();
+
+  /// Presents the chat over the shell rather than inside the Coach tab.
+  static final GlobalKey<NavigatorState> $parentNavigatorKey =
+      _rootNavigatorKey;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
+    onClosed: () =>
+        context.canPop() ? context.pop() : const CoachRoute().go(context),
+  );
+}
+
+/// `/coach/sessions/<id>`: one past session's transcript, read-only
+/// ([CoachTranscriptModule]), inside the Coach tab.
+class CoachTranscriptRoute extends GoRouteData with $CoachTranscriptRoute {
+  /// Creates the transcript route for [sessionId].
+  const CoachTranscriptRoute({required this.sessionId});
+
+  /// The stored session's id.
+  final String sessionId;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      CoachTranscriptModule(
+        sessionId: sessionId,
+        onBack: () =>
+            context.canPop() ? context.pop() : const CoachRoute().go(context),
+      );
 }
 
 /// `/craving`: the craving flow ([CravingFlowModule]), iPhone only.

@@ -60,6 +60,9 @@
 /// built with `isIOS: true`. On macOS it stays unbound, and there's no
 /// coach code in `app/macos/` at all. Whether the model can actually run
 /// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
+/// The coach's context providers (#80: check-ins, calories eaten, Health,
+/// cravings) are bound in the same iOS-only block, each to the owning
+/// feature's own repository, never a second instance.
 library;
 
 import 'dart:io';
@@ -172,6 +175,21 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
       (ref) => ref.watch(coachRepositoryProvider),
     ),
     coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
+    // The coach's context (#80) reads the other features through their own
+    // repositories: the same instances, so the same stores (the shared
+    // daily-metrics store, the device-only craving file, live Health).
+    coachCheckInRepositoryProvider.overrideWith(
+      (ref) => ref.watch(checkInRepositoryProvider),
+    ),
+    coachMetricsRepositoryProvider.overrideWith(
+      (ref) => ref.watch(metricsRepositoryProvider),
+    ),
+    coachHealthKitRepositoryProvider.overrideWith(
+      (ref) => ref.watch(healthKitRepositoryProvider),
+    ),
+    coachCravingRepositoryProvider.overrideWith(
+      (ref) => ref.watch(cravingRepositoryProvider),
+    ),
   ],
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native

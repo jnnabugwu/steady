@@ -1,3 +1,4 @@
+import 'package:coach_presentation/src/coach_history_providers.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -17,10 +18,15 @@ class CoachHistoryController extends _$CoachHistoryController {
   /// Domain event: CoachHistoryDeleted.
   ///
   /// Deletes every coach session, transcripts and summaries included, on
-  /// this iPhone. Ignored while a delete is in flight, or once disposed.
+  /// this iPhone. A session still open, or finishing its summary in the
+  /// background, saves nothing after this ([coachHistoryEpochProvider]).
+  /// Ignored while a delete is in flight, or once disposed.
   Future<void> deleteCoachHistory() async {
     if (!ref.mounted || state.isLoading) return;
     state = const AsyncLoading();
+    // Before the delete, so a save that starts while it runs is refused
+    // too, not queued behind it.
+    ref.read(coachHistoryEpochProvider).advance();
     final Result<Unit> result;
     try {
       result = await ref.read(coachRepositoryProvider).deleteAll();
@@ -35,6 +41,13 @@ class CoachHistoryController extends _$CoachHistoryController {
       return;
     }
     if (!ref.mounted) return;
+    // The Coach tab's list of past sessions is now empty, and an open
+    // transcript has nothing left to show.
+    if (result is Ok) {
+      ref
+        ..invalidate(coachSessionListProvider)
+        ..invalidate(coachStoredSessionProvider);
+    }
     state = switch (result) {
       Ok() => const AsyncData(true),
       Err(:final failure) => AsyncError(failure, StackTrace.current),
