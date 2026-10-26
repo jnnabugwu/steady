@@ -305,7 +305,6 @@ class CoachSessionController extends _$CoachSessionController {
           messages: conversation.toSummarise,
           earlierSummary: conversation.earlierSummary,
           budget: _budget,
-          instructionTokens: estimateCoachTokens(conversation.instructions),
         ),
       );
       if (!ref.mounted) return null;
@@ -330,13 +329,14 @@ class CoachSessionController extends _$CoachSessionController {
     }
   }
 
-  /// Asks [prompt] in a separate model session primed with this session's
-  /// instructions, and returns the reply, or `null` if anything fails.
+  /// Asks [prompt] in a separate model session primed with the summary
+  /// instructions ([CoachInstructions.summary], not the coaching ones), and
+  /// returns the reply, or `null` if anything fails.
   Future<String?> _askAlone(String? prompt) async {
     if (prompt == null) return null;
     final api = _api;
     final started = await api.startSession(
-      instructions: _conversation!.instructions,
+      instructions: CoachInstructions.summary,
     );
     if (started case Ok(:final value)) {
       try {
@@ -353,11 +353,11 @@ class CoachSessionController extends _$CoachSessionController {
   /// Domain event: CoachSessionEnded.
   ///
   /// Stops any reply in flight, asks the coach for a short, neutral summary
-  /// (`CoachInstructions.summaryRequest`, under the session's own
-  /// instructions), and saves the session with it and its end time. A
-  /// session where the person said nothing is not stored. Keeps itself
-  /// alive until done, so the screen may close at once. Ignored while
-  /// starting, ending or ended.
+  /// (`CoachInstructions.summaryRequest`, in a session primed with
+  /// `CoachInstructions.summary`), and saves the session with it and its
+  /// end time. A session where the person said nothing is not stored.
+  /// Keeps itself alive until done, so the screen may close at once.
+  /// Ignored while starting, ending or ended.
   Future<void> endCoachSession() async {
     if (!ref.mounted) return;
     switch (state.phase) {

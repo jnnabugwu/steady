@@ -218,15 +218,26 @@ void main() {
       }
 
       // Replay what each model session was sent and check none of them
-      // could overflow: instructions + prompts + full-length replies.
+      // could overflow: its own instructions + prompts + full-length
+      // replies. Session `sN` is the Nth started, so its instructions are
+      // `model.instructions[N]`.
       final bySession = <String, List<String>>{};
       for (final p in model.prompts) {
         bySession.putIfAbsent(p.session, () => []).add(p.prompt);
       }
       expect(bySession.length, greaterThan(5));
-      final instructions = estimateCoachTokens(model.instructions.first);
       for (final MapEntry(key: id, value: prompts) in bySession.entries) {
-        var used = instructions;
+        final instructions = model.instructions[int.parse(id.substring(1))];
+        // Summaries run under the summary instructions, never the coaching
+        // ones (which ask for questions); every other session coaches.
+        expect(
+          instructions,
+          prompts.first.startsWith(CoachInstructions.summaryRequest)
+              ? CoachInstructions.summary
+              : startsWith(CoachInstructions.chat),
+          reason: 'session $id',
+        );
+        var used = estimateCoachTokens(instructions);
         for (final prompt in prompts) {
           expect(
             used + budget.turnCost(prompt),
@@ -284,7 +295,7 @@ void main() {
   });
 
   group('endCoachSession', () {
-    test('asks for a neutral summary under the same instructions, then '
+    test('asks for a neutral summary under the summary instructions, then '
         'stores it with the end time', () async {
       final controller = await start();
       await controller.sendCoachMessage('I skipped Wednesday.');
@@ -297,9 +308,10 @@ void main() {
         startsWith(CoachInstructions.summaryRequest),
       );
       expect(summaryPrompt.prompt, contains('Person: I skipped Wednesday.'));
-      // A separate model session, with the same instructions.
+      // A separate model session, primed to summarise, not to coach.
       expect(summaryPrompt.session, isNot('s0'));
-      expect(model.instructions.last, model.instructions.first);
+      expect(model.instructions.first, startsWith(CoachInstructions.chat));
+      expect(model.instructions.last, CoachInstructions.summary);
 
       final stored = repository.sessions.single;
       expect(stored.summary, 'A short summary.');

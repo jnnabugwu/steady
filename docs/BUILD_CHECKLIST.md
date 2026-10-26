@@ -201,10 +201,12 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       per day. Coach history that can't be read doesn't block the export (decided
       2026-10-25): `coachSessions` is `null` and the screen says it was left out; it's
       the one exception to "an export is never partial" (#78).
-- [ ] Coach summary prompt (#79/#82): asks for tracking habits and next week's plan,
-      leaving out cravings and exact numbers (cravings aren't in the export). A model
-      can't be held to that every time, so a summary may still mention a Health number or
-      a craving (CLAUDE.md §7, PRIVACY.md).
+- [x] Coach summary prompt (#79/#82): summaries run in their own model session under
+      `CoachInstructions.summary` (not the coaching instructions, which ask questions),
+      asking for tracking habits and next week's plan, leaving out cravings and exact
+      numbers (cravings aren't in the export). A model can't be held to that every time,
+      so a summary may still mention a Health number or a craving (CLAUDE.md §7,
+      PRIVACY.md).
 - [x] `coach_presentation`: chat on the iPhone (#80). The Coach tab (iPhone only; the Mac
       has the shell branch but no tab, and `/coach` redirects home), a live session with a
       streaming reply, a stop button, the transcript saved as it grows and a model-written

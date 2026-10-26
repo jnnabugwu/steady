@@ -136,18 +136,78 @@ void main() {
       expect(text, endsWith("The person's data:\nMon Oct 19: logged fully"));
     });
 
-    test('the summary request is short and neutral', () {
+    test('the summary request is short and defers to the summary '
+        'instructions', () {
       const request = CoachInstructions.summaryRequest;
-      for (final phrase in [
-        'neutral',
-        'No advice',
-        'no questions',
-        'no judgement',
-        'no numbers that are not in the conversation',
-      ]) {
-        expect(request, contains(phrase), reason: phrase);
-      }
+      expect(request, contains('neutral'));
+      expect(request, contains('following your instructions'));
       expect(request.length, lessThan(400));
+    });
+  });
+
+  group('summary instructions', () {
+    const text = CoachInstructions.summary;
+    final lower = text.toLowerCase();
+
+    void expectAll(List<String> phrases) {
+      for (final phrase in phrases) {
+        expect(lower, contains(phrase.toLowerCase()), reason: phrase);
+      }
+    }
+
+    test("don't carry the coaching rules, which ask for questions", () {
+      // The coaching rules say "ask questions"; a summary must not.
+      expect(text, isNot(contains(CoachInstructions.rules)));
+      expect(lower, isNot(contains('ask questions')));
+      expectAll(['you are not the coach', "don't coach", "don't ask anything"]);
+    });
+
+    test('covers tracking habits and next week, briefly', () {
+      expectAll([
+        'two or three short, neutral sentences',
+        'tracking habits',
+        'anything they chose to try next week',
+      ]);
+    });
+
+    test('gives no advice, questions, judgement, streaks or praise', () {
+      expectAll([
+        'No advice, no questions and no judgement',
+        'No streaks, grades, scores or praise',
+        "Don't call days or foods good or bad",
+      ]);
+    });
+
+    test('leaves out cravings and exact numbers (CLAUDE.md §7)', () {
+      expectAll([
+        'Leave out cravings',
+        'Leave out exact numbers',
+        'no calories, steps, weights or counts',
+      ]);
+    });
+
+    test('never adds calorie targets, weight goals, deficits or diets', () {
+      expectAll([
+        'Never add a calorie target',
+        'a weight goal',
+        'a calorie deficit',
+        'a diet',
+        'a meal plan',
+      ]);
+    });
+
+    test('handles disordered eating or a crisis without detail', () {
+      expectAll([
+        'disordered eating',
+        'out of control with food',
+        'a crisis',
+        'say only that they talked about something hard',
+        'were pointed to help',
+      ]);
+    });
+
+    test('stays short enough for the on-device context', () {
+      expect(text.length, lessThan(2600));
     });
   });
 
