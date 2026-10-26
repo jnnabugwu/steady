@@ -4,9 +4,23 @@ import 'package:coach_domain/coach_domain.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/src/export_file.dart';
 import 'package:data_export_domain/src/export_format.dart';
+import 'package:failures/failures.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'export_bundle.freezed.dart';
+
+/// Why a JSON export left out the coach history.
+enum CoachHistoryLeftOut {
+  /// The stored history isn't in the format Steady writes
+  /// (`CoachHistoryUnreadableFailure`). It stays that way until the person
+  /// deletes it in Settings → Coach.
+  unreadable,
+
+  /// Any other read failure, such as a file-system error
+  /// (`CoachHistoryStorageFailure`). The history may be fine, so exporting
+  /// again may include it.
+  readFailed,
+}
 
 /// Everything one export holds, and how it's written as CSV or JSON.
 ///
@@ -21,12 +35,26 @@ part 'export_bundle.freezed.dart';
 /// coach discussed; that's accepted, since the export is a file the person
 /// chooses to share, not iCloud storage (CLAUDE.md §7).
 ///
+/// **Coach history that can't be read is left out, not fatal** (decided
+/// 2026-10-25): [coachHistoryFailure] holds why, [coachSessions] is
+/// `null`, and the JSON writes `"coachSessions": null`. So `coachSessions`
+/// has three states: an array (the sessions, possibly `[]`), `null` (this
+/// device has a coach, but its history couldn't be read, so it isn't in
+/// this file), and absent (no coach on this device, the Mac). It's the one
+/// part of an export that may be missing; the daily rows never are.
+/// [coachHistoryLeftOut] says which kind of read failure it was, so the
+/// screen can say what to do about it.
+///
 /// **Null is not zero.** A missing field is written as an empty CSV cell
 /// and a JSON `null`, never `0`: "logged zero" and "nothing recorded" mean
 /// different things (see `DailyMetric`).
 @freezed
 abstract class ExportBundle with _$ExportBundle {
   /// Creates an export bundle.
+  @Assert(
+    'coachHistoryFailure == null || coachSessions == null',
+    'unreadable coach history has no sessions to export',
+  )
   const factory ExportBundle({
     /// When the export was made. Written to the JSON as UTC ISO 8601, and
     /// its local calendar date names the file.
@@ -36,21 +64,45 @@ abstract class ExportBundle with _$ExportBundle {
     required List<DailyMetric> dailyMetrics,
 
     /// The coach sessions to export, in any order: the JSON lists them
-    /// oldest first. `null` where this device has no coach (the Mac), so
-    /// the JSON leaves the key out; an empty list is a coach with no
-    /// sessions yet. Only each session's date, kind and summary are
-    /// written.
+    /// oldest first. An empty list is a coach with no sessions yet. Only
+    /// each session's date, kind and summary are written.
+    ///
+    /// `null` in two cases, told apart by [coachHistoryFailure]:
+    /// - no coach on this device (the Mac; [coachHistoryFailure] is
+    ///   `null`): the JSON leaves the `coachSessions` key out;
+    /// - the coach history couldn't be read ([coachHistoryFailure] is
+    ///   set): the JSON writes `"coachSessions": null`.
     List<CoachSession>? coachSessions,
+
+    /// Why this device's coach history couldn't be read, or `null` if it
+    /// was read (or there's no coach). When set, [coachSessions] is `null`
+    /// and the JSON's `coachSessions` is `null` (left out) rather than
+    /// absent or an array. Never written to the file.
+    Failure? coachHistoryFailure,
   }) = _ExportBundle;
 
   const ExportBundle._();
+
+  /// Whether this device has a coach whose history couldn't be read, so
+  /// it was left out of the export.
+  bool get coachHistoryUnreadable => coachHistoryFailure != null;
+
+  /// What kind of failure left the coach history out, or `null` if
+  /// nothing was left out.
+  CoachHistoryLeftOut? get coachHistoryLeftOut => switch (coachHistoryFailure) {
+    null => null,
+    CoachHistoryUnreadableFailure() => CoachHistoryLeftOut.unreadable,
+    _ => CoachHistoryLeftOut.readFailed,
+  };
 
   /// The JSON export's format version. Bump it when the JSON shape changes
   /// in a way an importer has to know about.
   ///
   /// - 1: `exportedAt` and `dailyMetrics`.
   /// - 2: adds `coachSessions` ([coachSessionColumns]), present only in an
-  ///   export made on a device with the coach (the iPhone).
+  ///   export made on a device with the coach (the iPhone): an array of
+  ///   sessions, or `null` when the coach history couldn't be read and was
+  ///   left out ([coachHistoryUnreadable]).
   static const int schemaVersion = 2;
 
   /// CSV header and JSON object keys for one day, in their stable order.
@@ -93,8 +145,10 @@ abstract class ExportBundle with _$ExportBundle {
   /// "coachSessions": [...]}`, indented, with one object per day sorted by
   /// date and every key present. A null field stays `null`.
   ///
-  /// `coachSessions` is there only when [coachSessions] isn't `null`: one
-  /// object per session (`date`, `kind`, `summary`), oldest first.
+  /// `coachSessions` is an array when [coachSessions] isn't `null`: one
+  /// object per session (`date`, `kind`, `summary`), oldest first. It's
+  /// `null` when [coachHistoryUnreadable], and absent otherwise (no coach
+  /// on this device).
   String encodeJson() => const JsonEncoder.withIndent('  ').convert({
     'schemaVersion': schemaVersion,
     'exportedAt': exportedAt.toUtc().toIso8601String(),
@@ -106,7 +160,9 @@ abstract class ExportBundle with _$ExportBundle {
       'coachSessions': [
         for (final session in [...sessions]..sort(_oldestFirst))
           {for (final (name, read) in _coachFields) name: read(session)},
-      ],
+      ]
+    else if (coachHistoryUnreadable)
+      'coachSessions': null,
   });
 
   List<DailyMetric> get _sortedMetrics =>

@@ -134,4 +134,27 @@ void main() {
     expect(find.bySemanticsLabel('Delete coach history'), findsOneWidget);
     semantics.dispose();
   });
+
+  testWidgets('the delete control is teal, never red (coach colour rule)', (
+    tester,
+  ) async {
+    await pump(tester);
+    final button = find.byKey(const Key('coachDeleteHistoryButton'));
+    final icon = tester.widget<Icon>(
+      find.descendant(of: button, matching: find.byType(Icon)),
+    );
+    expect(icon.color, SteadyColors.accentTeal);
+    final label = tester.widget<Text>(
+      find.descendant(of: button, matching: find.text('Delete coach history')),
+    );
+    expect(label.style?.color, SteadyColors.accentTeal);
+
+    await tapDelete(tester);
+    // The dialog's Delete is a PrimaryButton, whose fill is the theme's
+    // primary: the teal accent.
+    final confirm = find.byKey(const Key('coachDeleteConfirm'));
+    expect(tester.widget(confirm), isA<PrimaryButton>());
+    expect(steadyTheme.colorScheme.primary, SteadyColors.accentTeal);
+    expect(find.byType(DestructiveButton), findsNothing);
+  });
 }

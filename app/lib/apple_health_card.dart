@@ -140,9 +140,9 @@ class AppleHealthCard extends ConsumerWidget {
       ),
       HealthAuthorizationStatus.notDetermined => (
         'Not connected',
-        'Show your daily steps and burned calories next to what you ate. '
-            'Steady only reads them, on this iPhone: it never stores them in '
-            'iCloud and never writes to Apple Health.',
+        'Show your daily steps, burned calories and weight next to what '
+            'you ate. Steady only reads them, on this iPhone: it never stores '
+            'them in iCloud and never writes to Apple Health.',
       ),
       HealthAuthorizationStatus.requested => switch (totals?.value) {
         // Still reading: the same copy as the access check, not a status
@@ -150,17 +150,18 @@ class AppleHealthCard extends ConsumerWidget {
         null => (_checking, null),
         final days when days.isEmpty => (
           'Not allowed, or no data yet',
-          'Apple Health returned no steps or energy for the last '
+          'Apple Health returned no steps, energy or weight for the last '
               "$healthHistoryDays days. If you didn't allow access, open "
               'the Health app, tap your profile picture, then Apps, then '
-              'Steady, and turn on Steps, Active Energy and Resting Energy.',
+              'Steady, and turn on Steps, Active Energy, Resting Energy and '
+              'Weight.',
         ),
         _ => (
           'Connected',
-          'Steady reads your last $healthHistoryDays days of steps and '
-              'burned calories from Apple Health each time you open it, and '
-              "only shows them here: it doesn't store them or sync them to "
-              'your other devices.',
+          'Steady reads your last $healthHistoryDays days of steps, burned '
+              'calories and weight from Apple Health each time you open it, '
+              "and only shows them here: it doesn't store them or sync them "
+              'to your other devices.',
         ),
       },
     };

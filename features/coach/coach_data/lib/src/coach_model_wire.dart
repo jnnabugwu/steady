@@ -24,13 +24,25 @@ abstract final class CoachModelChannel {
   static const name = 'steady/coach';
 
   /// The event channel the replies stream on. Listen arguments are
-  /// `{sessionId: String, prompt: String, maximumResponseTokens: int}`
-  /// ([maximumResponseTokens]). Each event is a String: the
-  /// whole reply so far (a snapshot). The stream ends after the last
-  /// snapshot, or after one error event whose code is one of
-  /// [inferenceCodes]' keys, [unavailableCode] or [sessionNotFoundCode].
-  /// Cancelling the subscription stops the model. Only one stream is live
-  /// at a time: a new listen cancels the old one.
+  /// `{requestId: int, sessionId: String, prompt: String,
+  /// maximumResponseTokens: int}` ([maximumResponseTokens]); `requestId`
+  /// is new for every listen, and `cancel` sends the same arguments back.
+  ///
+  /// Every event is a map tagged with that `requestId`, so an event from an
+  /// earlier listen can be told apart and dropped:
+  /// - `{requestId, snapshot: String}`: the whole reply so far;
+  /// - `{requestId, done: true}`: the reply finished;
+  /// - `{requestId, error: String, message: String?, reason: String?}`:
+  ///   the reply failed, `error` one of [inferenceCodes]' keys,
+  ///   [unavailableCode] (with `reason`, one of [unavailableReasons]' keys),
+  ///   [sessionNotFoundCode] or [invalidArgumentsCode].
+  ///
+  /// `done` or an error is the last event; the native side sends no
+  /// end-of-stream message, which couldn't carry a `requestId`. Cancelling
+  /// the subscription stops the model, and a cancelled reply sends nothing
+  /// more. Only one stream is live at a time: a new listen cancels the old
+  /// one, and the native side waits for it to stop before starting the new
+  /// reply.
   static const responsesName = 'steady/coach/responses';
 
   /// No arguments. Returns `{status: 'available', contextSize: int}` or
@@ -44,16 +56,24 @@ abstract final class CoachModelChannel {
   static const startSessionMethod = 'startSession';
 
   /// Arguments `{sessionId: String}`. Stops the reply in flight in that
-  /// session, if any; its event stream ends. Returns `null`.
+  /// session, if any; its event stream gets `done` and ends. Returns
+  /// `null`.
   static const cancelResponseMethod = 'cancelResponse';
 
-  /// Arguments `{sessionId: String}`. Cancels any reply in flight and drops
-  /// the session. Returns `null`.
+  /// Arguments `{sessionId: String}`. Stops any reply in flight in that
+  /// session (its event stream gets `done` and ends) and drops the
+  /// session. Returns `null`.
   static const endSessionMethod = 'endSession';
 
   /// The `FlutterError` code for "the model can't run"; `details` is the
   /// reason, one of [unavailableReasons]' keys.
   static const unavailableCode = 'unavailable';
+
+  /// The error code for a listen without a `requestId` or a prompt, which
+  /// `MethodChannelCoachModel` never sends (it checks the prompt first).
+  /// Like any code not in [inferenceCodes], it maps to
+  /// `CoachInferenceFailureReason.other`.
+  static const invalidArgumentsCode = 'invalidArguments';
 
   /// The `FlutterError` code for a session id the native side doesn't have
   /// (ended, or lost when the app restarted).

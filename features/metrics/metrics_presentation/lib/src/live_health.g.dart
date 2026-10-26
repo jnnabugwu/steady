@@ -235,3 +235,67 @@ final class HealthDayTotalsFamily extends $Family
   @override
   String toString() => r'healthDayTotalsProvider';
 }
+
+/// The unit the Health app shows weight in, for Today's weight card.
+/// Kilograms where [metricsHealthKitRepositoryProvider] is `null` (macOS,
+/// which has no weight to show anyway). A Health error throws its
+/// [Failure] into `AsyncError`; until the permission sheet has been shown,
+/// that's the expected answer.
+///
+/// Auto-dispose like [healthDayTotalsProvider], and invalidated with it on
+/// every refresh, so a unit changed in the Health app shows on return.
+
+@ProviderFor(healthWeightUnit)
+final healthWeightUnitProvider = HealthWeightUnitProvider._();
+
+/// The unit the Health app shows weight in, for Today's weight card.
+/// Kilograms where [metricsHealthKitRepositoryProvider] is `null` (macOS,
+/// which has no weight to show anyway). A Health error throws its
+/// [Failure] into `AsyncError`; until the permission sheet has been shown,
+/// that's the expected answer.
+///
+/// Auto-dispose like [healthDayTotalsProvider], and invalidated with it on
+/// every refresh, so a unit changed in the Health app shows on return.
+
+final class HealthWeightUnitProvider
+    extends
+        $FunctionalProvider<
+          AsyncValue<WeightUnit>,
+          WeightUnit,
+          FutureOr<WeightUnit>
+        >
+    with $FutureModifier<WeightUnit>, $FutureProvider<WeightUnit> {
+  /// The unit the Health app shows weight in, for Today's weight card.
+  /// Kilograms where [metricsHealthKitRepositoryProvider] is `null` (macOS,
+  /// which has no weight to show anyway). A Health error throws its
+  /// [Failure] into `AsyncError`; until the permission sheet has been shown,
+  /// that's the expected answer.
+  ///
+  /// Auto-dispose like [healthDayTotalsProvider], and invalidated with it on
+  /// every refresh, so a unit changed in the Health app shows on return.
+  HealthWeightUnitProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: _retryUnlessFailure,
+        name: r'healthWeightUnitProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$healthWeightUnitHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<WeightUnit> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<WeightUnit> create(Ref ref) {
+    return healthWeightUnit(ref);
+  }
+}
+
+String _$healthWeightUnitHash() => r'63156343d92cd7f75bb78e6524eb77a6bcd9a8c3';

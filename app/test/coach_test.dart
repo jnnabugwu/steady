@@ -91,6 +91,39 @@ void main() {
           .listSessions();
       expect((result as Ok<List<CoachSession>>).value, [session]);
     });
+
+    test('a corrupt iOS coach file leaves the coach out of the export but '
+        "doesn't block it", () async {
+      final dir = Directory.systemTemp.createTempSync('steady_coach');
+      addTearDown(() => dir.deleteSync(recursive: true));
+      final file = File('${dir.path}/coach_sessions.json')
+        ..writeAsStringSync('{not json');
+      final container = ProviderContainer.test(
+        overrides: [
+          ...appProviderOverridesFor(isIOS: false),
+          coachSupportAvailableProvider.overrideWithValue(true),
+          coachRepositoryProvider.overrideWith(
+            (ref) => FileCoachRepository(file),
+          ),
+          exportCoachRepositoryProvider.overrideWith(
+            (ref) => ref.watch(coachRepositoryProvider),
+          ),
+        ],
+      );
+
+      final result = await readExportBundle(
+        container.read(exportDailyMetricRepositoryProvider),
+        exportedAt: DateTime(2026, 10, 25),
+        coachRepository: container.read(exportCoachRepositoryProvider),
+      );
+      final bundle = (result as Ok<ExportBundle>).value;
+      expect(bundle.coachHistoryLeftOut, CoachHistoryLeftOut.unreadable);
+      final json = jsonDecode(bundle.encodeJson()) as Map<String, Object?>;
+      expect(json.containsKey('coachSessions'), isTrue);
+      expect(json['coachSessions'], isNull);
+      // Never overwritten: deleting it in Settings is the way out.
+      expect(file.readAsStringSync(), '{not json');
+    });
   });
 
   group('in the app', () {

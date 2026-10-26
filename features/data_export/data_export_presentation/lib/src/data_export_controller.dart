@@ -28,8 +28,11 @@ class DataExportController extends _$DataExportController {
   /// (including whether the user dismissed the sheet); on failure it
   /// becomes an `AsyncError` carrying the [Failure].
   ///
-  /// A failed read never reaches the share sheet, so no partial or empty
-  /// file is ever presented as a complete export.
+  /// A failed read of the daily rows never reaches the share sheet, so no
+  /// partial or empty file is ever presented as a complete export. The one
+  /// exception is coach history that can't be read: the export goes ahead
+  /// without it, and for JSON the receipt's `coachHistoryLeftOut` is set so
+  /// the screen says so (see `readExportBundle`).
   ///
   /// Ignored while another export is in flight (including while its share
   /// sheet is still open), so double taps can't start two, and after the
@@ -81,6 +84,9 @@ class DataExportController extends _$DataExportController {
           fileName: file.fileName,
           dayCount: bundle.dailyMetrics.length,
           outcome: outcome,
+          coachHistoryLeftOut: format == ExportFormat.json
+              ? bundle.coachHistoryLeftOut
+              : null,
         ),
       ),
       Err(:final failure) => Err(failure),

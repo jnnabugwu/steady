@@ -55,14 +55,28 @@ class FakeMetrics implements MetricsRepository {
   }) async => const Ok([]);
 }
 
-/// Apple Health's totals by local midnight.
+/// Apple Health's totals by local calendar day.
+///
+/// Honours `HealthKitRepository`'s local-day contract like the real
+/// channel: seeded keys and dates, and both range bounds, are reduced to
+/// their local calendar day (a UTC `DateTime` converted to local first), so
+/// a test using UTC or a time of day reads the days it means.
 class FakeHealth implements HealthKitRepository {
-  FakeHealth([Map<DateTime, HealthDayTotals>? totals]) : totals = totals ?? {};
+  FakeHealth([Map<DateTime, HealthDayTotals>? totals])
+    : totals = {
+        for (final MapEntry(:key, :value) in (totals ?? {}).entries)
+          _localDay(key): value.copyWith(date: _localDay(value.date)),
+      };
 
   final Map<DateTime, HealthDayTotals> totals;
 
   /// When set, every read fails.
   Failure? failure;
+
+  static DateTime _localDay(DateTime date) {
+    final local = date.toLocal();
+    return DateTime(local.year, local.month, local.day);
+  }
 
   @override
   ResultFuture<List<HealthDayTotals>> dailyTotals(
@@ -70,10 +84,11 @@ class FakeHealth implements HealthKitRepository {
     DateTime end,
   ) async {
     if (failure case final f?) return Err(f);
+    final last = _localDay(end);
     return Ok([
       for (
-        var d = DateTime(start.year, start.month, start.day);
-        !d.isAfter(end);
+        var d = _localDay(start);
+        !d.isAfter(last);
         d = DateTime(d.year, d.month, d.day + 1)
       )
         totals[d] ?? HealthDayTotals(date: d),
@@ -89,6 +104,10 @@ class FakeHealth implements HealthKitRepository {
 
   @override
   ResultFuture<Unit> requestAuthorization() async => const Ok(unit);
+
+  @override
+  ResultFuture<WeightUnit> preferredWeightUnit() async =>
+      const Ok(WeightUnit.kilograms);
 }
 
 /// Craving check-ins.
