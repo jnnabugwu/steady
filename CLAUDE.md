@@ -371,11 +371,21 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
-  // The app chooses what completion means. Today: nothing, so the screen stays up
-  // showing the logged status. Another route might pop, or go somewhere else.
+  // The app chooses what completion means. Today: the screen stays up showing the
+  // logged status, and the coach's weekly readiness is read again (a past day's
+  // check-in can change it). Another route might pop, or go somewhere else.
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CheckInModule(date: date, onCheckInCompleted: () {});
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return CheckInModule(
+      date: date,
+      onCheckInCompleted: () {
+        if (container.read(coachSupportAvailableProvider)) {
+          container.invalidate(weeklyReadinessProvider);
+        }
+      },
+    );
+  }
 }
 ```
 
@@ -399,9 +409,10 @@ Facts about that route worth knowing before adding the next one:
   (`redirectMalformedCheckIn`) sends a `/checkin/<segment>` with no valid leading date
   (e.g. `/checkin/garbage`, `/checkin/2026-02-30`) to `/`, so `CheckInRoute` is never
   built for it.
-- **`onCheckInCompleted` is a no-op today.** It stays on `CheckInModule` as the
-  feature's callback contract; the route passes `() {}`. `CheckInModule` normalizes
-  `date` to midnight itself, for its provider key.
+- **`onCheckInCompleted` only refreshes the coach's weekly readiness** (iPhone): a
+  past day's check-in can change whether last week passes the 4-of-7 rule behind
+  Today's coach nudge. The screen itself stays up. `CheckInModule` normalizes `date`
+  to midnight itself, for its provider key.
 - When a callback does need a provider (e.g. `HomeRoute`'s import refresh), read the
   container once in `build` with `ProviderScope.containerOf(context, listen: false)`
   and close over it. An `Err` with no UI to show it in is reported via

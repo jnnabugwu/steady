@@ -227,6 +227,17 @@ void main() {
     review(tester, 'weekly, thin week');
   });
 
+  testWidgets("Settings' Coach card and its delete dialog", (tester) async {
+    await pump(tester, const SingleChildScrollView(child: CoachSettingsCard()));
+    expect(find.byKey(const Key('coachSettingsCard')), findsOneWidget);
+    review(tester, 'Settings card');
+
+    await tester.tap(find.byKey(const Key('coachDeleteHistoryButton')));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete coach history?'), findsOneWidget);
+    review(tester, 'Settings, delete dialog');
+  });
+
   testWidgets('a past session', (tester) async {
     await pump(tester, CoachTranscriptModule(sessionId: 'w', onBack: () {}));
     review(tester, 'transcript');

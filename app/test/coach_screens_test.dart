@@ -38,8 +38,10 @@ void main() {
     _MemoryRepository? repository,
     String? coldStart,
     DateTime? now,
+    DateTime Function()? clock,
     int checkInsLastWeek = 0,
   }) async {
+    final readClock = clock ?? (now == null ? null : () => now);
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -63,17 +65,17 @@ void main() {
             (ref) => ref.watch(metricsRepositoryProvider),
           ),
         ],
-        if (now != null) ...[
-          coachClockProvider.overrideWithValue(() => now),
-          checkInClockProvider.overrideWithValue(() => now),
+        if (readClock != null) ...[
+          coachClockProvider.overrideWithValue(readClock),
+          checkInClockProvider.overrideWithValue(readClock),
         ],
       ],
     );
     addTearDown(container.dispose);
     // Check-ins on the first days of the week the weekly session looks
     // back on, through the app's shared store.
-    if (now != null) {
-      final first = coachWeeklyWindow(now).first;
+    if (readClock != null) {
+      final first = coachWeeklyWindow(readClock()).first;
       for (var i = 0; i < checkInsLastWeek; i++) {
         await container
             .read(checkInRepositoryProvider)
@@ -274,6 +276,30 @@ void main() {
       expect(repository.sessions.single.kind, CoachSessionKind.weekly);
       // Done for this week: the nudge is gone.
       expect(nudge, findsNothing);
+    });
+
+    testWidgets('"Not tonight" lasts the day: back in the app the next '
+        'morning, the nudge is offered again', (tester) async {
+      var now = DateTime(2026, 10, 23, 20);
+      await pumpApp(tester, isIOS: true, clock: () => now, checkInsLastWeek: 4);
+      final nudge = find.byKey(const Key('coachNudgeCard'));
+      final scrollable = find.descendant(
+        of: find.byKey(const Key('todayScroll')),
+        matching: find.byType(Scrollable),
+      );
+      await tester.scrollUntilVisible(nudge, 200, scrollable: scrollable);
+      await tester.tap(find.byKey(const Key('coachNudgeNotTonight')));
+      await tester.pumpAndSettle();
+      expect(nudge, findsNothing);
+
+      // Saturday morning, back in the app.
+      now = DateTime(2026, 10, 24, 9);
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(nudge, 200, scrollable: scrollable);
+      expect(nudge, findsOneWidget);
     });
 
     testWidgets('a week with three check-ins: no nudge', (tester) async {

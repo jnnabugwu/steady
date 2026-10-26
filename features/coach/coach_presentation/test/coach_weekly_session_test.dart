@@ -129,6 +129,43 @@ void main() {
       },
     );
 
+    test('Begin after a new week began (the screen left open into a '
+        "Friday) sets the coach up again with that week's data", () async {
+      // Thursday night: the last finished week is Oct 9 – 15.
+      var now = DateTime(2026, 10, 22, 23);
+      checkIns = FakeCheckIns({
+        for (var i = 0; i < 4; i++) ...{
+          DateTime(2026, 10, 9 + i): CheckInStatus.logged,
+          DateTime(2026, 10, 16 + i): CheckInStatus.logged,
+        },
+      });
+      container = ProviderContainer.test(
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          checkIns: checkIns,
+          cravings: cravings,
+          now: () => now,
+        ),
+      )..listen(provider, (_, _) {});
+      await pumpEventQueue();
+      expect(state().weekFirst, DateTime(2026, 10, 9));
+      expect(model.instructions.single, contains('Thu Oct 15'));
+
+      // Friday morning, Begin: the finished week is now Oct 16 – 22.
+      now = DateTime(2026, 10, 23, 9);
+      await container.read(provider.notifier).startWeeklySession();
+      expect(state().weekFirst, DateTime(2026, 10, 16));
+      expect(model.instructions, hasLength(2));
+      expect(model.instructions.last, contains('Thu Oct 22'));
+      expect(model.instructions.last, isNot(contains('Thu Oct 15')));
+      // The session primed with the old week is gone; the coach opened
+      // logging in the new one.
+      expect(model.ended, contains('s0'));
+      expect(state().topic, WeeklyTopic.logging);
+      expect(state().phase, CoachSessionPhase.ready);
+    });
+
     test('Begin after the week lost check-ins does not start', () async {
       final controller = await start();
       checkIns.statuses.clear();

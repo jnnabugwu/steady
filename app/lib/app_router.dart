@@ -308,7 +308,7 @@ class CoachRoute extends GoRouteData with $CoachRoute {
 
   @override
   String? redirect(BuildContext context, GoRouterState state) =>
-_homeWhereNoCoach(context);
+      _homeWhereNoCoach(context);
 
   @override
   Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
@@ -356,7 +356,7 @@ class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
 
   @override
   String? redirect(BuildContext context, GoRouterState state) =>
-_homeWhereNoCoach(context);
+      _homeWhereNoCoach(context);
 
   @override
   Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
@@ -466,11 +466,22 @@ class CheckInRoute extends GoRouteData with $CheckInRoute {
   @CustomParameterCodec(encode: encodeCheckInDate, decode: decodeCheckInDate)
   final DateTime date;
 
-  /// Nothing happens on completion: the screen stays up showing the logged
-  /// status, with its "Share week" action still in reach.
+  /// On completion the screen stays up showing the logged status, with its
+  /// "Share week" action still in reach. The coach's weekly readiness is
+  /// read again: a check-in for a past day can change whether last week
+  /// passes the 4-of-7 rule, and so whether Today offers the nudge.
   @override
-  Widget build(BuildContext context, GoRouterState state) =>
-      CheckInModule(date: date, onCheckInCompleted: () {});
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return CheckInModule(
+      date: date,
+      onCheckInCompleted: () {
+        if (container.read(coachSupportAvailableProvider)) {
+          container.invalidate(weeklyReadinessProvider);
+        }
+      },
+    );
+  }
 }
 
 /// Path encoder for [CheckInRoute.date].

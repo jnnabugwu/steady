@@ -233,13 +233,10 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [x] UI review of coach screens against the no-shame rules (#82): teal ladder and
       neutrals only, no streaks, scores, grades or praise/blame words, topics shown as a
       position, never a checkmark. `coach_no_shame_test.dart` sweeps the Coach tab, the
-      nudge, a weekly session, a thin week and a past transcript — text, fills, borders
-      and icons — in both available and unavailable states.
-- [ ] Not swept, and the one open question: the Settings card's "Delete coach history"
-      uses the theme's muted red (`#B05C5C`) for a destructive action, as the cravings
-      card does. It marks the action, not the person's data, but #82 says no
-      red/yellow/green anywhere in coach UI. Decide, then either recolour it or add
-      `CoachSettingsCard` to the sweep with the exception recorded.
+      nudge, a weekly session, a thin week, a past transcript and Settings' Coach card
+      with its delete dialog — text, fills, borders and icons — in both available and
+      unavailable states. "Delete coach history" is teal like the rest (#78), not the
+      theme's destructive red; its wording and the confirm dialog carry the warning.
 - [ ] When the coach ships (screens, storage, Settings → Coach delete and the export's
       coach summaries all in one release), drop the "The coach isn't in Steady yet"
       paragraph from `docs/PRIVACY.md`'s Coach section and update its effective date.

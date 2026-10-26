@@ -2,6 +2,7 @@ import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/src/coach_history_providers.dart';
 import 'package:coach_presentation/src/coach_weekly_readiness.dart';
 import 'package:coach_presentation/src/coach_widgets.dart';
+import 'package:coach_presentation/src/date_labels.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -95,10 +96,10 @@ Future<WeeklyReadiness?> coachNudge(Ref ref) async {
 /// A week as the coach screens name it: "Oct 16 – 22", or "Oct 30 –
 /// Nov 5" across a month.
 String coachWeekLabel(DateTime first, DateTime last) {
-  final from = '${_months[first.month - 1]} ${first.day}';
+  final from = '${shortMonth(first)} ${first.day}';
   return first.month == last.month
       ? '$from – ${last.day}'
-      : '$from – ${_months[last.month - 1]} ${last.day}';
+      : '$from – ${shortMonth(last)} ${last.day}';
 }
 
 /// The Today screen's coach nudge (`TodayScreen.coachNudge`, iPhone only).
@@ -283,18 +284,3 @@ class _CoachHeader extends StatelessWidget {
     ],
   );
 }
-
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];

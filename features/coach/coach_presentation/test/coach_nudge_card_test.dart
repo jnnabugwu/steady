@@ -145,6 +145,22 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('four check-ins but three days unreadable: no nudge', (
+    tester,
+  ) async {
+    checkIns =
+        FakeCheckIns({
+            for (var d = 16; d <= 19; d++)
+              DateTime(2026, 10, d): CheckInStatus.partial,
+          })
+          ..failingDays.addAll([
+            for (var d = 20; d <= 22; d++) DateTime(2026, 10, d),
+          ]);
+    await pump(tester);
+    expect(card, findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('a check-in store that fails: no nudge, no error on Today', (
     tester,
   ) async {

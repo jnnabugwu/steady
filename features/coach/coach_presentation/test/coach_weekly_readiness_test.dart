@@ -74,6 +74,19 @@ void main() {
       expect((result as Ok<WeeklyReadiness>).value.daysWithCheckIn, 0);
     });
 
+    test('four readable check-ins and three failed reads: allowed, but '
+        'marked as partly unread', () async {
+      final checkIns = days(4)
+        ..failingDays.addAll([
+          for (var d = 20; d <= 22; d++) DateTime(2026, 10, d),
+        ]);
+      final result = await CheckWeeklyReadiness(checkIns)(friday);
+      final week = (result as Ok<WeeklyReadiness>).value;
+      expect(week.daysWithCheckIn, 4);
+      expect(week.allowed, isTrue);
+      expect(week.anyDayUnreadable, isTrue);
+    });
+
     test('a store that fails on every day is the failure, never a quiet '
         'week', () async {
       final checkIns = days(7)..failure = const UnknownFailure('down');
