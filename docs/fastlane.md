@@ -99,6 +99,11 @@ Connect. After that, a release is one workflow run.
 
 ## Running it
 
+**Not yet on GitHub's runners:** the coach needs Xcode 27 (the iOS 27 SDK), and GitHub's macOS
+images stop at Xcode 26.6 for now. Until they add it, a `beta` run stops at its "Xcode 27"
+step with an error saying so; upload from your Mac instead (below). The run picks Xcode 27 up
+by itself once the image has it. `release` builds nothing, so it works either way.
+
 1. Merge to `main`, and let `test.yml` go green.
 2. Actions → Ship iOS → Run workflow → branch `main` → lane `beta`. This takes about 15–25
    minutes. The build then processes in App Store Connect for another 5–30.
