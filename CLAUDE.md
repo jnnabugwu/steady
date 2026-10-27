@@ -15,6 +15,11 @@
 
 ## 1. Stack
 
+- **The Mac is parked (2026-10-27).** Steady is scoped and shipped as an iPhone app. The
+  macOS target stays in the repo but isn't released or built in CI, and new features need
+  no Mac code path or Mac caveat. Where this doc still describes the Mac, that's how the
+  code is today, not a requirement for new work. Decision record:
+  `docs/technical_decisions.md`, "The Mac is parked".
 - **Flutter** — one app, two platform targets (iOS + macOS), sharing one Dart codebase
   and one set of feature packages. Not two apps like the generic starter template — there's
   one product here, just two places it runs.

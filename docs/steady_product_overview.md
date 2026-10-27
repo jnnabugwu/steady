@@ -1,6 +1,7 @@
 # Steady — Product Overview
 
-*An iOS + macOS app for tracking food, steps, and consistency — with an on-device coach.
+*An iPhone app for tracking food, steps, and consistency — with an on-device coach. (The
+macOS target is parked, 2026-10-27: see `docs/technical_decisions.md`.)
 Built for personal use first, then opened to a small group of friends via TestFlight (US,
 Apple-only), each with their own private copy of their data.*
 
