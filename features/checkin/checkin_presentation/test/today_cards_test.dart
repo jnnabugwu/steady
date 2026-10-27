@@ -152,6 +152,42 @@ void main() {
       expect(days.last.status, isNull);
     });
 
+    testWidgets('calories eaten sit beside the stones; a live value wins', (
+      tester,
+    ) async {
+      metrics.onGetRange = (_, _) => Ok([
+        DailyMetric(
+          date: DateTime(2026, 10, 16),
+          loggingStatus: LoggingStatus.logged,
+          caloriesEaten: 1840,
+        ),
+        DailyMetric(
+          date: DateTime(2026, 10, 17),
+          loggingStatus: LoggingStatus.partial,
+          caloriesEaten: 2310,
+        ),
+      ]);
+      await pump(
+        tester,
+        CairnWeekCard(
+          date: today,
+          liveCaloriesEaten: {
+            // Wins over the import's 2,310.
+            DateTime(2026, 10, 17): 2050,
+            // A day logged in Cal AI, never imported.
+            DateTime(2026, 10, 19): 1760,
+          },
+        ),
+      );
+
+      expect(cairn(tester).days.map((d) => d.caloriesEaten), [
+        1840, 2050, null, 1760, null, null, null, //
+      ]);
+      expect(find.text('2,050'), findsOneWidget);
+      expect(find.text('2,310'), findsNothing);
+      expect(find.byKey(const Key('cairnLegend_eaten')), findsOneWidget);
+    });
+
     testWidgets('a failed week read shows the Failure', (tester) async {
       metrics.onGetRange = (_, _) =>
           const Err(PlatformChannelFailure('store down'));

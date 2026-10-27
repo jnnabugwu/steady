@@ -3,6 +3,8 @@ import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:health_sync_data/health_sync_data.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -25,11 +27,14 @@ void main() {
   Future<ProviderContainer> pumpApp(
     WidgetTester tester, {
     Future<void> Function(ProviderContainer)? seed,
+    HealthKitRepository? health,
   }) async {
     final container = ProviderContainer(
       overrides: [
         ...appProviderOverrides,
         checkInClockProvider.overrideWithValue(() => clock),
+        if (health != null)
+          healthKitRepositoryProvider.overrideWithValue(health),
       ],
     );
     addTearDown(container.dispose);
@@ -52,6 +57,34 @@ void main() {
       expect(at(23), 'Good evening');
       expect(at(2), 'Good evening');
     });
+  });
+
+  testWidgets("on an iPhone the cairn shows Health's calories eaten, "
+      "winning over an import's", (tester) async {
+    await pumpApp(
+      tester,
+      seed: (container) async {
+        await container
+            .read(dailyMetricRepositoryProvider)
+            .upsert(DateTime(2026, 10, 20), caloriesEaten: 2100);
+        await container
+            .read(dailyMetricRepositoryProvider)
+            .upsert(DateTime(2026, 10, 21), caloriesEaten: 1900);
+      },
+      health: InMemoryHealthKitRepository(
+        status: HealthAuthorizationStatus.requested,
+        days: [
+          HealthDayTotals(date: DateTime(2026, 10, 21), caloriesEaten: 1650),
+        ],
+      ),
+    );
+    final cairn = tester.widget<CairnWeek>(
+      find.byKey(const Key('checkInCairn')),
+    );
+    // Fri Oct 16 → Thu Oct 22: the 20th imported, the 21st Health's.
+    expect(cairn.days.map((d) => d.caloriesEaten), [
+      null, null, null, null, 2100, 1650, null, //
+    ]);
   });
 
   test('todayDateLine names the weekday and date', () {

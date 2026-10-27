@@ -15,6 +15,7 @@ class CairnDay {
     required this.fullName,
     this.status,
     this.isToday = false,
+    this.caloriesEaten,
   });
 
   /// Short day letter drawn beside the stone, e.g. `'F'`.
@@ -29,6 +30,9 @@ class CairnDay {
   /// Whether this is today. Today's letter is teal, and its stone drops into
   /// place when [status] goes from null to a value.
   final bool isToday;
+
+  /// Calories eaten that day, drawn beside the stone, or null for none.
+  final int? caloriesEaten;
 }
 
 /// The signature Pass 02 piece: the week as a cairn (§10, artboard
@@ -49,6 +53,11 @@ class CairnDay {
 ///   values), never random, so the stack looks hand-balanced and goldens
 ///   stay stable.
 ///
+/// - When any day has [CairnDay.caloriesEaten], a column of tan numbers
+///   sits right of the stones, one per day that has a value ([width] plus
+///   [caloriesWidth] in all). A day without one, or still to come, shows
+///   none: never a zero.
+///
 /// When today's status goes from null to a value, today's stone drops into
 /// place (slides down and fades in over [dropDuration]); with reduced motion
 /// on (`MediaQuery.disableAnimationsOf`) it just appears.
@@ -64,8 +73,14 @@ class CairnWeek extends StatelessWidget {
   /// The 7 days of the window, in order. The first is drawn at the bottom.
   final List<CairnDay> days;
 
-  /// Total width, letters included. The artboard's card uses 150.
+  /// Width of the letters and stones. The artboard's card uses 150. The
+  /// calories column, when shown, adds [caloriesWidth].
   final double width;
+
+  /// Width of the calories column, when any day has calories eaten.
+  static const caloriesWidth = 38.0;
+
+  bool get _showsCalories => days.any((d) => d.caloriesEaten != null);
 
   /// How long today's stone takes to drop into place.
   static const dropDuration = Duration(milliseconds: 350);
@@ -100,15 +115,22 @@ class CairnWeek extends StatelessWidget {
   /// a stack of days, Friday at the bottom: Friday logged fully, …,
   /// Thursday not checked in yet".
   String get semanticsLabel {
-    final parts = [
-      for (final (i, day) in days.indexed)
-        '${day.fullName} ${_isUpcoming(i) ? _upcoming : _spoken(day.status)}',
-    ];
+    final parts = [for (final (i, day) in days.indexed) _spokenDay(i, day)];
     return 'This week as a stack of days, ${days.first.fullName} at the '
         'bottom: ${parts.join(', ')}';
   }
 
   static const _upcoming = 'still to come';
+
+  String _spokenDay(int index, CairnDay day) {
+    final status = _isUpcoming(index) ? _upcoming : _spoken(day.status);
+    return '${day.fullName} $status${_spokenCalories(index)}';
+  }
+
+  String _spokenCalories(int index) => switch (days[index].caloriesEaten) {
+    final kcal? when !_isUpcoming(index) => ', ate ${formatKcal(kcal)} kcal',
+    _ => '',
+  };
 
   static String _spoken(LoggingStatus? status) => switch (status) {
     LoggingStatus.logged => 'logged fully',
@@ -129,7 +151,7 @@ class CairnWeek extends StatelessWidget {
       label: semanticsLabel,
       excludeSemantics: true,
       child: SizedBox(
-        width: width,
+        width: width + (_showsCalories ? caloriesWidth : 0),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           spacing: stoneGap,
@@ -194,10 +216,44 @@ class CairnWeek extends StatelessWidget {
               ),
             ),
           ),
+          if (_showsCalories)
+            SizedBox(
+              width: caloriesWidth,
+              child: Text(
+                switch (day.caloriesEaten) {
+                  final kcal? when !upcoming => formatKcal(kcal),
+                  _ => '',
+                },
+                textAlign: TextAlign.right,
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                style: _caloriesStyle,
+              ),
+            ),
         ],
       ),
     );
   }
+
+  static const _caloriesStyle = TextStyle(
+    fontFamilyFallback: SteadyType.fontFamilyFallback,
+    fontSize: 11,
+    fontWeight: FontWeight.w600,
+    fontFeatures: [FontFeature.tabularFigures()],
+    color: SteadyColors.caloriesEaten,
+  );
+}
+
+/// `1840` → `1,840`, for the cairn's calories column.
+String formatKcal(int kcal) {
+  final digits = kcal.abs().toString();
+  final buffer = StringBuffer(kcal < 0 ? '-' : '');
+  for (var i = 0; i < digits.length; i++) {
+    if (i > 0 && (digits.length - i) % 3 == 0) buffer.write(',');
+    buffer.write(digits[i]);
+  }
+  return buffer.toString();
 }
 
 /// A single cairn stone: a 15px-tall rounded bar filled from the status
@@ -359,6 +415,8 @@ class _DropInState extends State<_DropIn> with SingleTickerProviderStateMixin {
 /// Counts per status for a [CairnWeek]'s days, as in the artboard's card:
 /// a swatch, the status name and the count, for logged fully, partial and
 /// skipped (zero counts included). Days without a status aren't counted.
+/// When any day has calories eaten, a last "Eaten" row with a tan swatch
+/// keys the cairn's tan numbers (no count).
 class CairnLegend extends StatelessWidget {
   /// Creates the legend for [days].
   const CairnLegend({required this.days, super.key});
@@ -411,6 +469,32 @@ class CairnLegend extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     fontFeatures: [FontFeature.tabularFigures()],
                     color: SteadyColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (days.any((d) => d.caloriesEaten != null))
+          const MergeSemantics(
+            key: Key('cairnLegend_eaten'),
+            child: Row(
+              spacing: 8,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: SteadyColors.caloriesEaten,
+                    borderRadius: BorderRadius.all(Radius.circular(4)),
+                  ),
+                  child: SizedBox(width: 16, height: 7),
+                ),
+                Expanded(
+                  child: Text(
+                    'Eaten',
+                    style: TextStyle(
+                      fontFamilyFallback: SteadyType.fontFamilyFallback,
+                      fontSize: 13,
+                      color: SteadyColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
