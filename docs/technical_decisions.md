@@ -7,6 +7,46 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## The Mac is parked (2026-10-27)
+
+**Decision:** Steady is scoped, built and shipped as an iPhone app. The macOS target stays in
+the repo as it is, but it isn't released, and new features don't need a Mac code path, a Mac
+caveat or Mac copy.
+
+**Why:**
+
+- The Mac was there for the coach, as a sit-down session. The coach moved to the iPhone
+  ("The coach runs on the iPhone" below), so that reason is gone.
+- What's left on the Mac is check-ins, the PDF import and a Week view with calories eaten
+  from PDFs only. No steps, burned energy, cravings or coach ("Health data stays on the
+  iPhone", "Craving support" below).
+- No tester has it. The fastlane lanes build and upload iOS only (`docs/fastlane.md`), and CI
+  doesn't build the macOS target.
+- It still cost something on every iPhone-only feature: a "nothing on the Mac" branch in
+  cravings, Health and the coach, and caveats like the one #138 nearly shipped, where an
+  import-screen line saying the PDF isn't needed once Cal AI writes to Apple Health would
+  have left the Mac with no calories eaten.
+
+**Consequences:**
+
+- Existing Mac code stays (the macOS runner, its account channel in `MainFlutterWindow`,
+  `appProviderOverridesFor(isIOS: false)`). No cleanup pass. Nothing builds it, so it may
+  stop compiling; that's accepted.
+- #97 (iPhone→Mac handoff of Health context) is closed.
+- The PDF import stays, as the fallback for anyone whose calories aren't in Apple Health, not
+  as the Mac's source.
+- CloudKit sync stays on. With one device it mostly carries data to a replacement iPhone,
+  which the user's iCloud Backup also does; whether it still earns its keep is a separate
+  question, not decided here.
+- `CLAUDE.md` and the product overview still describe two platform targets in many places.
+  They're corrected as each section is next touched, not in one pass.
+
+**Unparking** means re-checking each iPhone-only feature's Mac story (Health, cravings, the
+coach, #138's calories from Apple Health). The likely shapes are a check-in companion or a
+Mac chat without Health data.
+
+---
+
 ## The coach runs on the iPhone (2026-10-24)
 
 **Decision:** The coach (the 5-minute weekly session and chat) runs on the iPhone, with
