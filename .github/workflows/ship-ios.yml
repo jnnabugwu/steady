@@ -22,7 +22,8 @@ concurrency:
 
 jobs:
   ship:
-    # Uploads need the iOS 26 SDK, so Xcode 26.
+    # The coach needs the iOS 27 SDK (Xcode 27), which the "Xcode 27" step
+    # below picks or fails on.
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -42,9 +43,22 @@ jobs:
           bundler-cache: true
           working-directory: app/ios
 
-      - name: Xcode version
+      # CoachChannel.swift uses iOS 27 Foundation Models types
+      # (`SystemLanguageModel.Error`, `snapshot.usage`). `#available` only
+      # gates them at run time, so the iOS 26 SDK can't compile the file.
+      # Pick an Xcode 27 when the image has one; stop here when it doesn't,
+      # rather than four minutes into the archive.
+      - name: Xcode 27
         if: inputs.lane == 'beta'
-        run: xcodebuild -version
+        run: |
+          xcode=$(ls -d /Applications/Xcode_27*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$xcode" ]; then sudo xcode-select -s "$xcode"; fi
+          xcodebuild -version
+          major=$(xcodebuild -version | awk 'NR == 1 { split($2, v, "."); print v[1] }')
+          if [ "$major" -lt 27 ]; then
+            echo "::error::The coach needs Xcode 27 (iOS 27 SDK), and this runner's newest is Xcode $major. Upload from your Mac until GitHub's runners have Xcode 27: docs/fastlane.md, \"Running a lane on your Mac\"."
+            exit 1
+          fi
 
       - name: fastlane ${{ inputs.lane }}
         working-directory: app/ios
