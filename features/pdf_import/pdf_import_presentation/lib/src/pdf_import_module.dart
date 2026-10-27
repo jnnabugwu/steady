@@ -27,6 +27,7 @@ class PdfImportModule extends ConsumerWidget {
   const PdfImportModule({
     required this.onImportCompleted,
     required this.onBack,
+    this.pickNote,
     super.key,
   });
 
@@ -38,6 +39,11 @@ class PdfImportModule extends ConsumerWidget {
   /// Called when the header's back button is tapped, at any step. Leaving
   /// mid-commit doesn't cancel the write.
   final void Function() onBack;
+
+  /// An extra line at the end of the pick step, or `null` for none. The app
+  /// layer passes one on the iPhone, saying the PDF isn't needed once Cal AI
+  /// is connected to Apple Health (#138).
+  final String? pickNote;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,6 +101,17 @@ class PdfImportModule extends ConsumerWidget {
                       color: SteadyColors.textMuted,
                     ),
                   ),
+                  if (pickNote case final note?) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      note,
+                      key: const Key('pdfImport_pickNote'),
+                      style: SteadyType.body.copyWith(
+                        fontSize: 13,
+                        color: SteadyColors.textMuted,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

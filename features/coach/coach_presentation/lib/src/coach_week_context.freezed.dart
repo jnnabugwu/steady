@@ -20,7 +20,8 @@ mixin _$CoachDayData {
 /// couldn't be read: see [checkInUnreadable]).
  CheckInStatus? get status;/// Whether this day's check-in couldn't be read, so `null` [status]
 /// isn't a day without one.
- bool get checkInUnreadable;/// Calories eaten (from a Cal AI import), or `null` if none.
+ bool get checkInUnreadable;/// Calories eaten: Apple Health's total when it has one (logged by Cal
+/// AI, #138), else a Cal AI import's, or `null` if neither.
  int? get caloriesEaten;/// Steps from Apple Health, or `null` if unknown.
  int? get steps;/// Active energy from Apple Health, kcal, or `null` if unknown.
  int? get activeEnergy;/// Basal (resting) energy from Apple Health, kcal, or `null`.
@@ -238,7 +239,8 @@ class _CoachDayData implements CoachDayData {
 /// Whether this day's check-in couldn't be read, so `null` [status]
 /// isn't a day without one.
 @override@JsonKey() final  bool checkInUnreadable;
-/// Calories eaten (from a Cal AI import), or `null` if none.
+/// Calories eaten: Apple Health's total when it has one (logged by Cal
+/// AI, #138), else a Cal AI import's, or `null` if neither.
 @override final  int? caloriesEaten;
 /// Steps from Apple Health, or `null` if unknown.
 @override final  int? steps;

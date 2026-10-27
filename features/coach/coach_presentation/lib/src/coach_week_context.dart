@@ -24,7 +24,8 @@ abstract class CoachDayData with _$CoachDayData {
     /// isn't a day without one.
     @Default(false) bool checkInUnreadable,
 
-    /// Calories eaten (from a Cal AI import), or `null` if none.
+    /// Calories eaten: Apple Health's total when it has one (logged by Cal
+    /// AI, #138), else a Cal AI import's, or `null` if neither.
     int? caloriesEaten,
 
     /// Steps from Apple Health, or `null` if unknown.
@@ -89,7 +90,8 @@ abstract class CoachWeekData with _$CoachWeekData {
 /// four repositories, CLAUDE.md §4).
 ///
 /// Reads, for each day from `first` to `last`: the check-in status
-/// (`checkin_domain`), calories eaten (`metrics_domain`), steps and
+/// (`checkin_domain`), calories eaten (Apple Health's when it has them,
+/// else the import's in `metrics_domain`, as on Today: #138), steps and
 /// active/basal energy live from Apple Health (`health_sync_domain`, iPhone
 /// only, never stored), and the craving check-ins' count, time of day and
 /// reasons (`cravings_domain`).
@@ -194,7 +196,7 @@ class BuildCoachWeekContext {
               Err() => null,
             },
             checkInUnreadable: statuses[i] is Err,
-            caloriesEaten: eaten[day],
+            caloriesEaten: totals[day]?.caloriesEaten ?? eaten[day],
             steps: totals[day]?.steps,
             activeEnergy: totals[day]?.caloriesBurnedActive,
             basalEnergy: totals[day]?.caloriesBurnedBasal,

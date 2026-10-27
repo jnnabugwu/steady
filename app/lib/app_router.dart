@@ -51,6 +51,7 @@ import 'package:steady/app_shell.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
 import 'package:steady/privacy_card.dart';
+import 'package:steady/providers.dart';
 import 'package:steady/sample_data_card.dart';
 import 'package:steady/today_screen.dart';
 import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
@@ -454,6 +455,11 @@ class ImportRoute extends GoRouteData with $ImportRoute {
           const HomeRoute().go(context);
         }
       },
+      // iPhone only: Cal AI can feed calories through Apple Health (#138).
+      pickNote: container.read(healthKitRepositoryProvider) == null
+          ? null
+          : 'On iPhone, connect Cal AI to Apple Health and you won’t need '
+                'the PDF: days you log in Cal AI show up by themselves.',
     );
   }
 }

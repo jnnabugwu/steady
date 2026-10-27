@@ -14,6 +14,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// for the Friday–Thursday week [date] falls in, its headline ("5 of 6
 /// days logged") and a [CairnLegend] with a count per status.
 ///
+/// Each day's calories eaten sit beside its stone: [liveCaloriesEaten]'s
+/// value when it has one, else the stored row's (a Cal AI PDF import). The
+/// app passes Apple Health's on the iPhone, so the cairn agrees with
+/// Today's tiles (#138); this package never reads Health itself.
+///
 /// Reads the week through `weekCardControllerProvider(weekCardStart(day))`,
 /// the share card's data path, so the cairn and the share card agree. The
 /// day's own stone comes from `checkInControllerProvider(day)`, the fresher
@@ -25,11 +30,20 @@ import 'package:ui_kit/ui_kit.dart';
 /// check-in screen and the app's Today screen both do.
 class CairnWeekCard extends ConsumerWidget {
   /// Creates the week card for the week [date] falls in.
-  const CairnWeekCard({required this.date, super.key});
+  const CairnWeekCard({
+    required this.date,
+    this.liveCaloriesEaten = const {},
+    super.key,
+  });
 
   /// A day of the week to show; normalized to midnight. Its stone follows
   /// that day's check-in.
   final DateTime date;
+
+  /// Calories eaten from a live source, keyed by local midnight, that win
+  /// over the stored values: Apple Health's on the iPhone. Shown only,
+  /// never written. Empty by default (the Mac, the check-in screen).
+  final Map<DateTime, int> liveCaloriesEaten;
 
   /// The cairn's height: 7 stones and 6 gaps, so the loading and error
   /// states don't make the card jump when the week arrives.
@@ -98,6 +112,7 @@ class CairnWeekCard extends ConsumerWidget {
               ? dayStatus.value
               : d.status,
           isToday: d.date == focus,
+          caloriesEaten: liveCaloriesEaten[d.date] ?? d.caloriesEaten,
         ),
     ];
     final first = data.days.first.date;

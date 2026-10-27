@@ -16,6 +16,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
+import 'package:steady/cal_ai_health_card.dart';
 import 'package:steady/health_access.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
@@ -31,6 +32,9 @@ Future<void> main() async {
     overrides: [
       ...appProviderOverrides,
       dailyMetricStoreProvider.overrideWithValue(DailyMetricStore.swiftData),
+      calAiCardSnoozeStoreProvider.overrideWithValue(
+        FileCalAiCardSnoozeStore(calAiCardSnoozeFile),
+      ),
     ],
   );
   await _migrateInterimFileStore(container);

@@ -17,23 +17,25 @@ abstract final class HealthKitChannel {
   static const authorizationStatusMethod = 'authorizationStatus';
 
   /// No arguments. Shows the read-only permission sheet (step count, active
-  /// energy, basal energy, body mass) if needed. Returns `null`; errors are
-  /// `FlutterError`s.
+  /// energy, basal energy, body mass, dietary energy) if needed. Returns
+  /// `null`; errors are `FlutterError`s.
   static const requestAuthorizationMethod = 'requestAuthorization';
 
   /// Arguments `{start: 'yyyy-MM-dd', end: 'yyyy-MM-dd'}`, inclusive local
   /// calendar days. Returns a list with one map per day:
   /// `{date: 'yyyy-MM-dd', steps: int?, activeKcal: int?, basalKcal: int?,
-  /// weightKg: double?}`. `weightKg` is the day's latest reading, not a sum.
+  /// weightKg: double?, eatenKcal: int?}`. `weightKg` is the day's latest
+  /// reading, not a sum; `eatenKcal` is summed dietary energy.
   ///
   /// `null` means Steady got no samples of that type that day, which is
   /// *not* the same as "nothing was recorded": HealthKit never tells an app
   /// whether read access was granted, so a type the user didn't allow also
-  /// reads as `null` on every day. For weight it also covers a permission
-  /// sheet that hasn't been shown yet (people who connected Health before
-  /// weight existed). So a `null` must never be shown as a fact about the
-  /// day, like "no reading today", unless the same type has a value
-  /// elsewhere in the range, which shows access was granted.
+  /// reads as `null` on every day. For weight and dietary energy it also
+  /// covers a permission sheet that hasn't been shown yet (people who
+  /// connected Health before those types were read). So a `null` must
+  /// never be shown as a fact about the day, like "no reading today",
+  /// unless the same type has a value elsewhere in the range, which shows
+  /// access was granted.
   static const dailyTotalsMethod = 'dailyTotals';
 
   /// No arguments. Returns `kg`, `lb` or `st` (see
@@ -122,7 +124,7 @@ DateTime parseHealthDate(Object? raw) {
 /// `UnknownFailure` rather than writing half-understood data.
 ///
 /// Hand-written rather than a freezed DTO, like the `steady/daily_metrics`
-/// row format in `daily_metrics_data`: five flat fields don't need codegen.
+/// row format in `daily_metrics_data`: six flat fields don't need codegen.
 List<HealthDayTotals> healthDayTotalsFromWire(Object? raw) {
   if (raw is! List<Object?>) {
     throw FormatException('Expected a list of days', raw);
@@ -136,6 +138,7 @@ List<HealthDayTotals> healthDayTotalsFromWire(Object? raw) {
           caloriesBurnedActive: _count(row, 'activeKcal'),
           caloriesBurnedBasal: _count(row, 'basalKcal'),
           weightKg: _weight(row, 'weightKg'),
+          caloriesEaten: _count(row, 'eatenKcal'),
         )
       else
         throw FormatException('Expected each day to be a map', row),

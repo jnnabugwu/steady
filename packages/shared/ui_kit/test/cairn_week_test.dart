@@ -37,6 +37,31 @@ List<CairnDay> _artboardWeek([LoggingStatus? todayStatus]) => _week([
   todayStatus,
 ]);
 
+/// The mockup's week: Wednesday is today, pending; calories on every day
+/// but the skipped Sunday and the Thursday still to come.
+List<CairnDay> _caloriesWeek() {
+  const statuses = [
+    LoggingStatus.logged,
+    LoggingStatus.partial,
+    LoggingStatus.skipped,
+    LoggingStatus.logged,
+    LoggingStatus.logged,
+    null,
+    null,
+  ];
+  const calories = [1840, 2310, null, 1760, 1920, 1240, 1500];
+  return [
+    for (final (i, (label, name)) in _fridayWeek.indexed)
+      CairnDay(
+        label: label,
+        fullName: name,
+        status: statuses[i],
+        isToday: i == 5,
+        caloriesEaten: calories[i],
+      ),
+  ];
+}
+
 Widget _host(Widget child, {bool disableAnimations = false}) => ShadcnApp(
   theme: steadyTheme,
   home: MediaQuery(
@@ -279,6 +304,33 @@ void main() {
       );
     });
 
+    testWidgets('calories eaten sit beside their stones; none for a day '
+        'without them or still to come', (tester) async {
+      await tester.pumpWidget(_host(CairnWeek(days: _caloriesWeek())));
+      for (final shown in ['1,840', '2,310', '1,760', '1,920', '1,240']) {
+        expect(find.text(shown), findsOneWidget);
+      }
+      // Thursday is still to come: its value isn't drawn.
+      expect(find.text('1,500'), findsNothing);
+      expect(
+        tester.getSize(find.byType(CairnWeek)).width,
+        150 + CairnWeek.caloriesWidth,
+      );
+      expect(
+        CairnWeek(days: _caloriesWeek()).semanticsLabel,
+        'This week as a stack of days, Friday at the bottom: '
+        'Friday logged fully, ate 1,840 kcal, Saturday partial, ate 2,310 '
+        'kcal, Sunday skipped, Monday logged fully, ate 1,760 kcal, '
+        'Tuesday logged fully, ate 1,920 kcal, Wednesday not checked in yet, '
+        'ate 1,240 kcal, Thursday still to come',
+      );
+    });
+
+    testWidgets('without calories the stack keeps its width', (tester) async {
+      await tester.pumpWidget(_host(CairnWeek(days: _artboardWeek())));
+      expect(tester.getSize(find.byType(CairnWeek)).width, 150);
+    });
+
     test('asserts on anything but 7 days', () {
       expect(
         () => CairnWeek(days: _artboardWeek().sublist(0, 6)),
@@ -374,6 +426,17 @@ void main() {
         ),
       );
       expect(find.text('0'), findsNWidgets(3));
+      expect(find.byKey(const Key('cairnLegend_eaten')), findsNothing);
+    });
+
+    testWidgets('keys the calories with an "Eaten" row when there are any', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _host(SizedBox(width: 160, child: CairnLegend(days: _caloriesWeek()))),
+      );
+      expect(find.byKey(const Key('cairnLegend_eaten')), findsOneWidget);
+      expect(find.text('Eaten'), findsOneWidget);
     });
   });
 
@@ -454,6 +517,14 @@ void main() {
         await expectLater(
           find.byKey(const ValueKey('golden')),
           matchesGoldenFile('goldens/cairn_week_mid_week.png'),
+        );
+      });
+
+      testWidgets('with calories eaten beside the stones', (tester) async {
+        await tester.pumpWidget(card(_caloriesWeek()));
+        await expectLater(
+          find.byKey(const ValueKey('golden')),
+          matchesGoldenFile('goldens/cairn_week_calories.png'),
         );
       });
     },

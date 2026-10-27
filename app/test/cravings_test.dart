@@ -156,6 +156,8 @@ void main() {
         'the weekly line', (tester) async {
       final container = await pumpApp(tester, isIOS: true, withStore: true);
 
+      await tester.ensureVisible(entryButton);
+      await tester.pumpAndSettle();
       await tester.tap(entryButton);
       await tester.pumpAndSettle();
       expect(find.byType(CravingFlowModule), findsOneWidget);
@@ -187,6 +189,8 @@ void main() {
       tester,
     ) async {
       await pumpApp(tester, isIOS: true, withStore: true);
+      await tester.ensureVisible(entryButton);
+      await tester.pumpAndSettle();
       await tester.tap(entryButton);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('cravingCloseButton')));

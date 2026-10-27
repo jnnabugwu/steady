@@ -3,8 +3,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 part 'health_day_totals.freezed.dart';
 
 /// One local calendar day's totals from Apple Health: summed steps, summed
-/// active and basal energy in whole kilocalories, and the day's latest
-/// weight reading.
+/// active and basal energy and summed dietary energy (calories eaten) in
+/// whole kilocalories, and the day's latest weight reading.
 ///
 /// Each value is `null` when Health has no samples of that type for the
 /// day. `null` is "unknown", never "zero": HealthKit doesn't tell an app
@@ -31,13 +31,17 @@ abstract class HealthDayTotals with _$HealthDayTotals {
     /// The day's most recent `bodyMass` reading, in kilograms. Not a sum,
     /// and not smoothed: see `weightTrendKg` for the trend.
     double? weightKg,
+
+    /// Summed `dietaryEnergyConsumed`, rounded to whole kcal: what another
+    /// app (Cal AI, for one) logged as eaten that day (#138).
+    int? caloriesEaten,
   }) = _HealthDayTotals;
 
   const HealthDayTotals._();
 
   /// Whether every value is unavailable that day: no samples, or read
   /// access not granted (HealthKit doesn't say which).
-  bool get isEmpty => !hasActivity && weightKg == null;
+  bool get isEmpty => !hasMetricValue && weightKg == null;
 
   /// Whether the day has steps or burned energy (the values that sit next
   /// to a `DailyMetric` row), whatever its weight.
@@ -45,4 +49,8 @@ abstract class HealthDayTotals with _$HealthDayTotals {
       steps != null ||
       caloriesBurnedActive != null ||
       caloriesBurnedBasal != null;
+
+  /// Whether the day has a value that sits next to a `DailyMetric` row:
+  /// steps, burned energy or calories eaten. Weight doesn't count.
+  bool get hasMetricValue => hasActivity || caloriesEaten != null;
 }

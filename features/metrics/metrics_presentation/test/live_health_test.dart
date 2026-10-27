@@ -104,6 +104,41 @@ void main() {
       ]);
     });
 
+    test("Health's calories eaten win over the stored row's", () {
+      final imported = DateTime(2026, 10, 20);
+      final cleared = DateTime(2026, 10, 21);
+      final notImported = DateTime(2026, 10, 19);
+      final merged = mergeLiveHealth(
+        [
+          DailyMetric(
+            date: day,
+            caloriesEaten: 1800,
+            loggingStatus: LoggingStatus.logged,
+          ),
+          DailyMetric(date: imported, caloriesEaten: 2000),
+          DailyMetric(date: cleared, caloriesEaten: 2200),
+        ],
+        {
+          // Health has a total: it replaces the import's.
+          day: HealthDayTotals(date: day, caloriesEaten: 1650),
+          // Health has steps but no calories eaten: the import's stays.
+          cleared: HealthDayTotals(date: cleared, steps: 40),
+          // Logged in Cal AI and never imported: a row of its own.
+          notImported: HealthDayTotals(date: notImported, caloriesEaten: 1900),
+        },
+      );
+      expect(merged, [
+        DailyMetric(
+          date: day,
+          caloriesEaten: 1650,
+          loggingStatus: LoggingStatus.logged,
+        ),
+        DailyMetric(date: cleared, caloriesEaten: 2200, steps: 40),
+        DailyMetric(date: imported, caloriesEaten: 2000),
+        DailyMetric(date: notImported, caloriesEaten: 1900),
+      ]);
+    });
+
     test('a day with only a weight reading adds no row', () {
       final weighed = DateTime(2026, 10, 21);
       final merged = mergeLiveHealth(

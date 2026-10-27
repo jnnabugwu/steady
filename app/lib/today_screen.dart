@@ -10,9 +10,13 @@
 /// 2. The account feature's [ICloudSyncBanner], which renders nothing
 ///    unless iCloud isn't syncing.
 /// 3. Tonight's check-in: checkin's [CheckInCard] for today.
-/// 4. This week: checkin's [CairnWeekCard] for today's week.
+/// 4. This week: checkin's [CairnWeekCard] for today's week, with Apple
+///    Health's calories eaten passed in on the iPhone (they win over an
+///    import's there, as on the metric tiles: #138).
 /// 5. Metrics: metrics' [TodayMetricTiles] for today (the Mac shows only
-///    what it has: no Apple Health there).
+///    what it has: no Apple Health there), then the app's own
+///    [CalAiHealthCard], which on an iPhone explains how to get calories
+///    from Cal AI through Apple Health until Health has some (#138).
 /// 6. The coach nudge slot, [TodayScreen.coachNudge]: the app router puts
 ///    coach's `CoachNudgeCard` there, which offers the weekly check-in on
 ///    an iPhone from Friday to Sunday and renders nothing otherwise.
@@ -24,8 +28,10 @@ import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:steady/cal_ai_health_card.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The Today screen. See the library comment for its sections.
@@ -78,6 +84,16 @@ class TodayScreen extends ConsumerWidget {
     final today = ref.watch(checkInTodayProvider);
     final now = ref.read(checkInClockProvider)();
     final padding = MediaQuery.paddingOf(context);
+    // The same 30-day Health read the metric tiles share; empty on the Mac
+    // and while it loads or fails.
+    final window = healthHistoryWindow(today);
+    final health =
+        ref.watch(healthDayTotalsProvider(window.start, window.end)).value ??
+        const <DateTime, HealthDayTotals>{};
+    final healthCaloriesEaten = {
+      for (final MapEntry(key: day, value: totals) in health.entries)
+        day: ?totals.caloriesEaten,
+    };
 
     return Scaffold(
       child: Stack(
@@ -123,8 +139,14 @@ class TodayScreen extends ConsumerWidget {
                         spacing: 12,
                         children: [
                           CheckInCard(date: today),
-                          CairnWeekCard(date: today),
+                          CairnWeekCard(
+                            date: today,
+                            liveCaloriesEaten: healthCaloriesEaten,
+                          ),
                           TodayMetricTiles(date: today),
+                          // Sizes to nothing on the Mac, and once Health
+                          // has calories eaten.
+                          CalAiHealthCard(date: today),
                           ?coachNudge,
                         ],
                       ),
