@@ -9,8 +9,9 @@ import HealthKit
 /// these values live and never stores them in the iCloud-synced store (App
 /// Store guideline 5.1.3(ii)).
 ///
-/// Read-only. Steady asks to read step count, active energy, basal energy
-/// and body mass (weight, #128), and never asks to write anything to Health.
+/// Read-only. Steady asks to read step count, active energy, basal energy,
+/// body mass (weight, #128) and dietary energy (calories eaten, logged by
+/// apps like Cal AI, #138), and never asks to write anything to Health.
 ///
 /// Methods:
 /// - `isAvailable` returns `HKHealthStore.isHealthDataAvailable()`.
@@ -21,16 +22,19 @@ import HealthKit
 /// - `requestAuthorization` shows the read-permission sheet if needed and
 ///   returns `nil` once it's dismissed (or at once, if it was shown before).
 /// - `dailyTotals({start, end})`, both `yyyy-MM-dd`, inclusive, returns one
-///   `{date, steps, activeKcal, basalKcal, weightKg}` map per **local
-///   calendar day**. Sums come from an `HKStatisticsCollectionQuery`
+///   `{date, steps, activeKcal, basalKcal, weightKg, eatenKcal}` map per
+///   **local calendar day**. Sums come from an `HKStatisticsCollectionQuery`
 ///   (`.cumulativeSum`, anchored at local midnight, one-day interval), so
 ///   Health's own de-duplication across iPhone and Watch applies, the same
 ///   numbers the Health app shows. A type with no samples that day is `nil`,
 ///   never 0. kcal and steps are rounded to whole numbers. `weightKg` is the
 ///   day's most recent body mass reading (`.discreteMostRecent`), not a sum,
-///   unrounded. A weight query before weight's permission sheet was shown is
-///   `nil` rather than an error, so people who connected Health before
-///   weight existed keep their steps until they're asked about weight.
+///   unrounded. `eatenKcal` is summed dietary energy: the Health app's own
+///   daily total, merged across sources the same way.
+///   A weight or dietary-energy query before that type's permission sheet
+///   was shown is `nil` rather than an error, so people who connected
+///   Health before Steady read those types keep their steps until they're
+///   asked about them.
 /// - `preferredWeightUnit` returns `kg`, `lb` or `st`: the unit the Health
 ///   app shows weight in. Anything else is `kg`.
 ///
@@ -60,9 +64,10 @@ private final class HealthKitHandler {
   private static let activeEnergy = HKQuantityType(.activeEnergyBurned)
   private static let basalEnergy = HKQuantityType(.basalEnergyBurned)
   private static let bodyMass = HKQuantityType(.bodyMass)
+  private static let dietaryEnergy = HKQuantityType(.dietaryEnergyConsumed)
 
   private static let readTypes: Set<HKObjectType> = [
-    stepCount, activeEnergy, basalEnergy, bodyMass,
+    stepCount, activeEnergy, basalEnergy, bodyMass, dietaryEnergy,
   ]
 
   func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
@@ -205,13 +210,14 @@ private final class HealthKitHandler {
     var sums: [HKQuantityType: [String: Double]] = [:]
     var firstError: Error?
 
-    // Weight is the one type whose "not asked yet" is `nil`, not an error
-    // (see the channel comment).
+    // Weight and dietary energy are the types whose "not asked yet" is
+    // `nil`, not an error (see the channel comment).
     let queries: [(HKQuantityType, HKUnit, HKStatisticsOptions, Bool)] = [
       (Self.stepCount, .count(), .cumulativeSum, false),
       (Self.activeEnergy, .kilocalorie(), .cumulativeSum, false),
       (Self.basalEnergy, .kilocalorie(), .cumulativeSum, false),
       (Self.bodyMass, .gramUnit(with: .kilo), .discreteMostRecent, true),
+      (Self.dietaryEnergy, .kilocalorie(), .cumulativeSum, true),
     ]
     for (type, unit, options, notDeterminedIsEmpty) in queries {
       group.enter()
@@ -251,6 +257,7 @@ private final class HealthKitHandler {
           "activeKcal": Self.rounded(sums[Self.activeEnergy]?[key]),
           "basalKcal": Self.rounded(sums[Self.basalEnergy]?[key]),
           "weightKg": sums[Self.bodyMass]?[key] ?? NSNull(),
+          "eatenKcal": Self.rounded(sums[Self.dietaryEnergy]?[key]),
         ])
         guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
         day = next

@@ -28,7 +28,8 @@ export 'package:metrics_presentation/src/metric_format.dart'
 /// Built from `shadcn_flutter` and `ui_kit` widgets only, so it needs a
 /// `ShadcnApp` ancestor and no Material ones.
 ///
-/// **Apple Health (iPhone only).** Steps and burned calories come from
+/// **Apple Health (iPhone only).** Steps, burned calories and calories
+/// eaten (which win over an imported day's, #138) come from
 /// [healthDayTotalsProvider], read live for the last [healthHistoryDays]
 /// days and merged into the stored days in memory ([mergeLiveHealth]); a
 /// day with Health data but no stored row still shows. They're never

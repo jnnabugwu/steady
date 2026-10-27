@@ -220,6 +220,9 @@ void main() {
       'a string weight': [
         {'date': '2026-10-21', 'weightKg': '80.2'},
       ],
+      'negative calories eaten': [
+        {'date': '2026-10-21', 'eatenKcal': -1},
+      ],
     };
     for (final MapEntry(key: name, value: reply) in malformed.entries) {
       test('$name is an UnknownFailure', () async {
@@ -244,6 +247,31 @@ void main() {
       );
       expect(failure, isA<PlatformChannelFailure>());
       expect((failure as PlatformChannelFailure).code, 'unavailable');
+    });
+  });
+
+  group('calories eaten', () {
+    test('dailyTotals decodes eatenKcal, rounding and keeping null', () async {
+      answer(
+        (_) => [
+          {'date': '2026-10-21', 'eatenKcal': 1840},
+          {'date': '2026-10-22', 'eatenKcal': 2101.6},
+          {'date': '2026-10-23', 'eatenKcal': null},
+        ],
+      );
+      final days = okValue(
+        await repository.dailyTotals(
+          DateTime(2026, 10, 21),
+          DateTime(2026, 10, 23),
+        ),
+      );
+      expect(days.map((d) => d.caloriesEaten), [1840, 2102, null]);
+      // Calories eaten alone is a value next to a `DailyMetric` row, but
+      // not activity.
+      expect(days.first.hasActivity, isFalse);
+      expect(days.first.hasMetricValue, isTrue);
+      expect(days.first.isEmpty, isFalse);
+      expect(days.last.isEmpty, isTrue);
     });
   });
 

@@ -95,6 +95,8 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.ensureVisible(removeButton);
+    await tester.pumpAndSettle();
     await tester.tap(removeButton);
     await tester.pumpAndSettle();
 

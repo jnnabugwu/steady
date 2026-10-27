@@ -111,6 +111,27 @@ void main() {
       expect(health.dailyTotalsCalls, [(window.start, window.end)]);
     });
 
+    testWidgets("on the iPhone, Health's calories eaten win over an import", (
+      tester,
+    ) async {
+      repository.onGetRange = (_, _) => Ok([
+        DailyMetric(date: DateTime(2026, 10, 20), caloriesEaten: 2100),
+        DailyMetric(date: today, caloriesEaten: 1840),
+      ]);
+      final health = FakeHealthKitRepository(
+        days: [
+          HealthDayTotals(date: DateTime(2026, 10, 19), caloriesEaten: 1500),
+          HealthDayTotals(date: today, caloriesEaten: 1620),
+        ],
+      );
+      await pump(tester, health: health);
+
+      final eaten = tile(tester, 'eaten');
+      expect(eaten.value, '1,620');
+      // The 19th was never imported; the 20th has no Health total.
+      expect(eaten.dailyValues, [null, null, null, 1500, 2100, null, 1620]);
+    });
+
     testWidgets('a metric with values this week but none today shows "—"', (
       tester,
     ) async {

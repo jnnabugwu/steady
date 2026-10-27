@@ -53,9 +53,11 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// [MetricTile] per metric, its value for [date] over a sparkline of the
 /// seven days ending on [date].
 ///
-/// Eaten comes from the stored rows (Cal AI PDFs); burned and steps from
-/// Apple Health, read live on the iPhone ([healthDayTotalsProvider], the
-/// same window the history reads) and never stored (App Store 5.1.3(ii)).
+/// Eaten comes from Apple Health on the iPhone when Health has it (logged
+/// by Cal AI, #138), else from the stored rows (Cal AI PDFs); burned and
+/// steps from Apple Health. Health is read live on the iPhone
+/// ([healthDayTotalsProvider], the same window the history reads) and never
+/// stored (App Store 5.1.3(ii)).
 /// Like the history's tiles, a metric with no value anywhere in the seven
 /// days gets no tile, so the Mac, which has no Health, shows only what it
 /// has. A metric with values this week but none on [date] shows "—".

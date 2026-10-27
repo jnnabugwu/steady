@@ -16,6 +16,7 @@ void main() {
         isFalse,
       );
       expect(HealthDayTotals(date: day, weightKg: 80).isEmpty, isFalse);
+      expect(HealthDayTotals(date: day, caloriesEaten: 0).isEmpty, isFalse);
     });
   });
 
@@ -26,6 +27,22 @@ void main() {
       expect(HealthDayTotals(date: day, steps: 0).hasActivity, isTrue);
       expect(
         HealthDayTotals(date: day, caloriesBurnedBasal: 1).hasActivity,
+        isTrue,
+      );
+      expect(
+        HealthDayTotals(date: day, caloriesEaten: 1800).hasActivity,
+        isFalse,
+      );
+    });
+  });
+
+  group('HealthDayTotals.hasMetricValue', () {
+    test('is steps, energy or calories eaten, not weight', () {
+      final day = DateTime(2026, 10, 23);
+      expect(HealthDayTotals(date: day, weightKg: 80).hasMetricValue, isFalse);
+      expect(HealthDayTotals(date: day, steps: 0).hasMetricValue, isTrue);
+      expect(
+        HealthDayTotals(date: day, caloriesEaten: 1800).hasMetricValue,
         isTrue,
       );
     });

@@ -11,6 +11,7 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/apple_health_card.dart';
+import 'package:steady/cal_ai_health_card.dart';
 import 'package:steady/health_access.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
@@ -233,6 +234,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Refresh'), findsOneWidget);
       final beforeRefresh = health.dailyTotalsCalls;
+      // The card's "Calories eaten" line pushes it below a test screen.
+      await tester.ensureVisible(
+        find.byKey(const Key('connectAppleHealthButton')),
+      );
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('connectAppleHealthButton')));
       await tester.pumpAndSettle();
       expect(health.dailyTotalsCalls, greaterThan(beforeRefresh));
@@ -246,6 +252,29 @@ void main() {
       final row = await store.getByDate(yesterday);
       expect(
         (row as Ok<DailyMetric?>).value,
+        DailyMetric(date: yesterday, caloriesEaten: 1850),
+      );
+    });
+
+    testWidgets("Health's calories eaten show in place of the import's, "
+        'and are never written', (tester) async {
+      health.days[yesterday] = HealthDayTotals(
+        date: yesterday,
+        caloriesEaten: 1700,
+      );
+      tester.platformDispatcher.defaultRouteNameTestValue = '/week';
+      addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+      await tester.pumpWidget(
+        ProviderScope(overrides: overrides(), child: const SteadyApp()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('1,700 kcal eaten'), findsOneWidget);
+      expect(find.text('1,850 kcal eaten'), findsNothing);
+      expect(store.writes, isEmpty);
+      // The stored row is still the PDF import's.
+      expect(
+        ((await store.getByDate(yesterday)) as Ok<DailyMetric?>).value,
         DailyMetric(date: yesterday, caloriesEaten: 1850),
       );
     });
@@ -322,10 +351,63 @@ void main() {
       await tester.pumpAndSettle();
       expect(
         status(tester),
-        'Steps and burned calories come from Apple Health on your iPhone '
-        "and stay there; they don't sync to this Mac.",
+        'Steps, burned calories, weight and calories eaten from Apple Health '
+        "stay on your iPhone; they don't sync to this Mac. Here, calories "
+        'eaten come from your Cal AI PDF imports.',
       );
       expect(find.byKey(const Key('connectAppleHealthButton')), findsNothing);
+      expect(find.byKey(const Key('appleHealthCaloriesEaten')), findsNothing);
+    });
+
+    String caloriesEaten(WidgetTester tester) => tester
+        .widget<Text>(find.byKey(const Key('appleHealthCaloriesEaten')))
+        .data!;
+
+    testWidgets('iOS: before connecting, calories eaten come from imports, '
+        'with how to connect Cal AI', (tester) async {
+      await pump(tester, [
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(
+          InMemoryHealthKitRepository(),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(caloriesEaten(tester), startsWith('From your Cal AI PDF imports'));
+      expect(caloriesEaten(tester), contains(calAiConnectStep));
+      expect(caloriesEaten(tester), contains('Dietary Energy'));
+    });
+
+    testWidgets('iOS: connected without calories eaten repeats both steps', (
+      tester,
+    ) async {
+      await pump(tester, [
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(
+          InMemoryHealthKitRepository(
+            status: HealthAuthorizationStatus.requested,
+            days: [HealthDayTotals(date: yesterday, steps: 10)],
+          ),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(caloriesEaten(tester), contains(calAiConnectStep));
+      expect(caloriesEaten(tester), contains(calAiAllowStep));
+    });
+
+    testWidgets('iOS: with calories eaten in Health, says they come from it', (
+      tester,
+    ) async {
+      await pump(tester, [
+        ...appProviderOverridesFor(isIOS: false),
+        healthKitRepositoryProvider.overrideWithValue(
+          InMemoryHealthKitRepository(
+            status: HealthAuthorizationStatus.requested,
+            days: [HealthDayTotals(date: yesterday, caloriesEaten: 1800)],
+          ),
+        ),
+      ]);
+      await tester.pumpAndSettle();
+      expect(caloriesEaten(tester), startsWith('From Apple Health'));
     });
 
     testWidgets('iOS: Connect asks, reads and shows Connected', (tester) async {

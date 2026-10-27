@@ -1,13 +1,19 @@
-/// Apple Health values (steps, burned calories, weight) in the history and
-/// on Today: read live, held in memory, **never written** to the shared
-/// `DailyMetric` store.
+/// Apple Health values (steps, burned calories, weight, calories eaten) in
+/// the history and on Today: read live, held in memory, **never written** to
+/// the shared `DailyMetric` store.
 ///
 /// That store is SwiftData mirrored to the user's iCloud (CloudKit), and
 /// App Store guideline 5.1.3(ii) forbids storing personal health
 /// information in iCloud. So Health is read on the iPhone each time the
 /// history shows, merged with the stored rows in memory
 /// ([mergeLiveHealth]), and dropped with the screen. The Mac has no Health
-/// data at all (HealthKit is iOS only here), and neither does the coach.
+/// data at all (HealthKit is iOS only here).
+///
+/// **Calories eaten: Health wins (#138).** Apps like Cal AI log meals to
+/// Health, so on the iPhone a day's dietary energy from Health replaces the
+/// calories eaten a Cal AI PDF import stored for it, in memory only. The
+/// stored value stays as it is: the Mac, the data export and the share card
+/// keep using it, and a day Health has nothing for still shows it.
 ///
 /// `DailyMetric` keeps its `steps` and `caloriesBurned*` fields (CloudKit's
 /// production schema is additive-only), but nothing writes them any more,
@@ -104,15 +110,20 @@ Future<WeightUnit> healthWeightUnit(Ref ref) async {
   };
 }
 
-/// The history's days: each stored row's own fields (calories eaten,
-/// logging status) with that day's live Health values, plus a day for every
-/// [health] date that has steps or energy but no stored row (steps on a day
-/// with no PDF import). Weight isn't a `DailyMetric` field, so a day with
-/// only a weight reading adds no row. Newest first.
+/// The history's days: each stored row's own fields (logging status, and
+/// calories eaten unless Health has them) with that day's live Health
+/// values, plus a day for every [health] date that has steps, energy or
+/// calories eaten but no stored row (a day logged in Cal AI and never
+/// imported). Weight isn't a `DailyMetric` field, so a day with only a
+/// weight reading adds no row. Newest first.
+///
+/// Calories eaten: [health]'s value when it has one, else the stored row's
+/// (see "Health wins" in the library comment).
 ///
 /// In memory only: the result is for display and must never be passed to
 /// `DailyMetricRepository` (see the library comment). A stored row's own
-/// Health fields are ignored, replaced by [health] or left `null`.
+/// steps and burned energy are ignored, replaced by [health] or left
+/// `null`.
 List<DailyMetric> mergeLiveHealth(
   List<DailyMetric> rows,
   Map<DateTime, HealthDayTotals> health,
@@ -123,14 +134,16 @@ List<DailyMetric> mergeLiveHealth(
   final merged = [
     for (final MapEntry(key: date, value: row) in byDate.entries)
       row.copyWith(
+        caloriesEaten: health[date]?.caloriesEaten ?? row.caloriesEaten,
         steps: health[date]?.steps,
         caloriesBurnedActive: health[date]?.caloriesBurnedActive,
         caloriesBurnedBasal: health[date]?.caloriesBurnedBasal,
       ),
     for (final MapEntry(key: date, value: day) in health.entries)
-      if (!byDate.containsKey(date) && day.hasActivity)
+      if (!byDate.containsKey(date) && day.hasMetricValue)
         DailyMetric(
           date: date,
+          caloriesEaten: day.caloriesEaten,
           steps: day.steps,
           caloriesBurnedActive: day.caloriesBurnedActive,
           caloriesBurnedBasal: day.caloriesBurnedBasal,

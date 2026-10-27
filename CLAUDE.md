@@ -547,7 +547,10 @@ storing personal health information in iCloud, so steps and active/basal energy 
 live from HealthKit on the iPhone and shown there, never written to `DailyMetricRecord`.
 The record's `caloriesBurnedActive`, `caloriesBurnedBasal` and `steps` attributes stay in
 the schema (CloudKit's production schema is additive-only), but Apple Health values aren't
-written to them. The Mac shows calories eaten (Cal AI PDFs) and check-ins only; the
+written to them. Calories eaten from Health (dietary energy, which Cal AI writes there)
+follow the same rule (#138): on the iPhone they win over a PDF-imported day's
+`caloriesEaten` in memory (`mergeLiveHealth`), and are never written to that field, which
+holds only what a PDF import wrote. The Mac shows calories eaten (Cal AI PDFs) and check-ins only; the
 coach runs on the iPhone, where the Health data is (§11). Decision record: `docs/technical_decisions.md`,
 "Health data stays on the iPhone (App Store 5.1.3)".
 

@@ -1,6 +1,6 @@
 # Steady Privacy Policy
 
-Effective 26 October 2026.
+Effective 27 October 2026.
 
 Steady is an app for iPhone and Mac that shows your daily calories and a simple end-of-day
 check-in. This policy describes what the app does with your data.
@@ -16,7 +16,8 @@ check-in. This policy describes what the app does with your data.
 ## What Steady stores
 
 - **Calories eaten.** When you import a Cal AI PDF export, Steady reads each day's total
-  calories eaten and saves those daily totals. The PDF itself isn't kept.
+  calories eaten and saves those daily totals. The PDF itself isn't kept. On iPhone, calories
+  eaten can also come from Apple Health (see below); those aren't saved.
 - **Check-ins.** Your end-of-day status for each day (logged, partial or skipped).
 
 This data is stored on your device and in your own private iCloud storage (the CloudKit
@@ -66,8 +67,11 @@ so it works only on an iPhone that supports Apple Intelligence, with it turned o
 ## Apple Health
 
 On iPhone, with your permission, Steady reads your daily steps, active energy, resting
-energy and weight from Apple Health and shows them in the app (weight as a smoothed trend
-and that day's reading). Steady:
+energy, weight and calories eaten (dietary energy, which apps like Cal AI can write to Apple
+Health) from Apple Health and shows them in the app. Weight shows as a smoothed trend and
+that day's reading. When Apple Health has calories eaten for a day, the iPhone shows that
+total in place of one you imported from a Cal AI PDF; the imported total stays as it was, and
+it's what your Mac shows. Steady:
 
 - reads them fresh from Apple Health each time and doesn't save them, so Steady never puts
   them in its iCloud storage or in its own data on the iPhone (and so they aren't in Steady's

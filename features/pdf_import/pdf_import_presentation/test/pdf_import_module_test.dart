@@ -23,22 +23,26 @@ void main() {
     backCount = 0;
   });
 
-  Future<void> pump(WidgetTester tester) => tester.pumpWidget(
-    ProviderScope(
-      overrides: [
-        pdfImportRepositoryProvider.overrideWithValue(repository),
-        pdfFilePickerProvider.overrideWithValue(picker.call),
-        sampleExportLoaderProvider.overrideWithValue(() async => sampleBytes),
-      ],
-      child: ShadcnApp(
-        theme: steadyTheme,
-        home: PdfImportModule(
-          onImportCompleted: () => completedCount++,
-          onBack: () => backCount++,
+  Future<void> pump(WidgetTester tester, {String? pickNote}) =>
+      tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            pdfImportRepositoryProvider.overrideWithValue(repository),
+            pdfFilePickerProvider.overrideWithValue(picker.call),
+            sampleExportLoaderProvider.overrideWithValue(
+              () async => sampleBytes,
+            ),
+          ],
+          child: ShadcnApp(
+            theme: steadyTheme,
+            home: PdfImportModule(
+              onImportCompleted: () => completedCount++,
+              onBack: () => backCount++,
+              pickNote: pickNote,
+            ),
+          ),
         ),
-      ),
-    ),
-  );
+      );
 
   final chooseButton = find.byKey(const Key('pdfImport_chooseButton'));
   final sampleButton = find.byKey(const Key('pdfImport_sampleButton'));
@@ -46,6 +50,16 @@ void main() {
   final chooseAgainButton = find.byKey(
     const Key('pdfImport_chooseAgainButton'),
   );
+
+  testWidgets("the pick step shows the app's note only when given", (
+    tester,
+  ) async {
+    await pump(tester);
+    expect(find.byKey(const Key('pdfImport_pickNote')), findsNothing);
+
+    await pump(tester, pickNote: 'No PDF needed.');
+    expect(find.text('No PDF needed.'), findsOneWidget);
+  });
 
   testWidgets('the back button calls onBack, on the pick step and the '
       'preview', (tester) async {

@@ -91,6 +91,29 @@ void main() {
     expect(data.cravingReasons, {CravingReason.tired: 2});
   });
 
+  test("Health's calories eaten win over an import's, as on Today", () async {
+    health = FakeHealth({
+      // Imported 2140, Health says 1980: Health's.
+      DateTime(2026, 10, 19): HealthDayTotals(
+        date: DateTime(2026, 10, 19),
+        caloriesEaten: 1980,
+      ),
+      // Logged in Cal AI, never imported.
+      DateTime(2026, 10, 22): HealthDayTotals(
+        date: DateTime(2026, 10, 22),
+        caloriesEaten: 1700,
+      ),
+    });
+    final data = await build()(
+      first: window.first,
+      last: window.last,
+      now: now,
+    );
+    expect(data.days.map((d) => d.caloriesEaten), [
+      1980, 1320, null, 1700, null, null, null, //
+    ]);
+  });
+
   test('formats one compact line per day, then cravings', () async {
     final text = formatCoachWeek(
       await build()(first: window.first, last: window.last, now: now),

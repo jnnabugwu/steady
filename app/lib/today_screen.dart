@@ -12,7 +12,9 @@
 /// 3. Tonight's check-in: checkin's [CheckInCard] for today.
 /// 4. This week: checkin's [CairnWeekCard] for today's week.
 /// 5. Metrics: metrics' [TodayMetricTiles] for today (the Mac shows only
-///    what it has: no Apple Health there).
+///    what it has: no Apple Health there), then the app's own
+///    [CalAiHealthCard], which on an iPhone explains how to get calories
+///    from Cal AI through Apple Health until Health has some (#138).
 /// 6. The coach nudge slot, [TodayScreen.coachNudge]: the app router puts
 ///    coach's `CoachNudgeCard` there, which offers the weekly check-in on
 ///    an iPhone from Friday to Sunday and renders nothing otherwise.
@@ -26,6 +28,7 @@ import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:steady/cal_ai_health_card.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The Today screen. See the library comment for its sections.
@@ -125,6 +128,9 @@ class TodayScreen extends ConsumerWidget {
                           CheckInCard(date: today),
                           CairnWeekCard(date: today),
                           TodayMetricTiles(date: today),
+                          // Sizes to nothing on the Mac, and once Health
+                          // has calories eaten.
+                          CalAiHealthCard(date: today),
                           ?coachNudge,
                         ],
                       ),

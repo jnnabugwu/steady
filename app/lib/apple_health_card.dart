@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
+import 'package:steady/cal_ai_health_card.dart';
 import 'package:steady/health_access.dart';
 import 'package:steady/providers.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -18,6 +19,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// doesn't tell apps what the user chose for read access; when Health
 /// returns nothing at all for the history's window, it says so and where to
 /// check the permission.
+///
+/// Below that, a "Calories eaten" line (#138) saying where that number comes
+/// from: Apple Health once Cal AI (or another app) writes it there, the Cal
+/// AI PDF imports until then, with the two steps to connect Cal AI. It
+/// outlasts Today's how-to card (`CalAiHealthCard`) being dismissed.
 ///
 /// Health values are read live and never stored or synced (App Store
 /// 5.1.3(ii); `health_access.dart`), so nothing here claims they reach other
@@ -42,8 +48,9 @@ class AppleHealthCard extends ConsumerWidget {
             Text('Apple Health', style: SteadyType.cardTitle),
             SizedBox(height: 8),
             Text(
-              'Steps and burned calories come from Apple Health on your '
-              "iPhone and stay there; they don't sync to this Mac.",
+              'Steps, burned calories, weight and calories eaten from Apple '
+              "Health stay on your iPhone; they don't sync to this Mac. "
+              'Here, calories eaten come from your Cal AI PDF imports.',
               key: Key('appleHealthStatus'),
               style: SteadyType.body,
             ),
@@ -76,6 +83,7 @@ class AppleHealthCard extends ConsumerWidget {
       totals = null;
     }
     final (status, detail) = _describe(access, totals);
+    final eaten = _caloriesEaten(authorization, totals?.value);
     final busy = access.isLoading || (totals?.isLoading ?? false);
     final canRefresh =
         !busy && authorization != HealthAuthorizationStatus.unavailable;
@@ -98,6 +106,22 @@ class AppleHealthCard extends ConsumerWidget {
           if (detail != null) ...[
             const SizedBox(height: 8),
             Text(detail, style: SteadyType.body),
+          ],
+          if (eaten != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              'Calories eaten',
+              style: SteadyType.body.copyWith(
+                color: SteadyColors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              eaten,
+              key: const Key('appleHealthCaloriesEaten'),
+              style: SteadyType.body,
+            ),
           ],
           const SizedBox(height: 16),
           if (busy)
@@ -141,8 +165,9 @@ class AppleHealthCard extends ConsumerWidget {
       HealthAuthorizationStatus.notDetermined => (
         'Not connected',
         'Show your daily steps, burned calories and weight next to what '
-            'you ate. Steady only reads them, on this iPhone: it never stores '
-            'them in iCloud and never writes to Apple Health.',
+            'you ate, and calories eaten from Cal AI without a PDF. Steady '
+            'only reads them, on this iPhone: it never stores them in iCloud '
+            'and never writes to Apple Health.',
       ),
       HealthAuthorizationStatus.requested => switch (totals?.value) {
         // Still reading: the same copy as the access check, not a status
@@ -150,20 +175,43 @@ class AppleHealthCard extends ConsumerWidget {
         null => (_checking, null),
         final days when days.isEmpty => (
           'Not allowed, or no data yet',
-          'Apple Health returned no steps, energy or weight for the last '
-              "$healthHistoryDays days. If you didn't allow access, open "
-              'the Health app, tap your profile picture, then Apps, then '
-              'Steady, and turn on Steps, Active Energy, Resting Energy and '
-              'Weight.',
+          'Apple Health returned no steps, energy, weight or calories eaten '
+              "for the last $healthHistoryDays days. If you didn't allow "
+              'access, open the Health app, tap your profile picture, then '
+              'Apps, then Steady, and turn on Steps, Active Energy, Resting '
+              'Energy, Weight and Dietary Energy.',
         ),
         _ => (
           'Connected',
           'Steady reads your last $healthHistoryDays days of steps, burned '
-              'calories and weight from Apple Health each time you open it, '
-              "and only shows them here: it doesn't store them or sync them "
-              'to your other devices.',
+              'calories, weight and calories eaten from Apple Health each '
+              "time you open it, and only shows them here: it doesn't store "
+              'them or sync them to your other devices.',
         ),
       },
     };
   }
+
+  /// The "Calories eaten" line, or `null` until there's something to say
+  /// (Health unavailable, or still reading). [days] is the live read for
+  /// the history's window.
+  static String? _caloriesEaten(
+    HealthAuthorizationStatus? authorization,
+    Map<DateTime, HealthDayTotals>? days,
+  ) => switch (authorization) {
+    HealthAuthorizationStatus.notDetermined =>
+      'From your Cal AI PDF imports. To get them without a PDF: '
+          '$calAiConnectStep Then tap Connect Apple Health above and turn '
+          'on Dietary Energy.',
+    HealthAuthorizationStatus.requested => switch (days) {
+      null => null,
+      final days when days.values.any((d) => d.caloriesEaten != null) =>
+        'From Apple Health, logged by Cal AI or another app. On a day '
+            'Health has a total, Steady shows it instead of an imported one.',
+      _ =>
+        'From your Cal AI PDF imports. To get them without a PDF: '
+            '$calAiConnectStep $calAiAllowStep',
+    },
+    _ => null,
+  };
 }
