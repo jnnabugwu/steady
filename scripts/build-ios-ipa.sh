@@ -109,6 +109,11 @@ fi
 step "flutter pub get"
 flutter pub get
 
+# Remove the last run's output first. `flutter build ipa` exits 0 when the
+# archive builds but the export fails, so a stale .ipa left here would be
+# verified (and reported) as if it were this build.
+rm -rf build/ios/ipa build/ios/archive
+
 step "flutter build ipa (release, App Store Connect, automatic signing)"
 flutter build ipa --release \
   --build-name="$VNAME" \
@@ -117,7 +122,18 @@ flutter build ipa --release \
   || die "build failed. If it's signing: Xcode > Settings > Accounts must have an Apple ID on team $TEAM_ID, then open app/ios/Runner.xcworkspace > Runner > Signing & Capabilities and fix anything red"
 
 IPA=$(ls -t build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)
-[ -n "$IPA" ] || die "no .ipa was exported; check signing in Xcode (see above)"
+if [ -z "$IPA" ]; then
+  if [ -d build/ios/archive/Runner.xcarchive ]; then
+    # The archive is this build; only the export failed. Usually signing:
+    # "No Accounts" plus a profile that "doesn't include signing certificate"
+    # means the command line couldn't refresh the store profile, e.g. after
+    # fastlane match added a second Apple Distribution certificate. Xcode's
+    # Organizer can, since it uses the signed-in account.
+    [ "$OPEN" = 1 ] && open build/ios/archive/Runner.xcarchive
+    die "the archive built ($VNAME ($VNUM)) but no .ipa was exported (see the export error above). Upload from Xcode instead: open app/build/ios/archive/Runner.xcarchive > Distribute App > App Store Connect > Upload"
+  fi
+  die "no .ipa was exported; check signing in Xcode (see above)"
+fi
 
 # --- verify what App Review will see ---
 "$ROOT/scripts/verify-ios-ipa.sh" "$IPA" "$VNAME" "$VNUM"
