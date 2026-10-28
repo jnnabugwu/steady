@@ -78,11 +78,11 @@ doesn't ask. If it does: **No**, the app doesn't use non-exempt encryption.
 
 TestFlight → Test Information:
 
-- **Beta App Description:** "Steady pairs what you ate (imported from a Cal AI PDF export)
-  with what you burned and your weight trend (read from Apple Health on iPhone), a simple
-  end-of-day check-in (logged, partial or skipped), a guided check-in for cravings, and an
-  on-device coach for a short weekly look back. No account: your data stays on your
-  devices and syncs through your own iCloud."
+- **Beta App Description:** "Steady pairs what you ate (from Cal AI, through Apple Health
+  or a PDF export) with what you burned, your steps and your weight trend (read from Apple
+  Health), a simple end-of-day check-in (logged, partial or skipped), a guided check-in for
+  cravings, and an on-device coach for a short weekly look back. No account: your data
+  stays on your iPhone and in your own iCloud."
 - **Feedback email:** enter in App Store Connect (not in the repo). Testers can also send
   feedback and screenshots from the TestFlight app.
 - **Marketing URL:** optional; `https://github.com/jnnabugwu/steady` works.
@@ -93,10 +93,10 @@ TestFlight → Test Information:
 - **Review notes** (paste as is; the same text goes in App Store Connect → App Review
   Information for the App Store submission, §8):
 
-  > No account is needed. Steady uses the device's iCloud account, if signed in, to sync
-  > the user's own calories eaten and check-ins between their iPhone and Mac (CloudKit
-  > private database; no servers). Signed out, it still works and keeps data on the
-  > device; a banner explains it won't sync.
+  > No account is needed. Steady is an iPhone app. If the iPhone is signed in to iCloud,
+  > Steady keeps the user's check-ins and imported calories in their own iCloud private
+  > database (CloudKit; no servers), so they carry over to another iPhone. Signed out, it
+  > still works and keeps data on the device; a banner explains it won't sync.
   >
   > To see it with data: on Today, tap the import button (top right) → **Try a sample
   > export → Import 7 days → Done**. It imports seven made-up days from January 2025,
@@ -104,9 +104,12 @@ TestFlight → Test Information:
   > The sample file is also at
   > https://github.com/jnnabugwu/steady/blob/main/docs/sample/cal_ai_sample_export.pdf.
   >
-  > Apple Health (iPhone): Steady asks to read steps, active and resting energy, and
-  > weight. They're read live and shown on the iPhone only, never stored in iCloud and
-  > never written to Apple Health.
+  > Apple Health: Steady asks to read steps, active and resting energy, weight, and
+  > calories eaten (Dietary Energy, which food trackers such as Cal AI can write to Apple
+  > Health). They're read live and shown on the iPhone only, never stored in iCloud and
+  > never written to Apple Health. While Apple Health has no calories eaten, Today shows a
+  > card explaining how to connect Cal AI to Apple Health. Without Cal AI, use the sample
+  > export above instead, or tap **Not now** to hide the card.
   >
   > Coach (iPhone): a short chat and a 5-minute weekly check-in about the person's own
   > tracking, run entirely on the device with Apple's Foundation Models; nothing is sent to
@@ -126,9 +129,10 @@ TestFlight → Test Information:
   >
   > Privacy policy: **Settings → Privacy → Privacy policy**.
 - **What to Test** (per build): "Import a Cal AI PDF export, do the end-of-day check-in,
-  grant Apple Health access and check today's steps, energy and weight, try the coach
-  (Coach → Start a chat; needs Apple Intelligence), log a craving, export your data from
-  Settings, and if you have a Mac, check that calories and check-ins sync."
+  grant Apple Health access and check today's steps, energy, weight and calories eaten,
+  try the coach (Coach → Start a chat; needs Apple Intelligence), log a craving, and
+  export your data from Settings." For each build's own notes, use the `what-to-test`
+  skill.
 
 ## 6. App Privacy questionnaire
 
@@ -171,13 +175,13 @@ App Store Connect → the app → **+ Version** (1.0.0), then:
   - **Keywords** (100 max): `calorie,tracking,check-in,steps,weight trend,cravings,coach,
     habit,health,food log`. Never another app's name (guideline 2.3.7): "Cal AI" belongs in
     the description, as what Steady imports, not in the keywords.
-  - **Description:** "Steady sits next to the food tracker you already use. Import your
-    Cal AI export to see what you ate beside what you burned, your steps and your weight
-    trend from Apple Health. Each evening, a one-tap check-in records how tracking went:
+  - **Description:** "Steady sits next to the food tracker you already use. Connect Cal AI
+    to Apple Health, or import a Cal AI PDF export, to see what you ate beside what you
+    burned, your steps and your weight trend from Apple Health. Each evening, a one-tap check-in records how tracking went:
     logged, partial or skipped. No streaks, no red marks. When a craving hits, a short
     guided check-in helps you pause. And on iPhones with Apple Intelligence, an on-device
     coach looks back on your week with you, and nothing leaves your phone. No account:
-    your data stays on your devices and your own iCloud."
+    your data stays on your iPhone and in your own iCloud."
 - **Support URL:** `https://github.com/jnnabugwu/steady/issues`. **Privacy Policy URL:**
   as in §5 (the same address as Settings → Privacy).
 - **App Review Information:** sign-in required **off**; contact details in App Store
