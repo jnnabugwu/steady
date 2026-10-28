@@ -230,7 +230,7 @@ class CalAiHealthCard extends ConsumerWidget {
                       'Dietary Energy.',
           ),
           Text(
-            'The PDF import still works, and it’s what your Mac shows.',
+            'Importing a Cal AI PDF still works too.',
             style: SteadyType.body.copyWith(
               fontSize: 13,
               color: SteadyColors.textMuted,
