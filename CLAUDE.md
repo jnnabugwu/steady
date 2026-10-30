@@ -25,21 +25,26 @@
   one product here, just two places it runs.
 - **SwiftData (CloudKit-backed)** — local persistence, cross-device sync, **and auth** —
   scoped to a single user's private iCloud container. This is the whole auth story: no
-  separate login system, no password, no session token, no server verifying anything.
+  separate login system, no password, no session token, no user accounts on any server.
   Apple ID *is* the account. If Steady never grows a feature that shares data with a
-  second party, there is no auth system left to build.
+  second party, there is no auth system left to build. (The planned coach proxy verifies
+  that a request comes from the genuine app, with App Attest, not who the person is; §11.)
 - **HealthKit — iOS only.** Accessed via platform channels (Dart ↔ Swift) on the iPhone.
   The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` returns false on
   macOS. Health values are read live and never stored in the synced store (App Store
   guideline 5.1.3; `docs/technical_decisions.md`, "Health data stays on the iPhone").
-- **Apple Foundation Models — iPhone only.** The coach runs its sessions on the iPhone,
-  where its context lives: Health data (iOS only, above) and craving check-ins
-  (device-only, §7). The Mac has no Foundation Models code path. The model needs an iPhone
-  that supports Apple Intelligence, so the coach checks availability at runtime rather
-  than raising the app's iOS floor. See §11.
+- **The coach's model: moving to hosted Claude (decided 2026-10-30, planned, not built).**
+  The coach's sessions run on the iPhone, where its context lives: Health data (iOS only,
+  above) and craving check-ins (device-only, §7). **Built today:** Apple Foundation Models
+  on-device, which needs an iPhone that supports Apple Intelligence, checked at runtime.
+  **Planned:** Claude Opus 5.5 (`claude-opus-5-5`) through the Anthropic API, reached only
+  through Steady's own thin proxy on Vercel (`backend/`, §2, §12), which holds the API key,
+  verifies App Attest and owns the system prompt. Hosted only: the Foundation Models path is
+  removed, not kept as a fallback. The Mac has no coach either way. See §11; decision record:
+  `docs/technical_decisions.md`, "The coach uses a hosted model".
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
-  for parsing Cal AI exports. **No backend.** Validated against real exports: 8/8 days
-  parsed correctly on the short reference file, 36 food entries, all four known daily
+  for parsing Cal AI exports. **No backend for parsing.** Validated against real exports:
+  8/8 days parsed correctly on the short reference file, 36 food entries, all four known daily
   calorie totals matched exactly, multi-line wrapped food names reassembled correctly.
   See §6 for why the parsing algorithm differs from the original PyMuPDF-based design.
 - **go_router**, with **`go_router_builder` / `@TypedGoRoute`** — typed, class-based routes
@@ -100,11 +105,13 @@ steady/
 │   │   ├── cravings_domain/         # CravingEvent, CravingRepository, weekly summary
 │   │   ├── cravings_data/           # FileCravingRepository: JSON file in app support
 │   │   └── cravings_presentation/   # Flow module, home section, Settings card
-│   ├── coach/                      # iPhone only: weekly session + chat (Foundation
-│   │   │                            # Models). The Mac has no coach code path (§11)
+│   ├── coach/                      # iPhone only: weekly session + chat. The Mac has no
+│   │   │                            # coach code path (§11)
 │   │   ├── coach_domain/
-│   │   ├── coach_data/              # Foundation Models channel (app/ios) + device-only
-│   │   │                            # transcript store, like cravings (§7, §11)
+│   │   ├── coach_data/              # Today: Foundation Models channel (app/ios). Planned:
+│   │   │                            # HostedCoachModel (talks to backend/, §11) in its place.
+│   │   │                            # Plus the device-only transcript store, like cravings
+│   │   │                            # (§7, §11), unchanged
 │   │   └── coach_presentation/       # session + chat screens and the nudge card; reads
 │   │                                 # other features' domains for its context
 │   ├── pdf_import/                 # Upload flow; parses on-device via pdfrx_engine,
@@ -134,6 +141,12 @@ steady/
 │                                     # cosine-similarity retrieval. Zero Flutter dependency,
 │                                     # unit-testable via `swift test`. See docs §8.
 │
+├── backend/                       # PLANNED, not in the repo yet: the coach proxy (§11, §12).
+│                                   # TypeScript, Vercel Functions (streaming), @anthropic-ai/sdk.
+│                                   # Holds the API key, verifies App Attest, owns the coach's
+│                                   # system prompt + guardrail tests. Stateless; stores no
+│                                   # request or response bodies
+│
 └── docs/
     ├── steady_product_overview.md
     ├── technical_decisions.md        # Decision records (D1–D6 and others)
@@ -144,7 +157,8 @@ steady/
 
 Each `*_presentation` package that needs a repository declares its providers in
 `lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation` (the coach
-store, the on-device model and the context's sources, all bound on iOS only; the sources
+store, the model (on-device today, hosted once §11's plan lands) and the context's sources,
+all bound on iOS only; the sources
 to the owning features' own repositories), `cravings_presentation`,
 `metrics_presentation` and `pdf_import_presentation` today. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
@@ -485,8 +499,8 @@ its widget tests wrap it in `ShadcnApp(theme: steadyTheme)`. Decision record:
 
 ## 6. PDF parsing: on-device, `pdfrx_engine`, token-lookahead
 
-**Final decision: no backend, at all.** PDF parsing was the backend's only job, and it's
-now done entirely on-device in `pdf_import_data` via `pdfrx_engine` (pure Dart, no
+**Final decision: no backend for PDF parsing.** PDF parsing was the original backend's only
+job, and it's now done entirely on-device in `pdf_import_data` via `pdfrx_engine` (pure Dart, no
 Flutter widget dependency, no Xcode/native code involved). This was validated against
 real Cal AI exports before being trusted: 8/8 days parsed correctly on the reference
 short file, 36 food entries, all four known daily calorie totals matched exactly, and
@@ -518,8 +532,10 @@ after the break would be silently dropped. Not observed in either validated file
 worth checking if a much longer daily log is ever imported than what's been tested.
 
 **No auth system needed.** This was a live question — resolved: CloudKit already *is*
-the auth story (see §1). Nothing in Steady shares data with a second party, so there's
-no separate system to build here, now or foreseeably.
+the auth story (see §1). Nothing in Steady shares one person's data with another person, so
+there's no separate system to build here, now or foreseeably. The planned hosted coach
+(§11) sends a session's data to Anthropic for the reply, with consent, but that needs app
+attestation (App Attest), not user accounts.
 
 ---
 
@@ -558,6 +574,24 @@ follow the same rule (#138): on the iPhone they win over a PDF-imported day's
 holds only what a PDF import wrote. The Mac shows calories eaten (Cal AI PDFs) and check-ins only; the
 coach runs on the iPhone, where the Health data is (§11). Decision record: `docs/technical_decisions.md`,
 "Health data stays on the iPhone (App Store 5.1.3)".
+
+**The hosted coach: sent for inference, never stored off the iPhone (planned, not built).**
+Once the coach moves to Claude (§11), a coach session sends, for the reply only, to Steady's
+proxy (`backend/`) and on to Anthropic: the week's check-in statuses, calories eaten (Apple
+Health's, or a Cal AI import's), steps and active/resting energy from Apple Health, the
+week's craving check-ins (count and time of day; in the weekly session also what was behind
+them) and what the person types. Only after the person agrees on the consent screen, and
+never once they turn the coach off in Settings → Coach. What doesn't change: transcripts and
+summaries are **stored** only on the iPhone (`coach_sessions.json`, below and §11), the
+proxy keeps no request or response bodies (metadata-only logs), nothing goes to Steady's
+CloudKit container, and the export is the same. That keeps 5.1.3(ii) (no health information
+in iCloud storage); sharing with a third-party AI is what 5.1.2 asks apps to disclose and get
+explicit permission for, and 5.1.3(i) limits health data to health management, never
+advertising. Anthropic's own retention and training terms for API data are an **open item**:
+check Anthropic's current published terms before shipping, and don't state them in the docs
+or the consent copy until they're confirmed. Today's build still runs on-device, and
+`docs/PRIVACY.md` describes that build; it changes in the release that ships the hosted
+coach. Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model".
 
 **No security-rules layer, by design.** The generic starter's Firestore section spends a
 full section on role-based rules because it has two roles (staff/admin) reading a shared
@@ -635,6 +669,8 @@ the synced store. The coach reads them on the iPhone (§11); the Mac never sees 
 file is deliberately **left in the user's own iOS device backup** (iCloud Backup, if they use
 it), so a restored phone keeps its history; the Settings text and PRIVACY.md say so plainly.
 Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
+"Device-only" is about storage: once the hosted coach lands, a coach session also sends the
+week's craving check-ins to Anthropic for the reply, with consent (above).
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
 (`share_plus`), built inside the owning feature's `_presentation` package. The card reads
@@ -675,9 +711,14 @@ extracted Swift package — there's less shared logic to isolate there than with
 `RAGKitCore` (mostly "call the native API, marshal the result"), so extracting it now
 would be premature.
 
-**Foundation Models is wired only in `app/ios/`**, runner-adjacent like the HealthKit
-channel. There is no macOS implementation of the coach's inference call at all — not a
-disabled one, an absent one. §11 covers why.
+**Foundation Models is wired only in `app/ios/`** today (`app/ios/Runner/CoachChannel.swift`,
+registered in `AppDelegate`), runner-adjacent like the HealthKit channel. There is no macOS
+implementation of the coach's inference call at all — not a disabled one, an absent one.
+**To be removed** with the move to the hosted model (§11): `CoachChannel.swift` and its
+`steady/coach` channels go, and the only coach Swift left in `app/ios/Runner` is a small
+**App Attest client** (planned: `DCAppAttestService` to generate a key, attest it once and
+sign an assertion per request, behind its own channel), runner-adjacent for the same reason
+as HealthKit: mostly "call the native API, marshal the result".
 
 ---
 
@@ -757,92 +798,155 @@ disabled one, an absent one. §11 covers why.
 
 ---
 
-## 11. The coach runs on the iPhone
+## 11. The coach runs on the iPhone, on a hosted model (planned)
 
-**Decision (2026-10-24, replaces "the coach is macOS-only"):** the coach, both the
-5-minute weekly session and chat, runs on the iPhone with Apple Foundation Models
-on-device. The Mac has no coach. Decision record: `docs/technical_decisions.md`, "The coach
-runs on the iPhone".
+**Where this stands (2026-10-30).** Two decisions, at two stages:
 
-**Why:** the coach's context lives on the iPhone. Steps and burned energy come from
+- **Built:** the coach (the 5-minute weekly session and chat) runs on the iPhone only
+  (decided 2026-10-24, replacing "the coach is macOS-only"). Today it talks to Apple
+  Foundation Models on-device. Decision record: `docs/technical_decisions.md`, "The coach
+  runs on the iPhone" (partly superseded).
+- **Decided, not built:** the model moves to **Claude Opus 5.5** (`claude-opus-5-5`) through
+  the Anthropic API, reached only through Steady's own thin proxy on Vercel (`backend/`, which
+  doesn't exist yet). **Hosted only:** the Foundation Models path is removed, not kept as a
+  fallback. Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model".
+  Work is tracked in the GitHub issue "Hosted coach (Claude Opus 5.5 via Vercel proxy)".
+
+Until that work lands, the code is the on-device coach described under "Built today, to be
+removed" below. Don't describe the proxy, `HostedCoachModel`, the App Attest client or the
+consent screen as existing until they do.
+
+**Why the iPhone:** the coach's context lives there. Steps and burned energy come from
 HealthKit, which works only there and can't sync through iCloud (§1, §7), and craving
-check-ins are device-only (§7). A Mac coach would see only calories eaten and check-ins,
-and the only way to fix that was a direct iPhone→Mac handoff (#97) with open pairing and
-App Review questions. The weekly session is a short, deliberate 5 minutes (decided
-2026-10-25): a phone-sized conversation, and one that fits the on-device model's small
-context window (4,096 tokens on iOS 26) without summarising itself partway through.
+check-ins are device-only (§7). A Mac coach would see only calories eaten and check-ins, and
+the only way to fix that was a direct iPhone→Mac handoff (#97) with open pairing and App
+Review questions. The weekly session is a short, deliberate 5 minutes (decided 2026-10-25): a
+phone-sized conversation.
 
-**Consequences that follow from this, worth remembering while building:**
+**Why hosted:** the on-device model needs an iPhone that supports Apple Intelligence (with it
+on, the model ready, and iOS 26), so many iPhones can't run the coach at all; the small model
+is the limit on both following the guardrails and saying something useful about the week;
+and its 4,096-token window shaped a whole layer of `coach_domain` (below). A hosted model
+works on any supported iPhone with a network connection, and the proxy lets the system
+prompt and guardrails change without App Review.
 
-- **Transcripts and summaries stay on the iPhone.** They quote Health values and
+**What holds either way (built, and kept by the hosted plan):**
+
+- **Transcripts and summaries are stored only on the iPhone.** They quote Health values and
   cravings, so syncing them through CloudKit would be storing health information in iCloud
-  (5.1.3(ii)). `coach_data` keeps them in a device-only store, the same pattern as
-  `cravings_data` (§7): included in the phone's own iCloud Backup, never in Steady's
-  CloudKit store. Coach sessions add no CloudKit record type, so they don't gate the
-  production schema deploy.
-- **Availability is a runtime state, not a platform branch.** Foundation Models needs an
-  iPhone that supports Apple Intelligence, with it turned on and the model ready.
-  `coach_data` reports each unavailable reason as a typed `Failure`, the coach UI says
-  plainly why it can't start, and the rest of the app is unaffected. This doesn't raise
-  the app's iOS floor.
+  (5.1.3(ii)). `coach_data` keeps them in a device-only store (`FileCoachRepository`,
+  `coach_sessions.json`), the same pattern as `cravings_data` (§7): included in the phone's own
+  iCloud Backup, never in Steady's CloudKit store. Coach sessions add no CloudKit record type,
+  so they don't gate the production schema deploy. The hosted model changes what's **sent**
+  for a reply (§7), not where anything is **stored**; the proxy stores nothing.
 - **The Mac has no coach code path**, the same way it has no HealthKit one: the coach's
-  providers are bound only by `appProviderOverridesFor(isIOS: true)`, like cravings (§9).
-  No Foundation Models code in `app/macos/`. A Mac chat without Health data or cravings
-  is a possible later addition, not planned.
-- **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" /
-  "Not tonight" on an iPhone where the model is available. Where it isn't, the card says
-  why instead of offering a session. Nothing on the Mac. Whether it exists never calls the
-  model (`coachNudgeProvider`); it needs all of: an iPhone, Friday to Sunday, last week
-  passing the 4-of-7 rule with every day readable, no weekly session started since that
-  week ended, and "Not tonight" not tapped today (kept in memory).
+  providers are bound only by `appProviderOverridesFor(isIOS: true)`, like cravings (§9). No
+  coach code in `app/macos/`, and the Mac stays parked (§1). A Mac chat without Health data or
+  cravings is a possible later addition, not planned.
+- **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" / "Not
+  tonight". Nothing on the Mac. Whether it exists never calls the model
+  (`coachNudgeProvider`); it needs all of: an iPhone, Friday to Sunday, last week passing the
+  4-of-7 rule with every day readable, no weekly session started since that week ended, and
+  "Not tonight" not tapped today (kept in memory). Today the card says why instead where the
+  on-device model is unavailable; with the hosted model that becomes "the coach is off" (no
+  consent yet) and offline, decided in the consent issue.
 - **Weekly session (#81):** looks back on the last completed Friday→Thursday week
   (`coachWeeklyWindow`). It doesn't start if fewer than 4 of the 7 days have any check-in
   status (`CheckWeeklyReadiness`, a use case; checked before the model is touched and again
   on Begin). Its topics are separate threads, in order: logging, steps, the week's cravings
   when there were any (observations with a question, never a grade or a week-on-week
-  comparison), and one small thing to try next week (`WeeklyTopic`, `weeklyTopicPrompt` in
-  `coach_domain`). Each topic opens with an app prompt the person doesn't see; "Next: …"
-  moves on (`moveToNextWeeklyTopic`). It ends with a stored summary, like a chat.
+  comparison), and one small thing to try next week (`WeeklyTopic`, `weeklyTopicsFor` in
+  `coach_domain`). Each topic opens with an app prompt the person doesn't see
+  (`weeklyTopicPrompt`, which moves server-side with the instructions in the hosted plan);
+  "Next: …" moves on (`moveToNextWeeklyTopic`). It ends with a stored summary, like a chat.
 - **Context stays compact:** a short 7-day summary built from `metrics_domain`,
   `checkin_domain`, the day's Health totals and `cravings_domain`, never raw history
   (`BuildCoachWeekContext`, a use case in `coach_presentation`, and `formatCoachWeek`, one
-  line per day, at most 1,200 characters). The on-device model's context window is small
-  (4,096 tokens on iOS 26, for instructions, data, prompts and replies together; read at
-  runtime as `CoachModelInfo.contextSize`). `CoachConversation` (`coach_domain`) counts
-  three characters per token (an over-estimate) and sends a turn only if its prompt, a
-  full 512-token reply and a 256-token margin still fit; otherwise the older turns are
-  summarised by the model in a separate session and the chat moves to a fresh session,
-  carrying that summary and the last few messages in its first prompt. That carried
-  summary is asked under `CoachInstructions.contextSummary`, which keeps cravings and the
-  numbers talked about, since the coach needs them; only the stored end summary uses
-  `CoachInstructions.summary`, which leaves both out (§7). The data goes in the
-  instructions; anything the person typed only ever goes in prompts. The stored
-  transcript is always the whole conversation.
-- **A reply cut off at the 512-token cap ("Keep going"):** Foundation Models gives no stop
-  reason, so `CoachKeepGoing.wasCutOff` uses the reply's output token count where the
-  model reports it (`CoachReplySnapshot.outputTokens`, iOS 27's `Snapshot.usage`) and, on
-  iOS 26, a long reply that doesn't end a sentence. A cut-off reply is shown and stored up
-  to its last complete sentence (`CoachKeepGoing.trim`), and the screen offers **Keep
-  going** (`keepGoing`): the person's turn reads "Keep going" and the coach is asked to
-  carry on. The window still counts the whole generated reply, which the model's own
-  transcript holds.
-- **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach
-  can't run here, per typed failure, and the past sessions), a live session
-  (`CoachSessionModule`, `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`,
-  `endCoachSession`, which writes the summary the export carries) and a read-only
-  transcript (`CoachTranscriptModule`). Routes in §5, "Tabs".
-- **The model channel** (#79): `steady/coach` in `app/ios/Runner/CoachChannel.swift`,
-  behind `CoachModel` (`coach_domain`). Replies stream as cumulative snapshots (the whole
-  reply so far), and each unavailable reason (device not eligible, Apple Intelligence off,
-  model not ready, iOS older than 26) is its own typed `Failure`. The on-device model needs
-  no entitlement. Steady never uses Apple's server model (`PrivateCloudComputeLanguageModel`).
+  line per day, at most 1,200 characters). The hosted model's window is far larger, but the
+  context stays compact on purpose: it's what leaves the phone (§7), and every token is paid
+  for. The data goes in the system side of the request; anything the person typed only ever
+  goes in the conversation's user turns.
+- **The stored end summary** runs separately, under the summary instructions
+  (`CoachInstructions.summary` today), asking for tracking habits and next week's plan and
+  leaving out cravings and exact numbers (§7). It's what the export carries.
+- **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach can't
+  run here, per typed failure, and the past sessions), a live session (`CoachSessionModule`,
+  `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`, `endCoachSession`, which
+  writes the summary the export carries) and a read-only transcript (`CoachTranscriptModule`).
+  Routes in §5, "Tabs".
 - **Guardrails (#82):** coach, not therapist. It never originates calorie targets, weight
   goals or diet prescriptions, including from craving data (the NEDA "Tessa" failure in
-  `docs/research/craving_support.md`). The instructions live in one place
-  (`CoachInstructions` in `coach_domain`, with the "not medical advice" and help-line copy
-  in `CoachCopy`), and `coach_instructions_test.dart` asserts each constraint is present.
-- **`notes` (RAG) feeds the iPhone coach.** Retrieval into the coach's context runs on the
-  iPhone, so `RAGKitCore` has to build for iOS.
+  `docs/research/craving_support.md`). The instructions live in one place, and a test asserts
+  each constraint is present: today `CoachInstructions` in `coach_domain` and
+  `coach_instructions_test.dart`; in the hosted plan both move to `backend/`. The "not medical
+  advice" and help-line copy (`CoachCopy`) stays in the app, since the screens show it.
+- **`notes` (RAG) feeds the coach** (#85). Retrieval runs on the iPhone, so `RAGKitCore` has
+  to build for iOS. With the hosted model, the retrieved notes become part of what's sent for
+  a reply, so they fall under the same consent and PRIVACY.md disclosure.
+
+**Planned: the hosted coach (not built).**
+
+- **The proxy** (`backend/`, §2, §12): TypeScript, Vercel Functions with streaming responses,
+  the official `@anthropic-ai/sdk`. Stateless. It holds the Anthropic API key (never in the
+  app); verifies **Apple App Attest** on every request (attested public keys and counters in
+  Upstash Redis through the Vercel Marketplace; no user accounts); **owns the system prompt
+  and guardrails**, so the app sends only the session kind, the week context and the
+  conversation; caps cost with a per-device daily limit plus a monthly spend limit in the
+  Anthropic Console; logs metadata only (status, token counts, latency), never bodies; and
+  streams the reply back as server-sent events.
+- **Opus 5.5 settings, for the proxy:** thinking can't be disabled on Opus 5.5, so depth is
+  set with `output_config.effort`, set explicitly (its default is `medium`): start at `low`
+  for chat and measure. `max_tokens` covers thinking as well as the visible reply, so the
+  on-device 512-token reply cap must not carry over; keep replies short through the prompt.
+  Turn on the server-side refusal fallback (`fallbacks: "default"`, beta
+  `server-side-fallback-2026-07-01`) and handle `stop_reason: "refusal"` (show the help line)
+  and `"max_tokens"`. Cache the fixed system prompt and check `cache_read_input_tokens`; the
+  prefix may be under the model's minimum cacheable length, which is fine.
+- **App side:** a `HostedCoachModel` in `coach_data` behind `CoachModel` (`coach_domain`),
+  replacing `MethodChannelCoachModel` and `CoachChannel.swift`; a small App Attest client in
+  `app/ios/Runner` (§8). `CoachModel` changes shape: today it's session-stateful (the native
+  side holds the transcript) and the client passes the instruction text to `startSession`; with
+  a stateless proxy that owns the prompts, the app sends the session kind and the whole
+  conversation every turn. New typed `Failure`s: offline, consent not given, rate limited,
+  server error, refusal.
+- **Availability** stops being "an iPhone with Apple Intelligence": the coach works on any
+  supported iPhone with a network connection and the person's consent. The app's iOS floor
+  doesn't change.
+- **Consent** before the first session (what's sent, to whom, for what), and a toggle in
+  Settings → Coach to turn the coach off. "Not now" leaves the coach off; the rest of the app
+  works the same. PRIVACY.md, the App Privacy answers, `NSHealthShareUsageDescription` and the
+  App Review notes change in the same release.
+- **`coach_domain` sheds the 4,096-token machinery:** `CoachContextBudget`, the fresh-session
+  and carried-summary parts of `CoachConversation`, `estimateCoachTokens`,
+  `CoachInstructions.contextSummary`, the `CoachKeepGoing` cut-off heuristic (the API reports
+  `stop_reason: "max_tokens"`), `CoachModelInfo.contextSize`,
+  `CoachReplySnapshot.outputTokens`, and the Apple Intelligence `CoachModelUnavailableFailure`
+  subtypes. It keeps the session and transcript types, `CoachRepository`, the weekly rule and
+  topics, and `CoachCopy`.
+
+**Built today, to be removed by the hosted plan:**
+
+- **The model channel** (#79): `steady/coach` in `app/ios/Runner/CoachChannel.swift`, behind
+  `CoachModel` (`coach_domain`), via `MethodChannelCoachModel` (`coach_data`). Replies stream
+  as cumulative snapshots (the whole reply so far), and each unavailable reason (device not
+  eligible, Apple Intelligence off, model not ready, iOS older than 26) is its own typed
+  `Failure`. The on-device model needs no entitlement. Steady never uses Apple's server model
+  (`PrivateCloudComputeLanguageModel`).
+- **The 4,096-token window** (iOS 26; read at runtime as `CoachModelInfo.contextSize`), for
+  instructions, data, prompts and replies together. `CoachConversation` (`coach_domain`)
+  counts three characters per token (an over-estimate) and sends a turn only if its prompt, a
+  full 512-token reply and a 256-token margin still fit; otherwise the older turns are
+  summarised by the model in a separate session (under `CoachInstructions.contextSummary`,
+  which keeps cravings and the numbers talked about) and the chat moves to a fresh session,
+  carrying that summary and the last few messages in its first prompt. The stored transcript
+  is always the whole conversation.
+- **A reply cut off at the 512-token cap ("Keep going"):** Foundation Models gives no stop
+  reason, so `CoachKeepGoing.wasCutOff` uses the reply's output token count where the model
+  reports it (`CoachReplySnapshot.outputTokens`, iOS 27's `Snapshot.usage`) and, on iOS 26, a
+  long reply that doesn't end a sentence. A cut-off reply is shown and stored up to its last
+  complete sentence (`CoachKeepGoing.trim`), and the screen offers **Keep going**
+  (`keepGoing`). With the hosted model the API says when a reply hit `max_tokens`; whether a
+  "Keep going" button survives is decided in the `coach_domain` cleanup issue.
 
 ---
 
@@ -867,12 +971,20 @@ problem — an agent needs to know where a feature starts and ends without readi
 whole repo — is the same problem, just spread across time instead of across people. The
 dependency graph is the context boundary either way.
 
-**Why is there no backend at all, unlike the generic starter's `backend/`?** The generic
-starter's backend can grow into payments, scheduling, business-rule enforcement — real
-reasons a client can't be trusted alone. Steady has none of those needs, and its one
-original reason (PDF parsing) turned out not to need a server either, once validated
-on-device. Per §6, there's no `backend/` folder in this repo at all, and no auth system
-either — CloudKit's per-account private container already provides that for free.
+**Why one thin proxy, and no other backend, unlike the generic starter's `backend/`?**
+The generic starter's backend can grow into payments, scheduling, business-rule
+enforcement — real reasons a client can't be trusted alone. Steady has almost none of those
+needs. Its original reason (PDF parsing) turned out not to need a server, once validated
+on-device (§6), and there's still no auth system: CloudKit's per-account private container
+provides that for free. The one thing a client can't be trusted with is a **secret**: the
+hosted coach (§11, decided 2026-10-30, **planned, not built**) needs an Anthropic API key,
+and a key shipped in the app is a key anyone can extract and spend. So `backend/` (not in
+the repo yet) is a single stateless proxy for the coach: it holds the key, checks App Attest
+so only the genuine app can call it, owns the coach's system prompt and guardrails (so a
+modified client can't rewrite them, and a fix ships without App Review), and caps spend. It
+deliberately has no database of people's data, no accounts and no sync role; a KV store
+holds only App Attest keys, their counters and per-device daily request counts. Anything beyond that (storing transcripts,
+server-side history, user accounts) would be a new decision, not a natural extension.
 
 **Why does the coach run only on the iPhone, when most of the app is both-platforms?**
 Neither source doc has an equivalent call to make — the multi-app starter has no
@@ -880,4 +992,6 @@ single-feature platform split at all. The coach was first scoped to the Mac, as 
 sit-down session rather than a pocket moment. That flipped (2026-10-24) once Health data
 and cravings turned out to be iPhone-only (App Store 5.1.3): a Mac coach couldn't see most
 of what it's meant to discuss. The session is a deliberate 5 minutes, sized for the
-phone. See §11 for the full consequences of this choice.
+phone. The model behind it moves from on-device Foundation Models to hosted Claude (decided
+2026-10-30, planned); the coach stays on the iPhone, where its data is read. See §11 for the
+full consequences of both choices.
