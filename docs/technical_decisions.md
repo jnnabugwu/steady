@@ -7,6 +7,81 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Usage events from TestFlight builds only (2026-10-31)
+
+**Decision:** TestFlight builds send anonymous usage events to PostHog (cloud, free plan).
+App Store installs send nothing. The events are a fixed list in `packages/shared/analytics`
+(`AnalyticsEvent`), each a name plus labels, yes/nos or counts:
+
+- `health_connected`, once per launch: whether the last seven days had any steps and any
+  calories eaten.
+- `check_in_logged`: the status only.
+- `pdf_imported`: how many days, and whether it was the sample.
+- `pdf_import_failed`: whether parse or save failed.
+- `coach_availability`, once per launch: available, or the unavailable reason.
+- `craving_flow_finished`: nothing else.
+- PostHog's own lifecycle events (installed, opened, backgrounded).
+
+There's a Settings switch to turn it off. Session replay, autocaptured taps, person
+profiles, surveys, feature-flag preloading and push hooks are all off.
+
+**Why:** Testers are friends who won't report everything. The questions that decide what to
+build next are:
+
+- Does the evening check-in stick past the first few days?
+- Does Health actually connect?
+- Is the PDF import still used now that Cal AI calories come from Health (#138)?
+- What share of iPhones can run the coach?
+- Does anyone finish the craving flow?
+
+App Store Connect's own analytics can't answer those.
+
+**How it stays out of the App Store build:**
+
+- **Runtime check.** A TestFlight binary is the same file that's submitted for review, so the
+  gate is checked at runtime: `steady/install` (`AppDelegate.swift`) reads StoreKit's
+  `AppTransaction` environment (`sandbox` is TestFlight), with the `sandboxReceipt` receipt
+  as a fallback. Anything else is `unknown`, which sends nothing.
+- **Key at build time.** The PostHog key comes from `--dart-define=POSTHOG_KEY`
+  (`scripts/build-ios-ipa.sh` reads it from the environment), never from the repo. Without it,
+  nothing is set up at all.
+- **Manual setup.** The SDK is set up by hand (`com.posthog.posthog.AUTO_INIT` is `false`).
+  Events recorded before the install check answers wait for it and are dropped if sharing
+  isn't on. `health_connected` and `coach_availability` aren't even computed unless it is.
+
+**Why the event list lives in one shared file:** whatever can leave the phone has to be
+readable in one place. App Store 5.1.3 limits sharing HealthKit-derived data with third
+parties, and `docs/PRIVACY.md` promises no Health values, cravings or coach text leave the
+iPhone. A count of imported days or a yes/no for "had steps" isn't a Health value; the step
+count would be.
+
+**Alternatives considered:**
+
+- *Session replay*, rejected. Every screen shows Health values, cravings or coach text, and
+  masking all text leaves grey boxes.
+- *A build-time flag instead of the runtime check*, rejected. The flagged binary could be
+  submitted to the App Store.
+- *A `health_connected` event when the permission sheet closes*, rejected. HealthKit never
+  says whether access was allowed, so it would count "Don't Allow" as connected.
+
+**Before the App Store version sends anything:**
+
+- The App Privacy label changes.
+- `docs/PRIVACY.md` drops "TestFlight only".
+- `docs/testflight.md`'s review answers ("no third-party SDKs or analytics") change.
+
+**The SDK's privacy manifest.** The SDK is linked into every build, key or not, and never set
+up on an App Store install. Its bundled `PrivacyInfo.xcprivacy` files still declare *Product
+Interaction* and *Other Usage Data* (not linked, analytics), and crash data from
+PLCrashReporter. App Store Connect reads those for any uploaded build. So a build with this
+SDK isn't submitted for App Store review while the App Privacy label says "Data Not
+Collected". Do one of these first:
+
+- update the label to those not-linked types;
+- submit an earlier build that doesn't have the SDK.
+
+---
+
 ## The Mac is parked (2026-10-27)
 
 **Decision:** Steady is scoped, built and shipped as an iPhone app. The macOS target stays in

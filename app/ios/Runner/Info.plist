@@ -32,6 +32,10 @@
 	<string>Steady reads your daily steps, active and resting energy, weight, and calories eaten (logged by apps like Cal AI) from Apple Health to show what you ate next to how much you burned, and your weight trend. These stay on this iPhone: Steady never stores them in iCloud and never writes anything to Apple Health.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Steady never writes anything to Apple Health. It only reads your daily steps, active and resting energy, weight and calories eaten to show them in the app.</string>
+	<key>com.posthog.posthog.AUTO_INIT</key>
+	<false/>
+	<key>com.posthog.posthog.CAPTURE_PUSH_NOTIFICATION_OPENED</key>
+	<false/>
 	<key>SteadyCloudKitContainer</key>
 	<string>iCloud.com.jmagic.steady</string>
 	<key>SteadyCloudKitEnabled</key>

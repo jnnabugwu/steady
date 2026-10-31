@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:analytics/analytics.dart';
+import 'package:analytics/testing.dart';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:failures/failures.dart';
@@ -23,11 +25,16 @@ void main() {
   late FakeCheckInRepository repository;
   late ProviderContainer container;
   late List<_State> states;
+  late RecordingAnalytics analytics;
 
   setUp(() {
     repository = FakeCheckInRepository();
+    analytics = RecordingAnalytics();
     container = ProviderContainer.test(
-      overrides: [checkInRepositoryProvider.overrideWithValue(repository)],
+      overrides: [
+        checkInRepositoryProvider.overrideWithValue(repository),
+        analyticsProvider.overrideWithValue(analytics),
+      ],
     );
     states = [];
   });
@@ -81,6 +88,22 @@ void main() {
   });
 
   group('CheckInController.logCheckIn', () {
+    test('records check_in_logged only for a saved check-in', () async {
+      await container.read(checkInControllerProvider(day).future);
+      final notifier = container.read(checkInControllerProvider(day).notifier);
+
+      repository.onLogCheckIn = (_, _) =>
+          const Err(PlatformChannelFailure('write failed', code: 'E_IO'));
+      await notifier.logCheckIn(CheckInStatus.skipped);
+      expect(analytics.events, isEmpty);
+
+      repository.onLogCheckIn = (_, _) => const Ok(unit);
+      await notifier.logCheckIn(CheckInStatus.logged);
+      expect(analytics.events, [
+        AnalyticsEvent.checkInLogged(status: 'logged'),
+      ]);
+    });
+
     test('goes loading -> data(status) and writes through', () async {
       listen();
       await container.read(checkInControllerProvider(day).future);
@@ -98,6 +121,9 @@ void main() {
 
       expect(states, [_isLoading(), _isData(CheckInStatus.partial)]);
       expect(repository.logCheckInCalls, [(day, CheckInStatus.partial)]);
+      expect(analytics.events, [
+        AnalyticsEvent.checkInLogged(status: 'partial'),
+      ]);
     });
 
     test('goes loading -> error carrying the Failure', () async {

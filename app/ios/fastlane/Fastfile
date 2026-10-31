@@ -70,11 +70,17 @@ platform :ios do
       )
 
       # Flutter writes the version and build number into Generated.xcconfig;
-      # gym then archives and exports with match's profile.
+      # gym then archives and exports with match's profile. The PostHog key,
+      # when set, goes in the same way (TestFlight installs only, checked at
+      # runtime: app/lib/usage_sharing.dart).
+      defines = %w[POSTHOG_KEY POSTHOG_HOST]
+        .reject { |name| ENV[name].to_s.strip.empty? }
+        .map { |name| "--dart-define=#{name}=#{ENV[name].strip}" }
+      UI.message(defines.empty? ? "Usage sharing: off (no POSTHOG_KEY)" : "Usage sharing: on for TestFlight installs")
       Dir.chdir(APP_DIR) do
         sh("flutter", "pub", "get")
         sh("flutter", "build", "ios", "--release", "--config-only", "--no-codesign",
-           "--build-name=#{version}", "--build-number=#{build}")
+           "--build-name=#{version}", "--build-number=#{build}", *defines)
       end
       ipa = build_app(
         workspace: "Runner.xcworkspace",

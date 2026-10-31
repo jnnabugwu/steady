@@ -26,6 +26,15 @@
 # team, HealthKit, the iCloud container, production push, the encryption
 # flag, and iPhone-only.
 #
+# Usage sharing (TestFlight only): set POSTHOG_KEY (the phc_ project key) and,
+# for an EU project, POSTHOG_HOST=https://eu.i.posthog.com in the environment,
+# and they're passed in with --dart-define. Without POSTHOG_KEY the build sends
+# nothing anywhere. With it, the app still sends only from a TestFlight install,
+# checked at runtime (app/lib/usage_sharing.dart). Either way the PostHog SDK
+# is linked, and its privacy manifest declares usage data: don't submit a
+# build with it for App Store review until the App Privacy label says so
+# (docs/technical_decisions.md, "Usage events from TestFlight builds only").
+#
 # No flavors, env files or CocoaPods: Steady has no backend, and plugins are
 # integrated with Swift Package Manager.
 #
@@ -114,11 +123,21 @@ flutter pub get
 # verified (and reported) as if it were this build.
 rm -rf build/ios/ipa build/ios/archive
 
+DEFINES=()
+if [ -n "${POSTHOG_KEY:-}" ]; then
+  DEFINES+=("--dart-define=POSTHOG_KEY=$POSTHOG_KEY")
+  [ -n "${POSTHOG_HOST:-}" ] && DEFINES+=("--dart-define=POSTHOG_HOST=$POSTHOG_HOST")
+  echo "Usage sharing: on for TestFlight installs (${POSTHOG_HOST:-https://us.i.posthog.com})"
+else
+  echo "Usage sharing: off (no POSTHOG_KEY in the environment)"
+fi
+
 step "flutter build ipa (release, App Store Connect, automatic signing)"
 flutter build ipa --release \
   --build-name="$VNAME" \
   --build-number="$VNUM" \
   --export-method=app-store \
+  ${DEFINES[@]+"${DEFINES[@]}"} \
   || die "build failed. If it's signing: Xcode > Settings > Accounts must have an Apple ID on team $TEAM_ID, then open app/ios/Runner.xcworkspace > Runner > Signing & Capabilities and fix anything red"
 
 IPA=$(ls -t build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)

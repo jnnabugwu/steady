@@ -1,3 +1,4 @@
+import 'package:analytics/analytics.dart';
 import 'package:cravings_domain/cravings_domain.dart';
 import 'package:cravings_presentation/src/craving_flow_state.dart';
 import 'package:cravings_presentation/src/craving_week_controller.dart';
@@ -16,6 +17,9 @@ part 'craving_flow_controller.g.dart';
 /// Every public method is one domain event (CLAUDE.md §4) and is ignored
 /// unless the flow is at the step it belongs to, so a double tap can't
 /// skip a step or save twice.
+///
+/// A saved ending is recorded as `craving_flow_finished`, with nothing
+/// about the craving itself: no rating, reasons or outcome.
 @riverpod
 class CravingFlowController extends _$CravingFlowController {
   @override
@@ -132,6 +136,7 @@ class CravingFlowController extends _$CravingFlowController {
     // Read before the await: the provider may be disposed by the time the
     // save returns (the person tapped Done), and the save still lands.
     final repository = ref.read(cravingRepositoryProvider);
+    final analytics = ref.read(analyticsProvider);
     final Result<Unit> result;
     try {
       result = await repository.save(event);
@@ -144,6 +149,9 @@ class CravingFlowController extends _$CravingFlowController {
             : UnknownFailure('Saving the craving failed.', cause: error),
       );
       return;
+    }
+    if (result is Ok<Unit>) {
+      analytics.record(AnalyticsEvent.cravingFlowFinished);
     }
     if (!ref.mounted) return;
     state = switch (result) {

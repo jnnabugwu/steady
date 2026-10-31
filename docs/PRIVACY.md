@@ -1,6 +1,6 @@
 # Steady Privacy Policy
 
-Effective 27 October 2026.
+Effective 31 October 2026.
 
 Steady is an app for iPhone and Mac that shows your daily calories and a simple end-of-day
 check-in. This policy describes what the app does with your data.
@@ -11,7 +11,9 @@ check-in. This policy describes what the app does with your data.
   account.
 - Your data stays on your devices and in your own private iCloud storage. The developer
   can't see it.
-- No analytics, no ads, no tracking, no third-party services.
+- No analytics, no ads, no tracking, no third-party services. The one exception is beta
+  builds from TestFlight, which send anonymous usage events (see "TestFlight beta builds").
+  Versions from the App Store send nothing.
 
 ## What Steady stores
 
@@ -86,11 +88,35 @@ on Health in iCloud. That's Apple's storage, managed in the Health app and your 
 settings, not Steady's. You can turn off Steady's access at any time in the Health app or in
 Settings → Privacy & Security → Health. The Mac app doesn't use Apple Health.
 
+## TestFlight beta builds
+
+If you're testing Steady through Apple's TestFlight app, the beta sends anonymous usage
+events to [PostHog](https://posthog.com/privacy), an analytics service, so the developer can
+see which features get used and where things go wrong. Versions from the App Store never do.
+
+- **What's sent:** that something happened, with a few yes/no answers, labels or counts and
+  nothing more. The events are: the app was installed, opened or closed; a check-in was saved
+  (and whether it was logged, partial or skipped); a Cal AI PDF import finished (how many days
+  it had) or failed; the craving check-in reached its end; whether the coach can run on this
+  iPhone (and if not, why, such as Apple Intelligence being off); and, once per launch,
+  whether Apple Health returned any steps and any calories eaten in the last seven days (yes
+  or no, not the amounts). Each event also carries the app version, the iPhone model, the iOS
+  version, language and time zone, and a random ID made for this install.
+- **What's never sent:** your calories, steps, weight or any other Health value, your
+  check-in dates, anything about a craving beyond reaching the end, anything you or the coach
+  wrote, your name, email or Apple ID. There's no screen recording and no tracking across
+  other apps or websites.
+- PostHog receives your IP address with each request, as any web service does; Steady's
+  PostHog project is set to discard it.
+- **Turning it off:** Settings → Usage sharing → "Share anonymous usage". Steady stops
+  sending at once and remembers the choice on that iPhone.
+
 ## What Steady doesn't do
 
 - No Steady servers: nothing is sent to the developer or to anyone else. That includes the
   coach, which runs on the iPhone itself.
-- No analytics, advertising or tracking, and no third-party services that receive your data.
+- No analytics, advertising or tracking, and no third-party services that receive your data,
+  apart from the anonymous usage events in TestFlight beta builds described above.
 - No selling or sharing of your data.
 
 Apple may pass crash reports to the developer if you've turned on sharing with app

@@ -32,6 +32,10 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>com.posthog.posthog.AUTO_INIT</key>
+	<false/>
+	<key>com.posthog.posthog.CAPTURE_PUSH_NOTIFICATION_OPENED</key>
+	<false/>
 	<key>SteadyCloudKitContainer</key>
 	<string>iCloud.com.jmagic.steady</string>
 	<key>SteadyCloudKitEnabled</key>

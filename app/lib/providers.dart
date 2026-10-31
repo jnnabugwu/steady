@@ -63,12 +63,19 @@
 /// The coach's context providers (#80: check-ins, calories eaten, Health,
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
+///
+/// **Usage sharing** (TestFlight only, `usage_sharing.dart`):
+/// `analyticsProvider`, which features record their events through, is
+/// bound to [postHogAnalyticsProvider], `null` (so nothing is sent) unless
+/// `main.dart` built one: a key, iOS, and a TestFlight install. Tests built
+/// from this list send nothing.
 library;
 
 import 'dart:io';
 
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
+import 'package:analytics/analytics.dart';
 import 'package:checkin_data/checkin_data.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_data/coach_data.dart';
@@ -86,6 +93,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
+import 'package:steady/usage_sharing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 part 'providers.g.dart';
@@ -204,6 +212,11 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
       (ref) => ref.watch(cravingRepositoryProvider),
     ),
   ],
+  // Usage events go to PostHog only through the sink main.dart builds on a
+  // TestFlight install; everywhere else they go nowhere.
+  analyticsProvider.overrideWith(
+    (ref) => ref.watch(postHogAnalyticsProvider) ?? const NoAnalytics(),
+  ),
   // The iCloud account status (#53). Until CloudKit is configured (the
   // `SteadyCloudKitEnabled` Info.plist flag, flipped by #43), the native
   // side answers `notConfigured`, which never blocks the app.

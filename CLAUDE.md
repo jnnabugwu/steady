@@ -60,6 +60,14 @@
   `ThemeData`), and every feature screen. Feature and app `lib/` code uses
   `shadcn_flutter` / `ui_kit` widgets only, never Material: no
   `package:flutter/material.dart` import. See §5, "App shell".
+- **PostHog (`posthog_flutter`) — TestFlight builds only.** Anonymous usage events, from
+  a fixed list in `packages/shared/analytics` (`AnalyticsEvent`): names plus labels,
+  yes/nos or counts, never a Health value, craving or coach text. Features record through
+  `analyticsProvider` (a no-op unless the app binds it). `app/lib/usage_sharing.dart` sets
+  PostHog up only when the build has a key (`--dart-define=POSTHOG_KEY`) and the install
+  is TestFlight, checked at runtime (`steady/install`). No session replay. A new event
+  goes in `AnalyticsEvent`, and in `docs/PRIVACY.md`'s list. Decision record:
+  `docs/technical_decisions.md`, "Usage events from TestFlight builds only".
 
 ---
 
@@ -72,6 +80,7 @@ steady/
 │   │   ├── app_router.dart        # routerProvider + typed routes, wires feature callbacks (§5)
 │   │   ├── app_shell.dart          # AppShell: the tab branches under the floating GlassTabBar (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
+│   │   ├── usage_sharing.dart      # PostHog on TestFlight only: install check, opt-out (§1)
 │   │   ├── today_screen.dart       # TodayScreen, served at `/` by HomeRoute: composes the
 │   │   │                            # features' Today cards (§5)
 │   │   └── main.dart               # ProviderScope + ShadcnApp.router
@@ -120,6 +129,8 @@ steady/
 │   └── shared/
 │       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets
 │       ├── failures/                # Shared typed Failure classes, Result, Unit
+│       ├── analytics/               # AnalyticsEvent (every usage event, TestFlight only,
+│       │                            # §1) + analyticsProvider, lib/testing.dart
 │       ├── daily_metrics_domain/    # Shared DailyMetric entity + DailyMetricRepository
 │       └── daily_metrics_data/      # SwiftDataDailyMetricRepository (the shared store, §7,
 │                                     # §9), in-memory + file impls, lib/testing/ contract
@@ -322,6 +333,7 @@ copy:
 | `coachNudgeDismissalProvider` ("Not tonight") | `keepAlive: true` | Holds the day the nudge was dismissed; it has to outlive Today's rebuilds. In memory only, so a relaunch shows the nudge again. |
 | `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
+| `analyticsProvider` (`packages/shared/analytics`), `postHogAnalyticsProvider` and `usageSharingControllerProvider` (`app/lib/usage_sharing.dart`) | `keepAlive: true` | App-scoped: the PostHog sink holds the SDK's setup and the events waiting on it (§1). |
 
 Never mark a **family** `keepAlive`. Every argument value would live forever. If a family
 needs to survive briefly, use `ref.keepAlive()` and close the `KeepAliveLink` in a
