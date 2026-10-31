@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:analytics/analytics.dart';
 import 'package:failures/failures.dart';
 import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/src/pdf_file_picker.dart';
@@ -19,6 +20,10 @@ part 'pdf_import_controller.g.dart';
 /// State is a [PdfImportState]; see that class for why it isn't an
 /// `AsyncValue`. Repository `Result`s are translated here, so every failure
 /// the UI sees is a typed [Failure].
+///
+/// A saved import is recorded as `pdf_imported` (how many days, and whether
+/// it was the sample), and a failed one as `pdf_import_failed` (which step).
+/// Never the calories.
 @riverpod
 class PdfImportController extends _$PdfImportController {
   @override
@@ -51,6 +56,7 @@ class PdfImportController extends _$PdfImportController {
       bytes = await ref.read(pdfFilePickerProvider)();
     } on Object catch (error) {
       if (!ref.mounted) return;
+      _recordFailure(PdfImportStage.parse);
       state = PdfImportParseFailed(
         UnknownFailure("Couldn't open that file.", cause: error),
       );
@@ -108,6 +114,7 @@ class PdfImportController extends _$PdfImportController {
       result = Err(UnknownFailure("Couldn't read that PDF.", cause: error));
     }
     if (!ref.mounted) return;
+    if (result is Err) _recordFailure(PdfImportStage.parse);
     state = switch (result) {
       Ok(:final value) => PdfImportPreview(value, isSample: isSample),
       Err(:final failure) => PdfImportParseFailed(failure),
@@ -140,6 +147,13 @@ class PdfImportController extends _$PdfImportController {
       result = Err(UnknownFailure("Couldn't save the import.", cause: error));
     }
     if (!ref.mounted) return;
+    ref
+        .read(analyticsProvider)
+        .record(
+          result is Ok
+              ? AnalyticsEvent.pdfImported(days: days.length, sample: isSample)
+              : AnalyticsEvent.pdfImportFailed(stage: PdfImportStage.save),
+        );
     state = switch (result) {
       Ok() => PdfImportCommitted(days, isSample: isSample),
       Err(:final failure) => PdfImportPreview(
@@ -149,4 +163,8 @@ class PdfImportController extends _$PdfImportController {
       ),
     };
   }
+
+  void _recordFailure(PdfImportStage stage) => ref
+      .read(analyticsProvider)
+      .record(AnalyticsEvent.pdfImportFailed(stage: stage));
 }

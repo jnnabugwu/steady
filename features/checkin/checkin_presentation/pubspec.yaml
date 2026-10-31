@@ -9,6 +9,8 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  analytics:
+    path: ../../../packages/shared/analytics
   checkin_domain:
     path: ../checkin_domain
   daily_metrics_domain:

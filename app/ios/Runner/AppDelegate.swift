@@ -1,5 +1,6 @@
 import CloudKit
 import Flutter
+import StoreKit
 import UIKit
 
 @main
@@ -18,6 +19,54 @@ import UIKit
     }
     SteadyHealthKitChannel.register(with: engineBridge.pluginRegistry)
     SteadyCoachChannel.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SteadyInstallChannel") {
+      SteadyInstallChannel.register(messenger: registrar.messenger())
+    }
+  }
+}
+
+/// The `steady/install` platform channel, iOS only: where this copy of
+/// Steady was installed from. Usage events go to PostHog only from a
+/// TestFlight install (or a debug build given a PostHog key), never from
+/// the App Store, and the same binary can be both, so this is asked at
+/// runtime. The Dart side is `MethodChannelInstallSource` in
+/// `lib/usage_sharing.dart`; change both together.
+///
+/// Methods:
+/// - `source` returns `testFlight`, `appStore`, `development` or `unknown`.
+///   Debug builds are `development`. Otherwise StoreKit's `AppTransaction`
+///   says: its `sandbox` environment is TestFlight. If that isn't
+///   available or isn't verified, a `sandboxReceipt` App Store receipt still
+///   marks a TestFlight install, and anything else is `unknown`, which
+///   sends nothing.
+private enum SteadyInstallChannel {
+  static func register(messenger: FlutterBinaryMessenger) {
+    let channel = FlutterMethodChannel(name: "steady/install", binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "source":
+        Task { @MainActor in result(await source()) }
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+  }
+
+  private static func source() async -> String {
+    #if DEBUG
+      return "development"
+    #else
+      if case .verified(let transaction)? = try? await AppTransaction.shared {
+        switch transaction.environment {
+        case .sandbox: return "testFlight"
+        case .production: return "appStore"
+        case .xcode: return "development"
+        default: break
+        }
+      }
+      return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        ? "testFlight" : "unknown"
+    #endif
   }
 }
 

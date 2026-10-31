@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 
+import 'package:analytics/analytics.dart';
+import 'package:analytics/testing.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,14 +16,17 @@ void main() {
   late FakePdfFilePicker picker;
   late ProviderContainer container;
   late List<PdfImportState> states;
+  late RecordingAnalytics analytics;
 
   setUp(() {
     repository = FakePdfImportRepository();
     picker = FakePdfFilePicker(bytes: pdfBytes);
+    analytics = RecordingAnalytics();
     container = ProviderContainer.test(
       overrides: [
         pdfImportRepositoryProvider.overrideWithValue(repository),
         pdfFilePickerProvider.overrideWithValue(picker.call),
+        analyticsProvider.overrideWithValue(analytics),
       ],
     );
     states = [];
@@ -332,6 +337,39 @@ void main() {
       await notifier().commitImport();
 
       expect(repository.commitCalls, isEmpty);
+    });
+  });
+
+  group('analytics', () {
+    test('a saved import records pdf_imported with the day count', () async {
+      await notifier().parsePdf(pdfBytes);
+      await notifier().commitImport();
+
+      expect(analytics.events, [
+        AnalyticsEvent.pdfImported(days: sampleDays.length, sample: false),
+      ]);
+    });
+
+    test('a failed parse records pdf_import_failed at parse', () async {
+      repository.onParse = (_) => const Err(ValidationFailure('not Cal AI'));
+
+      await notifier().parsePdf(pdfBytes);
+
+      expect(analytics.events, [
+        AnalyticsEvent.pdfImportFailed(stage: PdfImportStage.parse),
+      ]);
+    });
+
+    test('a failed save records pdf_import_failed at save', () async {
+      repository.onCommit = (_) =>
+          const Err(PlatformChannelFailure('store down', code: 'E_IO'));
+
+      await notifier().parsePdf(pdfBytes);
+      await notifier().commitImport();
+
+      expect(analytics.events, [
+        AnalyticsEvent.pdfImportFailed(stage: PdfImportStage.save),
+      ]);
     });
   });
 

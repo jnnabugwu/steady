@@ -87,6 +87,8 @@ In `jnnabugwu/steady` → Settings → Secrets and variables → Actions → New
 | `MATCH_GIT_URL` | `https://github.com/jnnabugwu/steady-certificates.git` |
 | `MATCH_PASSWORD` | The passphrase from step 3 |
 | `MATCH_GIT_BASIC_AUTHORIZATION` | The base64 string from step 4 |
+| `POSTHOG_KEY` | Optional. The PostHog project key (`phc_…`): TestFlight installs send anonymous usage events (`docs/technical_decisions.md`, "Usage events from TestFlight builds only"). Leave unset to send nothing. |
+| `POSTHOG_HOST` | Optional. `https://eu.i.posthog.com` for an EU PostHog project; the default is the US host. |
 
 Secrets aren't passed to workflows triggered from forks, and only people with write access to
 the repo can start a `workflow_dispatch` run.

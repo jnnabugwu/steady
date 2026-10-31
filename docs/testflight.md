@@ -90,6 +90,12 @@ TestFlight → Test Information:
   (`docs/PRIVACY.md` must be merged to `main` first, or the link 404s).
 - **Beta App Review information:** contact name, phone and email in App Store Connect.
   **Sign-in required: off** (no account).
+- **Usage sharing (builds with a PostHog key):** TestFlight installs send anonymous usage
+  events to PostHog (`docs/PRIVACY.md`, "TestFlight beta builds"); App Store installs never
+  do. Add a line to the beta's What to Test: "This beta sends anonymous usage events (no
+  Health values, cravings or coach text) to help improve Steady. Turn it off in Settings →
+  Usage sharing." The App Review answers below describe the App Store build, which sends
+  nothing, so they stay as they are until analytics ships there.
 - **Review notes:** Apple asks every new app from a new account for the six answers
   below, as a **2.1.0 App Completeness** rejection ("Information Needed") that pauses review
   until you reply. It happened on Steady's first App Store submission (October 2026). Paste

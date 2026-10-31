@@ -3,10 +3,12 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:account_presentation/account_presentation.dart';
+import 'package:analytics/analytics.dart' show AnalyticsEvent;
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_presentation/coach_presentation.dart'
     show
         coachAvailabilityProvider,
+        coachModelProvider,
         coachNudgeProvider,
         coachSupportAvailableProvider,
         weeklyReadinessProvider;
@@ -21,11 +23,25 @@ import 'package:steady/health_access.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
+import 'package:steady/usage_sharing.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configurePdfium();
+  // Usage sharing (TestFlight only, usage_sharing.dart): built only with a
+  // PostHog key, on iOS. Whether this install may send anything is checked
+  // in the background; events recorded meanwhile wait for the answer.
+  final postHog = Platform.isIOS && postHogKey.isNotEmpty
+      ? PostHogAnalytics(
+          client: const PosthogFlutterClient(
+            key: postHogKey,
+            host: postHogHost,
+          ),
+          installSource: const MethodChannelInstallSource(),
+          store: const FileUsageSharingStore(usageSharingFile),
+        )
+      : null;
   // Built before runApp so the one-time migration below writes through the
   // same shared repository instance the app then uses.
   final container = ProviderContainer(
@@ -35,13 +51,41 @@ Future<void> main() async {
       calAiCardSnoozeStoreProvider.overrideWithValue(
         FileCalAiCardSnoozeStore(calAiCardSnoozeFile),
       ),
+      if (postHog != null) postHogAnalyticsProvider.overrideWithValue(postHog),
     ],
   );
+  if (postHog != null) unawaited(postHog.status);
+  unawaited(_recordCoachAvailability(container));
   await _migrateInterimFileStore(container);
   await _clearLegacyHealthFields(container);
   runApp(
     UncontrolledProviderScope(container: container, child: const SteadyApp()),
   );
+}
+
+/// Records `coach_availability` once per launch: whether the on-device model
+/// can run on this iPhone, and if not, why (usage sharing). Skipped where
+/// there's no coach or sharing isn't on, so it never calls the model for
+/// nothing.
+Future<void> _recordCoachAvailability(ProviderContainer container) async {
+  final analytics = container.read(postHogAnalyticsProvider);
+  if (analytics == null || !container.read(coachSupportAvailableProvider)) {
+    return;
+  }
+  try {
+    if (await analytics.status != UsageSharingStatus.on) return;
+    final result = await container.read(coachModelProvider).checkAvailability();
+    analytics.record(
+      AnalyticsEvent.coachAvailability(reason: coachAvailabilityReason(result)),
+    );
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Coach availability check failed',
+      name: 'steady.usage',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
 }
 
 /// Moves rows from the interim JSON file store into SwiftData, once (the
