@@ -7,6 +7,145 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## The coach uses a hosted model (2026-10-30)
+
+**Status: decided, not built.** Nothing below exists in the code yet. The shipped coach still
+runs on Apple Foundation Models on the iPhone, and `docs/PRIVACY.md`, the App Privacy answers
+(`docs/testflight.md` §6) and the Health usage string still describe that. They change in the
+same release as the hosted coach, not before. Tracking issue: "Hosted coach (Claude Opus 5.5
+via Vercel proxy)".
+
+**Decision:**
+
+1. The coach (the 5-minute weekly session and chat) moves from on-device Apple Foundation
+   Models to a **hosted model**: **Claude Opus 5.5** (`claude-opus-5-5`) through the Anthropic
+   API.
+2. **Hosted only.** The Foundation Models path (`MethodChannelCoachModel`,
+   `app/ios/Runner/CoachChannel.swift`) is removed, not kept as a fallback.
+3. The app never holds the API key. It talks to a **thin, stateless proxy** in a new top-level
+   `backend/` folder (TypeScript, Vercel Functions with streaming responses, the official
+   `@anthropic-ai/sdk`), deployed on **Vercel**. The proxy:
+   - holds the Anthropic API key (a key from the Anthropic Console, paid from Jordan's API
+     credits, about $100 a month; a Claude Max subscription doesn't cover API usage);
+   - verifies **Apple App Attest** on every request. There are still no user accounts:
+     App Attest proves a request comes from the genuine Steady app on a real Apple device, not
+     who the person is. Attested public keys and assertion counters live in a small KV store
+     (Upstash Redis, through the Vercel Marketplace);
+   - **owns the system prompt and the guardrails.** `CoachInstructions` and the tests that
+     assert each constraint move server-side, so a guardrail fix ships without App Review and
+     a modified client can't change the prompt. The app sends only the session kind, the
+     compact week context and the conversation;
+   - caps cost: a per-device daily request limit, plus a monthly spend limit set in the
+     Anthropic Console;
+   - logs metadata only (status, token counts, latency), never request or response bodies;
+   - streams the reply back to the app (server-sent events).
+4. A **consent screen** before the first coach session, and a toggle in Settings → Coach to
+   turn the coach off again. Without consent, nothing is sent and the rest of the app works the
+   same.
+
+**Why it came up:** outside product feedback on the coach, after the on-device version shipped
+to TestFlight. The on-device model limits who can use the coach and how good it can be:
+
+- **Reach.** Foundation Models needs an iPhone that supports Apple Intelligence, with it turned
+  on, the model downloaded, and iOS 26. Many iPhones don't meet that, and on those the Coach tab
+  only explains why it can't run.
+- **Quality.** The on-device model is small. Holding it to the coach's guardrails (no calorie
+  targets, weight goals or diets; the help line for a crisis) and to a useful, specific
+  reflection on the week is the hardest part of the feature, and the model is the limit.
+- **The 4,096-token window.** The instructions, the week's data, every prompt and every reply
+  share it. A whole layer of `coach_domain` exists only to live inside it: a token estimate, a
+  budget per turn, summarising older turns into a fresh session, and a heuristic to guess
+  whether a reply was cut off ("Keep going"), since Foundation Models reports no stop reason.
+  The 5-minute weekly session was sized partly to fit it.
+
+**Rationale:**
+
+- A hosted frontier model follows long, specific instructions (the guardrails, the weekly
+  topics, the no-shame rules) far more reliably, and it has the context to hold a whole session
+  plus its data without summarising itself.
+- It runs on any supported iPhone with a network connection, so every tester gets the coach.
+  The app's iOS floor doesn't change.
+- Owning the prompt on the server is a real gain on its own: today a guardrail fix needs a new
+  build and App Review, and the instructions ship inside the app.
+- The proxy is deliberately thin. It stores nothing about the person, so it doesn't change
+  Steady's storage story: transcripts and summaries are still stored only on the iPhone
+  (CLAUDE.md §7, §11), and nothing new goes to iCloud.
+- Hosted only, not hybrid: two model paths means two sets of prompts, failures, tests and
+  privacy copy for one feature, and the on-device one is the weaker path on every axis except
+  "nothing leaves the phone". The consent screen covers the person who doesn't want their data
+  sent: they say no, and the coach stays off.
+
+**Consequences:**
+
+- **Privacy changes (the biggest part).** A coach session now sends the conversation's data to
+  Steady's proxy and on to Anthropic, for the reply only: the week's check-in statuses,
+  calories eaten (from Apple Health or a Cal AI import), steps and active/resting energy from
+  Apple Health, the week's craving check-ins (count and time of day; in the weekly session also
+  what was behind them), and what the person types. Weight isn't sent; the coach doesn't read it.
+  - **Storage is unchanged.** Transcripts and summaries are still stored only on the iPhone, in
+    the device-only `coach_sessions.json`. The data export is unchanged. The proxy keeps no
+    request or response bodies.
+  - **5.1.3(ii) still holds:** nothing goes to Steady's CloudKit container or any other iCloud
+    storage.
+  - **5.1.2 applies now:** sending personal data to a third-party AI has to be disclosed, with
+    the person's explicit permission before anything is shared. Hence the consent screen, and
+    PRIVACY.md naming Anthropic and what's sent.
+  - **5.1.3(i):** health data may be used only for health management, never for advertising or
+    data mining. The coach uses it only to write the reply.
+  - The App Privacy answers change from "no data collected" to declaring Health & Fitness (used
+    for app functionality, not linked to identity, not used for tracking), depending on
+    Anthropic's retention terms. The App Review notes, the App Store description ("nothing
+    leaves your phone") and `NSHealthShareUsageDescription` ("These stay on this iPhone") all
+    need rewording.
+  - **Anthropic's API data terms (retention, training use, zero data retention eligibility)
+    are an open item.** They must be checked against Anthropic's current published terms
+    before shipping, and the consent copy and PRIVACY.md state them only once confirmed. This
+    record deliberately states no retention period or training terms.
+- **Steady now has a backend** (CLAUDE.md §12). It's one stateless proxy for one feature, with
+  no database of people's data, no accounts and no sync role. Everything else stays on-device or
+  in the person's own iCloud.
+- **`coach_domain` sheds the 4,096-token machinery:** `CoachContextBudget`, `CoachConversation`'s
+  move to a fresh session and its carried summary, `estimateCoachTokens`,
+  `CoachInstructions.contextSummary`, the `CoachKeepGoing` cut-off heuristic (the API reports
+  `stop_reason: "max_tokens"`), `CoachModelInfo.contextSize` and
+  `CoachReplySnapshot.outputTokens`, and the Apple Intelligence availability failures. What
+  stays: the week context (`BuildCoachWeekContext`, `formatCoachWeek`), the weekly topics and
+  the 4-of-7 readiness rule, the nudge, the stored end summary, the transcript store and the
+  export.
+- **`CoachModel` changes shape.** Today it's session-stateful (the native side holds the
+  transcript) and the client passes the instruction text into `startSession`. With a stateless
+  proxy that owns the prompts, the app sends the session kind and the whole conversation on
+  every turn instead. The interface change is small, but it's a change, not just a new
+  implementation.
+- **Availability** is no longer "an iPhone with Apple Intelligence". The coach needs a network
+  connection and consent. New typed failures: offline, consent not given, rate limited, server
+  error, and a refusal. The help-line copy that showed on Apple's guardrail stop now shows on a
+  refusal.
+- **Cost is real and has a ceiling:** the per-device daily limit and the Console spend limit.
+  A runaway client or a leaked attestation can't spend more than the Console limit.
+- **Deliberately unchanged:** the Mac stays parked (no Mac coach); cravings stay device-only
+  for storage; the coach stays iPhone-only in the app (`appProviderOverridesFor(isIOS: true)`).
+  Journal-note retrieval (#85) would now feed a hosted prompt, so the retrieved notes become
+  part of what's sent; that's noted on #85, not redesigned here.
+
+**Alternatives considered:**
+
+- *Keep the coach on-device (Foundation Models).* Nothing leaves the phone, no cost and no
+  server. Rejected: many iPhones can't run it, the small model is the limit on both
+  guardrail reliability and usefulness, and the 4,096-token window shapes the whole feature.
+- *Hybrid: hosted, with on-device as a fallback* (offline, or for people who decline consent).
+  Rejected: two model paths with different prompts, failure types, tests and privacy copy, for
+  a fallback many iPhones can't run anyway. Someone who declines consent gets no coach, and
+  that's said plainly.
+- *Gemini or GPT through the same proxy.* The proxy design would be the same. Not picked:
+  Claude Opus 5.5 is Jordan's choice of model, and Jordan already has Anthropic API credits.
+  The proxy keeps the provider behind one server-side seam, so this stays reversible.
+- *A self-hosted open model* (for example on a GPU host). Rejected for now: running and paying
+  for inference infrastructure for a small TestFlight audience, with a weaker model and no
+  better privacy story than a provider's API terms.
+
+---
+
 ## The Mac is parked (2026-10-27)
 
 **Decision:** Steady is scoped, built and shipped as an iPhone app. The macOS target stays in
@@ -48,6 +187,12 @@ Mac chat without Health data.
 ---
 
 ## The coach runs on the iPhone (2026-10-24)
+
+> **Partly superseded (2026-10-30)** by "The coach uses a hosted model" above. The coach stays
+> on the iPhone, and its transcripts stay device-only. What's superseded is the model: Apple
+> Foundation Models on-device is being replaced by Claude Opus 5.5 through Steady's proxy, so
+> the availability rules, the 4,096-token window and the "nothing leaves the iPhone" points
+> below describe the current build, not the plan. Kept as written for the history.
 
 **Decision:** The coach (the 5-minute weekly session and chat) runs on the iPhone, with
 Apple Foundation Models on-device. This replaces "the coach is macOS-only" (CLAUDE.md §11,

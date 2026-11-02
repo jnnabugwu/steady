@@ -172,13 +172,15 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] iOS: PDFium via `pdfium_flutter` (a `pdf_import_data` dependency, which also links it
       on macOS); the document picker needs no Info.plist key. Same e2e test passes on the iOS
       simulator with `--dart-define=E2E_PDF_PATH=...`. Not yet tried on a physical iPhone.
-- [x] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
-      `CLAUDE.md` §12). Verified on macOS by `app/integration_test/pdf_import_e2e_test.dart`.
+- [x] Rows land in SwiftData rather than the interim JSON file (no backend for parsing —
+      see `CLAUDE.md` §6, §12). Verified on macOS by `app/integration_test/pdf_import_e2e_test.dart`.
 
 ## Feature: coach (CLAUDE.md §11)
 
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
-"The coach runs on the iPhone").
+"The coach runs on the iPhone"). Decided 2026-10-30: its model moves to hosted Claude; see
+"Hosted coach" below. The Foundation Models items in this section describe the current build,
+and the open on-hardware checks for the on-device model lapse once the hosted coach replaces it.
 
 - [x] `coach_data`: Apple Foundation Models channel in `app/ios` only
       (`CoachChannel.swift`, `MethodChannelCoachModel`), with typed `Failure`s for each
@@ -245,6 +247,48 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [x] The coach ships in one release (screens, storage, Settings → Coach delete and the
       export's coach summaries), so `docs/PRIVACY.md`'s Coach section no longer says "The
       coach isn't in Steady yet". Effective date 26 October 2026.
+
+### Hosted coach (decided 2026-10-30; nothing built yet)
+
+Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model". The coach
+moves to Claude Opus 5.5 (`claude-opus-5-5`) through a thin proxy on Vercel; hosted only, the
+Foundation Models items above are removed when this lands. CLAUDE.md §7, §11, §12. Tracking
+issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)".
+
+- [ ] Jordan: confirm Anthropic's current API data terms (retention, training use, zero data
+      retention eligibility), create the Console API key, set a monthly spend limit, add the
+      key to Vercel. Nothing about retention goes into the consent copy or PRIVACY.md until
+      this is done.
+- [ ] `backend/` proxy (TypeScript, Vercel Functions, streaming, `@anthropic-ai/sdk`): holds
+      the key; verifies App Attest on every request (Upstash Redis for attested keys and
+      counters); owns the system prompt and guardrails (`CoachInstructions`, the weekly topic
+      prompts and the summary instructions, with their tests, moved from `coach_domain`);
+      per-device daily limit; metadata-only logs; SSE replies. Opus 5.5: explicit
+      `output_config.effort` (start `low` for chat), refusal fallback
+      (`fallbacks: "default"`), `stop_reason` `refusal` / `max_tokens` handled, the system
+      prompt cached.
+- [ ] App Attest client in `app/ios/Runner` (`DCAppAttestService`: key, one attestation, an
+      assertion per request), its channel and typed failures; the App Attest entitlement; a
+      debug-only bypass for the Simulator that the production proxy rejects.
+- [ ] `HostedCoachModel` in `coach_data`, replacing `MethodChannelCoachModel`,
+      `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift`; `CoachModel` reshaped
+      for a stateless proxy (session kind + conversation per turn, no instruction text from
+      the client). New typed failures: offline, consent not given, rate limited, server
+      error, refusal.
+- [ ] `coach_domain` cleanup: the 4,096-token machinery removed (`CoachContextBudget`,
+      `CoachConversation`'s fresh-session/carry logic, `estimateCoachTokens`,
+      `CoachInstructions.contextSummary`, the `CoachKeepGoing` heuristic,
+      `CoachModelInfo.contextSize`, `CoachReplySnapshot.outputTokens`, the Apple Intelligence
+      failures), and `CoachSessionController` simplified to match.
+- [ ] Consent screen before the first session, a Settings → Coach toggle to turn the coach
+      off, PRIVACY.md naming Anthropic and what's sent, the App Privacy answers
+      (`docs/testflight.md` §6), `NSHealthShareUsageDescription`, the App Review notes and
+      App Store description: all in the release that ships the hosted coach.
+- [ ] Guardrail evaluation set (calorie targets, weight goals, diet prescriptions, crisis
+      language, cravings) run against the proxy and passing before any TestFlight build with
+      the hosted coach.
+- [ ] Notes retrieval (#85) feeds a hosted prompt: the retrieved notes count as sent data,
+      under the same consent and disclosure.
 
 ## Feature: notifications — dropped
 
@@ -336,6 +380,9 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       against the iOS 27.1 SDK (#79); only Apple's server model,
       `PrivateCloudComputeLanguageModel`, needs a managed entitlement, and Steady doesn't use
       it. CloudKit container entitlement is set.
+      Planned with the hosted coach: the App Attest entitlement
+      (`com.apple.developer.devicecheck.appattest-environment`), which Foundation Models never
+      needed.
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
       run only from Actions → Ship iOS (`docs/fastlane.md`).
