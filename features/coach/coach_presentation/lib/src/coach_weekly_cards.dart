@@ -105,15 +105,19 @@ String coachWeekLabel(DateTime first, DateTime last) {
 /// The Today screen's coach nudge (`TodayScreen.coachNudge`, iPhone only).
 ///
 /// Offers the weekly check-in ([coachNudgeProvider]). Where the coach can
-/// run: **Talk now** ([onTalkNow]) and **Not tonight**. Where it can't (no
-/// consent yet, the coach off, this iPhone can't be verified), the reason
-/// in a sentence instead of "Talk now". Never calls the network. Nothing at
-/// all on the Mac, where it never reads the model.
+/// run: **Talk now** ([onTalkNow]) and **Not tonight**. **Without consent
+/// it looks the same** (decided for #153; reversible: hiding it until
+/// consent is the alternative), and the app layer shows the consent screen
+/// before the weekly session; "Not now" there returns to Today. Where the
+/// coach can't run for another reason (the proxy off, this iPhone can't be
+/// verified), the reason in a sentence instead of "Talk now". Never calls
+/// the network. Nothing at all on the Mac, where it never reads the model.
 class CoachNudgeCard extends ConsumerWidget {
   /// Creates the nudge.
   const CoachNudgeCard({required this.onTalkNow, super.key});
 
-  /// Called by "Talk now": open the weekly session.
+  /// Called by "Talk now": open the weekly session (after the consent
+  /// screen, when consent isn't given yet).
   final void Function() onTalkNow;
 
   @override
@@ -128,6 +132,8 @@ class CoachNudgeCard extends ConsumerWidget {
       return const SizedBox.shrink();
     }
     final failure = switch (availability) {
+      // No consent yet: offered as usual; "Talk now" asks first.
+      AsyncError(error: CoachConsentNotGivenFailure()) => null,
       AsyncError(:final error) =>
         error is Failure ? error : const CoachServerFailure(),
       _ => null,

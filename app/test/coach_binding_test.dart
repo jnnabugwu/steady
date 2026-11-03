@@ -20,12 +20,26 @@ void main() {
     expect(ios.read(coachModelProvider), isA<HostedCoachModel>());
   });
 
-  test('the real wiring sends nothing without consent, which defaults to '
-      'not given (until #153)', () async {
+  test('iOS keeps consent in the device-only file store; macOS binds none', () {
     final ios = ProviderContainer.test(
       overrides: appProviderOverridesFor(isIOS: true),
     );
-    expect(ios.read(coachConsentGivenProvider), isFalse);
+    expect(
+      ios.read(coachConsentRepositoryProvider),
+      isA<FileCoachConsentRepository>(),
+    );
+    final mac = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: false),
+    );
+    expect(mac.read(coachConsentRepositoryProvider), isNull);
+  });
+
+  test('the real wiring sends nothing without consent: a store with no '
+      'agreement (here, one that has no file to read) is not given', () async {
+    final ios = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: true),
+    );
+    expect(await ios.read(coachConsentGivenProvider.future), isFalse);
     final reply = await ios
         .read(coachModelProvider)
         .reply(
@@ -65,14 +79,17 @@ void main() {
   test('a build without COACH_PROXY_URL (this test run) says the coach is '
       'off', () async {
     final ios = ProviderContainer.test(
-      overrides: [
-        ...appProviderOverridesFor(isIOS: true),
-        coachConsentGivenProvider.overrideWithValue(true),
-      ],
+      overrides: appProviderOverridesFor(isIOS: true),
     );
-    await expectLater(
-      ios.read(coachAvailabilityProvider.future),
-      throwsA(isA<CoachTurnedOffFailure>()),
+    // The model's own local check, the one `coachAvailability` runs once
+    // consent is given.
+    expect(
+      await ios.read(coachModelProvider).checkAvailability(),
+      isA<Err<Unit>>().having(
+        (e) => e.failure,
+        'failure',
+        isA<CoachTurnedOffFailure>(),
+      ),
     );
   });
 

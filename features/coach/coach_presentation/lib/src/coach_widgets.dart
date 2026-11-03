@@ -208,12 +208,13 @@ class CoachHelpCard extends StatelessWidget {
 ({String title, String body, bool canRetry}) coachUnavailableCopy(
   Failure failure,
 ) => switch (failure) {
-  // Until the consent screen lands (#153), this is where the coach stops.
+  // Not agreed to yet, or turned off in Settings → Coach. The way back is
+  // the consent screen ("Turn on the coach"), not "Check again".
   CoachConsentNotGivenFailure() => (
-    title: "The coach isn't set up yet",
+    title: 'The coach is off',
     body:
-        'It needs your OK before it sends anything, and that step isn’t '
-        'here yet. Everything else in Steady works as usual.',
+        'It asks before it sends anything. Turn it on to see what it sends '
+        'and why. Everything else in Steady works as usual.',
     canRetry: false,
   ),
   CoachTurnedOffFailure() => (
@@ -259,16 +260,27 @@ String coachRetryAfterLabel(Duration? retryAfter) {
 }
 
 /// The unavailable state as a coach-tinted card: [coachUnavailableCopy]'s
-/// title and line, and "Check again" (44pt) when that could help.
+/// title and line, and "Check again" (44pt) when that could help. For
+/// [CoachConsentNotGivenFailure], **Turn on the coach** instead, which
+/// opens the consent screen ([onTurnOn]).
 class CoachUnavailableCard extends StatelessWidget {
-  /// Creates the card for [failure]. [onRetry] null hides "Check again".
-  const CoachUnavailableCard({required this.failure, this.onRetry, super.key});
+  /// Creates the card for [failure]. [onRetry] null hides "Check again";
+  /// [onTurnOn] null hides "Turn on the coach".
+  const CoachUnavailableCard({
+    required this.failure,
+    this.onRetry,
+    this.onTurnOn,
+    super.key,
+  });
 
   /// Why the coach can't run.
   final Failure failure;
 
   /// Checks again.
   final VoidCallback? onRetry;
+
+  /// Opens the consent screen, for [CoachConsentNotGivenFailure].
+  final VoidCallback? onTurnOn;
 
   @override
   Widget build(BuildContext context) {
@@ -286,6 +298,17 @@ class CoachUnavailableCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(copy.body, style: SteadyType.body),
+          if (failure is CoachConsentNotGivenFailure && onTurnOn != null) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 52,
+              child: PrimaryButton(
+                key: const Key('coachTurnOn'),
+                onPressed: onTurnOn,
+                child: const Center(child: Text('Turn on the coach')),
+              ),
+            ),
+          ],
           if (copy.canRetry && onRetry != null) ...[
             const SizedBox(height: 16),
             SizedBox(

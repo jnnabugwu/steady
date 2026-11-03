@@ -638,6 +638,25 @@ void main() {
       },
     );
 
+    test('consent withdrawn while the challenge is fetched: the reply is '
+        'never sent', () async {
+      keys.keyId = 'k';
+      final hold = Completer<void>();
+      proxy.hold = hold.future;
+      final events = <Result<CoachReplySnapshot>>[];
+      final done = Completer<void>();
+      model().reply(_chat).listen(events.add, onDone: done.complete);
+      await pumpEventQueue();
+      expect(proxy.challenges, hasLength(1));
+
+      consent = false;
+      proxy.hold = null;
+      hold.complete();
+      await done.future;
+      expect(failureOf(events), isA<CoachConsentNotGivenFailure>());
+      expect(proxy.replyRequests, isEmpty);
+    });
+
     test('when the consent check itself throws', () async {
       final coach = HostedCoachModel(
         config: CoachProxyConfig(baseUrl: _base),

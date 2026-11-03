@@ -92,8 +92,8 @@ String _$coachRepositoryHash() => r'33015002c10110eccfc36663949035be74915bfc';
 ///
 /// A platform fact, not whether the coach can reply right now (consent, a
 /// configured proxy, a verifiable iPhone, a connection), which the coach
-/// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
-/// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+/// checks separately (`coachConsentGivenProvider`, `coachAvailability`,
+/// and each reply). `false` by default; `app/lib/providers.dart` sets it from the
 /// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
 /// both. When it's `false` the coach's Settings card renders nothing.
 ///
@@ -106,8 +106,8 @@ final coachSupportAvailableProvider = CoachSupportAvailableProvider._();
 ///
 /// A platform fact, not whether the coach can reply right now (consent, a
 /// configured proxy, a verifiable iPhone, a connection), which the coach
-/// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
-/// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+/// checks separately (`coachConsentGivenProvider`, `coachAvailability`,
+/// and each reply). `false` by default; `app/lib/providers.dart` sets it from the
 /// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
 /// both. When it's `false` the coach's Settings card renders nothing.
 ///
@@ -120,8 +120,8 @@ final class CoachSupportAvailableProvider
   ///
   /// A platform fact, not whether the coach can reply right now (consent, a
   /// configured proxy, a verifiable iPhone, a connection), which the coach
-  /// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
-  /// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+  /// checks separately (`coachConsentGivenProvider`, `coachAvailability`,
+  /// and each reply). `false` by default; `app/lib/providers.dart` sets it from the
   /// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
   /// both. When it's `false` the coach's Settings card renders nothing.
   ///
@@ -238,93 +238,88 @@ final class CoachModelProvider
 
 String _$coachModelHash() => r'683d504a6b6ec41f3f38295db61e9e43b875736a';
 
-/// Whether the person has agreed to what the coach sends, to whom and for
-/// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
-/// the coach screens check it before they offer a session
-/// (`coachAvailability`, `CoachSessionController`), and the hosted model
-/// checks it again before every request (`app/lib/providers.dart` binds its
-/// `consentGiven` to this provider).
+/// Where the person's agreement to what the coach sends is kept
+/// (`CoachConsentRepository`), or `null` where it isn't bound, which reads
+/// as "not given" (`coachConsentGivenProvider`).
 ///
-/// `false`, always, until the consent screen and Settings → Coach toggle
-/// land (#153). Until then the coach shows "not set up yet"
-/// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
-/// this with a Notifier backed by a device-only consent store (with
-/// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
-/// reader above follows it.
+/// Typed against the domain interface only (CLAUDE.md §3).
+/// `app/lib/providers.dart` binds it on iOS only, to the device-only file
+/// store (`FileCoachConsentRepository`, `coach_consent.json`). Never synced
+/// (CLAUDE.md §7). Tests override it with a fake.
 ///
-/// `keepAlive`: the one answer for the whole app.
+/// `keepAlive`: the file store owns the queue that serialises its writes
+/// (D6).
 
-@ProviderFor(coachConsentGiven)
-final coachConsentGivenProvider = CoachConsentGivenProvider._();
+@ProviderFor(coachConsentRepository)
+final coachConsentRepositoryProvider = CoachConsentRepositoryProvider._();
 
-/// Whether the person has agreed to what the coach sends, to whom and for
-/// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
-/// the coach screens check it before they offer a session
-/// (`coachAvailability`, `CoachSessionController`), and the hosted model
-/// checks it again before every request (`app/lib/providers.dart` binds its
-/// `consentGiven` to this provider).
+/// Where the person's agreement to what the coach sends is kept
+/// (`CoachConsentRepository`), or `null` where it isn't bound, which reads
+/// as "not given" (`coachConsentGivenProvider`).
 ///
-/// `false`, always, until the consent screen and Settings → Coach toggle
-/// land (#153). Until then the coach shows "not set up yet"
-/// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
-/// this with a Notifier backed by a device-only consent store (with
-/// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
-/// reader above follows it.
+/// Typed against the domain interface only (CLAUDE.md §3).
+/// `app/lib/providers.dart` binds it on iOS only, to the device-only file
+/// store (`FileCoachConsentRepository`, `coach_consent.json`). Never synced
+/// (CLAUDE.md §7). Tests override it with a fake.
 ///
-/// `keepAlive`: the one answer for the whole app.
+/// `keepAlive`: the file store owns the queue that serialises its writes
+/// (D6).
 
-final class CoachConsentGivenProvider
-    extends $FunctionalProvider<bool, bool, bool>
-    with $Provider<bool> {
-  /// Whether the person has agreed to what the coach sends, to whom and for
-  /// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
-  /// the coach screens check it before they offer a session
-  /// (`coachAvailability`, `CoachSessionController`), and the hosted model
-  /// checks it again before every request (`app/lib/providers.dart` binds its
-  /// `consentGiven` to this provider).
+final class CoachConsentRepositoryProvider
+    extends
+        $FunctionalProvider<
+          CoachConsentRepository?,
+          CoachConsentRepository?,
+          CoachConsentRepository?
+        >
+    with $Provider<CoachConsentRepository?> {
+  /// Where the person's agreement to what the coach sends is kept
+  /// (`CoachConsentRepository`), or `null` where it isn't bound, which reads
+  /// as "not given" (`coachConsentGivenProvider`).
   ///
-  /// `false`, always, until the consent screen and Settings → Coach toggle
-  /// land (#153). Until then the coach shows "not set up yet"
-  /// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
-  /// this with a Notifier backed by a device-only consent store (with
-  /// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
-  /// reader above follows it.
+  /// Typed against the domain interface only (CLAUDE.md §3).
+  /// `app/lib/providers.dart` binds it on iOS only, to the device-only file
+  /// store (`FileCoachConsentRepository`, `coach_consent.json`). Never synced
+  /// (CLAUDE.md §7). Tests override it with a fake.
   ///
-  /// `keepAlive`: the one answer for the whole app.
-  CoachConsentGivenProvider._()
+  /// `keepAlive`: the file store owns the queue that serialises its writes
+  /// (D6).
+  CoachConsentRepositoryProvider._()
     : super(
         from: null,
         argument: null,
         retry: null,
-        name: r'coachConsentGivenProvider',
+        name: r'coachConsentRepositoryProvider',
         isAutoDispose: false,
         dependencies: null,
         $allTransitiveDependencies: null,
       );
 
   @override
-  String debugGetCreateSourceHash() => _$coachConsentGivenHash();
+  String debugGetCreateSourceHash() => _$coachConsentRepositoryHash();
 
   @$internal
   @override
-  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
-      $ProviderElement(pointer);
+  $ProviderElement<CoachConsentRepository?> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
 
   @override
-  bool create(Ref ref) {
-    return coachConsentGiven(ref);
+  CoachConsentRepository? create(Ref ref) {
+    return coachConsentRepository(ref);
   }
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(bool value) {
+  Override overrideWithValue(CoachConsentRepository? value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<bool>(value),
+      providerOverride: $SyncValueProvider<CoachConsentRepository?>(value),
     );
   }
 }
 
-String _$coachConsentGivenHash() => r'dc984469ebd23258d32292d6353acf9ff051f434';
+String _$coachConsentRepositoryHash() =>
+    r'a739efadf21594a693df40d42f52c44c82f2f272';
 
 /// Check-in statuses, for the coach's context. Bound by the app to the
 /// check-in feature's own repository (the same instance, so the same

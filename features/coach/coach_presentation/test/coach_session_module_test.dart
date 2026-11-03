@@ -8,6 +8,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 
@@ -15,11 +16,15 @@ void main() {
   late FakeCoachModel model;
   late FakeCoachRepository repository;
   late int closed;
+  late int consentAsks;
+  FakeCoachConsentRepository? consent;
 
   setUp(() {
     model = FakeCoachModel(manualReplies: true);
     repository = FakeCoachRepository();
     closed = 0;
+    consentAsks = 0;
+    consent = null;
   });
 
   Future<void> pump(
@@ -37,6 +42,7 @@ void main() {
           model: model,
           repository: repository,
           consentGiven: consentGiven,
+          consent: consent,
         ),
         child: ShadcnApp(
           theme: steadyTheme,
@@ -46,7 +52,10 @@ void main() {
                 accessibleNavigation: accessibleNavigation,
                 disableAnimations: disableAnimations,
               ),
-              child: CoachSessionModule(onClosed: () => closed++),
+              child: CoachSessionModule(
+                onClosed: () => closed++,
+                onConsentRequested: () => consentAsks++,
+              ),
             ),
           ),
         ),
@@ -219,8 +228,8 @@ void main() {
 
   final reasons = <CoachUnavailableFailure, (String, String)>{
     const CoachConsentNotGivenFailure(): (
-      "The coach isn't set up yet",
-      'needs your OK before it sends anything',
+      'The coach is off',
+      'It asks before it sends anything',
     ),
     const CoachTurnedOffFailure(): ('The coach is off right now', 'later'),
     const CoachDeviceNotVerifiedFailure(): (
@@ -241,14 +250,68 @@ void main() {
     });
   }
 
-  testWidgets('without consent: "not set up yet", no message box, no Check '
-      'again, and nothing sent', (tester) async {
+  testWidgets('without consent: "The coach is off", no message box, no '
+      'Check again, and nothing sent', (tester) async {
     await pump(tester, consentGiven: false);
-    expect(find.text("The coach isn't set up yet"), findsOneWidget);
+    expect(find.text('The coach is off'), findsOneWidget);
     expect(find.byKey(const Key('coachMessageField')), findsNothing);
     expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
     expect(model.requests, isEmpty);
     expect(model.availabilityChecks, 0);
+  });
+
+  testWidgets('without consent, "Turn on the coach" asks for it; once given, '
+      'the session starts by itself', (tester) async {
+    consent = FakeCoachConsentRepository();
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('coachTurnOn')));
+    expect(consentAsks, 1);
+    expect(model.requests, isEmpty);
+
+    // What the app's consent screen does on "Allow and continue".
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CoachSessionModule)),
+    );
+    await container.read(coachConsentGivenProvider.notifier).giveCoachConsent();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachUnavailableCard')), findsNothing);
+    expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+    expect(model.requests, isEmpty);
+  });
+
+  testWidgets('turned off mid-reply: the reply stops, its text goes, and the '
+      'conversation stays with "Turn on the coach"', (tester) async {
+    consent = FakeCoachConsentRepository(agreed: CoachConsent.currentVersion);
+    await pump(tester);
+    await send(tester, 'Hi');
+    model.say('Tuesday was');
+    await tester.pump();
+    expect(find.textContaining('Tuesday was'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CoachSessionModule)),
+    );
+    await container
+        .read(coachConsentGivenProvider.notifier)
+        .withdrawCoachConsent();
+    await tester.pump();
+    await tester.pump();
+    expect(model.cancelled, isTrue);
+    expect(find.textContaining('Tuesday was'), findsNothing);
+    expect(find.text('The coach is off'), findsOneWidget);
+    expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+    // What the person said is still there.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is CoachMessageBubble &&
+            w.role == CoachMessageRole.user &&
+            w.text == 'Hi',
+      ),
+      findsOneWidget,
+    );
+    expect(model.replyRequests, hasLength(1));
   });
 
   testWidgets('"Check again" on the session screen starts the coach once it '

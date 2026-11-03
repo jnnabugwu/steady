@@ -26,6 +26,10 @@
 /// [ImportRoute] (`/import`) stays top-level, on the root navigator over
 /// the shell, pushed from the import actions.
 ///
+/// [CoachConsentRoute] (`/coach-consent`, iPhone only) is the coach's
+/// consent screen, top-level on the root navigator: every way into the
+/// coach asks through it ([_askCoachConsent]) until consent is given.
+///
 /// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" and
 /// "Coach" (iPhone), "Sample data" and the data export (and, in debug
 /// builds, the Developer card). [CravingRoute] (`/craving`, iPhone only)
@@ -183,10 +187,25 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       // Renders nothing on the Mac, and nothing on the iPhone unless the
       // weekly check-in is ready (check-in data only, #81).
       coachNudge: CoachNudgeCard(
-        onTalkNow: () =>
-            unawaited(const CoachWeeklyRoute().push<void>(context)),
+        onTalkNow: () => unawaited(_talkNow(context, container)),
       ),
     );
+  }
+
+  /// The nudge's "Talk now": the consent screen first unless consent is
+  /// given (#153), then the weekly session if it was allowed. "Not now"
+  /// leaves Today as it was.
+  static Future<void> _talkNow(
+    BuildContext context,
+    ProviderContainer container,
+  ) async {
+    final given = await readCoachConsent(
+      container.read(coachConsentGivenProvider.future),
+    );
+    if (!context.mounted) return;
+    if (!given && !await _askCoachConsent(context)) return;
+    if (!context.mounted) return;
+    await const CoachWeeklyRoute().push<void>(context);
   }
 
   /// Opens the craving flow, then refreshes the weekly line however it
@@ -279,7 +298,10 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       const AppleHealthCard(),
       // Both render nothing on macOS.
       const CravingSettingsCard(),
-      const CoachSettingsCard(),
+      // Its switch, turned on, asks through the consent screen.
+      CoachSettingsCard(
+        onConsentRequested: () => unawaited(_askCoachConsent(context)),
+      ),
       const SampleDataCard(),
       const PrivacyCard(),
       ...developerSettingsSections(),
@@ -321,6 +343,8 @@ class CoachRoute extends GoRouteData with $CoachRoute {
         unawaited(const CoachChatRoute().push<void>(context)),
     onWeeklyRequested: () =>
         unawaited(const CoachWeeklyRoute().push<void>(context)),
+    // "Turn on the coach": the tab follows the answer by itself.
+    onConsentRequested: () => unawaited(_askCoachConsent(context)),
     onSessionSelected: (id) =>
         unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
   );
@@ -344,6 +368,9 @@ class CoachChatRoute extends GoRouteData with $CoachChatRoute {
   Widget build(BuildContext context, GoRouterState state) => CoachSessionModule(
     onClosed: () =>
         context.canPop() ? context.pop() : const CoachRoute().go(context),
+    // Opened without consent (a link, say): the session starts by itself
+    // once it's allowed.
+    onConsentRequested: () => unawaited(_askCoachConsent(context)),
   );
 }
 
@@ -368,6 +395,43 @@ class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
     kind: CoachSessionKind.weekly,
     onClosed: () =>
         context.canPop() ? context.pop() : const CoachRoute().go(context),
+    onConsentRequested: () => unawaited(_askCoachConsent(context)),
+  );
+}
+
+/// Shows the consent screen ([CoachConsentRoute]); completes with `true`
+/// once the person tapped "Allow and continue", `false` for "Not now",
+/// the close button or a swipe back.
+Future<bool> _askCoachConsent(BuildContext context) async =>
+    await const CoachConsentRoute().push<bool>(context) ?? false;
+
+/// `/coach-consent`: the coach's consent screen ([CoachConsentModule],
+/// #153), iPhone only. Shown before the first request from every way into
+/// the coach ([_askCoachConsent]): the Coach tab's "Turn on the coach", the
+/// nudge's "Talk now", a session opened without consent, and the Settings
+/// switch.
+///
+/// Top-level, on the root navigator over the shell, because it opens from
+/// Today, the Coach tab, Settings and a live session. Pops with `true`
+/// after "Allow and continue" and `false` for "Not now"; whoever pushed it
+/// decides what comes next. With nothing to pop to (a cold start straight
+/// to the link), "Allow" goes to the Coach tab and "Not now" home. Redirects
+/// home where the coach doesn't exist (the Mac), like [CoachRoute].
+@TypedGoRoute<CoachConsentRoute>(path: '/coach-consent')
+class CoachConsentRoute extends GoRouteData with $CoachConsentRoute {
+  /// Creates the consent screen's route.
+  const CoachConsentRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      _homeWhereNoCoach(context);
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => CoachConsentModule(
+    onConsentGiven: () =>
+        context.canPop() ? context.pop(true) : const CoachRoute().go(context),
+    onNotNow: () =>
+        context.canPop() ? context.pop(false) : const HomeRoute().go(context),
   );
 }
 

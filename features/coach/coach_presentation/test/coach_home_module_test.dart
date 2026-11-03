@@ -8,6 +8,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 import 'helpers/fake_domains.dart';
@@ -17,6 +18,7 @@ void main() {
   late FakeCoachRepository repository;
   late int chats;
   late int weeklies;
+  late int consentAsks;
   late List<String> opened;
 
   final chat = CoachSession(
@@ -55,21 +57,30 @@ void main() {
     repository = FakeCoachRepository();
     chats = 0;
     weeklies = 0;
+    consentAsks = 0;
     opened = [];
   });
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    FakeCoachConsentRepository? consent,
+  }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: coachTestOverrides(model: model, repository: repository),
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          consent: consent,
+        ),
         child: ShadcnApp(
           theme: steadyTheme,
           home: CoachHomeModule(
             onChatRequested: () => chats++,
             onWeeklyRequested: () => weeklies++,
+            onConsentRequested: () => consentAsks++,
             onSessionSelected: opened.add,
           ),
         ),
@@ -102,6 +113,7 @@ void main() {
           home: CoachHomeModule(
             onChatRequested: () => chats++,
             onWeeklyRequested: () => weeklies++,
+            onConsentRequested: () => consentAsks++,
             onSessionSelected: opened.add,
           ),
         ),
@@ -142,6 +154,64 @@ void main() {
     await tester.pumpAndSettle();
     expect(model.availabilityChecks, 2);
     expect(find.byKey(const Key('coachChatCard')), findsOneWidget);
+  });
+
+  group('the coach off (no consent)', () {
+    testWidgets('says so, offers "Turn on the coach" (the consent screen), '
+        'not a chat, and never asks the model', (tester) async {
+      repository.sessions.add(chat);
+      await pumpHome(tester, consent: FakeCoachConsentRepository());
+      expect(find.text('The coach is off'), findsOneWidget);
+      expect(find.byKey(const Key('coachChatCard')), findsNothing);
+      expect(find.byKey(const Key('coachStartChat')), findsNothing);
+      expect(find.byKey(const Key('coachWeeklyCard')), findsNothing);
+      expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
+      expect(model.availabilityChecks, 0);
+      expect(model.requests, isEmpty);
+
+      expect(
+        tester.getSize(find.byKey(const Key('coachTurnOn'))).height,
+        greaterThanOrEqualTo(44),
+      );
+      await tester.tap(find.byKey(const Key('coachTurnOn')));
+      expect(consentAsks, 1);
+      expect(chats, 0);
+
+      // Past sessions stay readable with the coach off.
+      await tester.ensureVisible(find.byKey(const Key('coachSession_c1')));
+      await tester.tap(find.byKey(const Key('coachSession_c1')));
+      expect(opened, ['c1']);
+    });
+
+    testWidgets('an agreement to an earlier version is off too', (
+      tester,
+    ) async {
+      await pumpHome(
+        tester,
+        consent: FakeCoachConsentRepository(
+          agreed: CoachConsent.currentVersion - 1,
+        ),
+      );
+      expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+      expect(find.byKey(const Key('coachChatCard')), findsNothing);
+    });
+
+    testWidgets('once it is given, the tab offers a chat by itself', (
+      tester,
+    ) async {
+      final consent = FakeCoachConsentRepository();
+      await pumpHome(tester, consent: consent);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CoachHomeModule)),
+      );
+      await container
+          .read(coachConsentGivenProvider.notifier)
+          .giveCoachConsent();
+      await tester.pumpAndSettle();
+      expect(consent.agreed, CoachConsent.currentVersion);
+      expect(find.byKey(const Key('coachChatCard')), findsOneWidget);
+      expect(find.byKey(const Key('coachTurnOn')), findsNothing);
+    });
   });
 
   testWidgets('a device that can never run it offers no "Check again"', (

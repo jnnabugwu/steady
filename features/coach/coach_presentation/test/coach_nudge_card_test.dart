@@ -33,7 +33,11 @@ void main() {
     now = DateTime(2026, 10, 23, 20);
   });
 
-  Future<void> pump(WidgetTester tester, {bool iPhone = true}) async {
+  Future<void> pump(
+    WidgetTester tester, {
+    bool iPhone = true,
+    bool consentGiven = true,
+  }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -45,6 +49,7 @@ void main() {
                 repository: repository,
                 checkIns: checkIns,
                 now: () => now,
+                consentGiven: consentGiven,
               )
             // The Mac: no coach bound at all. Reading the model would
             // throw, so the card must never read it.
@@ -86,6 +91,20 @@ void main() {
     await tester.tap(find.byKey(const Key('coachNudgeNotTonight')));
     await tester.pumpAndSettle();
     expect(card, findsNothing);
+  });
+
+  testWidgets('without consent it looks the same, Talk now included (the '
+      'app shows the consent screen first), and nothing is sent', (
+    tester,
+  ) async {
+    await pump(tester, consentGiven: false);
+    expect(card, findsOneWidget);
+    expect(find.byKey(const Key('coachNudgeText')), findsOneWidget);
+    expect(find.byKey(const Key('coachNudgeUnavailable')), findsNothing);
+    await tester.tap(find.byKey(const Key('coachNudgeTalkNow')));
+    expect(talks, 1);
+    expect(model.requests, isEmpty);
+    expect(model.availabilityChecks, 0);
   });
 
   testWidgets('coach unavailable: a short explanation instead of Talk now', (

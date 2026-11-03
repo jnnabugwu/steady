@@ -1,6 +1,7 @@
 /// The coach (iPhone only, CLAUDE.md §11): what a coach session and its
 /// transcript are, the repository they're stored through, the hosted model
-/// interface and its typed failures, the weekly session's rule and topics,
+/// interface and its typed failures, the consent screen's copy and where
+/// the person's agreement to it is kept, the weekly session's rule and topics,
 /// and the copy the coach screens show.
 ///
 /// Coach sessions are **stored** only on this device, by design: Steady never
@@ -10,6 +11,7 @@
 /// reply only, and only with the person's consent (CLAUDE.md §7).
 library;
 
+export 'src/coach_consent.dart';
 export 'src/coach_copy.dart';
 export 'src/coach_history_failures.dart';
 export 'src/coach_keep_going.dart';
