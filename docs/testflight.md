@@ -81,8 +81,9 @@ TestFlight → Test Information:
 - **Beta App Description:** "Steady pairs what you ate (from Cal AI, through Apple Health
   or a PDF export) with what you burned, your steps and your weight trend (read from Apple
   Health), a simple end-of-day check-in (logged, partial or skipped), a guided check-in for
-  cravings, and an on-device coach for a short weekly look back. No account: your data
-  stays on your iPhone and in your own iCloud."
+  cravings, and a coach for a short weekly look back. No account: your data stays on your
+  iPhone and in your own iCloud. The coach is off until you turn it on; then its
+  conversations go to Anthropic (the maker of Claude) only to write its replies."
 - **Feedback email:** enter in App Store Connect (not in the repo). Testers can also send
   feedback and screenshots from the TestFlight app.
 - **Marketing URL:** optional; `https://github.com/jnnabugwu/steady` works.
@@ -103,19 +104,19 @@ TestFlight → Test Information:
   ```text
   1. Screen recording: attached. Recorded on an iPhone running the latest iOS, starting from launching the app. Steady has no account registration, login or account deletion (there are no accounts), no user-generated content shared with anyone, and no paid content or in-app purchases.
 
-  2. Purpose and audience: Steady is for adults who already log food in a tracker such as Cal AI and want a calm, judgment-free view of their week. Food trackers show one day at a time; Steady shows calories eaten beside calories burned, steps and weight trend, plus a one-tap end-of-day check-in (logged fully, partial or skipped) so people can see their tracking pattern without streaks or red marks. It also offers a short guided check-in for food cravings and, on iPhones with Apple Intelligence, an on-device coach for a short look back at the week. It is not medical advice and never gives calorie targets, weight goals or diets.
+  2. Purpose and audience: Steady is for adults who already log food in a tracker such as Cal AI and want a calm, judgment-free view of their week. Food trackers show one day at a time; Steady shows calories eaten beside calories burned, steps and weight trend, plus a one-tap end-of-day check-in (logged fully, partial or skipped) so people can see their tracking pattern without streaks or red marks. It also offers a short guided check-in for food cravings and an AI coach (Claude, by Anthropic) for a short look back at the week. The coach is off until the user turns it on: a consent screen says what it sends to Anthropic and why, and nothing is sent until the user taps Allow and continue. It can be turned off any time in Settings > Coach. It is not medical advice and never gives calorie targets, weight goals or diets.
 
   3. Setup: no login or credentials needed. Open the app to the Today tab.
   - Sample data: tap the import button (top right of Today) > Try a sample export > Import 7 days > Done. This adds seven made-up days from January 2025, visible in the Week tab. Settings > Sample data > Remove sample days removes them. The sample file is also at https://github.com/jnnabugwu/steady/blob/main/docs/sample/cal_ai_sample_export.pdf
   - Apple Health: Settings > Apple Health > Connect Apple Health (or Allow Apple Health on Today). Steady only reads steps, active and resting energy, weight and dietary energy, live, and never writes to Health or stores Health data in iCloud.
   - Check-in: on Today, tap Logged fully, Partial or Skipped.
   - Cravings: Today > Having a craving?
-  - Coach: Coach tab > Start a chat. Needs an iPhone that supports Apple Intelligence with it turned on; otherwise the Coach tab explains why and the rest of the app works. The weekly check-in appears Friday to Sunday once 4 of the previous 7 days have a check-in, so the January sample won't show it.
+  - Coach: Coach tab > Turn on the coach > read the consent screen > Allow and continue (Not now leaves it off and sends nothing) > Start a chat. Needs a network connection. Settings > Coach has the switch to turn it off again. The weekly check-in appears Friday to Sunday once 4 of the previous 7 days have a check-in, so the January sample won't show it.
   - Settings also has data export, the privacy policy, and Delete coach history / Delete craving history.
 
-  4. External services: only Apple frameworks. HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and Apple Foundation Models running entirely on the device (no Private Cloud Compute). No servers, third-party SDKs, analytics, ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
+  4. External services: HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and, for the coach only and only after the user's consent, the Anthropic API (Claude), reached through Steady's own small proxy on Vercel. The proxy holds the API key, checks Apple App Attest on every request (DeviceCheck App Attest), sets daily limits, keeps no message content (metadata-only logs) and passes each request to Anthropic for the reply. Anthropic deletes API inputs and outputs within 30 days and doesn't train on them. No third-party SDKs, analytics, ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
 
-  5. Regions: the app works the same in every region. The coach is available wherever Apple Intelligence is available on the device; elsewhere it explains why it can't run. The help lines shown (ANAD and 988) are US services.
+  5. Regions: the app works the same in every region. The coach needs a network connection; without one it says it can't reach the coach and the rest of the app works. The help lines shown (ANAD and 988) are US services.
 
   6. Regulation: Steady is not a regulated medical device (declared No in App Store Connect), does not diagnose or treat anything, and contains no protected third-party material. Cal AI is named only as a compatible data source.
   ```
@@ -129,35 +130,67 @@ TestFlight → Test Information:
   4. **Settings → Apple Health → Connect Apple Health**, through the permission sheet, back
      to Today's numbers.
   5. **Having a craving?**, through the whole guided check-in.
-  6. **Coach → Start a chat**: one message, the reply, then end the session.
-  7. Settings: **Privacy policy**, **Export**, **Delete coach history**, then **Sample data →
-     Remove sample days**.
+  6. **Coach → Turn on the coach**: the consent screen, **Allow and continue**, then **Start
+     a chat**: one message, the reply, then end the session.
+  7. Settings: the **Coach** switch (off and on again, through the consent screen),
+     **Privacy policy**, **Export**, **Delete coach history**, then **Sample data → Remove
+     sample days**.
 
   Your own Health numbers and any real craving or coach history appear in it; Apple is the
   only viewer, but clear the histories first if you'd rather not show them.
 - **What to Test** (per build): "Import a Cal AI PDF export, do the end-of-day check-in,
   grant Apple Health access and check today's steps, energy, weight and calories eaten,
-  try the coach (Coach → Start a chat; needs Apple Intelligence), log a craving, and
+  try the coach (Coach → Turn on the coach, then Start a chat; needs a connection), log a
+  craving, and
   export your data from Settings." For each build's own notes, use the `what-to-test`
   skill.
 
 ## 6. App Privacy questionnaire
 
-App Store Connect → App Privacy. Answers that match `docs/PRIVACY.md`:
+App Store Connect → App Privacy. Answers that match `docs/PRIVACY.md`. **Jordan sets these in
+App Store Connect before the hosted coach ships**; what follows is the proposal and the
+reasoning, not a record of what's set.
 
-**Data collection: likely "No, we do not collect data from this app."**
+> **PR #156 (PostHog analytics) is open and changes this section too.** Whichever of it and
+> #153 lands second must combine the answers: the lists below are the coach's, and #156 adds
+> its own (for example Usage Data / Identifiers for analytics).
+
+**Data collection: "Yes, we collect data from this app"** once the hosted coach ships.
 
 Apple's definition: "collect" means transmitting data off the device in a way that lets the
-developer (or third-party partners) access it for longer than needed to service the request
-in real time. Steady has no servers, analytics or third-party SDKs. Calories eaten and
-check-ins go only to the user's own CloudKit **private** database, which the developer can't
-read; Apple Health values aren't stored or sent anywhere. On that reading, nothing is
-"collected," Health & Fitness included.
+developer **or third-party partners** access it for longer than needed to service the request
+in real time. Steady's proxy keeps no message content, but Anthropic, a third party, keeps API
+inputs and outputs for up to 30 days (longer if its safety systems flag a conversation, or by
+law). That is longer than real time, so the coach's data counts as collected even though it's
+sent only after consent and used only for the reply. Calories eaten and check-ins in the
+user's own CloudKit **private** database still aren't collected (the developer can't read
+them).
 
-Confirm before submitting: this rests on the private-iCloud reading. If you'd rather be
-conservative, declare **Health & Fitness → Health** and **Fitness** as collected, with purpose
-**App Functionality** only, **not linked to the user's identity** and **not used for
-tracking**. Nothing is used for tracking either way.
+Proposed answers (all: purpose **App Functionality** only; **not linked to the user's
+identity**; **not used for tracking**):
+
+| Data type | Declare? | Why |
+|---|---|---|
+| **Health & Fitness → Health** | Yes | Calories eaten and active/resting energy from Apple Health (and an imported Cal AI total) go into the coach's week context, and so do the craving check-ins (counts, time of day, and the reason picked from a fixed list). |
+| **Health & Fitness → Fitness** | Yes | Steps from Apple Health, in the same context. |
+| **User Content → Other User Content** | Yes | What the person types to the coach. Apple's "Other User Content" covers user-generated content not in the other categories. |
+| **Identifiers → Device ID** | Probably not; Jordan's call | The App Attest key id is a per-install key the proxy stores (with its counter, in Upstash Redis) to verify requests and count the daily limit. It isn't the IDFA or IDFV, can't be tied to the person, and is used for fraud prevention/security. Apple's Device ID is "such as the device's advertising identifier, or other device-level ID". The conservative answer is to declare it (App Functionality, not linked, not tracking); the narrow reading is that a per-install attestation key isn't a device-level ID. |
+| **Usage Data, Diagnostics, Contact Info, Location, Financial Info, etc.** | No (for the coach) | Nothing else leaves the phone for the coach. #156 may change Usage Data / Diagnostics. |
+
+"Not linked to identity": there are no accounts, no email, no name; the proxy sees an App
+Attest key id and an IP address in transit, and keeps no message content. Anthropic sees only
+the proxy's requests, with no identifier of the person.
+
+**Open questions for Jordan:**
+
+- Device ID for the App Attest key id: declare (conservative) or not (narrow reading above)?
+- Craving check-ins: proposed under Health (they read as health data, the same reason they
+  stay off iCloud). Their reasons are a fixed list, not free text, so they aren't "Other User
+  Content"; typed coach messages are.
+- Check-in statuses (logged, partial, skipped) are also sent. Proposed under Health with the
+  rest of the week context; there's no closer Apple category.
+- Confirm the "collected" reading: Anthropic's 30-day retention is what makes it so. If
+  Steady ever moves to zero data retention with Anthropic, revisit.
 
 ## 7. External testers and Beta App Review
 
@@ -186,9 +219,10 @@ App Store Connect → the app → **+ Version** (1.0.0), then:
     to Apple Health, or import a Cal AI PDF export, to see what you ate beside what you
     burned, your steps and your weight trend from Apple Health. Each evening, a one-tap check-in records how tracking went:
     logged, partial or skipped. No streaks, no red marks. When a craving hits, a short
-    guided check-in helps you pause. And on iPhones with Apple Intelligence, an on-device
-    coach looks back on your week with you, and nothing leaves your phone. No account:
-    your data stays on your iPhone and in your own iCloud."
+    guided check-in helps you pause. And if you turn it on, a coach powered by Claude looks
+    back on your week with you; its conversations go to Anthropic only to write its
+    replies, and are saved only on your iPhone. No account: everything else stays on your
+    iPhone and in your own iCloud."
 - **Support URL:** `https://github.com/jnnabugwu/steady/issues`. **Privacy Policy URL:**
   as in §5 (the same address as Settings → Privacy).
 - **App Review Information:** sign-in required **off**; contact details in App Store
@@ -198,8 +232,12 @@ App Store Connect → the app → **+ Version** (1.0.0), then:
 - **App Privacy:** as in §6.
 - **Age rating:** answer the questionnaire as it applies: health and wellness topics yes
   (calories, weight, cravings, with help lines), no medical treatment, no user-generated
-  content shared with others, no web access, and the coach is an on-device assistant
-  limited to the person's own tracking (if asked about AI chat, say so).
+  content shared with others, no web access. The coach is a hosted AI chat assistant
+  (Claude, by Anthropic, through Steady's proxy) limited to the person's own tracking, with
+  guardrails on the proxy: if the questionnaire asks about AI chatbots or AI-generated
+  content, answer yes and describe it that way. Unrestricted chat with an AI can push the
+  rating up; the coach is scoped to the person's tracking and refuses off-topic or unsafe
+  requests (#154 evaluates that), which is the case to make.
 - **Content rights:** no third-party content (the Cal AI export is the user's own file).
 - **Pricing and availability:** as you choose; nothing in the app depends on a storefront.
 

@@ -86,7 +86,9 @@ items land; don't let it drift into a change log — keep it a current-state che
       checkin, metrics, pdf_import, cravings, coach (`coachRepositoryProvider`, bound on
       iOS only). `coach_presentation` also declares `coachModelProvider` — the hosted
       model (`HostedCoachModel`), an inference port rather than a repository — bound on
-      iOS only, and `coachConsentGivenProvider`, `false` until the consent screen (#153).
+      iOS only, and `coachConsentRepositoryProvider` (the device-only consent store, iOS
+      only; unbound reads as not given) behind the `coachConsentGivenProvider` Notifier
+      (#153).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -180,8 +182,9 @@ items land; don't let it drift into a change log — keep it a current-state che
 
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
 "The coach runs on the iPhone"). Decided 2026-10-30: its model moves to hosted Claude; the app
-side is built (#151, #152) and the Foundation Models channel is gone. What's still open
-(deployment, App Attest, consent, hardware) is under "Hosted coach" below.
+side is built (#151, #152), the Foundation Models channel is gone, and consent is built
+(#153). What's still open (deployment, App Attest, the App Privacy answers, hardware) is under
+"Hosted coach" below.
 - [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
       `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
@@ -218,8 +221,9 @@ side is built (#151, #152) and the Foundation Models channel is gone. What's sti
       as separate topics; a stored summary. `/weekly-check-in`, from the nudge and the
       Coach tab.
 - [x] Nudge card (`CoachNudgeCard` in `TodayScreen.coachNudge`): "Talk now" / "Not
-      tonight" where the coach is available, an explanation where it isn't (no consent
-      yet, the coach off, this iPhone can't be verified); nothing on the Mac. Shown Friday
+      tonight" where the coach is available, an explanation where it isn't (the proxy off,
+      this iPhone can't be verified); without consent it looks the same and "Talk now" shows
+      the consent screen first (#153); nothing on the Mac. Shown Friday
       to Sunday from check-in data only, and never calls the network (#81).
 - [x] Tone and safety instructions in one place: on the proxy now
       (`src/coach/instructions.ts` and `src/coach/weekly.ts` in `jnnabugwu/steady-backend`,
@@ -247,10 +251,12 @@ moves to Claude Opus 5.5 (`claude-opus-5-5`) through a thin proxy on Vercel; hos
 Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "Hosted coach
 (Claude Opus 5.5 via Vercel proxy)".
 
-- [ ] Jordan: confirm Anthropic's current API data terms (retention, training use, zero data
-      retention eligibility), create the Console API key, set a monthly spend limit, add the
-      key to Vercel. Nothing about retention goes into the consent copy or PRIVACY.md until
-      this is done.
+- [x] Anthropic's API data terms confirmed (standard terms, no zero data retention):
+      deleted within 30 days, no training without express permission, kept longer only if
+      flagged by automated safety systems (up to two years) or by law. In the consent copy
+      and PRIVACY.md (#153).
+- [ ] Jordan: create the Console API key, set a monthly spend limit, add the key to
+      Vercel.
 - [x] The proxy, in its own repo, `jnnabugwu/steady-backend` (#149; not a `backend/` folder
       here): TypeScript, Vercel Functions, `@anthropic-ai/sdk`. Holds the key; verifies App
       Attest on every request (Upstash Redis for attested keys and counters); owns the
@@ -285,12 +291,18 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       `CoachModelInfo`, `CoachModelSession`, `CoachReplySnapshot.outputTokens`, the Apple
       Intelligence failures), `coachMaxMessageChars` moved to `coach_message_limit.dart`,
       and `CoachSessionController` simplified to match.
-- [ ] Consent screen before the first session (#153), a Settings → Coach toggle to turn the
-      coach off, PRIVACY.md naming Anthropic and what's sent, the App Privacy answers
-      (`docs/testflight.md` §6), `NSHealthShareUsageDescription`, the App Review notes and
-      App Store description: all in the release that ships the hosted coach. The seam is in:
-      `coachConsentGivenProvider` is `false`, so the coach says "not set up yet" and nothing
-      is sent until #153 replaces it.
+- [x] Consent (#153): the consent screen (`CoachConsentModule`, `/coach-consent`) before
+      the first request from every entry point (Coach tab, nudge, a session opened from a
+      link, the Settings switch); `CoachConsentRepository` with a device-only file store
+      (`coach_consent.json`) holding the agreed version (`CoachConsent.currentVersion`, 1;
+      a bump asks again); the `coachConsentGivenProvider` Notifier (`giveCoachConsent`,
+      `withdrawCoachConsent`); the Settings → Coach switch (off stops every request,
+      a reply in flight included); PRIVACY.md naming Anthropic, what's sent and its
+      retention; `NSHealthShareUsageDescription`; the App Review notes, App Store
+      description and age-rating notes (`docs/testflight.md` §5, §8).
+- [ ] Jordan: set the App Privacy answers in App Store Connect (`docs/testflight.md` §6:
+      the proposal and the open questions). Combine with #156's (PostHog) answers if that
+      lands too.
 - [ ] On hardware: a TestFlight-config build streams a reply from the production proxy on a
       physical iPhone (#151).
 - [ ] Guardrail evaluation set (calorie targets, weight goals, diet prescriptions, crisis
