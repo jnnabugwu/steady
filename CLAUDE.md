@@ -716,9 +716,17 @@ registered in `AppDelegate`), runner-adjacent like the HealthKit channel. There 
 implementation of the coach's inference call at all — not a disabled one, an absent one.
 **To be removed** with the move to the hosted model (§11): `CoachChannel.swift` and its
 `steady/coach` channels go, and the only coach Swift left in `app/ios/Runner` is a small
-**App Attest client** (planned: `DCAppAttestService` to generate a key, attest it once and
-sign an assertion per request, behind its own channel), runner-adjacent for the same reason
-as HealthKit: mostly "call the native API, marshal the result".
+**App Attest client**, runner-adjacent for the same reason as HealthKit: mostly "call the
+native API, marshal the result". **Built (#150), not yet verified on hardware:**
+`app/ios/Runner/AppAttestChannel.swift` on `steady/app_attest` (`isSupported`,
+`generateKey`, `attestKey`, `generateAssertion`; `DCError` codes translated to wire codes,
+no logic), with `MethodChannelAppAttest` and `FileAppAttestKeyStore` in
+`features/coach/coach_data/lib/src/app_attest/` (contract: `AppAttestChannel`). The caller (#151) computes
+every `clientDataHash` and owns the key lifecycle against the proxy. The entitlement
+`com.apple.developer.devicecheck.appattest-environment` is `$(STEADY_APP_ATTEST_ENVIRONMENT)`
+in `Runner.entitlements`: `development` in `Flutter/Debug.xcconfig`, `production` in
+`Flutter/Release.xcconfig` (Release and Profile). It signs only once the App ID has the App
+Attest capability and the profiles are regenerated (#148).
 
 ---
 

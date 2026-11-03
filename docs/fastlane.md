@@ -56,7 +56,23 @@ It asks for your Apple ID (this run only) and a **passphrase**. Keep the passphr
 password manager: it's `MATCH_PASSWORD`. match creates an Apple Distribution certificate and
 a profile named `match AppStore com.jmagic.steady`. The profile gets its capabilities
 (HealthKit, iCloud/CloudKit, push) from the App ID, which Xcode's automatic signing has
-already set up.
+already set up. App Attest isn't one of them yet: enable it and regenerate the profile with
+the steps below.
+
+**After a capability is added to the App ID, regenerate the profile.** A profile only carries
+the capabilities the App ID had when it was made, and the `beta` lane fails to sign an
+entitlement its profile doesn't have. App Attest (#150) is the case so far:
+
+1. developer.apple.com → Certificates, Identifiers & Profiles → Identifiers →
+   `com.jmagic.steady` → tick **App Attest** → Save.
+2. On your Mac, with the same variables as above:
+   `cd app/ios && bundle exec fastlane match appstore --force`. `--force` renews the
+   profile (with the new capability) and pushes it to the match repo; the certificate is
+   kept.
+3. For Debug builds on a device, Xcode's automatic signing refreshes its development
+   profile on the next build (Signing & Capabilities shows it).
+
+`scripts/verify-ios-ipa.sh` then checks the IPA's App Attest environment is `production`.
 
 If Apple says you've reached the limit on distribution certificates, revoke one you no longer
 use (Certificates, Identifiers & Profiles), then run it again.

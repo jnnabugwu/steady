@@ -269,7 +269,11 @@ issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)".
       prompt cached.
 - [ ] App Attest client in `app/ios/Runner` (`DCAppAttestService`: key, one attestation, an
       assertion per request), its channel and typed failures; the App Attest entitlement; a
-      debug-only bypass for the Simulator that the production proxy rejects.
+      debug-only bypass for the Simulator that the production proxy rejects. Built (#150):
+      `AppAttestChannel.swift`, `MethodChannelAppAttest`, `FileAppAttestKeyStore` and the
+      per-configuration entitlement. Still open: a debug build on a physical iPhone attesting
+      and asserting against a Preview deployment, the App ID capability (#148), and the
+      bypass and key lifecycle, which `HostedCoachModel` owns (#151).
 - [ ] `HostedCoachModel` in `coach_data`, replacing `MethodChannelCoachModel`,
       `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift`; `CoachModel` reshaped
       for a stateless proxy (session kind + conversation per turn, no instruction text from
@@ -380,9 +384,10 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       against the iOS 27.1 SDK (#79); only Apple's server model,
       `PrivateCloudComputeLanguageModel`, needs a managed entitlement, and Steady doesn't use
       it. CloudKit container entitlement is set.
-      Planned with the hosted coach: the App Attest entitlement
-      (`com.apple.developer.devicecheck.appattest-environment`), which Foundation Models never
-      needed.
+      The App Attest entitlement
+      (`com.apple.developer.devicecheck.appattest-environment`, #150) is set: `development`
+      for Debug, `production` for Release and Profile. It won't sign until the App ID has the
+      App Attest capability and match's profile is regenerated (#148).
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
       run only from Actions → Ship iOS (`docs/fastlane.md`).

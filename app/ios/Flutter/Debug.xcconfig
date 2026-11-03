@@ -1,1 +1,7 @@
 #include "Generated.xcconfig"
+
+// App Attest's environment for Debug builds (Runner.entitlements,
+// com.apple.developer.devicecheck.appattest-environment; #150): Apple's
+// development attestation, which the proxy accepts only with
+// APP_ATTEST_ENV=development (a local or Preview deployment).
+STEADY_APP_ATTEST_ENVIRONMENT = development
