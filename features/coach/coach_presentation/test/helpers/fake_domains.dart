@@ -125,11 +125,16 @@ class FakeCravings implements CravingRepository {
   /// When set, every read fails.
   Failure? failure;
 
+  /// When set, every read waits for it: lets a test act while the coach's
+  /// week is being read.
+  Future<void>? hold;
+
   @override
   ResultFuture<List<CravingEvent>> getBetween(
     DateTime start,
     DateTime end,
   ) async {
+    if (hold case final hold?) await hold;
     if (failure case final f?) return Err(f);
     return Ok([
       for (final e in events)

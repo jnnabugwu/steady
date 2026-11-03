@@ -135,7 +135,13 @@ class CoachSessionController extends _$CoachSessionController {
         .call(first: window.first, last: window.last, now: now);
     if (!ref.mounted) return;
     // Turned off while the week was read: say so rather than offer it.
-    if (!_consentGiven) return _withdrawnWhileIdle();
+    if (!_consentGiven) {
+      state = state.copyWith(
+        phase: CoachSessionPhase.unavailable,
+        failure: const CoachConsentNotGivenFailure(),
+      );
+      return;
+    }
     _weekContext = formatCoachWeek(data, includeCravingReasons: weekly);
     state = state.copyWith(
       topics: weekly ? weeklyTopicsFor(cravingCount: data.cravingCount) : [],

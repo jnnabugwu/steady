@@ -10,6 +10,7 @@ import 'helpers/coach_container.dart';
 import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
+import 'helpers/fake_domains.dart';
 
 void main() {
   late FakeCoachModel model;
@@ -681,6 +682,35 @@ void main() {
       expect(state().phase, CoachSessionPhase.unavailable);
       consent.holdWrites!.complete();
       await withdrawing;
+    });
+
+    test('turned off while the week is read: unavailable, not stuck '
+        'starting, and nothing is sent', () async {
+      final cravings = FakeCravings();
+      final hold = Completer<void>();
+      cravings.hold = hold.future;
+      container = ProviderContainer.test(
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          consent: consent,
+          cravings: cravings,
+        ),
+      )..listen(provider, (_, _) {});
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.starting);
+
+      await withdraw();
+      hold.complete();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      expect(model.requests, isEmpty);
+
+      // And allowed again, it starts.
+      await give();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.ready);
     });
 
     test('turned off while ready: unavailable, and a message sends '
