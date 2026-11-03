@@ -109,12 +109,28 @@ class CoachSettingsCard extends ConsumerWidget {
             key: Key('coachConsentLine'),
             style: SteadyType.body,
           ),
+          // A save that didn't work. The coach is off here either way, so
+          // the one retry is the safe one: saving "off" again.
           if (consent case AsyncError()) ...[
             const SizedBox(height: 8),
             const Text(
-              "Couldn't save that on this iPhone. Try again.",
+              "Couldn't save that on this iPhone. The coach is off for now; "
+              'save it again so it stays off.',
               key: Key('coachConsentError'),
               style: SteadyType.body,
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 44,
+              child: OutlineButton(
+                key: const Key('coachConsentRetry'),
+                onPressed: () => unawaited(
+                  ref
+                      .read(coachConsentGivenProvider.notifier)
+                      .withdrawCoachConsent(),
+                ),
+                child: const Text('Save again'),
+              ),
             ),
           ],
           const SizedBox(height: 12),

@@ -56,5 +56,8 @@ void main() {
   test("the Settings line says what's sent, and to whom", () {
     expect(CoachConsent.settingsLine, contains('Anthropic'));
     expect(CoachConsent.settingsLine, contains('only to write the replies'));
+    // The same data as the consent list, calories eaten included (Health or
+    // a Cal AI import).
+    expect(CoachConsent.settingsLine, contains('calories eaten'));
   });
 }

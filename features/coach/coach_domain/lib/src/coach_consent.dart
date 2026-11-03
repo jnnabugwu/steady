@@ -60,9 +60,9 @@ abstract final class CoachConsent {
   /// The one line under Settings → Coach's switch: what it sends, and to
   /// whom.
   static const String settingsLine =
-      'When it’s on, a conversation sends the week’s check-ins, Apple Health '
-      'totals, craving check-ins and what you type to Anthropic, only to '
-      'write the replies.';
+      'When it’s on, a conversation sends the week’s check-ins, steps, energy '
+      'burned and calories eaten, craving check-ins and what you type to '
+      'Anthropic, only to write the replies.';
 }
 
 /// Where the person's agreement to [CoachConsent] is kept: on this iPhone

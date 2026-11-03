@@ -49,17 +49,17 @@ Apple-only), each with their own private copy of their data.*
 | Layer | Choice | Why |
 | --- | --- | --- |
 | Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit and App Attest on iOS only) |
-| Coach model | **Claude Opus 5.5** via the Anthropic API, reached only through Steady's proxy on Vercel (`jnnabugwu/steady-backend`), with **App Attest** on every request — **iPhone only** | The coach runs where its context lives: Health data and craving check-ins are iPhone-only (App Store 5.1.3). The proxy holds the API key and the system prompt, keeps no message content, and caps cost per device. Nothing is sent until the person agrees on the consent screen (App Store 5.1.2); Anthropic deletes API data within 30 days and doesn't train on it. Works on any supported iPhone with a connection. The Mac has no coach. See `CLAUDE.md` §7, §11. |
+| Coach model | **Claude Opus 5.5** via the Anthropic API, reached only through Steady's proxy on Vercel (`jnnabugwu/steady-backend`), with **App Attest** on every request — **iPhone only** | The coach runs where its context lives: Health data and craving check-ins are iPhone-only (App Store 5.1.3). The proxy holds the API key and the system prompt, keeps no message content, and caps cost per device. Nothing is sent until the person agrees on the consent screen (App Store 5.1.2); Anthropic deletes API data within 30 days and doesn't train on it. Works on an iPhone with a connection that App Attest can verify (no Apple Intelligence needed). The Mac has no coach. See `CLAUDE.md` §7, §11. |
 | Sync | **CloudKit** (via SwiftData's CloudKit integration) | Single-user, Apple-only devices — CloudKit handles cross-device sync **and auth** (Apple ID) with no custom sync protocol, backend, or separate login system needed |
 | PDF parsing | **`pdfrx_engine`** (pure Dart), on-device | No backend at all — validated against real Cal AI exports (see `CLAUDE.md` §6 for the parsing algorithm and validation results) |
 | Local storage | **SwiftData** (CloudKit-backed) | Daily metrics and check-ins — same store syncs automatically across iPhone and Mac. Coach transcripts, the coach consent answer and cravings stay device-only on the iPhone (`CLAUDE.md` §7, §11) |
 | Step/energy data | **HealthKit** via a `steady/healthkit` platform channel, **iOS only** | Read live on the iPhone and never stored in iCloud (App Store 5.1.3(ii); see `docs/technical_decisions.md`). The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` is `false` on macOS (checked on 26.6.2) |
 | Food data source | Cal AI PDF export (user-uploaded, either device) | Cal AI is the food log; this app doesn't replace it, it visualizes + coaches on top of it |
 
-**Platform requirement note:** the coach needs iOS 26+ on an iPhone that supports Apple
-Intelligence, with it turned on. That's a runtime check, not the app's floor: on any other
-iPhone the rest of the app works and the coach says why it's unavailable (see `CLAUDE.md`
-§11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need; the exact iOS
+**Platform requirement note:** the coach needs the person's consent, a network connection
+and an iPhone that App Attest can verify (and a build with the proxy's URL). Those are
+runtime checks, not the app's floor: without any of them the rest of the app works and the
+coach says why it's unavailable (see `CLAUDE.md` §11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need; the exact iOS
 minimum is an open decision, not yet resolved. The Mac app has no coach and no Health data
 (HealthKit isn't available on the Mac).
 

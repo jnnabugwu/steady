@@ -186,6 +186,15 @@ void main() {
         ),
         isFalse,
       );
+      expect(consent.agreed, CoachConsent.currentVersion);
+
+      // "Save again" retries the withdrawal, and the error goes.
+      await tester.tap(find.byKey(const Key('coachConsentRetry')));
+      await tester.pumpAndSettle();
+      expect(consent.agreed, isNull);
+      expect(consent.calls, ['read', 'withdraw', 'withdraw']);
+      expect(find.byKey(const Key('coachConsentError')), findsNothing);
+      expect(switchOn(tester), isFalse);
     });
   });
 

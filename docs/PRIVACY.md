@@ -151,10 +151,9 @@ where you send it through the system share sheet. Steady doesn't send it anywher
 - **Export:** in Steady's Settings you can export your data as CSV or JSON.
 - **Delete:** deleting the app removes its data from that device. Craving check-ins can also
   be deleted on their own in Settings → Cravings, and coach conversations in Settings →
-  Coach.
-- **Coach:** turn it on or off in Settings → Coach. Off, it sends nothing. To delete the copy in
-  iCloud, go to Settings → [your name] → iCloud → Manage Storage (on Mac: System Settings →
-  [your name] → iCloud → Manage) and delete Steady's data.
+  Coach. To delete the copy in iCloud, go to Settings → [your name] → iCloud → Manage Storage
+  (on Mac: System Settings → [your name] → iCloud → Manage) and delete Steady's data.
+- **Coach:** turn it on or off in Settings → Coach. Off, it sends nothing.
 
 ## Changes
 

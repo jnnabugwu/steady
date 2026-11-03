@@ -60,7 +60,8 @@ class CoachConsentModule extends ConsumerWidget {
               child: IconButton.ghost(
                 key: const Key('coachConsentClose'),
                 icon: const Icon(LucideIcons.x),
-                onPressed: onNotNow,
+                // Not mid-save: the answer being written is the one shown.
+                onPressed: saving ? null : onNotNow,
               ),
             ),
           ],
