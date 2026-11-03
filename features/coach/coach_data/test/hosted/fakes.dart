@@ -177,6 +177,9 @@ class FakeProxy extends http.BaseClient {
   /// error body.
   int? challengeStatus;
 
+  /// Called with every request as it's sent, when set.
+  void Function(http.BaseRequest request)? onSend;
+
   /// When set, every `send` waits for this before answering.
   Future<void>? hold;
 
@@ -196,6 +199,7 @@ class FakeProxy extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final body = await request.finalize().toBytes();
     sent.add(SentRequest(request, body));
+    onSend?.call(request);
     if (throwOnSend case final error?) throw error;
     if (hold case final hold?) await hold;
     switch (request.url.path) {

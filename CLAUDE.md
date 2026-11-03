@@ -39,8 +39,9 @@
   Anthropic API, reached only through Steady's own thin proxy on Vercel, which lives in its
   own repo, **`jnnabugwu/steady-backend`** (§12), holds the API key, verifies App Attest and
   owns the system prompt. Hosted only: the Foundation Models path is gone. The app side
-  (`HostedCoachModel`) is built; the deployment, the App Attest client (#150), consent (#153)
-  and a check on hardware are still open (§11). The Mac has no coach. Decision record:
+  (`HostedCoachModel`) and the App Attest client (#150) are built; the deployment, the App
+  ID's App Attest capability (#148), consent (#153) and a check on hardware are still open
+  (§11). The Mac has no coach. Decision record:
   `docs/technical_decisions.md`, "The coach uses a hosted model".
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
   for parsing Cal AI exports. **No backend for parsing.** Validated against real exports:
@@ -569,8 +570,8 @@ holds only what a PDF import wrote. The Mac shows calories eaten (Cal AI PDFs) a
 coach runs on the iPhone, where the Health data is (§11). Decision record: `docs/technical_decisions.md`,
 "Health data stays on the iPhone (App Store 5.1.3)".
 
-**The hosted coach: sent for inference, never stored off the iPhone.** A coach reply sends,
-for that reply only, to Steady's proxy (`jnnabugwu/steady-backend`) and on to Anthropic: the week's check-in statuses, calories eaten (Apple
+**The hosted coach: sent for inference; Steady's proxy stores no request or response
+bodies.** A coach reply sends, for that reply only, to Steady's proxy (`jnnabugwu/steady-backend`) and on to Anthropic: the week's check-in statuses, calories eaten (Apple
 Health's, or a Cal AI import's), steps and active/resting energy from Apple Health, the
 week's craving check-ins (count and time of day; in the weekly session also what was behind
 them) and what the person types. Only after the person agrees on the consent screen, and

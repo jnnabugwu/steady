@@ -380,7 +380,9 @@ class HostedCoachModel implements CoachModel {
     try {
       return await outcome.future;
     } finally {
-      unawaited(events.cancel());
+      // Awaited: the next reply waits for this one's response to be torn
+      // down, so two requests are never open at once.
+      await events.cancel();
     }
   }
 

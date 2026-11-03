@@ -576,9 +576,17 @@ void main() {
       await pumpEventQueue();
       expect(proxy.replyRequests, hasLength(1));
 
+      var firstTornDownBeforeNext = false;
+      proxy.onSend = (request) {
+        if (request.url.path == CoachProxyWire.challengePath) {
+          firstTornDownBeforeNext = first.cancelled;
+        }
+      };
       await subscription.cancel();
       expect(failureOf(await second), isNull);
       expect(proxy.replyRequests, hasLength(2));
+      // The first response was torn down before the next challenge.
+      expect(firstTornDownBeforeNext, isTrue);
     });
   });
 

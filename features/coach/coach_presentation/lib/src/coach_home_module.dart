@@ -152,7 +152,8 @@ class _ChatCard extends StatelessWidget {
         const SizedBox(height: 8),
         const Text(
           'A short chat about your own tracking, with your last seven days '
-          'in view. The conversation is saved only on this iPhone.',
+          'in view. The coach replies through Steady’s server; the '
+          'conversation is saved only on this iPhone.',
           style: SteadyType.body,
         ),
         const SizedBox(height: 16),
