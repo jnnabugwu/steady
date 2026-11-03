@@ -5,6 +5,7 @@
 /// `MethodChannelCoachModel`: the `steady/coach` Foundation Models channel.
 library;
 
+export 'src/app_attest/app_attest.dart';
 export 'src/coach_model_wire.dart' show CoachModelChannel;
 export 'src/coach_session_json.dart' show decodeCoachFile, encodeCoachFile;
 export 'src/file_coach_repository.dart';
