@@ -46,6 +46,37 @@ void main() {
     expect(randomCoachSessionId(), isNot(a));
   });
 
+  group('the consent gate (until #153)', () {
+    test('defaults to not given', () {
+      expect(ProviderContainer.test().read(coachConsentGivenProvider), isFalse);
+    });
+
+    test('without it the coach is unavailable, and the model is never '
+        'asked', () async {
+      final model = _FakeCoachModel();
+      final container = ProviderContainer.test(
+        overrides: [coachModelProvider.overrideWithValue(model)],
+      );
+      await expectLater(
+        container.read(coachAvailabilityProvider.future),
+        throwsA(isA<CoachConsentNotGivenFailure>()),
+      );
+      expect(model.checks, 0);
+    });
+
+    test("with it, availability is the model's local check", () async {
+      final model = _FakeCoachModel();
+      final container = ProviderContainer.test(
+        overrides: [
+          coachModelProvider.overrideWithValue(model),
+          coachConsentGivenProvider.overrideWithValue(true),
+        ],
+      );
+      expect(await container.read(coachAvailabilityProvider.future), unit);
+      expect(model.checks, 1);
+    });
+  });
+
   test('an override is what the coach reads', () {
     final model = _FakeCoachModel();
     final container = ProviderContainer.test(
@@ -56,26 +87,15 @@ void main() {
 }
 
 class _FakeCoachModel implements CoachModel {
-  @override
-  ResultFuture<CoachModelInfo> checkAvailability() async =>
-      const Err(CoachDeviceNotEligibleFailure());
+  int checks = 0;
 
   @override
-  ResultFuture<CoachModelSession> startSession({
-    required String instructions,
-  }) async => const Err(CoachDeviceNotEligibleFailure());
+  ResultFuture<Unit> checkAvailability() async {
+    checks++;
+    return const Ok(unit);
+  }
 
   @override
-  Stream<Result<CoachReplySnapshot>> streamResponse(
-    CoachModelSession session,
-    String prompt,
-  ) => const Stream.empty();
-
-  @override
-  ResultFuture<Unit> cancelResponse(CoachModelSession session) async =>
-      const Ok(unit);
-
-  @override
-  ResultFuture<Unit> endSession(CoachModelSession session) async =>
-      const Ok(unit);
+  Stream<Result<CoachReplySnapshot>> reply(CoachRequest request) =>
+      const Stream.empty();
 }

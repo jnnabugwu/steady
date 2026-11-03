@@ -172,7 +172,8 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         );
         _refreshHealth();
         _rollOverDay();
-        // The person may have turned Apple Intelligence on meanwhile.
+        // Local and cheap (no network): consent may have changed meanwhile
+        // (Settings → Coach, #153).
         if (ref.read(coachSupportAvailableProvider)) {
           ref.invalidate(coachAvailabilityProvider);
         }

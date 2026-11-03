@@ -185,9 +185,9 @@ class CoachMedicalNote extends StatelessWidget {
   );
 }
 
-/// `CoachCopy.helpLine` in the coach card style: shown when Apple's
-/// guardrails stop a reply, which can be what a hard moment looks like
-/// from here (#82).
+/// `CoachCopy.helpLine` in the coach card style: shown when the model
+/// refuses a reply (`CoachRefusalFailure`), which can be what a hard moment
+/// looks like from here (#82).
 class CoachHelpCard extends StatelessWidget {
   /// Creates the card.
   const CoachHelpCard({super.key});
@@ -200,45 +200,44 @@ class CoachHelpCard extends StatelessWidget {
   );
 }
 
-/// What the coach screens say when the model can't run, per reason: a
+/// What the coach screens say when the coach can't run, per reason: a
 /// title and a plain, kind line, and whether checking again could help.
 ///
-/// Reads the typed [CoachModelUnavailableFailure]s from #79. Any other
-/// failure (the channel itself failing) gets a generic "couldn't reach".
+/// Reads the typed `CoachModelFailure`s (#151). Any other failure gets a
+/// generic "couldn't reach".
 ({String title, String body, bool canRetry}) coachUnavailableCopy(
   Failure failure,
 ) => switch (failure) {
-  CoachDeviceNotEligibleFailure() => (
-    title: "The coach isn't available on this iPhone",
+  // Until the consent screen lands (#153), this is where the coach stops.
+  CoachConsentNotGivenFailure() => (
+    title: "The coach isn't set up yet",
     body:
-        'It needs an iPhone that supports Apple Intelligence. Everything '
-        'else in Steady works as usual.',
+        'It needs your OK before it sends anything, and that step isn’t '
+        'here yet. Everything else in Steady works as usual.',
     canRetry: false,
   ),
-  CoachAppleIntelligenceNotEnabledFailure() => (
-    title: 'The coach needs Apple Intelligence',
-    body:
-        'You can turn it on in Settings → Apple Intelligence & Siri, then '
-        'come back here.',
+  CoachTurnedOffFailure() => (
+    title: 'The coach is off right now',
+    body: 'Try again later. Everything else in Steady works as usual.',
     canRetry: true,
   ),
-  CoachModelNotReadyFailure() => (
-    title: 'The coach is still getting ready',
+  CoachDeviceNotVerifiedFailure() => (
+    title: "The coach can't run on this iPhone",
     body:
-        'Apple Intelligence is still setting up on this iPhone, which can '
-        'take a while after it’s turned on. Try again a bit later.',
-    canRetry: true,
-  ),
-  CoachOsTooOldFailure() => (
-    title: 'The coach needs iOS 26',
-    body:
-        'Update to iOS 26 or later to use the coach. Everything else in '
-        'Steady works as usual.',
+        'Steady couldn’t verify this iPhone, which the coach needs. '
+        'Everything else in Steady works as usual.',
     canRetry: false,
   ),
-  CoachModelUnavailableUnknownFailure() => (
-    title: "The coach isn't available right now",
-    body: 'Try again a bit later. Everything else in Steady works as usual.',
+  CoachOfflineFailure() => (
+    title: "Can't reach the coach",
+    body: 'Check your internet connection, then try again.',
+    canRetry: true,
+  ),
+  CoachRateLimitedFailure(:final retryAfter) => (
+    title: "That's all for the coach today",
+    body:
+        'The coach has a daily limit, and it’s been reached. Try again '
+        '${coachRetryAfterLabel(retryAfter)}.',
     canRetry: true,
   ),
   _ => (
@@ -247,6 +246,17 @@ class CoachHelpCard extends StatelessWidget {
     canRetry: true,
   ),
 };
+
+/// When a rate limit lifts, in words: "in a few minutes", "in about an
+/// hour", "in about 5 hours", or "later" when the proxy didn't say.
+String coachRetryAfterLabel(Duration? retryAfter) {
+  if (retryAfter == null) return 'later';
+  final minutes = (retryAfter.inSeconds / 60).ceil();
+  if (minutes <= 10) return 'in a few minutes';
+  if (minutes < 60) return 'in about $minutes minutes';
+  final hours = (minutes / 60).round();
+  return hours == 1 ? 'in about an hour' : 'in about $hours hours';
+}
 
 /// The unavailable state as a coach-tinted card: [coachUnavailableCopy]'s
 /// title and line, and "Check again" (44pt) when that could help.
@@ -257,7 +267,7 @@ class CoachUnavailableCard extends StatelessWidget {
   /// Why the coach can't run.
   final Failure failure;
 
-  /// Checks availability again.
+  /// Checks again.
   final VoidCallback? onRetry;
 
   @override

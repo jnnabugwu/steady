@@ -216,6 +216,165 @@ final class HealthKitRepositoryProvider
 String _$healthKitRepositoryHash() =>
     r'e8c8cdadc90ff969e3423a0b40941dc4a6d33f11';
 
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+///
+/// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
+/// as unsupported, so a release build says "this iPhone can't be verified"
+/// and sends nothing, and a debug build can still reach a Preview proxy
+/// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
+/// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachAppAttest)
+final coachAppAttestProvider = CoachAppAttestProvider._();
+
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+///
+/// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
+/// as unsupported, so a release build says "this iPhone can't be verified"
+/// and sends nothing, and a debug build can still reach a Preview proxy
+/// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
+/// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachAppAttestProvider
+    extends $FunctionalProvider<AppAttest, AppAttest, AppAttest>
+    with $Provider<AppAttest> {
+  /// App Attest for the hosted coach (#150), read only by the iOS-bound
+  /// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+  /// the app layer is where `coach_data`'s implementations are chosen.
+  ///
+  /// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
+  /// as unsupported, so a release build says "this iPhone can't be verified"
+  /// and sends nothing, and a debug build can still reach a Preview proxy
+  /// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
+  /// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachAppAttestProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachAppAttestProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachAppAttestHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppAttest> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AppAttest create(Ref ref) {
+    return coachAppAttest(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppAttest value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppAttest>(value),
+    );
+  }
+}
+
+String _$coachAppAttestHash() => r'a735ac7fbbdba5cb8c3ffd180906b11146fe008d';
+
+/// Where the coach's attested App Attest key id is kept between launches
+/// (#150).
+///
+/// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
+/// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
+/// is the placeholder, since nothing is ever attested. #150's follow-up:
+/// return its `FileAppAttestKeyStore` here (a device-only file in the
+/// application support directory, like [coachStoreFile]) and delete
+/// [_MemoryAppAttestKeyStore].
+///
+/// `keepAlive`: it holds the key id for the app's lifetime.
+
+@ProviderFor(coachAppAttestKeyStore)
+final coachAppAttestKeyStoreProvider = CoachAppAttestKeyStoreProvider._();
+
+/// Where the coach's attested App Attest key id is kept between launches
+/// (#150).
+///
+/// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
+/// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
+/// is the placeholder, since nothing is ever attested. #150's follow-up:
+/// return its `FileAppAttestKeyStore` here (a device-only file in the
+/// application support directory, like [coachStoreFile]) and delete
+/// [_MemoryAppAttestKeyStore].
+///
+/// `keepAlive`: it holds the key id for the app's lifetime.
+
+final class CoachAppAttestKeyStoreProvider
+    extends
+        $FunctionalProvider<
+          AppAttestKeyStore,
+          AppAttestKeyStore,
+          AppAttestKeyStore
+        >
+    with $Provider<AppAttestKeyStore> {
+  /// Where the coach's attested App Attest key id is kept between launches
+  /// (#150).
+  ///
+  /// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
+  /// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
+  /// is the placeholder, since nothing is ever attested. #150's follow-up:
+  /// return its `FileAppAttestKeyStore` here (a device-only file in the
+  /// application support directory, like [coachStoreFile]) and delete
+  /// [_MemoryAppAttestKeyStore].
+  ///
+  /// `keepAlive`: it holds the key id for the app's lifetime.
+  CoachAppAttestKeyStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachAppAttestKeyStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachAppAttestKeyStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppAttestKeyStore> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AppAttestKeyStore create(Ref ref) {
+    return coachAppAttestKeyStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppAttestKeyStore value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppAttestKeyStore>(value),
+    );
+  }
+}
+
+String _$coachAppAttestKeyStoreHash() =>
+    r'1052fc7653a934c3c7bf5d81c30d8ae06d7e4f0d';
+
 /// How app-level screens open an external link (Settings' privacy policy).
 /// Defaults to the system browser through `url_launcher`; tests override
 /// it so they never reach the plugin.

@@ -29,31 +29,49 @@ CoachRepository coachRepository(Ref ref) =>
 
 /// Whether this device has the coach at all: `true` on iOS only.
 ///
-/// A platform fact, not the model's runtime availability (whether this
-/// iPhone supports Apple Intelligence and the model is ready), which the
-/// coach checks separately when a session starts. `false` by default;
-/// `app/lib/providers.dart` sets it from the platform
-/// (`appProviderOverridesFor(isIOS: ...)`), so tests can cover both. When
-/// it's `false` the coach's Settings card renders nothing.
+/// A platform fact, not whether the coach can reply right now (consent, a
+/// configured proxy, a verifiable iPhone, a connection), which the coach
+/// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
+/// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+/// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
+/// both. When it's `false` the coach's Settings card renders nothing.
 ///
 /// `keepAlive`: a constant for the app's lifetime.
 @Riverpod(keepAlive: true)
 bool coachSupportAvailable(Ref ref) => false;
 
-/// The on-device model the coach talks through (Apple Foundation Models).
+/// The model the coach talks through: Claude, behind Steady's proxy
+/// (`HostedCoachModel` in `coach_data`, CLAUDE.md §11).
 ///
 /// Typed against the domain interface only: this package never depends on
 /// `coach_data` (CLAUDE.md §3). `app/lib/providers.dart` binds it on iOS
-/// only, to the `steady/coach` channel; on macOS it stays unbound, so a Mac
-/// path that reads it fails loudly instead of reaching for a model that
-/// isn't there (§11). Tests override it with a fake. Reading it without an
-/// override throws.
+/// only; on macOS it stays unbound, so a Mac path that reads it fails
+/// loudly instead of reaching for a model that isn't there (§11). Tests
+/// override it with a fake. Reading it without an override throws.
 ///
-/// `keepAlive`: cheap and stateless (D6); the native side holds the
-/// sessions.
+/// `keepAlive`: it owns the HTTP client and the one-reply-at-a-time queue
+/// (D6).
 @Riverpod(keepAlive: true)
 CoachModel coachModel(Ref ref) =>
     throw UnimplementedError('Override coachModelProvider in app/ (iOS only)');
+
+/// Whether the person has agreed to what the coach sends, to whom and for
+/// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
+/// the coach screens check it before they offer a session
+/// (`coachAvailability`, `CoachSessionController`), and the hosted model
+/// checks it again before every request (`app/lib/providers.dart` binds its
+/// `consentGiven` to this provider).
+///
+/// `false`, always, until the consent screen and Settings → Coach toggle
+/// land (#153). Until then the coach shows "not set up yet"
+/// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
+/// this with a Notifier backed by a device-only consent store (with
+/// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
+/// reader above follows it.
+///
+/// `keepAlive`: the one answer for the whole app.
+@Riverpod(keepAlive: true)
+bool coachConsentGiven(Ref ref) => false;
 
 /// Check-in statuses, for the coach's context. Bound by the app to the
 /// check-in feature's own repository (the same instance, so the same

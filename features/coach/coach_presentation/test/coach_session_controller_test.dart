@@ -11,7 +11,6 @@ import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 
 void main() {
-  const summaryRequest = CoachInstructions.summaryRequest;
   late FakeCoachModel model;
   late FakeCoachRepository repository;
   late ProviderContainer container;
@@ -27,9 +26,13 @@ void main() {
 
   /// A container with the session's provider listened to, after its start
   /// has settled.
-  Future<CoachSessionController> start() async {
+  Future<CoachSessionController> start({bool consentGiven = true}) async {
     container = ProviderContainer.test(
-      overrides: coachTestOverrides(model: model, repository: repository),
+      overrides: coachTestOverrides(
+        model: model,
+        repository: repository,
+        consentGiven: consentGiven,
+      ),
     )..listen(provider, (_, _) {});
     await pumpEventQueue();
     // The lint takes the notifier for a Future; it isn't one.
@@ -40,47 +43,48 @@ void main() {
   CoachSessionState state() => container.read(provider);
 
   group('starting', () {
-    final reasons = <CoachModelUnavailableFailure>[
-      const CoachDeviceNotEligibleFailure(),
-      const CoachAppleIntelligenceNotEnabledFailure(),
-      const CoachModelNotReadyFailure(),
-      const CoachOsTooOldFailure(),
-      const CoachModelUnavailableUnknownFailure(),
+    test('without consent: unavailable, and the model is never asked or '
+        'sent anything', () async {
+      final controller = await start(consentGiven: false);
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      expect(model.availabilityChecks, 0);
+
+      await controller.sendCoachMessage('Hi');
+      await controller.retryCoachStart();
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      expect(model.requests, isEmpty);
+    });
+
+    final reasons = <CoachUnavailableFailure>[
+      const CoachTurnedOffFailure(),
+      const CoachDeviceNotVerifiedFailure(),
     ];
     for (final reason in reasons) {
       test(
-        'unavailable (${reason.runtimeType}): says why, starts nothing',
+        'unavailable (${reason.runtimeType}): says why, sends nothing',
         () async {
           model.availability = Err(reason);
           await start();
           expect(state().phase, CoachSessionPhase.unavailable);
           expect(state().failure, reason);
-          expect(model.instructions, isEmpty);
+          expect(model.requests, isEmpty);
         },
       );
     }
 
-    test('a session that fails to start says so', () async {
-      model.startResult = const Err(PlatformChannelFailure('boom'));
+    test('any other failure to start says so', () async {
+      model.availability = const Err(UnknownFailure('boom'));
       await start();
       expect(state().phase, CoachSessionPhase.failedToStart);
     });
 
-    test(
-      "primes the model with the chat instructions and the week's data",
-      () async {
-        await start();
-        expect(state().phase, CoachSessionPhase.ready);
-        final instructions = model.instructions.single;
-        expect(instructions, startsWith(CoachInstructions.chat));
-        expect(instructions, contains("The person's data:"));
-        expect(
-          instructions,
-          contains('Sat Oct 24: logged fully; ate 1800 kcal'),
-        );
-        expect(state().session.startedAt, coachTestNow);
-      },
-    );
+    test('is ready without sending anything', () async {
+      await start();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(model.requests, isEmpty);
+      expect(state().session.startedAt, coachTestNow);
+    });
 
     test('nothing is stored before the person says something', () async {
       await start();
@@ -89,22 +93,34 @@ void main() {
   });
 
   group('sendCoachMessage', () {
+    test("sends the chat kind, the week's data and the message", () async {
+      final controller = await start();
+      await controller.sendCoachMessage('  How was my week?  ');
+      final request = model.requests.single;
+      expect(request.kind, CoachRequestKind.chat);
+      expect(
+        request.weekContext,
+        contains('Sat Oct 24: logged fully; ate 1800 kcal'),
+      );
+      expect(request.weekContext!.length, lessThanOrEqualTo(1200));
+      expect(request.turns, const [CoachTurn.person('How was my week?')]);
+    });
+
     test('streams the reply snapshot by snapshot, then saves it', () async {
       model.manualReplies = true;
       final controller = await start();
-      unawaited(controller.sendCoachMessage('  How was my week?  '));
+      unawaited(controller.sendCoachMessage('How was my week?'));
       await pumpEventQueue();
 
       expect(state().phase, CoachSessionPhase.replying);
       expect(state().session.messages.single.text, 'How was my week?');
       // Saved as soon as the person said it.
       expect(repository.sessions.single.messages, hasLength(1));
-      expect(model.prompts.single.prompt, 'How was my week?');
 
-      model.reply('You logged');
+      model.say('You logged');
       await pumpEventQueue();
       expect(state().reply, 'You logged');
-      model.reply('You logged Saturday.');
+      model.say('You logged Saturday.');
       await pumpEventQueue();
       expect(state().reply, 'You logged Saturday.');
 
@@ -117,76 +133,115 @@ void main() {
       expect(repository.sessions.single.messages, hasLength(2));
     });
 
+    test('every request carries the whole conversation so far', () async {
+      model.replyFor = (request) => 'Reply ${request.turns.length}.';
+      final controller = await start();
+      await controller.sendCoachMessage('One');
+      await controller.sendCoachMessage('Two');
+      await controller.sendCoachMessage('Three');
+      expect(model.requests.last.turns, const [
+        CoachTurn.person('One'),
+        CoachTurn.coach('Reply 1.'),
+        CoachTurn.person('Two'),
+        CoachTurn.coach('Reply 3.'),
+        CoachTurn.person('Three'),
+      ]);
+      expect(state().session.messages, hasLength(6));
+    });
+
     test(
       'is ignored while the coach replies, and for an empty message',
       () async {
         model.manualReplies = true;
         final controller = await start();
         await controller.sendCoachMessage('   ');
-        expect(model.prompts, isEmpty);
+        expect(model.requests, isEmpty);
 
         unawaited(controller.sendCoachMessage('One'));
         await pumpEventQueue();
         await controller.sendCoachMessage('Two');
-        expect(model.prompts, hasLength(1));
+        expect(model.requests, hasLength(1));
         expect(state().session.messages, hasLength(1));
       },
     );
 
-    test('a failed reply keeps the conversation, with the failure', () async {
+    test('a message is cut to the cap', () async {
       final controller = await start();
-      model.failNext = const CoachInferenceFailure(
-        'guardrail',
-        reason: CoachInferenceFailureReason.guardrailViolation,
+      await controller.sendCoachMessage('x' * 5000);
+      expect(
+        model.requests.single.turns.single,
+        CoachTurn.person('x' * coachMaxMessageChars),
       );
-      await controller.sendCoachMessage('Hard day.');
-      expect(state().phase, CoachSessionPhase.ready);
-      expect(state().guardrailTripped, isTrue);
-      expect(state().session.messages.single.text, 'Hard day.');
-
-      // The next message clears it.
-      await controller.sendCoachMessage('Thanks.');
-      expect(state().failure, isNull);
-      expect(state().guardrailTripped, isFalse);
     });
 
-    test(
-      'a context overflow moves to a fresh session and retries once',
-      () async {
-        final controller = await start();
-        model.failNext = const CoachInferenceFailure(
-          'full',
-          reason: CoachInferenceFailureReason.contextExceeded,
-        );
-        await controller.sendCoachMessage('Hello');
-        expect(model.prompts.map((p) => p.session), ['s0', 's1']);
-        expect(model.ended, contains('s0'));
-        expect(state().failure, isNull);
-        expect(state().session.messages.last.text, 'Coach reply.');
-      },
-    );
-
-    test('a fresh session that fails to start ends the session, and the '
-        'next message is a no-op rather than a crash', () async {
+    test('a refusal shows the help line and drops the partial reply, from '
+        'the screen and from what the coach is sent next', () async {
+      model.manualReplies = true;
       final controller = await start();
-      model
-        // Overflow sends the conversation to a fresh model session...
-        ..failNext = const CoachInferenceFailure(
-          'full',
-          reason: CoachInferenceFailureReason.contextExceeded,
-        )
-        // ...and starting that one fails: no model session is left.
-        ..startResult = const Err(PlatformChannelFailure('boom'));
+      unawaited(controller.sendCoachMessage('Hard day.'));
+      await pumpEventQueue();
+      model.say('Something it');
+      await pumpEventQueue();
+      model.fail(const CoachRefusalFailure());
+      await pumpEventQueue();
+
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(state().replyRefused, isTrue);
+      expect(state().reply, isNull);
+      expect(state().session.messages.single.text, 'Hard day.');
+
+      // The next message clears it, and the refused text never went back.
+      model.manualReplies = false;
+      await controller.sendCoachMessage('Thanks.');
+      expect(state().failure, isNull);
+      expect(state().replyRefused, isFalse);
+      expect(model.requests.last.turns, const [
+        CoachTurn.person('Hard day.'),
+        CoachTurn.person('Thanks.'),
+      ]);
+    });
+
+    for (final failure in <Failure>[
+      const CoachOfflineFailure(),
+      const CoachServerFailure(),
+      const CoachRateLimitedFailure(retryAfter: Duration(hours: 2)),
+    ]) {
+      test('a failed reply (${failure.runtimeType}) keeps the conversation '
+          'ready, with the failure', () async {
+        final controller = await start();
+        model.failNext = failure;
+        await controller.sendCoachMessage('Hi');
+        expect(state().phase, CoachSessionPhase.ready);
+        expect(state().failure, failure);
+        expect(state().replyRefused, isFalse);
+        expect(state().session.messages.single.text, 'Hi');
+      });
+    }
+
+    test('the coach turned off mid-conversation keeps what was said, and '
+        '"Check again" sends the last turn again', () async {
+      final controller = await start();
       await controller.sendCoachMessage('Hello');
+      model.failNext = const CoachTurnedOffFailure();
+      await controller.sendCoachMessage('Still there?');
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachTurnedOffFailure>());
+      expect(state().session.messages.map((m) => m.text), [
+        'Hello',
+        'Coach reply.',
+        'Still there?',
+      ]);
 
-      // Going back to `ready` would offer a composer with nothing behind
-      // it, and the next send would dereference a null model session.
-      expect(state().phase, CoachSessionPhase.failedToStart);
-      expect(state().failure, isA<PlatformChannelFailure>());
-
-      final before = model.prompts.length;
-      await controller.sendCoachMessage('Are you there?');
-      expect(model.prompts.length, before);
+      await controller.retryCoachStart();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(state().failure, isNull);
+      expect(state().session.messages.last.text, 'Coach reply.');
+      // Sent again once, as it was: no second copy of the person's turn.
+      expect(model.requests.last.turns, const [
+        CoachTurn.person('Hello'),
+        CoachTurn.coach('Coach reply.'),
+        CoachTurn.person('Still there?'),
+      ]);
     });
 
     test('a failed save is shown, and retrying saves again', () async {
@@ -203,73 +258,14 @@ void main() {
     });
   });
 
-  group('the context budget in a long chat', () {
-    test('every prompt fits the window, older turns are summarised into a '
-        'fresh session', () async {
-      model.replyFor = (prompt) =>
-          prompt.startsWith(CoachInstructions.summaryRequest)
-          ? 'They went over weekend logging.'
-          // The longest reply the channel allows, about 512 tokens.
-          : 'r' * (coachMaxReplyTokens * 3);
-      final controller = await start();
-      const budget = CoachContextBudget(contextSize: 4096);
-
-      for (var i = 0; i < 30; i++) {
-        await controller.sendCoachMessage('$i ${'m' * 990}');
-      }
-
-      // Replay what each model session was sent and check none of them
-      // could overflow: its own instructions + prompts + full-length
-      // replies. Session `sN` is the Nth started, so its instructions are
-      // `model.instructions[N]`.
-      final bySession = <String, List<String>>{};
-      for (final p in model.prompts) {
-        bySession.putIfAbsent(p.session, () => []).add(p.prompt);
-      }
-      expect(bySession.length, greaterThan(5));
-      for (final MapEntry(key: id, value: prompts) in bySession.entries) {
-        final instructions = model.instructions[int.parse(id.substring(1))];
-        // A move's summary runs under the carried-forward summary
-        // instructions (it keeps cravings and numbers; the stored end
-        // summary's don't), never the coaching ones, which ask for
-        // questions; every other session coaches.
-        expect(
-          instructions,
-          prompts.first.startsWith(CoachInstructions.summaryRequest)
-              ? CoachInstructions.contextSummary
-              : startsWith(CoachInstructions.chat),
-          reason: 'session $id',
-        );
-        var used = estimateCoachTokens(instructions);
-        for (final prompt in prompts) {
-          expect(
-            used + budget.turnCost(prompt),
-            lessThanOrEqualTo(4096),
-            reason: 'session $id',
-          );
-          used +=
-              estimateCoachTokens(prompt) +
-              coachMaxReplyTokens +
-              2 * coachTurnOverheadTokens;
-        }
-      }
-      // A fresh session's first prompt carries the summary.
-      final carried = model.prompts.where(
-        (p) => p.prompt.contains('They went over weekend logging.'),
-      );
-      expect(carried, isNotEmpty);
-      // The full transcript is still stored.
-      expect(state().session.messages, hasLength(60));
-    });
-  });
-
   group('stopCoachReply', () {
-    test('stops the stream and keeps what was said so far', () async {
+    test('stops the stream and keeps what was said so far, in the '
+        'transcript and in what the coach is sent next', () async {
       model.manualReplies = true;
       final controller = await start();
       unawaited(controller.sendCoachMessage('Tell me about Tuesday.'));
       await pumpEventQueue();
-      model.reply('Tuesday was');
+      model.say('Tuesday was');
       await pumpEventQueue();
 
       await controller.stopCoachReply();
@@ -281,6 +277,14 @@ void main() {
       expect(repository.sessions.single.messages.map((m) => m.text), [
         'Tell me about Tuesday.',
         'Tuesday was',
+      ]);
+
+      model.manualReplies = false;
+      await controller.sendCoachMessage('Go on.');
+      expect(model.requests.last.turns, const [
+        CoachTurn.person('Tell me about Tuesday.'),
+        CoachTurn.coach('Tuesday was'),
+        CoachTurn.person('Go on.'),
       ]);
     });
 
@@ -302,46 +306,26 @@ void main() {
     });
   });
 
-  group('a reply cut off at the reply cap ("Keep going")', () {
-    // Two full sentences, then one the cap cut in half.
+  group('a reply cut off at the token limit ("Keep going")', () {
     const cut = 'You logged five days. Steps were steady. On Friday you';
 
-    test("the model's token count at the cap: stored up to the last full "
-        'sentence, and Keep going is offered', () async {
+    test('max_tokens: stored as it came, and Keep going is offered', () async {
       model
         ..replyFor = ((_) => cut)
-        ..outputTokensNext = coachMaxReplyTokens;
+        ..stopReasonNext = CoachStopReason.maxTokens;
       final controller = await start();
       await controller.sendCoachMessage('How was my week?');
 
       expect(state().replyCutOff, isTrue);
-      expect(
-        state().session.messages.last.text,
-        'You logged five days. Steps were steady.',
-      );
-      expect(
-        repository.sessions.single.messages.last.text,
-        'You logged five days. Steps were steady.',
-      );
+      expect(state().session.messages.last.text, cut);
+      expect(repository.sessions.single.messages.last.text, cut);
     });
 
-    test('without a token count (iOS 26), a long reply that stops '
-        'mid-sentence counts as cut off', () async {
-      final long = '${'You logged most days this week. ' * 40}On Friday you';
-      model.replyFor = (_) => long;
-      final controller = await start();
-      await controller.sendCoachMessage('How was my week?');
-
-      expect(state().replyCutOff, isTrue);
-      expect(state().session.messages.last.text, endsWith('this week.'));
-    });
-
-    test('a complete reply, or a short one, is left alone', () async {
-      model.replyFor = (_) => 'You logged five days';
+    test('end_turn is never cut off, however it ends', () async {
+      model.replyFor = (_) => cut;
       final controller = await start();
       await controller.sendCoachMessage('How was my week?');
       expect(state().replyCutOff, isFalse);
-      expect(state().session.messages.last.text, 'You logged five days');
     });
 
     test('a reply the person stopped is never "cut off"', () async {
@@ -349,7 +333,7 @@ void main() {
       final controller = await start();
       unawaited(controller.sendCoachMessage('Tell me about Tuesday.'));
       await pumpEventQueue();
-      model.reply(cut, outputTokens: coachMaxReplyTokens);
+      model.say(cut);
       await pumpEventQueue();
       await controller.stopCoachReply();
       await pumpEventQueue();
@@ -361,17 +345,20 @@ void main() {
         'asked to carry on, and the offer goes away', () async {
       model
         ..replyFor = ((_) => cut)
-        ..outputTokensNext = coachMaxReplyTokens;
+        ..stopReasonNext = CoachStopReason.maxTokens;
       final controller = await start();
       await controller.sendCoachMessage('How was my week?');
-      model.replyFor = (_) => 'On Friday you logged partly. That counts.';
+      model.replyFor = (_) => 'logged partly. That counts.';
 
       await controller.keepGoing();
-      expect(model.prompts.last.prompt, contains(CoachKeepGoing.prompt));
+      expect(
+        model.requests.last.turns.last,
+        const CoachTurn.person(CoachKeepGoing.prompt),
+      );
       final texts = state().session.messages.map((m) => m.text).toList();
       expect(texts.sublist(texts.length - 2), [
         CoachKeepGoing.message,
-        'On Friday you logged partly. That counts.',
+        'logged partly. That counts.',
       ]);
       expect(state().replyCutOff, isFalse);
     });
@@ -379,52 +366,46 @@ void main() {
     test('Keep going is ignored when the last reply was complete', () async {
       final controller = await start();
       await controller.sendCoachMessage('Hi');
-      final sent = model.prompts.length;
+      final sent = model.requests.length;
       await controller.keepGoing();
-      expect(model.prompts, hasLength(sent));
+      expect(model.requests, hasLength(sent));
     });
   });
 
   group('endCoachSession', () {
-    test('asks for a neutral summary under the summary instructions, then '
-        'stores it with the end time', () async {
+    test('asks for the summary in one summary request over the transcript, '
+        'then stores it with the end time', () async {
       final controller = await start();
       await controller.sendCoachMessage('I skipped Wednesday.');
       await controller.endCoachSession();
 
       expect(state().phase, CoachSessionPhase.ended);
-      final summaryPrompt = model.prompts.last;
-      expect(
-        summaryPrompt.prompt,
-        startsWith(CoachInstructions.summaryRequest),
-      );
-      expect(summaryPrompt.prompt, contains('Person: I skipped Wednesday.'));
-      // A separate model session, primed to summarise, not to coach.
-      expect(summaryPrompt.session, isNot('s0'));
-      expect(model.instructions.first, startsWith(CoachInstructions.chat));
-      expect(model.instructions.last, CoachInstructions.summary);
+      final summary = model.requests.last;
+      expect(summary.kind, CoachRequestKind.summary);
+      expect(summary.weekContext, isNull);
+      expect(summary.turns, const [
+        CoachTurn.person('I skipped Wednesday.'),
+        CoachTurn.coach('Coach reply.'),
+      ]);
 
       final stored = repository.sessions.single;
       expect(stored.summary, 'A short summary.');
       expect(stored.endedAt, coachTestNow);
-      expect(model.ended, containsAll(['s0', summaryPrompt.session]));
     });
 
-    test('a session where nothing was said stores nothing', () async {
+    test('a session where nothing was said stores nothing, and sends '
+        'nothing', () async {
       final controller = await start();
       await controller.endCoachSession();
       expect(state().phase, CoachSessionPhase.ended);
       expect(repository.sessions, isEmpty);
-      expect(model.ended, ['s0']);
+      expect(model.requests, isEmpty);
     });
 
     test('a failed summary still ends and stores the session', () async {
       final controller = await start();
       await controller.sendCoachMessage('Hi');
-      model.failNext = const CoachInferenceFailure(
-        'x',
-        reason: CoachInferenceFailureReason.other,
-      );
+      model.failNext = const CoachServerFailure();
       await controller.endCoachSession();
       expect(state().phase, CoachSessionPhase.ended);
       expect(repository.sessions.single.summary, isNull);
@@ -436,14 +417,19 @@ void main() {
       final controller = await start();
       unawaited(controller.sendCoachMessage('Hi'));
       await pumpEventQueue();
-      model.reply('Hello th');
+      model.say('Hello th');
       await pumpEventQueue();
       await controller.endCoachSession();
+      expect(model.cancelled, isTrue);
       expect(state().phase, CoachSessionPhase.ended);
       expect(repository.sessions.single.messages.map((m) => m.text), [
         'Hi',
         'Hello th',
       ]);
+      expect(
+        model.summaryRequests.single.turns.last,
+        const CoachTurn.coach('Hello th'),
+      );
     });
 
     test('finishes after its screen is gone (keeps itself alive)', () async {
@@ -479,47 +465,15 @@ void main() {
       final ending = controller.endCoachSession();
       await pumpEventQueue();
       // Nothing is summarised while the turn is still saving.
-      expect(model.prompts, isEmpty);
+      expect(model.requests, isEmpty);
       saving.complete();
       await ending;
       await pumpEventQueue();
 
-      // The turn stopped after its save: the only prompt is the summary.
-      expect(model.prompts.single.prompt, startsWith(summaryRequest));
+      // The turn stopped after its save: the only request is the summary.
+      expect(model.requests.single.kind, CoachRequestKind.summary);
       expect(state().phase, CoachSessionPhase.ended);
       expect(repository.sessions.single.messages.single.text, 'Hi');
-      expect(repository.sessions.single.summary, 'A short summary.');
-    });
-
-    test('ending during a move to a fresh model session waits for it, and '
-        'the turn sends nothing more', () async {
-      final controller = await start();
-      final starting = Completer<void>();
-      model
-        ..failNext = const CoachInferenceFailure(
-          'full',
-          reason: CoachInferenceFailureReason.contextExceeded,
-        )
-        // Hold the fresh session's start, mid-move.
-        ..beforeStart = () {
-          model.beforeStart = null;
-          return starting.future;
-        };
-      unawaited(controller.sendCoachMessage('Hello'));
-      await pumpEventQueue();
-
-      final ending = controller.endCoachSession();
-      await pumpEventQueue();
-      starting.complete();
-      await ending;
-      await pumpEventQueue();
-
-      // The overflowed reply isn't retried after the session ended.
-      expect(model.prompts.where((p) => p.prompt == 'Hello'), hasLength(1));
-      expect(model.prompts.last.prompt, startsWith(summaryRequest));
-      // Every model session started is ended, the fresh one included.
-      expect(model.ended.toSet(), {'s0', 's1', 's2'});
-      expect(state().phase, CoachSessionPhase.ended);
       expect(repository.sessions.single.summary, 'A short summary.');
     });
 
@@ -534,7 +488,7 @@ void main() {
       final controller = container.read(provider.notifier);
       unawaited(controller.sendCoachMessage('Hi'));
       await pumpEventQueue();
-      model.reply('Hello th');
+      model.say('Hello th');
       await pumpEventQueue();
 
       final ending = controller.endCoachSession();
@@ -554,11 +508,11 @@ void main() {
       await controller.sendCoachMessage('Hi');
       expect(repository.sessions, hasLength(1));
 
-      // Hold the summary's model session while the history is deleted.
-      final starting = Completer<void>();
-      model.beforeStart = () {
-        model.beforeStart = null;
-        return starting.future;
+      // Hold the summary while the history is deleted.
+      final summarising = Completer<void>();
+      model.beforeReply = () {
+        model.beforeReply = null;
+        return summarising.future;
       };
       final ending = controller.endCoachSession();
       await pumpEventQueue();
@@ -569,7 +523,7 @@ void main() {
           .deleteCoachHistory();
       expect(repository.sessions, isEmpty);
 
-      starting.complete();
+      summarising.complete();
       await ending;
       await pumpEventQueue();
       expect(state().phase, CoachSessionPhase.ended);
@@ -616,55 +570,48 @@ void main() {
       final controller = await start();
       await controller.sendCoachMessage('Hi');
       await controller.endCoachSession();
-      final prompts = model.prompts.length;
+      final requests = model.requests.length;
       await controller.endCoachSession();
-      expect(model.prompts, hasLength(prompts));
+      expect(model.requests, hasLength(requests));
     });
   });
 
   group('retryCoachStart', () {
     test('after an unavailable start, checks again and starts', () async {
-      model.availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+      model.availability = const Err(CoachTurnedOffFailure());
       final controller = await start();
       expect(state().phase, CoachSessionPhase.unavailable);
 
-      model.availability = const Ok(CoachModelInfo(contextSize: 4096));
+      model.availability = const Ok(unit);
       await controller.retryCoachStart();
       expect(state().phase, CoachSessionPhase.ready);
       expect(state().failure, isNull);
       expect(model.availabilityChecks, 2);
-      expect(model.instructions, hasLength(1));
+      expect(model.requests, isEmpty);
     });
 
     test('still unavailable says so again', () async {
-      model.availability = const Err(CoachModelNotReadyFailure());
+      model.availability = const Err(CoachDeviceNotVerifiedFailure());
       final controller = await start();
       await controller.retryCoachStart();
       expect(state().phase, CoachSessionPhase.unavailable);
-      expect(state().failure, isA<CoachModelNotReadyFailure>());
+      expect(state().failure, isA<CoachDeviceNotVerifiedFailure>());
       expect(model.availabilityChecks, 2);
     });
 
-    test('mid-conversation, moves to a fresh model session and the chat '
-        'goes on', () async {
+    test('mid-conversation and still unavailable: says so, keeps what was '
+        'said, and sends nothing', () async {
       final controller = await start();
-      model
-        ..failNext = const CoachInferenceFailure(
-          'full',
-          reason: CoachInferenceFailureReason.contextExceeded,
-        )
-        ..startResult = const Err(PlatformChannelFailure('boom'));
       await controller.sendCoachMessage('Hello');
-      expect(state().phase, CoachSessionPhase.failedToStart);
+      model.failNext = const CoachTurnedOffFailure();
+      await controller.sendCoachMessage('Again');
+      final sent = model.requests.length;
 
-      model.startResult = null;
+      model.availability = const Err(CoachTurnedOffFailure());
       await controller.retryCoachStart();
-      expect(state().phase, CoachSessionPhase.ready);
-      expect(state().session.messages.first.text, 'Hello');
-
-      await controller.sendCoachMessage('Are you there?');
-      expect(model.prompts.last.prompt, contains('Are you there?'));
-      expect(state().session.messages.last.text, 'Coach reply.');
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().session.messages, hasLength(3));
+      expect(model.requests, hasLength(sent));
     });
 
     test('is ignored when the session is ready', () async {
@@ -675,23 +622,19 @@ void main() {
     });
   });
 
-  test(
-    'disposing mid-reply cancels the stream and ends the model session',
-    () async {
-      model.manualReplies = true;
-      container = ProviderContainer.test(
-        overrides: coachTestOverrides(model: model, repository: repository),
-      );
-      final sub = container.listen(provider, (_, _) {});
-      await pumpEventQueue();
-      unawaited(container.read(provider.notifier).sendCoachMessage('Hi'));
-      await pumpEventQueue();
-      sub.close();
-      await pumpEventQueue();
-      expect(model.cancelled, isTrue);
-      expect(model.ended, ['s0']);
-    },
-  );
+  test('disposing mid-reply cancels the stream', () async {
+    model.manualReplies = true;
+    container = ProviderContainer.test(
+      overrides: coachTestOverrides(model: model, repository: repository),
+    );
+    final sub = container.listen(provider, (_, _) {});
+    await pumpEventQueue();
+    unawaited(container.read(provider.notifier).sendCoachMessage('Hi'));
+    await pumpEventQueue();
+    sub.close();
+    await pumpEventQueue();
+    expect(model.cancelled, isTrue);
+  });
 
   test('saving refreshes the list of past sessions', () async {
     final controller = await start();

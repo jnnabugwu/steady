@@ -14,11 +14,12 @@ part of 'coach_session_controller.dart';
 /// **The weekly session** (#81) looks back on the last completed
 /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
 /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-/// before the model is touched and again in [startWeeklySession]). Its
+/// before the coach is touched and again in [startWeeklySession]). Its
 /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-/// cravings when there were any, next week), each opened by an app prompt
-/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-/// like a chat, with a stored summary.
+/// cravings when there were any, next week), each opened by an app turn
+/// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+/// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+/// summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -27,25 +28,23 @@ part of 'coach_session_controller.dart';
 /// (closed in `finally`), so closing the screen doesn't lose the summary
 /// (CLAUDE.md §4).
 ///
-/// **One operation at a time.** A turn (the person's message: save,
-/// perhaps a move to a fresh model session, the reply, save) and a retried
-/// start are each one in-flight operation ([_operation]). The phase isn't
-/// the lock: `replying` covers a save and a session move as well as the
-/// reply. Ending marks the session as ending at once, stops whatever is
-/// streaming, and waits for the operation to finish before it summarises;
-/// an operation that resumes after that point stops without touching the
-/// model or the transcript further.
+/// **One operation at a time.** A turn (the person's message: save, the
+/// reply, save) and a retried start are each one in-flight operation
+/// ([_operation]). The phase isn't the lock: `replying` covers a save as
+/// well as the reply. Ending marks the session as ending at once, stops
+/// whatever is streaming, and waits for the operation to finish before it
+/// summarises; an operation that resumes after that point stops without
+/// touching the coach or the transcript further.
 ///
-/// **Context budget.** The model sees the instructions for [kind] with a
-/// compact summary of the person's last seven days
-/// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-/// [CoachConversation] checks the turn fits the device's context window
-/// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-/// doesn't, the older turns are summarised in a separate model session and
-/// the conversation moves to a fresh one, carrying that summary and the
-/// last few messages. A reply that still overflows (`contextExceeded`) or
-/// finds its native session gone moves on once more, without the summary,
-/// and is retried once.
+/// **Stateless model.** Nothing is started or ended on the model's side:
+/// every reply sends the session's kind, the week's compact context
+/// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+/// so far ([_turns]), app turns in place. The summary is one request of its
+/// own kind (`CoachRequestKind.summary`) over the transcript.
+///
+/// **Nothing is sent without consent** ([coachConsentGivenProvider],
+/// through [checkCoachAvailable] at the start and before a retry; the
+/// hosted model checks it again before every request).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -62,11 +61,12 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 /// **The weekly session** (#81) looks back on the last completed
 /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
 /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-/// before the model is touched and again in [startWeeklySession]). Its
+/// before the coach is touched and again in [startWeeklySession]). Its
 /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-/// cravings when there were any, next week), each opened by an app prompt
-/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-/// like a chat, with a stored summary.
+/// cravings when there were any, next week), each opened by an app turn
+/// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+/// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+/// summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -75,25 +75,23 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 /// (closed in `finally`), so closing the screen doesn't lose the summary
 /// (CLAUDE.md §4).
 ///
-/// **One operation at a time.** A turn (the person's message: save,
-/// perhaps a move to a fresh model session, the reply, save) and a retried
-/// start are each one in-flight operation ([_operation]). The phase isn't
-/// the lock: `replying` covers a save and a session move as well as the
-/// reply. Ending marks the session as ending at once, stops whatever is
-/// streaming, and waits for the operation to finish before it summarises;
-/// an operation that resumes after that point stops without touching the
-/// model or the transcript further.
+/// **One operation at a time.** A turn (the person's message: save, the
+/// reply, save) and a retried start are each one in-flight operation
+/// ([_operation]). The phase isn't the lock: `replying` covers a save as
+/// well as the reply. Ending marks the session as ending at once, stops
+/// whatever is streaming, and waits for the operation to finish before it
+/// summarises; an operation that resumes after that point stops without
+/// touching the coach or the transcript further.
 ///
-/// **Context budget.** The model sees the instructions for [kind] with a
-/// compact summary of the person's last seven days
-/// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-/// [CoachConversation] checks the turn fits the device's context window
-/// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-/// doesn't, the older turns are summarised in a separate model session and
-/// the conversation moves to a fresh one, carrying that summary and the
-/// last few messages. A reply that still overflows (`contextExceeded`) or
-/// finds its native session gone moves on once more, without the summary,
-/// and is retried once.
+/// **Stateless model.** Nothing is started or ended on the model's side:
+/// every reply sends the session's kind, the week's compact context
+/// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+/// so far ([_turns]), app turns in place. The summary is one request of its
+/// own kind (`CoachRequestKind.summary`) over the transcript.
+///
+/// **Nothing is sent without consent** ([coachConsentGivenProvider],
+/// through [checkCoachAvailable] at the start and before a retry; the
+/// hosted model checks it again before every request).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -108,11 +106,12 @@ final class CoachSessionControllerProvider
   /// **The weekly session** (#81) looks back on the last completed
   /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
   /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-  /// before the model is touched and again in [startWeeklySession]). Its
+  /// before the coach is touched and again in [startWeeklySession]). Its
   /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-  /// cravings when there were any, next week), each opened by an app prompt
-  /// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-  /// like a chat, with a stored summary.
+  /// cravings when there were any, next week), each opened by an app turn
+  /// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+  /// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+  /// summary.
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
@@ -121,25 +120,23 @@ final class CoachSessionControllerProvider
   /// (closed in `finally`), so closing the screen doesn't lose the summary
   /// (CLAUDE.md §4).
   ///
-  /// **One operation at a time.** A turn (the person's message: save,
-  /// perhaps a move to a fresh model session, the reply, save) and a retried
-  /// start are each one in-flight operation ([_operation]). The phase isn't
-  /// the lock: `replying` covers a save and a session move as well as the
-  /// reply. Ending marks the session as ending at once, stops whatever is
-  /// streaming, and waits for the operation to finish before it summarises;
-  /// an operation that resumes after that point stops without touching the
-  /// model or the transcript further.
+  /// **One operation at a time.** A turn (the person's message: save, the
+  /// reply, save) and a retried start are each one in-flight operation
+  /// ([_operation]). The phase isn't the lock: `replying` covers a save as
+  /// well as the reply. Ending marks the session as ending at once, stops
+  /// whatever is streaming, and waits for the operation to finish before it
+  /// summarises; an operation that resumes after that point stops without
+  /// touching the coach or the transcript further.
   ///
-  /// **Context budget.** The model sees the instructions for [kind] with a
-  /// compact summary of the person's last seven days
-  /// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-  /// [CoachConversation] checks the turn fits the device's context window
-  /// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-  /// doesn't, the older turns are summarised in a separate model session and
-  /// the conversation moves to a fresh one, carrying that summary and the
-  /// last few messages. A reply that still overflows (`contextExceeded`) or
-  /// finds its native session gone moves on once more, without the summary,
-  /// and is retried once.
+  /// **Stateless model.** Nothing is started or ended on the model's side:
+  /// every reply sends the session's kind, the week's compact context
+  /// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+  /// so far ([_turns]), app turns in place. The summary is one request of its
+  /// own kind (`CoachRequestKind.summary`) over the transcript.
+  ///
+  /// **Nothing is sent without consent** ([coachConsentGivenProvider],
+  /// through [checkCoachAvailable] at the start and before a retry; the
+  /// hosted model checks it again before every request).
   ///
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
@@ -192,7 +189,7 @@ final class CoachSessionControllerProvider
 }
 
 String _$coachSessionControllerHash() =>
-    r'b9b3e836078d84df670e69a48727c625867fbfc7';
+    r'21cb95da8f269f6d2fdfdac3922b3b6deb7c3842';
 
 /// A live coach session on the iPhone: a chat or the weekly session, from
 /// opening the screen to its stored summary.
@@ -200,11 +197,12 @@ String _$coachSessionControllerHash() =>
 /// **The weekly session** (#81) looks back on the last completed
 /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
 /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-/// before the model is touched and again in [startWeeklySession]). Its
+/// before the coach is touched and again in [startWeeklySession]). Its
 /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-/// cravings when there were any, next week), each opened by an app prompt
-/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-/// like a chat, with a stored summary.
+/// cravings when there were any, next week), each opened by an app turn
+/// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+/// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+/// summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -213,25 +211,23 @@ String _$coachSessionControllerHash() =>
 /// (closed in `finally`), so closing the screen doesn't lose the summary
 /// (CLAUDE.md §4).
 ///
-/// **One operation at a time.** A turn (the person's message: save,
-/// perhaps a move to a fresh model session, the reply, save) and a retried
-/// start are each one in-flight operation ([_operation]). The phase isn't
-/// the lock: `replying` covers a save and a session move as well as the
-/// reply. Ending marks the session as ending at once, stops whatever is
-/// streaming, and waits for the operation to finish before it summarises;
-/// an operation that resumes after that point stops without touching the
-/// model or the transcript further.
+/// **One operation at a time.** A turn (the person's message: save, the
+/// reply, save) and a retried start are each one in-flight operation
+/// ([_operation]). The phase isn't the lock: `replying` covers a save as
+/// well as the reply. Ending marks the session as ending at once, stops
+/// whatever is streaming, and waits for the operation to finish before it
+/// summarises; an operation that resumes after that point stops without
+/// touching the coach or the transcript further.
 ///
-/// **Context budget.** The model sees the instructions for [kind] with a
-/// compact summary of the person's last seven days
-/// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-/// [CoachConversation] checks the turn fits the device's context window
-/// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-/// doesn't, the older turns are summarised in a separate model session and
-/// the conversation moves to a fresh one, carrying that summary and the
-/// last few messages. A reply that still overflows (`contextExceeded`) or
-/// finds its native session gone moves on once more, without the summary,
-/// and is retried once.
+/// **Stateless model.** Nothing is started or ended on the model's side:
+/// every reply sends the session's kind, the week's compact context
+/// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+/// so far ([_turns]), app turns in place. The summary is one request of its
+/// own kind (`CoachRequestKind.summary`) over the transcript.
+///
+/// **Nothing is sent without consent** ([coachConsentGivenProvider],
+/// through [checkCoachAvailable] at the start and before a retry; the
+/// hosted model checks it again before every request).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -263,11 +259,12 @@ final class CoachSessionControllerFamily extends $Family
   /// **The weekly session** (#81) looks back on the last completed
   /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
   /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-  /// before the model is touched and again in [startWeeklySession]). Its
+  /// before the coach is touched and again in [startWeeklySession]). Its
   /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-  /// cravings when there were any, next week), each opened by an app prompt
-  /// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-  /// like a chat, with a stored summary.
+  /// cravings when there were any, next week), each opened by an app turn
+  /// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+  /// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+  /// summary.
   ///
   /// A family keyed by the session's [kind] and a fresh `sessionId` per
   /// opening of the screen, so a session still writing its summary after its
@@ -276,25 +273,23 @@ final class CoachSessionControllerFamily extends $Family
   /// (closed in `finally`), so closing the screen doesn't lose the summary
   /// (CLAUDE.md §4).
   ///
-  /// **One operation at a time.** A turn (the person's message: save,
-  /// perhaps a move to a fresh model session, the reply, save) and a retried
-  /// start are each one in-flight operation ([_operation]). The phase isn't
-  /// the lock: `replying` covers a save and a session move as well as the
-  /// reply. Ending marks the session as ending at once, stops whatever is
-  /// streaming, and waits for the operation to finish before it summarises;
-  /// an operation that resumes after that point stops without touching the
-  /// model or the transcript further.
+  /// **One operation at a time.** A turn (the person's message: save, the
+  /// reply, save) and a retried start are each one in-flight operation
+  /// ([_operation]). The phase isn't the lock: `replying` covers a save as
+  /// well as the reply. Ending marks the session as ending at once, stops
+  /// whatever is streaming, and waits for the operation to finish before it
+  /// summarises; an operation that resumes after that point stops without
+  /// touching the coach or the transcript further.
   ///
-  /// **Context budget.** The model sees the instructions for [kind] with a
-  /// compact summary of the person's last seven days
-  /// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-  /// [CoachConversation] checks the turn fits the device's context window
-  /// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-  /// doesn't, the older turns are summarised in a separate model session and
-  /// the conversation moves to a fresh one, carrying that summary and the
-  /// last few messages. A reply that still overflows (`contextExceeded`) or
-  /// finds its native session gone moves on once more, without the summary,
-  /// and is retried once.
+  /// **Stateless model.** Nothing is started or ended on the model's side:
+  /// every reply sends the session's kind, the week's compact context
+  /// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+  /// so far ([_turns]), app turns in place. The summary is one request of its
+  /// own kind (`CoachRequestKind.summary`) over the transcript.
+  ///
+  /// **Nothing is sent without consent** ([coachConsentGivenProvider],
+  /// through [checkCoachAvailable] at the start and before a retry; the
+  /// hosted model checks it again before every request).
   ///
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
@@ -318,11 +313,12 @@ final class CoachSessionControllerFamily extends $Family
 /// **The weekly session** (#81) looks back on the last completed
 /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
 /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-/// before the model is touched and again in [startWeeklySession]). Its
+/// before the coach is touched and again in [startWeeklySession]). Its
 /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-/// cravings when there were any, next week), each opened by an app prompt
-/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-/// like a chat, with a stored summary.
+/// cravings when there were any, next week), each opened by an app turn
+/// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+/// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+/// summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -331,25 +327,23 @@ final class CoachSessionControllerFamily extends $Family
 /// (closed in `finally`), so closing the screen doesn't lose the summary
 /// (CLAUDE.md §4).
 ///
-/// **One operation at a time.** A turn (the person's message: save,
-/// perhaps a move to a fresh model session, the reply, save) and a retried
-/// start are each one in-flight operation ([_operation]). The phase isn't
-/// the lock: `replying` covers a save and a session move as well as the
-/// reply. Ending marks the session as ending at once, stops whatever is
-/// streaming, and waits for the operation to finish before it summarises;
-/// an operation that resumes after that point stops without touching the
-/// model or the transcript further.
+/// **One operation at a time.** A turn (the person's message: save, the
+/// reply, save) and a retried start are each one in-flight operation
+/// ([_operation]). The phase isn't the lock: `replying` covers a save as
+/// well as the reply. Ending marks the session as ending at once, stops
+/// whatever is streaming, and waits for the operation to finish before it
+/// summarises; an operation that resumes after that point stops without
+/// touching the coach or the transcript further.
 ///
-/// **Context budget.** The model sees the instructions for [kind] with a
-/// compact summary of the person's last seven days
-/// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-/// [CoachConversation] checks the turn fits the device's context window
-/// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-/// doesn't, the older turns are summarised in a separate model session and
-/// the conversation moves to a fresh one, carrying that summary and the
-/// last few messages. A reply that still overflows (`contextExceeded`) or
-/// finds its native session gone moves on once more, without the summary,
-/// and is retried once.
+/// **Stateless model.** Nothing is started or ended on the model's side:
+/// every reply sends the session's kind, the week's compact context
+/// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+/// so far ([_turns]), app turns in place. The summary is one request of its
+/// own kind (`CoachRequestKind.summary`) over the transcript.
+///
+/// **Nothing is sent without consent** ([coachConsentGivenProvider],
+/// through [checkCoachAvailable] at the start and before a retry; the
+/// hosted model checks it again before every request).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more

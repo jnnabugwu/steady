@@ -6,15 +6,17 @@ part 'coach_session_state.freezed.dart';
 
 /// Where a live coach session is.
 enum CoachSessionPhase {
-  /// Checking the model, reading the week and starting the model session.
+  /// Checking that the coach can run here and reading the week.
   starting,
 
-  /// The model can't run on this iPhone right now
-  /// ([CoachSessionState.failure] is a [CoachModelUnavailableFailure]).
+  /// The coach can't run on this iPhone right now, before anything is sent
+  /// ([CoachSessionState.failure] is a [CoachUnavailableFailure]: no consent
+  /// yet, the coach turned off, or this iPhone can't be verified). Can come
+  /// mid-conversation too (the kill switch), with what was said kept.
   unavailable,
 
-  /// The model is available, but the session couldn't start
-  /// ([CoachSessionState.failure] says why).
+  /// The session couldn't start for another reason, such as the week not
+  /// being readable ([CoachSessionState.failure] says why).
   failedToStart,
 
   /// Weekly only: fewer than `weeklySessionMinCheckInDays` of the week's
@@ -71,9 +73,9 @@ abstract class CoachSessionState with _$CoachSessionState {
     /// carries on; the next save writes the whole session again.
     @Default(false) bool saveFailed,
 
-    /// Whether the coach's last reply was cut off at the reply cap
-    /// (`CoachKeepGoing`). It's stored trimmed to its last complete
-    /// sentence, and the screen offers "Keep going".
+    /// Whether the coach's last reply was cut off at the proxy's token
+    /// limit (`CoachStopReason.maxTokens`). It's stored as it came, and the
+    /// screen offers "Keep going" (`CoachKeepGoing`).
     @Default(false) bool replyCutOff,
 
     /// Weekly only: the week it looks back on (its Friday), once known.
@@ -104,13 +106,7 @@ abstract class CoachSessionState with _$CoachSessionState {
   bool get hasUserMessages =>
       session.messages.any((m) => m.role == CoachMessageRole.user);
 
-  /// Whether the last reply was stopped by Apple's safety guardrails, when
-  /// the screen offers the help line (`CoachCopy.helpLine`).
-  bool get guardrailTripped => switch (failure) {
-    CoachInferenceFailure(
-      reason: CoachInferenceFailureReason.guardrailViolation,
-    ) =>
-      true,
-    _ => false,
-  };
+  /// Whether the model refused the last reply ([CoachRefusalFailure]),
+  /// when the screen offers the help line (`CoachCopy.helpLine`).
+  bool get replyRefused => failure is CoachRefusalFailure;
 }

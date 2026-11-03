@@ -1,21 +1,68 @@
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_data/coach_data.dart';
+import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
+import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:steady/providers.dart';
 
-/// The coach is iPhone only (#79, CLAUDE.md §11): the real override list
-/// binds its model on iOS and nothing on macOS.
+/// The coach is iPhone only (CLAUDE.md §11): the real override list binds
+/// its model on iOS and nothing on macOS.
 void main() {
-  test('iOS binds the coach model to the steady/coach channel', () {
+  test('iOS binds the coach model to the hosted proxy', () {
     final ios = ProviderContainer.test(
       overrides: appProviderOverridesFor(isIOS: true),
     );
-    expect(ios.read(coachModelProvider), isA<MethodChannelCoachModel>());
+    expect(ios.read(coachModelProvider), isA<HostedCoachModel>());
+  });
+
+  test('the real wiring sends nothing without consent, which defaults to '
+      'not given (until #153)', () async {
+    final ios = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: true),
+    );
+    expect(ios.read(coachConsentGivenProvider), isFalse);
+    final reply = await ios
+        .read(coachModelProvider)
+        .reply(
+          const CoachRequest(
+            kind: CoachRequestKind.chat,
+            weekContext: 'week',
+            turns: [CoachTurn.person('Hi')],
+          ),
+        )
+        .single;
+    expect(
+      reply,
+      isA<Err<CoachReplySnapshot>>().having(
+        (e) => e.failure,
+        'failure',
+        isA<CoachConsentNotGivenFailure>(),
+      ),
+    );
+    await expectLater(
+      ios.read(coachAvailabilityProvider.future),
+      throwsA(isA<CoachConsentNotGivenFailure>()),
+    );
+  });
+
+  test('a build without COACH_PROXY_URL (this test run) says the coach is '
+      'off, and App Attest is the placeholder until #150', () async {
+    final ios = ProviderContainer.test(
+      overrides: [
+        ...appProviderOverridesFor(isIOS: true),
+        coachConsentGivenProvider.overrideWithValue(true),
+      ],
+    );
+    expect(await ios.read(coachAppAttestProvider).isSupported(), isFalse);
+    await expectLater(
+      ios.read(coachAvailabilityProvider.future),
+      throwsA(isA<CoachTurnedOffFailure>()),
+    );
   });
 
   test('macOS binds no coach provider', () {

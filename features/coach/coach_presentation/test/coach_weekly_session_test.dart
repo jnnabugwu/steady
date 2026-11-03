@@ -68,31 +68,36 @@ void main() {
       expect(state().phase, CoachSessionPhase.notEnoughCheckIns);
       expect(state().weekFirst, DateTime(2026, 10, 16));
       expect(model.availabilityChecks, 0);
-      expect(model.instructions, isEmpty);
+      expect(model.requests, isEmpty);
 
       await controller.startWeeklySession();
-      expect(model.prompts, isEmpty);
+      expect(model.requests, isEmpty);
       await controller.endCoachSession();
       expect(repository.sessions, isEmpty);
     });
 
-    test('4 of 7: primed with the weekly instructions and the finished '
-        "week's data, waiting to begin", () async {
+    test('4 of 7: waiting to begin, with nothing sent yet', () async {
       await start();
       expect(state().phase, CoachSessionPhase.awaitingStart);
-      final instructions = model.instructions.single;
-      expect(instructions, startsWith(CoachInstructions.weeklySession));
-      expect(instructions, contains('a finished week'));
-      expect(instructions, contains('Fri Oct 16: logged fully'));
-      expect(instructions, contains('Thu Oct 22'));
-      expect(instructions, isNot(contains('Fri Oct 23')));
       expect(state().topics, [
         WeeklyTopic.logging,
         WeeklyTopic.steps,
         WeeklyTopic.nextWeek,
       ]);
       expect(state().topicIndex, -1);
-      expect(model.prompts, isEmpty);
+      expect(model.requests, isEmpty);
+    });
+
+    test("Begin sends the weekly kind with the finished week's data", () async {
+      final controller = await start();
+      await controller.startWeeklySession();
+      final request = model.requests.single;
+      expect(request.kind, CoachRequestKind.weekly);
+      final week = request.weekContext!;
+      expect(week, contains('a finished week'));
+      expect(week, contains('Fri Oct 16: logged fully'));
+      expect(week, contains('Thu Oct 22'));
+      expect(week, isNot(contains('Fri Oct 23')));
     });
 
     test(
@@ -105,9 +110,13 @@ void main() {
             reasons: {CravingReason.tired},
           ),
         );
-        await start();
+        final controller = await start();
         expect(state().topics, contains(WeeklyTopic.cravings));
-        expect(model.instructions.single, contains('What was behind them'));
+        await controller.startWeeklySession();
+        expect(
+          model.requests.single.weekContext,
+          contains('What was behind them'),
+        );
       },
     );
 
@@ -118,12 +127,12 @@ void main() {
         await controller.startWeeklySession();
         expect(state().topicIndex, 0);
         expect(state().topic, WeeklyTopic.logging);
-        expect(
-          model.prompts.single.prompt,
-          weeklyTopicPrompt(WeeklyTopic.logging),
-        );
+        // An app turn, which the proxy expands into the topic's prompt.
+        expect(model.requests.single.turns, const [
+          CoachTurn.app(WeeklyTopic.logging),
+        ]);
         expect(state().phase, CoachSessionPhase.ready);
-        // The coach spoke first; the app's prompt isn't in the transcript.
+        // The coach spoke first; the app's turn isn't in the transcript.
         expect(state().session.messages.single.role, CoachMessageRole.coach);
         // Nothing stored until the person says something.
         expect(repository.sessions, isEmpty);
@@ -151,18 +160,15 @@ void main() {
       )..listen(provider, (_, _) {});
       await pumpEventQueue();
       expect(state().weekFirst, DateTime(2026, 10, 9));
-      expect(model.instructions.single, contains('Thu Oct 15'));
 
       // Friday morning, Begin: the finished week is now Oct 16 – 22.
       now = DateTime(2026, 10, 23, 9);
       await container.read(provider.notifier).startWeeklySession();
       expect(state().weekFirst, DateTime(2026, 10, 16));
-      expect(model.instructions, hasLength(2));
-      expect(model.instructions.last, contains('Thu Oct 22'));
-      expect(model.instructions.last, isNot(contains('Thu Oct 15')));
-      // The session primed with the old week is gone; the coach opened
-      // logging in the new one.
-      expect(model.ended, contains('s0'));
+      final week = model.requests.single.weekContext!;
+      expect(week, contains('Thu Oct 22'));
+      expect(week, isNot(contains('Thu Oct 15')));
+      // The coach opened logging in the new week.
       expect(state().topic, WeeklyTopic.logging);
       expect(state().phase, CoachSessionPhase.ready);
     });
@@ -179,8 +185,7 @@ void main() {
       expect(state().phase, CoachSessionPhase.awaitingStart);
       expect(state().topicIndex, -1);
       expect(state().session.messages, isEmpty);
-      expect(model.instructions, hasLength(2));
-      expect(model.ended, contains('s0'));
+      expect(model.requests, isEmpty);
 
       await controller.startWeeklySession();
       expect(state().topic, WeeklyTopic.logging);
@@ -192,26 +197,30 @@ void main() {
       checkIns.statuses.clear();
       await controller.startWeeklySession();
       expect(state().phase, CoachSessionPhase.notEnoughCheckIns);
-      expect(model.prompts, isEmpty);
-      expect(model.ended, ['s0']);
+      expect(model.requests, isEmpty);
     });
 
-    test('each next topic is its own thread, in the same session, until '
-        'the last', () async {
+    test('each next topic is its own app turn, with the earlier ones kept '
+        'in place, until the last', () async {
       final controller = await start();
       await controller.startWeeklySession();
       await controller.sendCoachMessage('Mostly fine, Saturday slipped.');
       await controller.moveToNextWeeklyTopic();
       expect(state().topic, WeeklyTopic.steps);
-      expect(model.prompts.last.prompt, weeklyTopicPrompt(WeeklyTopic.steps));
-      expect(model.prompts.last.session, 's0');
+      expect(model.requests.last.turns, const [
+        CoachTurn.app(WeeklyTopic.logging),
+        CoachTurn.coach('Coach reply.'),
+        CoachTurn.person('Mostly fine, Saturday slipped.'),
+        CoachTurn.coach('Coach reply.'),
+        CoachTurn.app(WeeklyTopic.steps),
+      ]);
 
       await controller.moveToNextWeeklyTopic();
       expect(state().topic, WeeklyTopic.nextWeek);
       expect(state().hasNextTopic, isFalse);
-      final prompts = model.prompts.length;
+      final requests = model.requests.length;
       await controller.moveToNextWeeklyTopic();
-      expect(model.prompts, hasLength(prompts));
+      expect(model.requests, hasLength(requests));
     });
 
     test('ends with a stored summary of the whole session', () async {
@@ -223,6 +232,12 @@ void main() {
       expect(stored.kind, CoachSessionKind.weekly);
       expect(stored.summary, 'A short summary.');
       expect(stored.endedAt, coachTestNow);
+      // The summary is asked over the transcript: no app turns.
+      expect(model.summaryRequests.single.turns, const [
+        CoachTurn.coach('Coach reply.'),
+        CoachTurn.person('Weekends are hard.'),
+        CoachTurn.coach('Coach reply.'),
+      ]);
     });
 
     test('a move is ignored while the coach replies', () async {
@@ -231,7 +246,7 @@ void main() {
       unawaited(controller.startWeeklySession());
       await pumpEventQueue();
       await controller.moveToNextWeeklyTopic();
-      expect(model.prompts, hasLength(1));
+      expect(model.requests, hasLength(1));
     });
   });
 

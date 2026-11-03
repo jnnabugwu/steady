@@ -17,11 +17,12 @@ part 'coach_session_controller.g.dart';
 /// **The weekly session** (#81) looks back on the last completed
 /// Friday→Thursday week ([coachWeeklyWindow]). It doesn't start if fewer
 /// than 4 of its 7 days have a check-in ([CheckWeeklyReadiness], checked
-/// before the model is touched and again in [startWeeklySession]). Its
+/// before the coach is touched and again in [startWeeklySession]). Its
 /// topics are separate threads ([weeklyTopicsFor]: logging, steps, the
-/// cravings when there were any, next week), each opened by an app prompt
-/// ([weeklyTopicPrompt]) and moved on by [moveToNextWeeklyTopic]. It ends
-/// like a chat, with a stored summary.
+/// cravings when there were any, next week), each opened by an app turn
+/// (`CoachTurn.app`, which the proxy expands into the topic's prompt) and
+/// moved on by [moveToNextWeeklyTopic]. It ends like a chat, with a stored
+/// summary.
 ///
 /// A family keyed by the session's [kind] and a fresh `sessionId` per
 /// opening of the screen, so a session still writing its summary after its
@@ -30,25 +31,23 @@ part 'coach_session_controller.g.dart';
 /// (closed in `finally`), so closing the screen doesn't lose the summary
 /// (CLAUDE.md §4).
 ///
-/// **One operation at a time.** A turn (the person's message: save,
-/// perhaps a move to a fresh model session, the reply, save) and a retried
-/// start are each one in-flight operation ([_operation]). The phase isn't
-/// the lock: `replying` covers a save and a session move as well as the
-/// reply. Ending marks the session as ending at once, stops whatever is
-/// streaming, and waits for the operation to finish before it summarises;
-/// an operation that resumes after that point stops without touching the
-/// model or the transcript further.
+/// **One operation at a time.** A turn (the person's message: save, the
+/// reply, save) and a retried start are each one in-flight operation
+/// ([_operation]). The phase isn't the lock: `replying` covers a save as
+/// well as the reply. Ending marks the session as ending at once, stops
+/// whatever is streaming, and waits for the operation to finish before it
+/// summarises; an operation that resumes after that point stops without
+/// touching the coach or the transcript further.
 ///
-/// **Context budget.** The model sees the instructions for [kind] with a
-/// compact summary of the person's last seven days
-/// ([BuildCoachWeekContext], [formatCoachWeek]). Before every message,
-/// [CoachConversation] checks the turn fits the device's context window
-/// (`CoachModelInfo.contextSize`) with room for a full reply; when it
-/// doesn't, the older turns are summarised in a separate model session and
-/// the conversation moves to a fresh one, carrying that summary and the
-/// last few messages. A reply that still overflows (`contextExceeded`) or
-/// finds its native session gone moves on once more, without the summary,
-/// and is retried once.
+/// **Stateless model.** Nothing is started or ended on the model's side:
+/// every reply sends the session's kind, the week's compact context
+/// ([BuildCoachWeekContext], [formatCoachWeek]) and the whole conversation
+/// so far ([_turns]), app turns in place. The summary is one request of its
+/// own kind (`CoachRequestKind.summary`) over the transcript.
+///
+/// **Nothing is sent without consent** ([coachConsentGivenProvider],
+/// through [checkCoachAvailable] at the start and before a retry; the
+/// hosted model checks it again before every request).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -58,16 +57,20 @@ part 'coach_session_controller.g.dart';
 @riverpod
 class CoachSessionController extends _$CoachSessionController {
   late CoachModel _api;
-  CoachModelSession? _model;
-  CoachConversation? _conversation;
-  late CoachContextBudget _budget;
+
+  /// The week's compact context, once the session has started.
+  String? _weekContext;
+
+  /// The conversation as the coach is sent it: the transcript's turns, plus
+  /// the app's weekly topic turns in place, and "Keep going" as the prompt
+  /// it sends rather than the label the transcript stores.
+  final List<CoachTurn> _turns = [];
 
   /// The reply on screen, which [stopCoachReply] can stop.
   StreamSubscription<Result<CoachReplySnapshot>>? _reply;
 
-  /// Whichever model stream is running (the reply on screen, or a summary
-  /// asked in a separate session), and its completion: cancelled on
-  /// dispose.
+  /// Whichever reply stream is running (the reply on screen, or the
+  /// summary), and its completion: cancelled on dispose.
   StreamSubscription<Result<CoachReplySnapshot>>? _active;
   Completer<void>? _activeDone;
 
@@ -95,40 +98,20 @@ class CoachSessionController extends _$CoachSessionController {
     );
   }
 
-  /// The base instructions for [kind].
-  static String instructionsFor(CoachSessionKind kind) => switch (kind) {
-    CoachSessionKind.chat => CoachInstructions.chat,
-    CoachSessionKind.weekly => CoachInstructions.weeklySession,
+  /// The request kind for this session's replies.
+  CoachRequestKind get _replyKind => switch (kind) {
+    CoachSessionKind.chat => CoachRequestKind.chat,
+    CoachSessionKind.weekly => CoachRequestKind.weekly,
   };
 
   Future<void> _start() async {
-    final api = _api;
     final weekly = kind == CoachSessionKind.weekly;
     if (weekly) {
-      // The rule comes first: below it, the model is never touched.
+      // The rule comes first: below it, the coach is never touched.
       final ready = await _checkWeek();
       if (!ref.mounted || ready == null || !ready.allowed) return;
     }
-    final availability = await api.checkAvailability();
-    if (!ref.mounted) return;
-    final CoachModelInfo info;
-    switch (availability) {
-      case Ok(:final value):
-        info = value;
-      case Err(:final CoachModelUnavailableFailure failure):
-        state = state.copyWith(
-          phase: CoachSessionPhase.unavailable,
-          failure: failure,
-        );
-        return;
-      case Err(:final failure):
-        state = state.copyWith(
-          phase: CoachSessionPhase.failedToStart,
-          failure: failure,
-        );
-        return;
-    }
-    _budget = CoachContextBudget(contextSize: info.contextSize);
+    if (!await _available()) return;
 
     final now = ref.read(coachClockProvider)();
     final window = weekly
@@ -138,38 +121,31 @@ class CoachSessionController extends _$CoachSessionController {
         .read(coachWeekContextProvider)
         .call(first: window.first, last: window.last, now: now);
     if (!ref.mounted) return;
-    final instructions = CoachInstructions.forSession(
-      instructionsFor(kind),
-      formatCoachWeek(data, includeCravingReasons: weekly),
+    _weekContext = formatCoachWeek(data, includeCravingReasons: weekly);
+    state = state.copyWith(
+      topics: weekly ? weeklyTopicsFor(cravingCount: data.cravingCount) : [],
+      phase: weekly ? CoachSessionPhase.awaitingStart : CoachSessionPhase.ready,
     );
-    if (weekly) {
-      state = state.copyWith(
-        topics: weeklyTopicsFor(cravingCount: data.cravingCount),
-      );
-    }
+  }
 
-    final started = await api.startSession(instructions: instructions);
-    if (!ref.mounted) {
-      if (started case Ok(:final value)) unawaited(api.endSession(value));
-      return;
+  /// Whether the coach may send anything ([checkCoachAvailable]). Sets the
+  /// phase and failure when not.
+  Future<bool> _available() async {
+    final result = await checkCoachAvailable(
+      consentGiven: ref.read(coachConsentGivenProvider),
+      model: _api,
+    );
+    if (!ref.mounted) return false;
+    if (result case Err(:final failure)) {
+      state = state.copyWith(
+        phase: failure is CoachUnavailableFailure
+            ? CoachSessionPhase.unavailable
+            : CoachSessionPhase.failedToStart,
+        failure: failure,
+      );
+      return false;
     }
-    switch (started) {
-      case Ok(:final value):
-        _model = value;
-        _conversation = CoachConversation.start(instructions: instructions);
-        state = state.copyWith(
-          phase: weekly
-              ? CoachSessionPhase.awaitingStart
-              : CoachSessionPhase.ready,
-        );
-      case Err(:final failure):
-        state = state.copyWith(
-          phase: failure is CoachModelUnavailableFailure
-              ? CoachSessionPhase.unavailable
-              : CoachSessionPhase.failedToStart,
-          failure: failure,
-        );
-    }
+    return true;
   }
 
   /// Domain event: CoachMessageSent.
@@ -182,7 +158,7 @@ class CoachSessionController extends _$CoachSessionController {
     if (!ref.mounted || _ending || state.phase != CoachSessionPhase.ready) {
       return;
     }
-    final message = CoachConversation.clampMessage(text);
+    final message = clampCoachMessage(text);
     if (message.isEmpty) return;
     await _run(() => _send(message));
   }
@@ -200,11 +176,11 @@ class CoachSessionController extends _$CoachSessionController {
 
   /// Domain event: CoachKeepGoing.
   ///
-  /// "Keep going" under a reply cut off at the reply cap
+  /// "Keep going" under a reply cut off at the proxy's token limit
   /// ([CoachSessionState.replyCutOff]): the person's turn reads "Keep
-  /// going", and the coach is asked to carry on from the sentence it didn't
-  /// finish ([CoachKeepGoing]). Ignored unless the session is ready after a
-  /// cut-off reply, once ending, or once disposed.
+  /// going", and the coach is asked to carry on ([CoachKeepGoing]). Ignored
+  /// unless the session is ready after a cut-off reply, once ending, or once
+  /// disposed.
   Future<void> keepGoing() async {
     if (!ref.mounted ||
         _ending ||
@@ -217,15 +193,16 @@ class CoachSessionController extends _$CoachSessionController {
     );
   }
 
-  /// The person's [message]: added to the transcript and saved, then one
-  /// exchange ([_turn]), which sends [prompt] to the model instead when
-  /// given ("Keep going" stores its label but asks for more).
+  /// The person's [message]: added to the transcript and saved, then the
+  /// reply, with [prompt] sent as their turn instead when given ("Keep
+  /// going" stores its label but asks for more).
   Future<void> _send(String message, {String? prompt}) async {
     final said = CoachMessage(
       role: CoachMessageRole.user,
       text: message,
       at: ref.read(coachClockProvider)(),
     );
+    _turns.add(CoachTurn.person(prompt ?? message));
     state = state.copyWith(
       phase: CoachSessionPhase.replying,
       session: state.session.copyWith(
@@ -237,7 +214,7 @@ class CoachSessionController extends _$CoachSessionController {
     );
     await _save();
     if (!ref.mounted || _ending) return;
-    await _turn(prompt ?? message, said: said);
+    await _replyTo();
   }
 
   /// Domain event: WeeklySessionStarted.
@@ -246,9 +223,8 @@ class CoachSessionController extends _$CoachSessionController {
   /// ([CheckWeeklyReadiness], the week may have changed since the screen
   /// opened), then has the coach open the first topic (logging). If a new
   /// week began meanwhile (the screen was left open into a Friday), the
-  /// coach is set up again with that week's data first, since the model
-  /// was primed with the old one. Ignored unless the session is waiting to
-  /// begin, or once ending.
+  /// session is set up again with that week's data first. Ignored unless
+  /// the session is waiting to begin, or once ending.
   Future<void> startWeeklySession() async {
     if (!ref.mounted ||
         _ending ||
@@ -257,16 +233,11 @@ class CoachSessionController extends _$CoachSessionController {
     }
     state = state.copyWith(phase: CoachSessionPhase.starting);
     await _run(() async {
-      final primedFor = state.weekFirst;
+      final readFor = state.weekFirst;
       final ready = await _checkWeek();
-      if (!ref.mounted || _ending || ready == null) return;
-      if (!ready.allowed) {
-        _endModel();
-        return;
-      }
-      if (ready.first != primedFor) {
-        _endModel();
-        _conversation = null;
+      if (!ref.mounted || _ending || ready == null || !ready.allowed) return;
+      if (ready.first != readFor) {
+        _weekContext = null;
         await _start();
         if (!ref.mounted ||
             _ending ||
@@ -282,8 +253,9 @@ class CoachSessionController extends _$CoachSessionController {
   ///
   /// Moves the weekly session to its next topic (logging → steps →
   /// cravings, when there were any → next week), as a new thread: the
-  /// coach is told to leave the last one behind. Ignored unless the
-  /// session is ready and has a next topic, or once ending.
+  /// proxy's topic prompt tells the coach to leave the last one behind.
+  /// Ignored unless the session is ready and has a next topic, or once
+  /// ending.
   Future<void> moveToNextWeeklyTopic() async {
     if (!ref.mounted ||
         _ending ||
@@ -295,6 +267,7 @@ class CoachSessionController extends _$CoachSessionController {
   }
 
   Future<void> _openTopic(int index) async {
+    _turns.add(CoachTurn.app(state.topics[index]));
     state = state.copyWith(
       phase: CoachSessionPhase.replying,
       topicIndex: index,
@@ -302,7 +275,7 @@ class CoachSessionController extends _$CoachSessionController {
       failure: null,
       replyCutOff: false,
     );
-    await _turn(weeklyTopicPrompt(state.topics[index]));
+    await _replyTo();
   }
 
   /// Reads the weekly session's week and its readiness. Sets the phase
@@ -331,61 +304,25 @@ class CoachSessionController extends _$CoachSessionController {
     }
   }
 
-  /// One exchange: [text] is the person's message ([said] its transcript
-  /// entry) or, with [said] `null`, the app's own prompt (a weekly topic).
-  /// Makes room first (a fresh model session when the turn wouldn't fit),
-  /// then streams the reply into the transcript.
-  Future<void> _turn(String text, {CoachMessage? said}) async {
-    if (_ending) return;
-    final fromApp = said == null;
-    if (_conversation!.needsFreshSession(text, _budget, fromApp: fromApp)) {
-      final moved = await _moveToFreshSession(summarise: true);
-      if (!ref.mounted || _ending) return;
-      if (moved != null) return _replyFailed(moved);
-      if (_conversation!.needsFreshSession(text, _budget, fromApp: fromApp)) {
-        // Even the carried context doesn't fit (a very small window): go
-        // on with the message alone.
-        _conversation = _conversation!.withoutCarry();
-      }
-    }
-    await _replyTo(text, said, retried: false);
-  }
-
-  Future<void> _replyTo(
-    String message,
-    CoachMessage? said, {
-    required bool retried,
-  }) async {
+  /// Streams the coach's reply to the conversation so far ([_turns], whose
+  /// last turn is the person's or the app's) into the transcript.
+  Future<void> _replyTo() async {
     // Ending stops what streams; nothing new starts after it.
     if (_ending) return;
-    final prompt = _conversation!.promptFor(message, fromApp: said == null);
-    final (:text, :outputTokens, :finished, :failure) = await _stream(
-      _model!,
-      prompt,
+    final (:text, :stopReason, :failure) = await _stream(
+      // A copy: the request is read when it's sent, and [_turns] moves on.
+      CoachRequest(
+        kind: _replyKind,
+        weekContext: _weekContext,
+        turns: List.unmodifiable(_turns),
+      ),
       show: true,
     );
     if (!ref.mounted) return;
 
-    if (failure case CoachInferenceFailure(:final reason)
-        when !retried &&
-            !_ending &&
-            (reason == CoachInferenceFailureReason.contextExceeded ||
-                reason == CoachInferenceFailureReason.sessionEnded)) {
-      final moved = await _moveToFreshSession(summarise: false);
-      if (!ref.mounted || _ending) return;
-      if (moved != null) return _replyFailed(moved);
-      _conversation = _conversation!.withoutCarry();
-      return await _replyTo(message, said, retried: true);
-    }
-
-    // A reply that ran into the reply cap stops mid-sentence: keep it up to
-    // its last complete sentence and offer "Keep going". Only one that
-    // ended on its own; a stopped or failed one is left as it is.
-    final cutOff =
-        failure == null &&
-        finished &&
-        CoachKeepGoing.wasCutOff(text, outputTokens: outputTokens);
-    final kept = cutOff ? CoachKeepGoing.trim(text) : text.trim();
+    // A failed reply is dropped, partial text included: a refusal's must
+    // never be shown. A reply the person stopped keeps what was said.
+    final kept = text.trim();
     final reply = kept.isEmpty || failure != null
         ? null
         : CoachMessage(
@@ -393,24 +330,12 @@ class CoachSessionController extends _$CoachSessionController {
             text: kept,
             at: ref.read(coachClockProvider)(),
           );
-    final generated = cutOff ? text : null;
-    _conversation = said == null
-        ? _conversation!.afterAppPrompt(
-            prompt: prompt,
-            reply: reply,
-            generated: generated,
-          )
-        : _conversation!.afterTurn(
-            prompt: prompt,
-            message: said,
-            reply: reply,
-            generated: generated,
-          );
+    if (reply != null) _turns.add(CoachTurn.coach(reply.text));
     if (failure != null) return _replyFailed(failure);
     state = state.copyWith(
       phase: CoachSessionPhase.ready,
       reply: null,
-      replyCutOff: cutOff && reply != null,
+      replyCutOff: reply != null && stopReason == CoachStopReason.maxTokens,
       session: state.session.copyWith(
         messages: [...state.session.messages, ?reply],
       ),
@@ -419,14 +344,12 @@ class CoachSessionController extends _$CoachSessionController {
   }
 
   void _replyFailed(Failure failure) {
-    // A failed move to a fresh session leaves no model session behind
-    // (`_moveToFreshSession` ends the old one before starting the new).
-    // Going back to `ready` would let the next message through to
-    // `_stream(_model!, ...)` and crash on the null; there is nothing left
-    // to send it to, so the session is over.
+    // The coach can't run here any more (the kill switch, say): the way
+    // back is "Check again". Anything else leaves the conversation ready,
+    // with a line saying the reply failed.
     state = state.copyWith(
-      phase: _model == null
-          ? CoachSessionPhase.failedToStart
+      phase: failure is CoachUnavailableFailure
+          ? CoachSessionPhase.unavailable
           : CoachSessionPhase.ready,
       reply: null,
       replyCutOff: false,
@@ -434,19 +357,14 @@ class CoachSessionController extends _$CoachSessionController {
     );
   }
 
-  /// Streams the reply to [prompt] in [session]. Returns the last snapshot's
-  /// text (what was said before a stop, too) and token count, whether the
-  /// reply finished on its own (not stopped or failed), and the failure,
-  /// if any. With [show], each snapshot goes to [CoachSessionState.reply].
-  Future<({String text, int? outputTokens, bool finished, Failure? failure})>
-  _stream(
-    CoachModelSession session,
-    String prompt, {
-    required bool show,
-  }) async {
+  /// Streams the reply to [request]. Returns the last snapshot's text (what
+  /// was said before a stop, too), the stop reason if it finished, and the
+  /// failure, if any. With [show], each snapshot goes to
+  /// [CoachSessionState.reply].
+  Future<({String text, CoachStopReason? stopReason, Failure? failure})>
+  _stream(CoachRequest request, {required bool show}) async {
     var latest = '';
-    int? outputTokens;
-    var finished = false;
+    CoachStopReason? stopReason;
     Failure? failure;
     final done = Completer<void>();
     void finish() {
@@ -454,13 +372,13 @@ class CoachSessionController extends _$CoachSessionController {
     }
 
     final subscription = _api
-        .streamResponse(session, prompt)
+        .reply(request)
         .listen(
           (result) {
             switch (result) {
               case Ok(:final value):
                 latest = value.text;
-                outputTokens = value.outputTokens;
+                stopReason = value.stopReason;
                 if (show && ref.mounted) {
                   state = state.copyWith(reply: value.text);
                 }
@@ -477,11 +395,7 @@ class CoachSessionController extends _$CoachSessionController {
                 : UnknownFailure('The coach could not reply', cause: e);
             finish();
           },
-          onDone: () {
-            // Only a stream that closes by itself; a stop cancels instead.
-            finished = failure == null;
-            finish();
-          },
+          onDone: finish,
         );
     _active = subscription;
     _activeDone = done;
@@ -496,32 +410,27 @@ class CoachSessionController extends _$CoachSessionController {
       _activeDone = null;
     }
     if (show) _reply = null;
-    return (
-      text: latest,
-      outputTokens: outputTokens,
-      finished: finished,
-      failure: failure,
-    );
+    return (text: latest, stopReason: stopReason, failure: failure);
   }
 
   /// Domain event: CoachReplyStopped.
   ///
   /// Stops the reply in flight. What the coach had said so far stays in the
-  /// transcript (the model's own transcript keeps it too). Ignored unless
-  /// the coach is replying.
+  /// transcript, and in what the coach is sent next. Ignored unless the
+  /// coach is replying.
   Future<void> stopCoachReply() async {
     if (!ref.mounted || state.phase != CoachSessionPhase.replying) return;
     final subscription = _reply;
     final done = _activeDone;
     if (subscription == null || done == null) return;
     _reply = null;
-    // Cancelling stops the model (the channel cancels the native task).
-    // The reply ends here either way, so don't wait for the native side.
+    // Cancelling aborts the request, and the proxy stops the model. The
+    // reply ends here either way, so don't wait for that.
     unawaited(subscription.cancel());
     if (!done.isCompleted) done.complete();
   }
 
-  /// Cancels whichever model stream is running, so the operation awaiting
+  /// Cancels whichever reply stream is running, so the operation awaiting
   /// it moves on with what was said so far.
   void _stopStreaming() {
     final subscription = _active;
@@ -531,87 +440,36 @@ class CoachSessionController extends _$CoachSessionController {
     if (done != null && !done.isCompleted) done.complete();
   }
 
-  /// Summarises the window (unless not [summarise]), ends the current
-  /// model session and starts a fresh one with the same instructions.
-  /// Returns the failure if the fresh session couldn't start. Once ending,
-  /// stops without starting (or keeping) a fresh session.
-  Future<Failure?> _moveToFreshSession({required bool summarise}) async {
-    final conversation = _conversation!;
-    String? summary;
-    if (summarise) {
-      // Carried forward, never stored: the context summary keeps what the
-      // coach needs, cravings and numbers included.
-      summary = await _askAlone(
-        coachSummaryPrompt(
-          request: CoachInstructions.summaryRequest,
-          messages: conversation.toSummarise,
-          earlierSummary: conversation.earlierSummary,
-          budget: _budget,
-          instructionTokens: estimateCoachTokens(
-            CoachInstructions.contextSummary,
-          ),
-        ),
-        instructions: CoachInstructions.contextSummary,
-      );
-      if (!ref.mounted || _ending) return null;
-    }
-    final api = _api;
-    if (_model case final old?) unawaited(api.endSession(old));
-    _model = null;
-    final started = await api.startSession(
-      instructions: conversation.instructions,
+  /// The session's summary: one `summary` request over the transcript
+  /// (the person's and the coach's turns, never the app's). `null` if it
+  /// fails or comes back empty.
+  Future<String?> _summary() async {
+    final (:text, :failure, stopReason: _) = await _stream(
+      CoachRequest(
+        kind: CoachRequestKind.summary,
+        turns: [
+          for (final message in state.session.messages)
+            switch (message.role) {
+              CoachMessageRole.user => CoachTurn.person(message.text),
+              CoachMessageRole.coach => CoachTurn.coach(message.text),
+            },
+        ],
+      ),
+      show: false,
     );
-    if (!ref.mounted || _ending) {
-      if (started case Ok(:final value)) unawaited(api.endSession(value));
-      return null;
-    }
-    switch (started) {
-      case Ok(:final value):
-        _model = value;
-        _conversation = conversation.afterFreshSession(summary);
-        return null;
-      case Err(:final failure):
-        return failure;
-    }
-  }
-
-  /// Asks [prompt] in a separate model session primed with summary
-  /// [instructions] (by default [CoachInstructions.summary], the stored
-  /// summary's; never the coaching ones), and returns the reply, or `null`
-  /// if anything fails.
-  Future<String?> _askAlone(
-    String? prompt, {
-    String instructions = CoachInstructions.summary,
-  }) async {
-    if (prompt == null) return null;
-    final api = _api;
-    final started = await api.startSession(instructions: instructions);
-    if (started case Ok(:final value)) {
-      try {
-        final (:text, :failure, outputTokens: _, finished: _) = await _stream(
-          value,
-          prompt,
-          show: false,
-        );
-        final trimmed = text.trim();
-        return failure == null && trimmed.isNotEmpty ? trimmed : null;
-      } finally {
-        unawaited(api.endSession(value));
-      }
-    }
-    return null;
+    final trimmed = text.trim();
+    return failure == null && trimmed.isNotEmpty ? trimmed : null;
   }
 
   /// Domain event: CoachSessionEnded.
   ///
   /// Stops any reply in flight and waits for the turn it belongs to, asks
-  /// the coach for a short, neutral summary
-  /// (`CoachInstructions.summaryRequest`, in a session primed with
-  /// `CoachInstructions.summary`), and saves the session with it and its
-  /// end time. A session where the person said nothing is not stored. Keeps
-  /// itself alive from the first line, so the screen may close at once.
-  /// Ignored once ending or ended, and while starting before the person has
-  /// said anything.
+  /// the coach for a short, neutral summary (`CoachRequestKind.summary`:
+  /// tracking habits and next week's plan, no cravings, no exact numbers),
+  /// and saves the session with it and its end time. A session where the
+  /// person said nothing is not stored. Keeps itself alive from the first
+  /// line, so the screen may close at once. Ignored once ending or ended,
+  /// and while starting before the person has said anything.
   Future<void> endCoachSession() async {
     if (!ref.mounted || _ending) return;
     switch (state.phase) {
@@ -632,15 +490,14 @@ class CoachSessionController extends _$CoachSessionController {
     final link = ref.keepAlive();
     try {
       if (_operation case final operation?) {
-        // Stop whatever streams (the reply, or the summary for a move to a
-        // fresh session); the turn then lands what was said and stops.
+        // Stop whatever streams; the turn then lands what was said and
+        // stops.
         _stopStreaming();
         // Its own caller sees any error; ending goes on regardless.
         await operation.then((_) {}, onError: (Object _) {});
         if (!ref.mounted) return;
       }
-      if (!state.hasUserMessages || _conversation == null) {
-        _endModel();
+      if (!state.hasUserMessages) {
         state = state.copyWith(phase: CoachSessionPhase.ended, reply: null);
         return;
       }
@@ -649,15 +506,8 @@ class CoachSessionController extends _$CoachSessionController {
         reply: null,
         failure: null,
       );
-      final summary = await _askAlone(
-        _conversation!.summaryPromptFor(
-          state.session.messages,
-          request: CoachInstructions.summaryRequest,
-          budget: _budget,
-        ),
-      );
+      final summary = await _summary();
       if (!ref.mounted) return;
-      _endModel();
       state = state.copyWith(
         phase: CoachSessionPhase.ended,
         session: state.session.copyWith(
@@ -673,12 +523,12 @@ class CoachSessionController extends _$CoachSessionController {
 
   /// Domain event: CoachStartRetried.
   ///
-  /// Tries again after the coach couldn't start or lost its model session
-  /// ("Check again"): checks availability and starts afresh (before the
-  /// person has said anything, including a weekly session that failed at
-  /// Begin), or, mid-way through a conversation, moves it to a fresh model
-  /// session carrying the last few messages. Ignored unless unavailable or
-  /// failed to start, once ending, or once disposed.
+  /// Tries again after the coach couldn't start or stopped being available
+  /// ("Check again"): checks again and starts afresh (before the person has
+  /// said anything, including a weekly session that failed at Begin), or,
+  /// mid-way through a conversation, sends the last turn again if the coach
+  /// hadn't answered it. Ignored unless unavailable or failed to start,
+  /// once ending, or once disposed.
   Future<void> retryCoachStart() async {
     if (!ref.mounted || _ending) return;
     if (state.phase != CoachSessionPhase.unavailable &&
@@ -689,9 +539,9 @@ class CoachSessionController extends _$CoachSessionController {
     // Until the person has said something there's nothing to carry over:
     // start again from the top, which for the weekly session also
     // re-checks the week and waits for Begin.
-    if (_conversation == null || !state.hasUserMessages) {
-      _endModel();
-      _conversation = null;
+    if (_weekContext == null || !state.hasUserMessages) {
+      _weekContext = null;
+      _turns.clear();
       state = state.copyWith(
         topicIndex: -1,
         session: state.session.copyWith(messages: const []),
@@ -699,16 +549,13 @@ class CoachSessionController extends _$CoachSessionController {
       return await _run(_start);
     }
     await _run(() async {
-      final failure = await _moveToFreshSession(summarise: false);
-      if (!ref.mounted || _ending) return;
-      state = state.copyWith(
-        phase: failure == null
-            ? CoachSessionPhase.ready
-            : failure is CoachModelUnavailableFailure
-            ? CoachSessionPhase.unavailable
-            : CoachSessionPhase.failedToStart,
-        failure: failure,
-      );
+      if (!await _available() || _ending) return;
+      if (_turns.lastOrNull is CoachReplyTurn) {
+        state = state.copyWith(phase: CoachSessionPhase.ready);
+        return;
+      }
+      state = state.copyWith(phase: CoachSessionPhase.replying);
+      await _replyTo();
     });
   }
 
@@ -719,11 +566,6 @@ class CoachSessionController extends _$CoachSessionController {
   Future<void> retryCoachSave() async {
     if (!ref.mounted || !state.saveFailed) return;
     await _save();
-  }
-
-  void _endModel() {
-    if (_model case final model?) unawaited(_api.endSession(model));
-    _model = null;
   }
 
   /// Saves the session as it stands. Never throws; a failure sets
@@ -752,6 +594,5 @@ class CoachSessionController extends _$CoachSessionController {
     _active = null;
     _reply = null;
     if (_activeDone case final done? when !done.isCompleted) done.complete();
-    _endModel();
   }
 }

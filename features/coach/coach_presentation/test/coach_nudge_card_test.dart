@@ -77,8 +77,8 @@ void main() {
     );
     await tester.tap(find.byKey(const Key('coachNudgeTalkNow')));
     expect(talks, 1);
-    // The nudge never started a model session.
-    expect(model.instructions, isEmpty);
+    // The nudge never sent anything.
+    expect(model.requests, isEmpty);
   });
 
   testWidgets('Not tonight hides it for the rest of the day', (tester) async {
@@ -88,14 +88,14 @@ void main() {
     expect(card, findsNothing);
   });
 
-  testWidgets('model unavailable: a short explanation instead of Talk now', (
+  testWidgets('coach unavailable: a short explanation instead of Talk now', (
     tester,
   ) async {
-    model.availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+    model.availability = const Err(CoachTurnedOffFailure());
     await pump(tester);
     expect(card, findsOneWidget);
     expect(find.byKey(const Key('coachNudgeTalkNow')), findsNothing);
-    expect(find.text('The coach needs Apple Intelligence'), findsOneWidget);
+    expect(find.text('The coach is off right now'), findsOneWidget);
     expect(find.byKey(const Key('coachNudgeNotTonight')), findsOneWidget);
   });
 

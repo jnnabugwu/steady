@@ -54,18 +54,22 @@
 /// [appProviderOverridesFor] is built with `isIOS: true`; the Mac binds no
 /// coach provider at all.
 ///
-/// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
-/// (`coachModelProvider`, Apple Foundation Models through the
-/// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
-/// built with `isIOS: true`. On macOS it stays unbound, and there's no
-/// coach code in `app/macos/` at all. Whether the model can actually run
-/// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
+/// **The coach is iOS only** (#151, CLAUDE.md §11): its model
+/// (`coachModelProvider`, `HostedCoachModel`: Claude behind Steady's proxy,
+/// `jnnabugwu/steady-backend`, over HTTPS with App Attest) is bound only
+/// when [appProviderOverridesFor] is built with `isIOS: true`. On macOS it
+/// stays unbound, and there's no coach code in `app/macos/` at all. The
+/// proxy's URL comes from `--dart-define=COACH_PROXY_URL`
+/// (`CoachProxyConfig.fromEnvironment`); without it the coach says it's
+/// off. **Nothing is sent without consent:** the model reads
+/// `coachConsentGivenProvider` before every request (`false` until #153).
 /// The coach's context providers (#80: check-ins, calories eaten, Health,
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:account_data/account_data.dart';
 import 'package:account_presentation/account_presentation.dart';
@@ -78,6 +82,7 @@ import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
+import 'package:failures/failures.dart';
 import 'package:health_sync_data/health_sync_data.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
@@ -135,6 +140,85 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 HealthKitRepository? healthKitRepository(Ref ref) => null;
 
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+///
+/// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
+/// as unsupported, so a release build says "this iPhone can't be verified"
+/// and sends nothing, and a debug build can still reach a Preview proxy
+/// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
+/// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+AppAttest coachAppAttest(Ref ref) => const _NoAppAttestYet();
+
+/// Where the coach's attested App Attest key id is kept between launches
+/// (#150).
+///
+/// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
+/// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
+/// is the placeholder, since nothing is ever attested. #150's follow-up:
+/// return its `FileAppAttestKeyStore` here (a device-only file in the
+/// application support directory, like [coachStoreFile]) and delete
+/// [_MemoryAppAttestKeyStore].
+///
+/// `keepAlive`: it holds the key id for the app's lifetime.
+@Riverpod(keepAlive: true)
+AppAttestKeyStore coachAppAttestKeyStore(Ref ref) => _MemoryAppAttestKeyStore();
+
+/// App Attest before #150's channel exists: unsupported everywhere, and
+/// every call fails as such. See [coachAppAttestProvider].
+class _NoAppAttestYet implements AppAttest {
+  const _NoAppAttestYet();
+
+  static const _unsupported = Err<String>(
+    AppAttestFailure(
+      AppAttestFailureReason.unsupported,
+      'App Attest is not wired in this build yet (#150)',
+    ),
+  );
+
+  @override
+  Future<bool> isSupported() async => false;
+
+  @override
+  ResultFuture<String> generateKey() async => _unsupported;
+
+  @override
+  ResultFuture<String> attestKey(
+    String keyId,
+    Uint8List clientDataHash,
+  ) async => _unsupported;
+
+  @override
+  ResultFuture<String> generateAssertion(
+    String keyId,
+    Uint8List clientDataHash,
+  ) async => _unsupported;
+}
+
+/// A key store in memory. See [coachAppAttestKeyStoreProvider].
+class _MemoryAppAttestKeyStore implements AppAttestKeyStore {
+  String? _keyId;
+
+  @override
+  ResultFuture<String?> read() async => Ok(_keyId);
+
+  @override
+  ResultFuture<Unit> write(String keyId) async {
+    _keyId = keyId;
+    return const Ok(unit);
+  }
+
+  @override
+  ResultFuture<Unit> clear() async {
+    _keyId = null;
+    return const Ok(unit);
+  }
+}
+
 /// Opens an external link in the browser. Returns whether it opened.
 typedef AppLinkOpener = Future<bool> Function(Uri uri);
 
@@ -187,7 +271,17 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     exportCoachRepositoryProvider.overrideWith(
       (ref) => ref.watch(coachRepositoryProvider),
     ),
-    coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
+    coachModelProvider.overrideWith((ref) {
+      final model = HostedCoachModel(
+        config: CoachProxyConfig.fromEnvironment(),
+        appAttest: ref.watch(coachAppAttestProvider),
+        keyStore: ref.watch(coachAppAttestKeyStoreProvider),
+        // Read before every request, so a later "no" stops the next one.
+        consentGiven: () => ref.read(coachConsentGivenProvider),
+      );
+      ref.onDispose(model.close);
+      return model;
+    }),
     // The coach's context (#80) reads the other features through their own
     // repositories: the same instances, so the same stores (the shared
     // daily-metrics store, the device-only craving file, live Health).

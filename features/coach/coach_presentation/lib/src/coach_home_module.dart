@@ -11,11 +11,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// read a past session.
 ///
 /// Top to bottom: the title, the coach card (a chat, or why the coach
-/// can't run here: [coachAvailabilityProvider]'s typed failure, through
-/// [CoachUnavailableCard]), the weekly check-in ([CoachWeeklyCard], while
-/// the model is available), the "not medical advice" note, and the past
-/// sessions, newest first ([coachSessionListProvider]), each opening its
-/// read-only transcript.
+/// can't run here: [coachAvailabilityProvider]'s typed failure, such as no
+/// consent yet, through [CoachUnavailableCard]), the weekly check-in
+/// ([CoachWeeklyCard], while the coach is available), the "not medical
+/// advice" note, and the past sessions, newest first
+/// ([coachSessionListProvider]), each opening its read-only transcript.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): [onChatRequested],
 /// [onWeeklyRequested] and [onSessionSelected] are wired by the app layer.
@@ -73,7 +73,7 @@ class CoachHomeModule extends ConsumerWidget {
                   AsyncError(:final error) => CoachUnavailableCard(
                     failure: error is Failure
                         ? error
-                        : const CoachModelUnavailableUnknownFailure(),
+                        : const CoachServerFailure(),
                     onRetry: () => ref.invalidate(coachAvailabilityProvider),
                   ),
                   _ => const Padding(
@@ -152,8 +152,7 @@ class _ChatCard extends StatelessWidget {
         const SizedBox(height: 8),
         const Text(
           'A short chat about your own tracking, with your last seven days '
-          'in view. The coach runs on this iPhone, and the conversation '
-          'stays here.',
+          'in view. The conversation is saved only on this iPhone.',
           style: SteadyType.body,
         ),
         const SizedBox(height: 16),

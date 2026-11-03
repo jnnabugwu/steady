@@ -17,7 +17,6 @@ import UIKit
       SteadyAccountChannel.register(messenger: registrar.messenger())
     }
     SteadyHealthKitChannel.register(with: engineBridge.pluginRegistry)
-    SteadyCoachChannel.register(with: engineBridge.pluginRegistry)
   }
 }
 

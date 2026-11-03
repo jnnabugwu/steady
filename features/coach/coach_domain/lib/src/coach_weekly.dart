@@ -14,6 +14,10 @@ bool weeklySessionAllowed(int daysWithCheckIn) =>
 
 /// One thread of the weekly session. Each is its own topic, in this order,
 /// never blended into one recap (product overview §6).
+///
+/// The app opens a topic with an app turn (`CoachTurn.app`), which the proxy
+/// expands into that topic's prompt (`src/coach/weekly.ts` in
+/// `jnnabugwu/steady-backend`). Each value's [name] is the wire value.
 enum WeeklyTopic {
   /// How the week felt, then logging consistency.
   logging,
@@ -37,34 +41,3 @@ List<WeeklyTopic> weeklyTopicsFor({required int cravingCount}) => [
   if (cravingCount > 0) WeeklyTopic.cravings,
   WeeklyTopic.nextWeek,
 ];
-
-/// What the app tells the coach to start [topic] with. App prompts, not
-/// the person's words: they never appear in the transcript, only the
-/// coach's reply does. Short, since each one counts against the context.
-///
-/// The craving prompt follows `docs/research/craving_support.md` ("What
-/// the weekly review could reflect on"): when and what was behind them, as
-/// an observation with a question; no grade, no comparison with other
-/// weeks, nothing about calories or food.
-String weeklyTopicPrompt(WeeklyTopic topic) => switch (topic) {
-  WeeklyTopic.logging =>
-    'Begin the weekly check-in by asking how the week felt. Keep it to '
-        'logging consistency: which days were logged fully, partly or '
-        'skipped. Make at most one observation from the data, and ask how '
-        'the week felt as your only question.',
-  WeeklyTopic.steps =>
-    'Move to a new topic: step consistency this week. Leave logging behind. '
-        'One observation from the step data, one question. If there is no '
-        'step data, say so briefly and ask how moving felt this week.',
-  WeeklyTopic.cravings =>
-    'Move to a new topic: the craving check-ins this week. Describe when '
-        'they came and what was behind them, as an observation, then ask '
-        'one question. No grades, no comparison with other weeks, and '
-        'nothing about calories or food choices.',
-  WeeklyTopic.nextWeek =>
-    "Last topic: ask if there's one small thing they'd like to try next "
-        'week. If they pick one, help phrase it as something to do, like '
-        '"If I\'m tired in the afternoon, then I\'ll have the snack I '
-        'brought." '
-        'Let them choose; never suggest calorie targets or diets.',
-};

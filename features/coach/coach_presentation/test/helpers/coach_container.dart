@@ -17,8 +17,12 @@ List<Override> coachTestOverrides({
   FakeCravings? cravings,
   DateTime Function()? now,
   String sessionId = 'session-1',
+  bool consentGiven = true,
 }) => [
   coachSupportAvailableProvider.overrideWithValue(true),
+  // The tests below the consent gate assume it's been given; the gate's own
+  // tests pass `consentGiven: false`.
+  coachConsentGivenProvider.overrideWithValue(consentGiven),
   coachModelProvider.overrideWithValue(model),
   coachRepositoryProvider.overrideWithValue(repository),
   coachCheckInRepositoryProvider.overrideWithValue(
