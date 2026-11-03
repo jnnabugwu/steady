@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:coach_data/coach_data.dart';
@@ -9,6 +10,8 @@ void main() {
   late File file;
 
   const keyId = 'q5TAc6Tx0ZiPTyJIa0L5yB2R5iBo1KLbE4HSkj0dJvM=';
+  // Another well-formed key id: standard base64 of 32 bytes.
+  final otherKeyId = base64.encode(List.filled(32, 7));
 
   T okValue<T>(Result<T> result) => switch (result) {
     Ok(:final value) => value,
@@ -51,7 +54,7 @@ void main() {
 
   test('write replaces the stored key id', () async {
     final store = FileAppAttestKeyStore(file);
-    okValue(await store.write('first'));
+    okValue(await store.write(otherKeyId));
     okValue(await store.write(keyId));
     expect(okValue(await store.read()), keyId);
   });
@@ -76,11 +79,23 @@ void main() {
     expect(okValue(await FileAppAttestKeyStore(file).clear()), unit);
   });
 
-  test('an empty key id is not written', () async {
-    final store = FileAppAttestKeyStore(file);
-    okValue(await store.write(keyId));
-    expect(failureOf(await store.write('')), isA<ValidationFailure>());
-    expect(okValue(await store.read()), keyId);
+  group('a malformed key id is not written', () {
+    final ids = {
+      'empty': '',
+      'not base64': 'not a key id',
+      'base64url': base64Url.encode(List.filled(32, 0xfb)),
+      'unpadded': base64.encode(List.filled(32, 7)).replaceAll('=', ''),
+      '31 bytes': base64.encode(List.filled(31, 7)),
+      '33 bytes': base64.encode(List.filled(33, 7)),
+    };
+    for (final MapEntry(key: name, value: id) in ids.entries) {
+      test(name, () async {
+        final store = FileAppAttestKeyStore(file);
+        okValue(await store.write(keyId));
+        expect(failureOf(await store.write(id)), isA<ValidationFailure>());
+        expect(okValue(await store.read()), keyId);
+      });
+    }
   });
 
   group('unreadable contents are no key', () {
@@ -91,6 +106,8 @@ void main() {
       'no keyId': '{"other": "x"}',
       'keyId not a string': '{"keyId": 42}',
       'empty keyId': '{"keyId": ""}',
+      'keyId not base64': '{"keyId": "not a key id"}',
+      'keyId of the wrong length': '{"keyId": "AAAA"}',
     };
     for (final MapEntry(key: name, value: text) in contents.entries) {
       test(name, () async {
@@ -122,6 +139,13 @@ void main() {
     expect(failure.cause, isA<FileSystemException>());
   });
 
+  test('clear with something other than a file in the way is an Err', () async {
+    Directory(file.path).createSync(recursive: true);
+    final failure = failureOf(await FileAppAttestKeyStore(file).clear());
+    expect(failure, isA<AppAttestKeyStoreFailure>());
+    expect(failure.cause, isA<FileSystemException>());
+  });
+
   test('a file that cannot be written is an Err', () async {
     // A file where the parent directory should be.
     File('${dir.path}/nested').writeAsStringSync('in the way');
@@ -145,7 +169,7 @@ void main() {
   test('operations run in call order', () async {
     final store = FileAppAttestKeyStore(file);
     final results = await Future.wait([
-      store.write('first'),
+      store.write(otherKeyId),
       store.clear(),
       store.write(keyId),
       store.read(),

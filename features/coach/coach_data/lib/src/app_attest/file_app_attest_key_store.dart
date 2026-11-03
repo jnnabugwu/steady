@@ -23,10 +23,13 @@ import 'package:failures/failures.dart';
 ///   the file, so a crash mid-write leaves the previous key id intact.
 ///   Parent directories are created if missing.
 /// - **Unreadable contents are no key.** If the file isn't the JSON above
-///   (corrupt, or an empty key id), [read] returns `Ok(null)`: losing a key
-///   id costs one new attestation, which is exactly what the caller does
-///   for `null`, while an `Err` would stop the coach until something
-///   cleared the file. The next [write] replaces it.
+///   with a well-formed key id (corrupt, or a key id that isn't standard
+///   base64 of 32 bytes, see [isAppAttestKeyId]), [read] returns
+///   `Ok(null)`: losing a key id costs one new attestation, which is
+///   exactly what the caller does for `null`, while an `Err` would stop the
+///   coach until something cleared the file. The next [write] replaces it.
+///   [write] only accepts a well-formed key id (`ValidationFailure`
+///   otherwise), so it never stores one [read] would discard.
 /// - **File-system errors** (the file can't be found, read, written or
 ///   deleted) are `Err(AppAttestKeyStoreFailure)`; the caller can still
 ///   attest, but shouldn't trust that the key id will be kept.
@@ -67,8 +70,10 @@ class FileAppAttestKeyStore implements AppAttestKeyStore {
 
   @override
   ResultFuture<Unit> write(String keyId) => _run((file) async {
-    if (keyId.isEmpty) {
-      return const Err(ValidationFailure('keyId must not be empty'));
+    if (!isAppAttestKeyId(keyId)) {
+      return const Err(
+        ValidationFailure('keyId must be standard base64 of 32 bytes'),
+      );
     }
     final tmp = File('${file.path}.tmp');
     try {
@@ -91,8 +96,15 @@ class FileAppAttestKeyStore implements AppAttestKeyStore {
     try {
       // The leftover `.tmp` first: a failure after it still leaves the
       // file of record, so [read] and disk agree.
+      // Only "already gone" is ignored: anything else in the way (a
+      // directory at the path, say) is an `Err`, since later writes would
+      // fail on it too.
       for (final f in [File('${file.path}.tmp'), file]) {
-        if (f.existsSync()) await f.delete();
+        try {
+          await f.delete();
+        } on PathNotFoundException {
+          // Already absent.
+        }
       }
       return const Ok(unit);
     } on FileSystemException catch (e) {
@@ -106,12 +118,13 @@ class FileAppAttestKeyStore implements AppAttestKeyStore {
   });
 
   /// The key id in [contents], or `null` if they aren't UTF-8
-  /// `{"keyId": "<non-empty string>"}`.
+  /// `{"keyId": "<key id>"}` with a well-formed key id
+  /// ([isAppAttestKeyId]).
   static String? _decode(List<int> contents) {
     try {
       final decoded = jsonDecode(utf8.decode(contents));
       if (decoded case {_keyIdField: final String keyId}
-          when keyId.isNotEmpty) {
+          when isAppAttestKeyId(keyId)) {
         return keyId;
       }
       return null;
@@ -138,6 +151,20 @@ class FileAppAttestKeyStore implements AppAttestKeyStore {
     });
     _queue = next.then<void>((_) {}, onError: (Object _) {});
     return next;
+  }
+}
+
+/// Whether [keyId] has the shape of a `DCAppAttestService.generateKey` key
+/// id: standard base64 (with padding) of a 32-byte SHA-256 of the public
+/// key, as the proxy expects it (steady-backend `README.md`, "Encodings").
+bool isAppAttestKeyId(String keyId) {
+  if (keyId.length != 44 || keyId.contains(RegExp('[^A-Za-z0-9+/=]'))) {
+    return false;
+  }
+  try {
+    return base64.decode(keyId).length == 32;
+  } on FormatException {
+    return false;
   }
 }
 

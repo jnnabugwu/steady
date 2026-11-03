@@ -721,7 +721,7 @@ native API, marshal the result". **Built (#150), not yet verified on hardware:**
 `app/ios/Runner/AppAttestChannel.swift` on `steady/app_attest` (`isSupported`,
 `generateKey`, `attestKey`, `generateAssertion`; `DCError` codes translated to wire codes,
 no logic), with `MethodChannelAppAttest` and `FileAppAttestKeyStore` in
-`coach_data/lib/src/app_attest/` (contract: `AppAttestChannel`). The caller (#151) computes
+`features/coach/coach_data/lib/src/app_attest/` (contract: `AppAttestChannel`). The caller (#151) computes
 every `clientDataHash` and owns the key lifecycle against the proxy. The entitlement
 `com.apple.developer.devicecheck.appattest-environment` is `$(STEADY_APP_ATTEST_ENVIRONMENT)`
 in `Runner.entitlements`: `development` in `Flutter/Debug.xcconfig`, `production` in

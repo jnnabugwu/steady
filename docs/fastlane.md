@@ -55,8 +55,9 @@ bundle exec fastlane match appstore
 It asks for your Apple ID (this run only) and a **passphrase**. Keep the passphrase in your
 password manager: it's `MATCH_PASSWORD`. match creates an Apple Distribution certificate and
 a profile named `match AppStore com.jmagic.steady`. The profile gets its capabilities
-(HealthKit, iCloud/CloudKit, push, App Attest) from the App ID, which Xcode's automatic
-signing has already set up.
+(HealthKit, iCloud/CloudKit, push) from the App ID, which Xcode's automatic signing has
+already set up. App Attest isn't one of them yet: enable it and regenerate the profile with
+the steps below.
 
 **After a capability is added to the App ID, regenerate the profile.** A profile only carries
 the capabilities the App ID had when it was made, and the `beta` lane fails to sign an
