@@ -258,12 +258,14 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       and a kill switch; metadata-only logs; SSE replies. Its README is the API contract.
 - [ ] The proxy deployed on Vercel (Preview and Production), with its environment
       variables, and smoke-tested. Not yet: the Vercel project doesn't exist.
-- [ ] App Attest client (#150): `AppAttest` / `AppAttestKeyStore` interfaces are in
-      `coach_data`; the `steady/app_attest` channel (`DCAppAttestService`), the device-only
-      key store and the App Attest entitlement are in progress. Until they land,
-      `app/lib/providers.dart` binds placeholders (`coachAppAttestProvider` reports App
-      Attest unsupported, `coachAppAttestKeyStoreProvider` is in memory), so a release
-      build says "this iPhone can't be verified" and sends nothing.
+- [ ] App Attest client in `app/ios/Runner` (`DCAppAttestService`: key, one attestation, an
+      assertion per request), its channel and typed failures; the App Attest entitlement.
+      Built (#150): `AppAttestChannel.swift`, `MethodChannelAppAttest`,
+      `FileAppAttestKeyStore` (`app_attest_key.json` in application support, bound on iOS
+      only in `app/lib/providers.dart`) and the per-configuration entitlement. The key
+      lifecycle and the debug-only bypass are `HostedCoachModel`'s (#151). Still open: a
+      debug build on a physical iPhone attesting and asserting against a Preview
+      deployment, and the App ID capability (#148).
 - [x] `HostedCoachModel` in `coach_data` (#151), replacing `MethodChannelCoachModel`,
       `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift` (all deleted).
       `CoachModel` is stateless: `reply(CoachRequest)` sends the session kind, the week
@@ -384,8 +386,10 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
 - [ ] Entitlements: HealthKit (iOS only). CloudKit container entitlement is set. The coach
-      no longer uses Foundation Models (#151). Planned with the hosted coach (#150): the App
-      Attest entitlement (`com.apple.developer.devicecheck.appattest-environment`).
+      no longer uses Foundation Models (#151). The App Attest entitlement
+      (`com.apple.developer.devicecheck.appattest-environment`, #150) is set: `development`
+      for Debug, `production` for Release and Profile. It won't sign until the App ID has the
+      App Attest capability and match's profile is regenerated (#148).
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
       run only from Actions → Ship iOS (`docs/fastlane.md`).

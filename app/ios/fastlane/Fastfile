@@ -90,7 +90,8 @@ platform :ios do
     end
 
     # Same gate as a local scripts/build-ios-ipa.sh build: team, HealthKit,
-    # iCloud container, production push, iPhone-only. Fails before upload.
+    # iCloud container, production push, production App Attest, iPhone-only.
+    # Fails before upload.
     sh(File.join(ROOT, "scripts/verify-ios-ipa.sh"), ipa, version, build.to_s)
 
     # Upload only. Adding the build to a tester group and Beta App Review stay

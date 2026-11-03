@@ -23,8 +23,8 @@
 #
 # Output: app/build/ios/ipa/*.ipa and app/build/ios/archive/Runner.xcarchive.
 # The script then checks the signed app with scripts/verify-ios-ipa.sh:
-# team, HealthKit, the iCloud container, production push, the encryption
-# flag, and iPhone-only.
+# team, HealthKit, the iCloud container, production push, production App
+# Attest, the encryption flag, and iPhone-only.
 #
 # No flavors, env files or CocoaPods: Steady has no backend, and plugins are
 # integrated with Swift Package Manager.

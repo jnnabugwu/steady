@@ -219,12 +219,9 @@ String _$healthKitRepositoryHash() =>
 /// App Attest for the hosted coach (#150), read only by the iOS-bound
 /// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
 /// the app layer is where `coach_data`'s implementations are chosen.
-///
-/// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
-/// as unsupported, so a release build says "this iPhone can't be verified"
-/// and sends nothing, and a debug build can still reach a Preview proxy
-/// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
-/// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+/// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+/// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+/// else throws, as the coach's own providers do on the Mac.
 ///
 /// `keepAlive`: cheap and stateless (D6).
 
@@ -234,12 +231,9 @@ final coachAppAttestProvider = CoachAppAttestProvider._();
 /// App Attest for the hosted coach (#150), read only by the iOS-bound
 /// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
 /// the app layer is where `coach_data`'s implementations are chosen.
-///
-/// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
-/// as unsupported, so a release build says "this iPhone can't be verified"
-/// and sends nothing, and a debug build can still reach a Preview proxy
-/// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
-/// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+/// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+/// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+/// else throws, as the coach's own providers do on the Mac.
 ///
 /// `keepAlive`: cheap and stateless (D6).
 
@@ -249,12 +243,9 @@ final class CoachAppAttestProvider
   /// App Attest for the hosted coach (#150), read only by the iOS-bound
   /// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
   /// the app layer is where `coach_data`'s implementations are chosen.
-  ///
-  /// **Placeholder until #150 merges** ([_NoAppAttestYet]): reports App Attest
-  /// as unsupported, so a release build says "this iPhone can't be verified"
-  /// and sends nothing, and a debug build can still reach a Preview proxy
-  /// through the dev bypass (`COACH_DEV_BYPASS_TOKEN`). #150's follow-up:
-  /// return `MethodChannelAppAttest()` here and delete [_NoAppAttestYet].
+  /// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+  /// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+  /// else throws, as the coach's own providers do on the Mac.
   ///
   /// `keepAlive`: cheap and stateless (D6).
   CoachAppAttestProvider._()
@@ -290,34 +281,22 @@ final class CoachAppAttestProvider
   }
 }
 
-String _$coachAppAttestHash() => r'a735ac7fbbdba5cb8c3ffd180906b11146fe008d';
+String _$coachAppAttestHash() => r'cfdf8621d41a5a5726bb605db24e0f96cc8e413a';
 
-/// Where the coach's attested App Attest key id is kept between launches
-/// (#150).
+/// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+/// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+/// throws.
 ///
-/// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
-/// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
-/// is the placeholder, since nothing is ever attested. #150's follow-up:
-/// return its `FileAppAttestKeyStore` here (a device-only file in the
-/// application support directory, like [coachStoreFile]) and delete
-/// [_MemoryAppAttestKeyStore].
-///
-/// `keepAlive`: it holds the key id for the app's lifetime.
+/// `keepAlive`: cheap; the file is the state.
 
 @ProviderFor(coachAppAttestKeyStore)
 final coachAppAttestKeyStoreProvider = CoachAppAttestKeyStoreProvider._();
 
-/// Where the coach's attested App Attest key id is kept between launches
-/// (#150).
+/// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+/// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+/// throws.
 ///
-/// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
-/// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
-/// is the placeholder, since nothing is ever attested. #150's follow-up:
-/// return its `FileAppAttestKeyStore` here (a device-only file in the
-/// application support directory, like [coachStoreFile]) and delete
-/// [_MemoryAppAttestKeyStore].
-///
-/// `keepAlive`: it holds the key id for the app's lifetime.
+/// `keepAlive`: cheap; the file is the state.
 
 final class CoachAppAttestKeyStoreProvider
     extends
@@ -327,17 +306,11 @@ final class CoachAppAttestKeyStoreProvider
           AppAttestKeyStore
         >
     with $Provider<AppAttestKeyStore> {
-  /// Where the coach's attested App Attest key id is kept between launches
-  /// (#150).
+  /// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+  /// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+  /// throws.
   ///
-  /// **Placeholder until #150 merges** ([_MemoryAppAttestKeyStore]): in memory,
-  /// so it's forgotten on relaunch. Harmless while [coachAppAttestProvider]
-  /// is the placeholder, since nothing is ever attested. #150's follow-up:
-  /// return its `FileAppAttestKeyStore` here (a device-only file in the
-  /// application support directory, like [coachStoreFile]) and delete
-  /// [_MemoryAppAttestKeyStore].
-  ///
-  /// `keepAlive`: it holds the key id for the app's lifetime.
+  /// `keepAlive`: cheap; the file is the state.
   CoachAppAttestKeyStoreProvider._()
     : super(
         from: null,
@@ -373,7 +346,7 @@ final class CoachAppAttestKeyStoreProvider
 }
 
 String _$coachAppAttestKeyStoreHash() =>
-    r'1052fc7653a934c3c7bf5d81c30d8ae06d7e4f0d';
+    r'b3879343b1bd6ee8462cee9458adab2c13aeab2e';
 
 /// How app-level screens open an external link (Settings' privacy policy).
 /// Defaults to the system browser through `url_launcher`; tests override

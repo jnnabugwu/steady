@@ -704,12 +704,20 @@ extracted Swift package — there's less shared logic to isolate there than with
 `RAGKitCore` (mostly "call the native API, marshal the result"), so extracting it now
 would be premature.
 
-**The coach's only native code is the App Attest client** (#150, `app/ios/Runner`:
-`DCAppAttestService` to generate a key, attest it once and sign an assertion per request,
-behind the `steady/app_attest` channel), runner-adjacent for the same reason as HealthKit:
-mostly "call the native API, marshal the result". The model itself is reached over HTTPS from
-Dart (`HostedCoachModel`, §11), so there's no inference channel. Nothing coach-related exists
-in `app/macos/` — not a disabled path, an absent one.
+**The coach's only native code is the App Attest client** (#150), runner-adjacent for the
+same reason as HealthKit: mostly "call the native API, marshal the result". The model itself
+is reached over HTTPS from Dart (`HostedCoachModel`, §11), so there's no inference channel,
+and nothing coach-related exists in `app/macos/` — not a disabled path, an absent one.
+**Built (#150), not yet verified on hardware:** `app/ios/Runner/AppAttestChannel.swift` on
+`steady/app_attest` (`isSupported`, `generateKey`, `attestKey`, `generateAssertion`;
+`DCError` codes translated to wire codes, no logic), with `MethodChannelAppAttest` and
+`FileAppAttestKeyStore` in `features/coach/coach_data/lib/src/app_attest/` (contract:
+`AppAttestChannel`). `HostedCoachModel` (#151) computes every `clientDataHash` and owns the
+key lifecycle against the proxy. The entitlement
+`com.apple.developer.devicecheck.appattest-environment` is `$(STEADY_APP_ATTEST_ENVIRONMENT)`
+in `Runner.entitlements`: `development` in `Flutter/Debug.xcconfig`, `production` in
+`Flutter/Release.xcconfig` (Release and Profile). It signs only once the App ID has the App
+Attest capability and the profiles are regenerated (#148).
 
 ---
 
@@ -783,8 +791,8 @@ in `app/macos/` — not a disabled path, an absent one.
 - Providers for headless features have no `*_presentation` package to live in, so
   they're declared directly in `app/lib/providers.dart`: `healthKitRepositoryProvider`
   (`null` by default, bound to the HealthKit channel on iOS only), and the hosted coach's
-  `coachAppAttestProvider` / `coachAppAttestKeyStoreProvider` (placeholders that report App
-  Attest unsupported until #150's channel and key store replace them).
+  `coachAppAttestProvider` / `coachAppAttestKeyStoreProvider` (unbound by default; bound on
+  iOS only to `MethodChannelAppAttest` and `FileAppAttestKeyStore` on `app_attest_key.json`).
 - No `get_it`. It was removed in migration step 5 (W5, PR #22), along with
   `app/lib/bootstrap.dart`; the invariant test kept its name,
   `app/test/bootstrap_test.dart`. Don't reintroduce either.
@@ -802,10 +810,10 @@ Steady's own thin proxy on Vercel (decided 2026-10-30, "The coach uses a hosted 
 `docs/technical_decisions.md`). **Hosted only:** the Foundation Models path is gone.
 
 - **Built:** the proxy, in its own repo, **`jnnabugwu/steady-backend`** (#149; its `README.md`
-  is the API contract), and the app side: `HostedCoachModel` (#151) and the `coach_domain`
-  cleanup (#152).
-- **Not yet:** the Vercel deployment (no `COACH_PROXY_URL` exists to build with), the App
-  Attest client (#150; the app binds placeholders until it lands), the consent screen (#153;
+  is the API contract), and the app side: the App Attest client (#150, §8),
+  `HostedCoachModel` (#151) and the `coach_domain` cleanup (#152).
+- **Not yet:** the Vercel deployment (no `COACH_PROXY_URL` exists to build with), App Attest
+  verified on a physical iPhone and the App ID capability (#148), the consent screen (#153;
   until then the coach says "not set up yet" and sends nothing), the guardrail evaluation set
   (#154), and a reply streamed on a physical iPhone. Describe these as open until they are
   done. Tracking issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)" (#155).

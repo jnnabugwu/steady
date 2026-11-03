@@ -14,6 +14,15 @@ String sse(String event, Object data) =>
 /// assertions `assertion-1`, …. Set the `*Results` queues to script a
 /// failure.
 class FakeAppAttest implements AppAttest {
+  FakeAppAttest({this.realKeyIds = false});
+
+  /// Whether key ids look like App Attest's (standard base64 of 32 bytes,
+  /// which `FileAppAttestKeyStore` insists on) rather than `key-1`, ….
+  final bool realKeyIds;
+
+  /// The key id the [n]th generated key gets, when [realKeyIds].
+  static String realKeyId(int n) => base64Encode(List.filled(32, n));
+
   bool supported = true;
   var _keys = 0;
   var _assertions = 0;
@@ -41,7 +50,8 @@ class FakeAppAttest implements AppAttest {
   @override
   ResultFuture<String> generateKey() async {
     if (keyResults.isNotEmpty) return keyResults.removeAt(0);
-    return Ok('key-${++_keys}');
+    _keys++;
+    return Ok(realKeyIds ? realKeyId(_keys) : 'key-$_keys');
   }
 
   @override

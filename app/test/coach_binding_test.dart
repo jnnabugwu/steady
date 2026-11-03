@@ -50,15 +50,26 @@ void main() {
     );
   });
 
+  test('the hosted model signs with the App Attest channel and the '
+      'device-only key file', () {
+    final ios = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: true),
+    );
+    expect(ios.read(coachAppAttestProvider), isA<MethodChannelAppAttest>());
+    expect(
+      ios.read(coachAppAttestKeyStoreProvider),
+      isA<FileAppAttestKeyStore>(),
+    );
+  });
+
   test('a build without COACH_PROXY_URL (this test run) says the coach is '
-      'off, and App Attest is the placeholder until #150', () async {
+      'off', () async {
     final ios = ProviderContainer.test(
       overrides: [
         ...appProviderOverridesFor(isIOS: true),
         coachConsentGivenProvider.overrideWithValue(true),
       ],
     );
-    expect(await ios.read(coachAppAttestProvider).isSupported(), isFalse);
     await expectLater(
       ios.read(coachAvailabilityProvider.future),
       throwsA(isA<CoachTurnedOffFailure>()),
@@ -102,6 +113,20 @@ void main() {
     expect(
       ios.read(coachHealthKitRepositoryProvider),
       same(ios.read(healthKitRepositoryProvider)),
+    );
+  });
+
+  test('macOS binds no App Attest', () {
+    final mac = ProviderContainer.test(
+      overrides: appProviderOverridesFor(isIOS: false),
+    );
+    expect(
+      () => mac.read(coachAppAttestProvider),
+      throwsA(isA<ProviderException>()),
+    );
+    expect(
+      () => mac.read(coachAppAttestKeyStoreProvider),
+      throwsA(isA<ProviderException>()),
     );
   });
 

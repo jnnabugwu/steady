@@ -747,6 +747,73 @@ void main() {
     });
   });
 
+  group('the key lifecycle, with the real file key store', () {
+    late Directory dir;
+    late File file;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('app_attest_key');
+      file = File('${dir.path}/app_attest_key.json');
+      attest = FakeAppAttest(realKeyIds: true);
+    });
+
+    tearDown(() => dir.delete(recursive: true));
+
+    HostedCoachModel launch() => HostedCoachModel(
+      config: CoachProxyConfig(baseUrl: _base),
+      appAttest: attest,
+      keyStore: FileAppAttestKeyStore(file),
+      consentGiven: () => consent,
+      client: proxy,
+    );
+
+    test(
+      'attests once per install: a relaunch reuses the stored key',
+      () async {
+        expect(failureOf(await replyTo(launch())), isNull);
+        expect(file.existsSync(), isTrue);
+        expect(proxy.registrations, hasLength(1));
+
+        // A new model over the same file: the app relaunched.
+        expect(failureOf(await replyTo(launch())), isNull);
+        expect(proxy.registrations, hasLength(1));
+        expect(attest.attested, hasLength(1));
+        expect(
+          proxy.replyRequests.map((r) => r.headers[CoachProxyWire.keyIdHeader]),
+          [FakeAppAttest.realKeyId(1), FakeAppAttest.realKeyId(1)],
+        );
+      },
+    );
+
+    test('attestation_failed replaces the stored key with a new one', () async {
+      await replyTo(launch());
+      proxy.replies.add(
+        (_) => FakeProxy.events(401, [
+          sse('error', {'code': 'attestation_failed'}),
+        ]),
+      );
+      expect(failureOf(await replyTo(launch())), isNull);
+      expect(proxy.registrations.map((r) => r.json['keyId']), [
+        FakeAppAttest.realKeyId(1),
+        FakeAppAttest.realKeyId(2),
+      ]);
+
+      // The next launch uses the new key, without attesting again.
+      await replyTo(launch());
+      expect(proxy.registrations, hasLength(2));
+      expect(
+        proxy.replyRequests.last.headers[CoachProxyWire.keyIdHeader],
+        FakeAppAttest.realKeyId(2),
+      );
+    });
+
+    test('a corrupt key file attests a new key', () async {
+      file.writeAsStringSync('{not json');
+      expect(failureOf(await replyTo(launch())), isNull);
+      expect(proxy.registrations, hasLength(1));
+    });
+  });
+
   test('checkAvailability makes no request', () async {
     expect(await model().checkAvailability(), isA<Ok<Unit>>());
     expect(proxy.sent, isEmpty);

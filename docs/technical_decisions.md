@@ -11,9 +11,10 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 **Status (2026-11-02): the proxy and the app side are built; not shipped.** The proxy is in
 its own repo, `jnnabugwu/steady-backend` (#149), and the app talks to it through
-`HostedCoachModel` (#151), with the on-device machinery removed (#152). Still open: the Vercel
-deployment, the App Attest client (#150), the consent screen (#153), the guardrail
-evaluation set (#154) and a check on a physical iPhone. The build on TestFlight still runs
+`HostedCoachModel` (#151), signing with the App Attest client (#150), with the on-device
+machinery removed (#152). Still open: the Vercel deployment, the App ID's App Attest
+capability (#148), the consent screen (#153), the guardrail evaluation set (#154) and a check
+on a physical iPhone. The build on TestFlight still runs
 Apple Foundation Models, and `docs/PRIVACY.md`, the App Privacy answers
 (`docs/testflight.md` §6) and the Health usage string still describe it. They change in the
 same release as the hosted coach, not before. Tracking issue: "Hosted coach (Claude Opus 5.5
