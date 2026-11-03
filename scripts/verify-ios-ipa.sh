@@ -7,7 +7,8 @@
 #
 # Checks the signed app's entitlements and Info.plist: team, bundle ID,
 # version, HealthKit, the iCloud container, production push, production App
-# Attest, the encryption flag, and iPhone-only. Exits non-zero if anything
+# Attest, the encryption flag, iPhone-only, and that the coach proxy's
+# address (scripts/coach-proxy-url) is compiled in. Exits non-zero if anything
 # doesn't match, so a bad build never reaches App Store Connect. Used by
 # scripts/build-ios-ipa.sh (local builds) and the fastlane `beta` lane
 # (GitHub Actions).
@@ -18,6 +19,8 @@ set -euo pipefail
 TEAM_ID="UXZV3C926U"
 BUNDLE_ID="com.jmagic.steady"
 ICLOUD_CONTAINER="iCloud.com.jmagic.steady"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+COACH_PROXY_URL="${COACH_PROXY_URL:-$(tr -d '[:space:]' < "$ROOT/scripts/coach-proxy-url")}"
 
 case "${1:-}" in
   -h|--help) awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; next } NR > 1 { exit }' "$0"; exit 0 ;;
@@ -67,6 +70,12 @@ for key in NSHealthShareUsageDescription NSHealthUpdateUsageDescription; do
     && printf '  \033[32m✓\033[0m %s present\n' "$key" \
     || { printf '  \033[31m✗\033[0m %s missing\n' "$key"; FAILED=1; }
 done
+# Release builds get the proxy address only from --dart-define (#151); without
+# it every tester's coach says it's off.
+# Byte-wise: in a UTF-8 locale macOS grep stops matching inside binary data.
+LC_ALL=C grep -a -q -F "$COACH_PROXY_URL" "$APP/Frameworks/App.framework/App" 2>/dev/null \
+  && printf '  \033[32m✓\033[0m Coach proxy URL: %s\n' "$COACH_PROXY_URL" \
+  || { printf '  \033[31m✗\033[0m Coach proxy URL %s not compiled in (--dart-define=COACH_PROXY_URL)\n' "$COACH_PROXY_URL"; FAILED=1; }
 codesign -dv --verbose=2 "$APP" 2>&1 | grep -E 'Authority=Apple Distribution' | sed 's/^/  /' || true
 PROFILE=$(security cms -D -i "$APP/embedded.mobileprovision" 2>/dev/null \
           | plutil -extract Name raw -o - - 2>/dev/null || echo '?')

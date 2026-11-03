@@ -26,8 +26,10 @@
 # team, HealthKit, the iCloud container, production push, production App
 # Attest, the encryption flag, and iPhone-only.
 #
-# No flavors, env files or CocoaPods: Steady has no backend, and plugins are
-# integrated with Swift Package Manager.
+# No flavors, env files or CocoaPods: plugins are integrated with Swift
+# Package Manager. The one build-time setting is the coach proxy's address
+# (steady-backend, Production), passed as --dart-define=COACH_PROXY_URL from
+# scripts/coach-proxy-url; set COACH_PROXY_URL in the environment to override.
 #
 # Written against bash 3.2 (macOS's default /bin/bash).
 set -euo pipefail
@@ -35,6 +37,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_DIR="$ROOT/app"
 TEAM_ID="UXZV3C926U"
+# Without it the app has no proxy address and the coach reports itself off.
+COACH_PROXY_URL="${COACH_PROXY_URL:-$(tr -d '[:space:]' < "$ROOT/scripts/coach-proxy-url")}"
 
 PULL=0; CLEAN=0; BUMP=0; CHECK=0; OPEN=0; SET_BUILD=""
 while [ $# -gt 0 ]; do
@@ -119,6 +123,7 @@ flutter build ipa --release \
   --build-name="$VNAME" \
   --build-number="$VNUM" \
   --export-method=app-store \
+  --dart-define=COACH_PROXY_URL="$COACH_PROXY_URL" \
   || die "build failed. If it's signing: Xcode > Settings > Accounts must have an Apple ID on team $TEAM_ID, then open app/ios/Runner.xcworkspace > Runner > Signing & Capabilities and fix anything red"
 
 IPA=$(ls -t build/ios/ipa/*.ipa 2>/dev/null | head -1 || true)
