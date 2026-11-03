@@ -1,1 +1,6 @@
 #include "Generated.xcconfig"
+
+// App Attest's environment for Release and Profile builds (Runner.entitlements,
+// com.apple.developer.devicecheck.appattest-environment; #150): Apple's
+// production attestation, the one TestFlight and App Store builds use.
+STEADY_APP_ATTEST_ENVIRONMENT = production

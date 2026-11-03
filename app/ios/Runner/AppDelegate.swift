@@ -18,6 +18,7 @@ import UIKit
     }
     SteadyHealthKitChannel.register(with: engineBridge.pluginRegistry)
     SteadyCoachChannel.register(with: engineBridge.pluginRegistry)
+    SteadyAppAttestChannel.register(with: engineBridge.pluginRegistry)
   }
 }
 

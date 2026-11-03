@@ -6,10 +6,11 @@
 #   scripts/verify-ios-ipa.sh app/build/ios/ipa/steady.ipa 1.0.0 4
 #
 # Checks the signed app's entitlements and Info.plist: team, bundle ID,
-# version, HealthKit, the iCloud container, production push, the encryption
-# flag, and iPhone-only. Exits non-zero if anything doesn't match, so a bad
-# build never reaches App Store Connect. Used by scripts/build-ios-ipa.sh
-# (local builds) and the fastlane `beta` lane (GitHub Actions).
+# version, HealthKit, the iCloud container, production push, production App
+# Attest, the encryption flag, and iPhone-only. Exits non-zero if anything
+# doesn't match, so a bad build never reaches App Store Connect. Used by
+# scripts/build-ios-ipa.sh (local builds) and the fastlane `beta` lane
+# (GitHub Actions).
 #
 # macOS only (codesign, PlistBuddy, security). Written against bash 3.2.
 set -euo pipefail
@@ -50,6 +51,8 @@ check "Team"                 "$TEAM_ID" "$(ent com.apple.developer.team-identifi
 check "Bundle ID"            "$BUNDLE_ID" "$(info CFBundleIdentifier)"
 check "Version"              "$VNAME ($VNUM)" "$(info CFBundleShortVersionString) ($(info CFBundleVersion))"
 check "Push environment"     "production" "$(ent aps-environment)"
+# Release builds attest against Apple's production App Attest service (#150).
+check "App Attest environment" "production" "$(ent com.apple.developer.devicecheck.appattest-environment)"
 check "HealthKit"            "true" "$(ent com.apple.developer.healthkit)"
 check "iCloud container"     "$ICLOUD_CONTAINER" "$(ent com.apple.developer.icloud-container-identifiers:0)"
 check "iCloud service"       "CloudKit" "$(ent com.apple.developer.icloud-services:0)"
