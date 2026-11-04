@@ -21,6 +21,8 @@ import 'package:http/http.dart' as http;
 ///
 /// 1. Refuse at once, sending nothing, without consent
 ///    ([CoachConsentNotGivenFailure]) or a proxy URL ([CoachTurnedOffFailure]).
+///    Consent is read again right before the reply's `POST`, so a "no"
+///    given while the challenge was fetched still stops it.
 /// 2. Serialize the request once ([encodeCoachRequest]): those exact bytes
 ///    are hashed and sent.
 /// 3. With App Attest: register a key once per install (a fresh challenge,
@@ -54,13 +56,13 @@ import 'package:http/http.dart' as http;
 class HostedCoachModel implements CoachModel {
   /// Creates the model.
   ///
-  /// `consentGiven` is read before every reply, and nothing is sent unless
-  /// it says `true` (#153). [client] is for tests; by default the model owns
-  /// an [http.Client] ([close] closes it). [requestTimeout] bounds every
-  /// request up to its response headers (and a challenge's or registration's
-  /// whole body); [replyIdleTimeout] bounds the wait between a reply's
-  /// chunks, longer than the proxy's own 110-second deadline, which ends
-  /// every stream with an event first.
+  /// `consentGiven` is read before every reply and again right before its
+  /// `POST`, and nothing is sent unless it says `true` (#153). [client] is
+  /// for tests; by default the model owns an [http.Client] ([close] closes
+  /// it). [requestTimeout] bounds every request up to its response headers
+  /// (and a challenge's or registration's whole body); [replyIdleTimeout]
+  /// bounds the wait between a reply's chunks, longer than the proxy's own
+  /// 110-second deadline, which ends every stream with an event first.
   HostedCoachModel({
     required this._config,
     required this._appAttest,
@@ -301,6 +303,9 @@ class HostedCoachModel implements CoachModel {
     _ReplyCall call,
     void Function(CoachReplySnapshot) emit,
   ) async {
+    // Again, right before the conversation leaves the phone: consent may
+    // have been withdrawn while the key or the challenge was fetched.
+    if (!_hasConsent()) throw const _Stop(CoachConsentNotGivenFailure());
     final request = _request('POST', base, CoachProxyWire.replyPath, call)
       ..headers.addAll(authHeaders)
       ..headers['content-type'] = 'application/json'

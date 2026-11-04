@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:coach_domain/coach_domain.dart';
+import 'package:coach_presentation/src/coach_consent_controller.dart';
 import 'package:coach_presentation/src/coach_history_providers.dart';
 import 'package:coach_presentation/src/coach_session_state.dart';
 import 'package:coach_presentation/src/coach_week_context.dart';
@@ -45,9 +46,16 @@ part 'coach_session_controller.g.dart';
 /// so far ([_turns]), app turns in place. The summary is one request of its
 /// own kind (`CoachRequestKind.summary`) over the transcript.
 ///
-/// **Nothing is sent without consent** ([coachConsentGivenProvider],
-/// through [checkCoachAvailable] at the start and before a retry; the
-/// hosted model checks it again before every request).
+/// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+/// checked through [checkCoachAvailable] at the start and before a retry,
+/// again at the weekly session's Begin, and before every request, the
+/// summary's included ([isCoachConsentGiven]); the hosted model checks it
+/// once more. **Turning the coach off** (Settings → Coach,
+/// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+/// reply's partial text, and leaves the session unavailable with
+/// [CoachConsentNotGivenFailure]; a session that was ending saves without
+/// a summary. **Turning it on** while the session says it's off starts it
+/// again ([retryCoachStart]).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -85,11 +93,16 @@ class CoachSessionController extends _$CoachSessionController {
   /// [coachHistoryEpochProvider]'s value when this session opened.
   late int _historyEpoch;
 
+  /// The stream [_stopStreaming] stopped because consent was withdrawn,
+  /// and the failure [_stream] returns for it.
+  (StreamSubscription<Result<CoachReplySnapshot>>, Failure)? _stoppedBy;
+
   @override
   CoachSessionState build(CoachSessionKind kind, String sessionId) {
     ref.onDispose(_dispose);
     _api = ref.read(coachModelProvider);
     _historyEpoch = ref.read(coachHistoryEpochProvider).value;
+    ref.listen(coachConsentGivenProvider, _consentChanged);
     final now = ref.read(coachClockProvider)();
     unawaited(_start());
     return CoachSessionState(
@@ -121,6 +134,14 @@ class CoachSessionController extends _$CoachSessionController {
         .read(coachWeekContextProvider)
         .call(first: window.first, last: window.last, now: now);
     if (!ref.mounted) return;
+    // Turned off while the week was read: say so rather than offer it.
+    if (!_consentGiven) {
+      state = state.copyWith(
+        phase: CoachSessionPhase.unavailable,
+        failure: const CoachConsentNotGivenFailure(),
+      );
+      return;
+    }
     _weekContext = formatCoachWeek(data, includeCravingReasons: weekly);
     state = state.copyWith(
       topics: weekly ? weeklyTopicsFor(cravingCount: data.cravingCount) : [],
@@ -128,11 +149,68 @@ class CoachSessionController extends _$CoachSessionController {
     );
   }
 
+  /// Whether consent is a settled yes right now ([isCoachConsentGiven]).
+  bool get _consentGiven =>
+      isCoachConsentGiven(ref.read(coachConsentGivenProvider));
+
+  /// Consent was given or withdrawn ([coachConsentGivenProvider]).
+  void _consentChanged(AsyncValue<bool>? previous, AsyncValue<bool> next) {
+    if (!ref.mounted) return;
+    final was = previous != null && isCoachConsentGiven(previous);
+    final now = isCoachConsentGiven(next);
+    if (was && !now) {
+      _consentWithdrawn();
+    } else if (!was &&
+        now &&
+        !_ending &&
+        state.phase == CoachSessionPhase.unavailable &&
+        state.failure is CoachConsentNotGivenFailure) {
+      unawaited(retryCoachStart());
+    }
+  }
+
+  /// The coach was turned off: stop whatever streams (its operation then
+  /// lands [CoachConsentNotGivenFailure]: the turn goes unavailable, the
+  /// summary is dropped), or, with nothing streaming, say it's off.
+  void _consentWithdrawn() {
+    if (_active != null) {
+      _stopStreaming(because: const CoachConsentNotGivenFailure());
+      return;
+    }
+    _withdrawnWhileIdle();
+  }
+
+  /// Unavailable for want of consent, unless the session is past offering
+  /// anything (ending, ended, or stopped for another reason) or mid-way
+  /// through an operation, whose next request refuses by itself.
+  void _withdrawnWhileIdle() {
+    if (_ending) return;
+    switch (state.phase) {
+      case CoachSessionPhase.ready || CoachSessionPhase.awaitingStart:
+        state = state.copyWith(
+          phase: CoachSessionPhase.unavailable,
+          reply: null,
+          replyCutOff: false,
+          failure: const CoachConsentNotGivenFailure(),
+        );
+      case CoachSessionPhase.starting ||
+          CoachSessionPhase.replying ||
+          CoachSessionPhase.unavailable ||
+          CoachSessionPhase.failedToStart ||
+          CoachSessionPhase.notEnoughCheckIns ||
+          CoachSessionPhase.ending ||
+          CoachSessionPhase.ended:
+        break;
+    }
+  }
+
   /// Whether the coach may send anything ([checkCoachAvailable]). Sets the
   /// phase and failure when not.
   Future<bool> _available() async {
     final result = await checkCoachAvailable(
-      consentGiven: ref.read(coachConsentGivenProvider),
+      consentGiven: await readCoachConsent(
+        ref.read(coachConsentGivenProvider.future),
+      ),
       model: _api,
     );
     if (!ref.mounted) return false;
@@ -223,14 +301,16 @@ class CoachSessionController extends _$CoachSessionController {
   /// ([CheckWeeklyReadiness], the week may have changed since the screen
   /// opened), then has the coach open the first topic (logging). If a new
   /// week began meanwhile (the screen was left open into a Friday), the
-  /// session is set up again with that week's data first. Ignored unless
-  /// the session is waiting to begin, or once ending.
+  /// session is set up again with that week's data first. Without consent
+  /// it sends nothing and says the coach is off. Ignored unless the session
+  /// is waiting to begin, or once ending.
   Future<void> startWeeklySession() async {
     if (!ref.mounted ||
         _ending ||
         state.phase != CoachSessionPhase.awaitingStart) {
       return;
     }
+    if (!_consentGiven) return _withdrawnWhileIdle();
     state = state.copyWith(phase: CoachSessionPhase.starting);
     await _run(() async {
       final readFor = state.weekFirst;
@@ -363,6 +443,14 @@ class CoachSessionController extends _$CoachSessionController {
   /// [CoachSessionState.reply].
   Future<({String text, CoachStopReason? stopReason, Failure? failure})>
   _stream(CoachRequest request, {required bool show}) async {
+    // Nothing leaves the phone without a settled yes.
+    if (!_consentGiven) {
+      return (
+        text: '',
+        stopReason: null,
+        failure: const CoachConsentNotGivenFailure(),
+      );
+    }
     var latest = '';
     CoachStopReason? stopReason;
     Failure? failure;
@@ -410,6 +498,12 @@ class CoachSessionController extends _$CoachSessionController {
       _activeDone = null;
     }
     if (show) _reply = null;
+    if (_stoppedBy case (final stopped, final because)
+        when identical(stopped, subscription)) {
+      _stoppedBy = null;
+      // Stopped because the coach was turned off: what came in is dropped.
+      return (text: '', stopReason: null, failure: because);
+    }
     return (text: latest, stopReason: stopReason, failure: failure);
   }
 
@@ -431,10 +525,14 @@ class CoachSessionController extends _$CoachSessionController {
   }
 
   /// Cancels whichever reply stream is running, so the operation awaiting
-  /// it moves on with what was said so far.
-  void _stopStreaming() {
+  /// it moves on with what was said so far, or, stopped [because] of a
+  /// failure (consent withdrawn), with that failure and nothing said.
+  void _stopStreaming({Failure? because}) {
     final subscription = _active;
     final done = _activeDone;
+    if (subscription != null && because != null) {
+      _stoppedBy = (subscription, because);
+    }
     _reply = null;
     if (subscription != null) unawaited(subscription.cancel());
     if (done != null && !done.isCompleted) done.complete();

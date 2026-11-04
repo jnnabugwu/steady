@@ -20,6 +20,10 @@ ROOT = File.expand_path("..", APP_DIR)
 BUNDLE_ID = "com.jmagic.steady"
 TEAM_ID = "UXZV3C926U"
 PBXPROJ = File.expand_path("../Runner.xcodeproj/project.pbxproj", __dir__)
+# The coach proxy's address (steady-backend, Production), baked in as
+# --dart-define=COACH_PROXY_URL; without it the coach reports itself off.
+# One source, shared with scripts/build-ios-ipa.sh and verify-ios-ipa.sh.
+COACH_PROXY_URL = ENV.fetch("COACH_PROXY_URL") { File.read(File.join(ROOT, "scripts/coach-proxy-url")).strip }
 
 # app/pubspec.yaml's `version: 1.0.0+3` as ["1.0.0", 3].
 def pubspec_version
@@ -74,7 +78,8 @@ platform :ios do
       Dir.chdir(APP_DIR) do
         sh("flutter", "pub", "get")
         sh("flutter", "build", "ios", "--release", "--config-only", "--no-codesign",
-           "--build-name=#{version}", "--build-number=#{build}")
+           "--build-name=#{version}", "--build-number=#{build}",
+           "--dart-define=COACH_PROXY_URL=#{COACH_PROXY_URL}")
       end
       ipa = build_app(
         workspace: "Runner.xcworkspace",
@@ -92,6 +97,7 @@ platform :ios do
     # Same gate as a local scripts/build-ios-ipa.sh build: team, HealthKit,
     # iCloud container, production push, production App Attest, iPhone-only.
     # Fails before upload.
+    ENV["COACH_PROXY_URL"] = COACH_PROXY_URL
     sh(File.join(ROOT, "scripts/verify-ios-ipa.sh"), ipa, version, build.to_s)
 
     # Upload only. Adding the build to a tester group and Beta App Review stay

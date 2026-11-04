@@ -8,6 +8,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 import 'helpers/fake_domains.dart';
@@ -124,6 +125,7 @@ void main() {
     WidgetTester tester,
     Widget child, {
     String scope = 'a',
+    FakeCoachConsentRepository? consent,
   }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
@@ -137,6 +139,7 @@ void main() {
           checkIns: checkIns,
           cravings: FakeCravings([craving('c', DateTime(2026, 10, 18, 21))]),
           now: () => friday,
+          consent: consent,
         ),
         child: ShadcnApp(theme: steadyTheme, home: child),
       ),
@@ -150,6 +153,7 @@ void main() {
       CoachHomeModule(
         onChatRequested: () {},
         onWeeklyRequested: () {},
+        onConsentRequested: () {},
         onSessionSelected: (_) {},
       ),
     );
@@ -171,6 +175,7 @@ void main() {
         CoachHomeModule(
           onChatRequested: () {},
           onWeeklyRequested: () {},
+          onConsentRequested: () {},
           onSessionSelected: (_) {},
         ),
         scope: 'unavailable $i',
@@ -190,6 +195,7 @@ void main() {
       CoachHomeModule(
         onChatRequested: () {},
         onWeeklyRequested: () {},
+        onConsentRequested: () {},
         onSessionSelected: (_) {},
       ),
     );
@@ -201,14 +207,14 @@ void main() {
     await pump(tester, Center(child: CoachNudgeCard(onTalkNow: () {})));
     expect(find.byKey(const Key('coachNudgeCard')), findsOneWidget);
     review(tester, 'nudge');
-    model.availability = const Err(CoachConsentNotGivenFailure());
+    model.availability = const Err(CoachTurnedOffFailure());
     await pump(
       tester,
       Center(child: CoachNudgeCard(onTalkNow: () {})),
       scope: 'unavailable',
     );
     // As above: proof the unavailable copy is what's on screen now.
-    expect(find.text("The coach isn't set up yet"), findsOneWidget);
+    expect(find.text('The coach is off right now'), findsOneWidget);
     review(tester, 'nudge, unavailable');
   });
 
@@ -217,7 +223,11 @@ void main() {
   ) async {
     await pump(
       tester,
-      CoachSessionModule(kind: CoachSessionKind.weekly, onClosed: () {}),
+      CoachSessionModule(
+        kind: CoachSessionKind.weekly,
+        onClosed: () {},
+        onConsentRequested: () {},
+      ),
     );
     review(tester, 'weekly intro');
 
@@ -239,21 +249,115 @@ void main() {
     checkIns.statuses.clear();
     await pump(
       tester,
-      CoachSessionModule(kind: CoachSessionKind.weekly, onClosed: () {}),
+      CoachSessionModule(
+        kind: CoachSessionKind.weekly,
+        onClosed: () {},
+        onConsentRequested: () {},
+      ),
     );
     expect(find.byKey(const Key('coachNotEnoughCheckIns')), findsOneWidget);
     review(tester, 'weekly, thin week');
   });
 
   testWidgets("Settings' Coach card and its delete dialog", (tester) async {
-    await pump(tester, const SingleChildScrollView(child: CoachSettingsCard()));
+    await pump(
+      tester,
+      SingleChildScrollView(
+        child: CoachSettingsCard(onConsentRequested: () {}),
+      ),
+    );
     expect(find.byKey(const Key('coachSettingsCard')), findsOneWidget);
-    review(tester, 'Settings card');
+    expect(find.byKey(const Key('coachConsentSwitch')), findsOneWidget);
+    review(tester, 'Settings card, coach on');
 
     await tester.tap(find.byKey(const Key('coachDeleteHistoryButton')));
     await tester.pumpAndSettle();
     expect(find.text('Delete coach history?'), findsOneWidget);
     review(tester, 'Settings, delete dialog');
+  });
+
+  testWidgets("Settings' Coach switch off, and a save that didn't work", (
+    tester,
+  ) async {
+    final consent = FakeCoachConsentRepository();
+    await pump(
+      tester,
+      SingleChildScrollView(
+        child: CoachSettingsCard(onConsentRequested: () {}),
+      ),
+      consent: consent,
+    );
+    expect(find.byKey(const Key('coachConsentLine')), findsOneWidget);
+    review(tester, 'Settings card, coach off');
+
+    consent
+      ..agreed = CoachConsent.currentVersion
+      ..failNext = const CoachConsentStorageFailure('disk');
+    await pump(
+      tester,
+      SingleChildScrollView(
+        child: CoachSettingsCard(onConsentRequested: () {}),
+      ),
+      consent: consent,
+      scope: 'save error',
+    );
+    await tester.tap(find.byKey(const Key('coachConsentSwitch')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('coachConsentError')), findsOneWidget);
+    review(tester, 'Settings card, save error');
+  });
+
+  testWidgets('the consent screen, and its save error', (tester) async {
+    final consent = FakeCoachConsentRepository();
+    await pump(
+      tester,
+      CoachConsentModule(onConsentGiven: () {}, onNotNow: () {}),
+      consent: consent,
+    );
+    expect(find.text(CoachConsent.title), findsOneWidget);
+    review(tester, 'consent screen');
+
+    consent.failNext = const CoachConsentStorageFailure('disk');
+    await tester.ensureVisible(find.byKey(const Key('coachConsentAllow')));
+    await tester.tap(find.byKey(const Key('coachConsentAllow')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('coachConsentError')), findsOneWidget);
+    review(tester, 'consent screen, save error');
+  });
+
+  testWidgets('the coach off: the Coach tab, the nudge and a session', (
+    tester,
+  ) async {
+    await pump(
+      tester,
+      CoachHomeModule(
+        onChatRequested: () {},
+        onWeeklyRequested: () {},
+        onConsentRequested: () {},
+        onSessionSelected: (_) {},
+      ),
+      consent: FakeCoachConsentRepository(),
+    );
+    expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+    review(tester, 'Coach tab, coach off');
+
+    await pump(
+      tester,
+      Center(child: CoachNudgeCard(onTalkNow: () {})),
+      consent: FakeCoachConsentRepository(),
+      scope: 'nudge',
+    );
+    expect(find.byKey(const Key('coachNudgeTalkNow')), findsOneWidget);
+    review(tester, 'nudge, coach off');
+
+    await pump(
+      tester,
+      CoachSessionModule(onClosed: () {}, onConsentRequested: () {}),
+      consent: FakeCoachConsentRepository(),
+      scope: 'session',
+    );
+    expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+    review(tester, 'session, coach off');
   });
 
   testWidgets('a past session', (tester) async {

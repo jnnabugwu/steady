@@ -1,7 +1,9 @@
 import 'package:checkin_domain/checkin_domain.dart';
+import 'package:coach_domain/coach_domain.dart';
 import 'package:coach_presentation/coach_presentation.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 
+import 'fake_coach_consent_repository.dart';
 import 'fake_coach_model.dart';
 import 'fake_coach_repository.dart';
 import 'fake_domains.dart';
@@ -18,11 +20,18 @@ List<Override> coachTestOverrides({
   DateTime Function()? now,
   String sessionId = 'session-1',
   bool consentGiven = true,
+  FakeCoachConsentRepository? consent,
 }) => [
   coachSupportAvailableProvider.overrideWithValue(true),
-  // The tests below the consent gate assume it's been given; the gate's own
-  // tests pass `consentGiven: false`.
-  coachConsentGivenProvider.overrideWithValue(consentGiven),
+  // The real consent Notifier over a fake store. The tests below the
+  // consent gate assume it's been given (the current version stored); the
+  // gate's own tests pass `consentGiven: false`, or their own [consent].
+  coachConsentRepositoryProvider.overrideWithValue(
+    consent ??
+        FakeCoachConsentRepository(
+          agreed: consentGiven ? CoachConsent.currentVersion : null,
+        ),
+  ),
   coachModelProvider.overrideWithValue(model),
   coachRepositoryProvider.overrideWithValue(repository),
   coachCheckInRepositoryProvider.overrideWithValue(

@@ -29,7 +29,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
-	<string>Steady reads your daily steps, active and resting energy, weight, and calories eaten (logged by apps like Cal AI) from Apple Health to show what you ate next to how much you burned, and your weight trend. These stay on this iPhone: Steady never stores them in iCloud and never writes anything to Apple Health.</string>
+	<string>Steady reads your daily steps, active and resting energy, weight, and calories eaten (logged by apps like Cal AI) from Apple Health to show what you ate next to how much you burned, and your weight trend. Steady keeps them on this iPhone, never stores them in iCloud and never writes anything to Apple Health. If you turn on the coach, it sends the week's totals (not weight) to Anthropic to write its replies.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>Steady never writes anything to Apple Health. It only reads your daily steps, active and resting energy, weight and calories eaten to show them in the app.</string>
 	<key>SteadyCloudKitContainer</key>

@@ -1,6 +1,6 @@
 # Steady — Product Overview
 
-*An iPhone app for tracking food, steps, and consistency — with an on-device coach. (The
+*An iPhone app for tracking food, steps, and consistency — with a coach you can turn on. (The
 macOS target is parked, 2026-10-27: see `docs/technical_decisions.md`.)
 Built for personal use first, then opened to a small group of friends via TestFlight (US,
 Apple-only), each with their own private copy of their data.*
@@ -23,8 +23,10 @@ Apple-only), each with their own private copy of their data.*
   it, an optional guided minute of imagery, "Still want it?") with equally neutral endings, no
   scores or streaks, and "eating something is a good call" when you're hungry. Stored only on
   the iPhone, never in iCloud (see `technical_decisions.md`).
-- An on-device **coach** (not "therapist") for a weekly 5-minute check-in session (iPhone),
-  focused on tracking consistency and behavior — not calorie prescriptions.
+- A **coach** (not "therapist") for a weekly 5-minute check-in session and chat (iPhone),
+  focused on tracking consistency and behavior — not calorie prescriptions. It's powered by
+  Claude (Anthropic) through Steady's own small proxy, and it's **off until the person turns
+  it on** on a consent screen that says what it sends (§7).
 - **Share cards**: share an image of your week (check-in statuses by default; calories and
   steps only if you choose) to Messages, Instagram, or anywhere the share sheet reaches.
   Friends never see each other's data inside the app (see `technical_decisions.md`).
@@ -46,18 +48,18 @@ Apple-only), each with their own private copy of their data.*
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit and Foundation Models on iOS only) |
-| On-device LLM | Apple **Foundation Models** framework — **iPhone only** (iOS 26+, an iPhone that supports Apple Intelligence) | The coach runs where its context lives: Health data and craving check-ins are iPhone-only (App Store 5.1.3). The Mac has no coach. Availability is checked at runtime, so the app's iOS floor isn't raised — see `CLAUDE.md` §11. |
+| Client | Flutter — **iOS + macOS** | Shared Dart codebase across both; each platform has its own thin native glue layer (HealthKit and App Attest on iOS only) |
+| Coach model | **Claude Opus 5.5** via the Anthropic API, reached only through Steady's proxy on Vercel (`jnnabugwu/steady-backend`), with **App Attest** on every request — **iPhone only** | The coach runs where its context lives: Health data and craving check-ins are iPhone-only (App Store 5.1.3). The proxy holds the API key and the system prompt, keeps no message content, and caps cost per device. Nothing is sent until the person agrees on the consent screen (App Store 5.1.2); Anthropic deletes API data within 30 days and doesn't train on it. Works on an iPhone with a connection that App Attest can verify (no Apple Intelligence needed). The Mac has no coach. See `CLAUDE.md` §7, §11. |
 | Sync | **CloudKit** (via SwiftData's CloudKit integration) | Single-user, Apple-only devices — CloudKit handles cross-device sync **and auth** (Apple ID) with no custom sync protocol, backend, or separate login system needed |
 | PDF parsing | **`pdfrx_engine`** (pure Dart), on-device | No backend at all — validated against real Cal AI exports (see `CLAUDE.md` §6 for the parsing algorithm and validation results) |
-| Local storage | **SwiftData** (CloudKit-backed) | Daily metrics and check-ins — same store syncs automatically across iPhone and Mac. Coach transcripts and cravings stay device-only on the iPhone (`CLAUDE.md` §7, §11) |
+| Local storage | **SwiftData** (CloudKit-backed) | Daily metrics and check-ins — same store syncs automatically across iPhone and Mac. Coach transcripts, the coach consent answer and cravings stay device-only on the iPhone (`CLAUDE.md` §7, §11) |
 | Step/energy data | **HealthKit** via a `steady/healthkit` platform channel, **iOS only** | Read live on the iPhone and never stored in iCloud (App Store 5.1.3(ii); see `docs/technical_decisions.md`). The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` is `false` on macOS (checked on 26.6.2) |
 | Food data source | Cal AI PDF export (user-uploaded, either device) | Cal AI is the food log; this app doesn't replace it, it visualizes + coaches on top of it |
 
-**Platform requirement note:** the coach needs iOS 26+ on an iPhone that supports Apple
-Intelligence, with it turned on. That's a runtime check, not the app's floor: on any other
-iPhone the rest of the app works and the coach says why it's unavailable (see `CLAUDE.md`
-§11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need; the exact iOS
+**Platform requirement note:** the coach needs the person's consent, a network connection
+and an iPhone that App Attest can verify (and a build with the proxy's URL). Those are
+runtime checks, not the app's floor: without any of them the rest of the app works and the
+coach says why it's unavailable (see `CLAUDE.md` §11). iOS's actual floor is whatever SwiftData/CloudKit and HealthKit need; the exact iOS
 minimum is an open decision, not yet resolved. The Mac app has no coach and no Health data
 (HealthKit isn't available on the Mac).
 
@@ -131,13 +133,12 @@ against real exported data but are **not** part of the active build — parked p
 ## 6. Resolved Design Decisions
 
 **Coach availability — iPhone only (2026-10-24; replaces "macOS only").**
-The coach's 5-minute weekly session and chat run on the iPhone via Foundation Models. Its
-context lives there: steps and burned energy come from HealthKit, which works only on the
+The coach's 5-minute weekly session and chat run on the iPhone (its replies now come from
+hosted Claude, §7; decided 2026-10-30). Its context lives there: steps and burned energy come from HealthKit, which works only on the
 iPhone and can't sync through iCloud (App Store 5.1.3), and craving check-ins are
 device-only. A Mac coach would have seen only calories eaten and check-ins, which leaves
 the Friday session's step thread (below) with nothing to discuss. Transcripts stay on the
-iPhone too, since they quote that data. The session is a deliberate 5 minutes (decided 2026-10-25), sized for the phone and for
-the on-device model's small context window. Full consequences are in `CLAUDE.md` §11; decision record:
+iPhone too, since they quote that data. The session is a deliberate 5 minutes (decided 2026-10-25), sized for the phone. Full consequences are in `CLAUDE.md` §11; decision record:
 `docs/technical_decisions.md`, "The coach runs on the iPhone".
 
 **End-of-day check-in UX — in-app only, no reminder.**
@@ -164,9 +165,21 @@ always built from whatever daily readings exist rather than depending on one raw
 
 ## 7. The Coach
 
-A short, on-device conversation about your own tracking. It runs on the iPhone with Apple
-Foundation Models, so nothing is sent to a server. It's a coach, not a therapist: it reflects
-on what you logged and asks questions, and never hands down numbers.
+A short conversation about your own tracking, on the iPhone. Its replies come from Claude, an
+AI model made by Anthropic, through Steady's own small proxy. It's a coach, not a therapist:
+it reflects on what you logged and asks questions, and never hands down numbers.
+
+**Off until you turn it on (#153, App Store 5.1.2).** Before the first request, from every
+way in (the Coach tab's "Turn on the coach", the nudge's "Talk now", a session opened from a
+link, the Settings switch), a consent screen, "Talk with the coach", says what's sent to
+Anthropic (this week's check-ins; steps, energy burned and calories eaten; craving
+check-ins; what you type), that it's used only for the replies, that Anthropic deletes it
+within 30 days and doesn't train on it, that Steady's server doesn't keep it and
+conversations are saved only on the iPhone, and that it isn't medical advice. "Allow and
+continue" or "Not now"; nothing is sent before Allow. Settings → Coach has a switch: off
+stops every request at once, a reply in flight included, and keeps the history. The answer
+is stored on the iPhone only, as the version of the consent text agreed to, so a material
+change to what's sent (journal notes, #85; another provider) asks again.
 
 **What it does:**
 
@@ -185,15 +198,16 @@ on what you logged and asks questions, and never hands down numbers.
 - **Chat, any time.** A short conversation with the last seven days in view. You can stop a
   reply partway; "End" writes a summary.
 - **A nudge on Today.** Friday to Sunday, when last week qualifies and no weekly check-in has
-  started yet: "Talk now" or "Not tonight" (hides it for the day). It's a card in the app,
+  started yet: "Talk now" or "Not tonight" (hides it for the day). With the coach off it looks
+  the same, and "Talk now" shows the consent screen first ("Not now" returns to Today). It's a card in the app,
   never a notification, so the coach stays something you go to.
 - **History.** The Coach tab lists past sessions, newest first; tap one to read it.
 
 **What it sees:** a compact line per day for the last seven days: check-in status, calories
 eaten, steps and active/resting energy (read live from Apple Health), and how many craving
 check-ins there were and at what time of day (plus what was behind them, in the weekly
-check-in). Never raw food logs or full history; the on-device model's context window is
-small (4,096 tokens on iOS 26).
+check-in). Never raw food logs, weight or full history: it's what leaves the phone, so it
+stays compact (at most 1,200 characters).
 
 **What it won't do:**
 
@@ -212,14 +226,15 @@ app data they're in the phone's own iCloud Backup if that's on. Settings → Coa
 coach history" removes them. The JSON export includes each session's date, type and summary,
 not the conversation.
 
-**When it can't run:** it needs iOS 26 or later on an iPhone that supports Apple
-Intelligence, with it turned on and the model downloaded. Otherwise the Coach tab says
-plainly which of those is missing, and the rest of the app works as usual. The Mac has no
-coach.
+**When it can't run:** turned off (no consent), the proxy switched off, an iPhone that can't
+be verified with App Attest, no connection, or the day's limit reached. The Coach tab says
+plainly which, and the rest of the app works as usual. Past conversations stay readable.
+The Mac has no coach.
 
-**Status (2026-10-26):** built (PRs #124–#127). No reply has run on a real model yet: the
-simulators report Apple Intelligence off or the model not ready, so it needs a try on an
-Apple Intelligence iPhone.
+**Status (2026-11-03):** the hosted model's app side (#151, #152) and consent (#153) are
+built. Open: the proxy's deployment, App Attest on a physical iPhone and the App ID
+capability (#148), the App Privacy answers in App Store Connect, and the guardrail
+evaluations (#154).
 
 ## 8. Planned: Bringing in Journal Notes & Book-Derived Methods (RAG)
 
@@ -238,7 +253,8 @@ outside sources (e.g. techniques from a book) during sessions — not just app-g
   no beta-OS dependency. Chunk source text → on-device embeddings via `NLEmbedding`
   (Apple's `NaturalLanguage` framework, local, no network) → store chunks + embeddings in
   SwiftData (syncs via CloudKit like everything else) → cosine-similarity top-k retrieval at
-  session time → inject matches into the Foundation Models prompt as context.
+  session time → add matches to the coach's context (sent for the reply, so it needs a
+  consent version bump, #153).
   Migrating to Path A later is a retrieval-mechanism swap, not a rearchitecture.
 
 **Content handling:**

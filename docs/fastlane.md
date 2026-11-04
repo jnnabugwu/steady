@@ -26,6 +26,15 @@ The lanes live in `app/ios/fastlane/Fastfile`. The fastlane version is pinned by
 - `release` submits the latest TestFlight build for the pubspec version, or the build
   number you type into the workflow's `build_number` box.
 
+## The coach proxy address
+
+Release builds get the coach proxy's address only at build time, as
+`--dart-define=COACH_PROXY_URL`; without it every tester's coach says it's off. `beta` and
+`scripts/build-ios-ipa.sh` both read it from `scripts/coach-proxy-url` (the Production
+deployment of `jnnabugwu/steady-backend`), and `scripts/verify-ios-ipa.sh` fails the build if
+it isn't compiled in. If the proxy moves (a custom domain, say), change that one file. A
+`COACH_PROXY_URL` environment variable overrides it for a single build.
+
 ## One-time setup
 
 ### 1. App Store Connect API key (CI's login)

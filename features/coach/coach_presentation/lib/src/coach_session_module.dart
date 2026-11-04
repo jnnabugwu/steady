@@ -24,9 +24,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// - **Ending:** "End" asks for the summary and shows it, with "Done".
 ///   Closing (X) ends the session too, in the background, and leaves at
 ///   once; a session where the person said nothing records nothing.
-/// - **Unavailable:** the typed failure (no consent yet, the coach off,
-///   this iPhone can't be verified), through [CoachUnavailableCard], with
-///   "Check again" where that could help.
+/// - **Unavailable:** the typed failure (the coach turned off or not yet
+///   agreed to, the proxy off, this iPhone can't be verified), through
+///   [CoachUnavailableCard], with "Check again" where that could help, and
+///   for no consent **Turn on the coach** ([onConsentRequested]); once the
+///   person allows it, the session starts by itself.
 /// - **Safety:** `CoachCopy.notMedicalAdvice` at the top, and
 ///   `CoachCopy.helpLine` when the model refuses a reply (#82); the refused
 ///   reply's partial text is never shown.
@@ -34,12 +36,14 @@ import 'package:ui_kit/ui_kit.dart';
 ///   each finished coach reply once (never a partial snapshot); Reduce
 ///   Motion keeps the dots still and jumps instead of scrolling.
 ///
-/// Knows nothing about routing (CLAUDE.md §5): [onClosed] is the app
-/// layer's. Built from `shadcn_flutter` and `ui_kit` only.
+/// Knows nothing about routing (CLAUDE.md §5): [onClosed] and
+/// [onConsentRequested] are the app layer's. Built from `shadcn_flutter`
+/// and `ui_kit` only.
 class CoachSessionModule extends ConsumerStatefulWidget {
   /// Creates the screen for a new session of [kind].
   const CoachSessionModule({
     required this.onClosed,
+    required this.onConsentRequested,
     this.kind = CoachSessionKind.chat,
     super.key,
   });
@@ -49,6 +53,10 @@ class CoachSessionModule extends ConsumerStatefulWidget {
 
   /// Called when the person closes the screen or taps "Done".
   final void Function() onClosed;
+
+  /// Called by "Turn on the coach" while the coach is off: open the
+  /// consent screen.
+  final void Function() onConsentRequested;
 
   @override
   ConsumerState<CoachSessionModule> createState() => _CoachSessionModuleState();
@@ -203,11 +211,13 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                   onNextTopic: () =>
                       unawaited(controller.moveToNextWeeklyTopic()),
                   onDone: widget.onClosed,
+                  onTurnOn: widget.onConsentRequested,
                 ),
               CoachSessionPhase.unavailable => _Centered(
                 child: CoachUnavailableCard(
                   failure: session.failure ?? const CoachServerFailure(),
                   onRetry: () => unawaited(controller.retryCoachStart()),
+                  onTurnOn: widget.onConsentRequested,
                 ),
               ),
               CoachSessionPhase.failedToStart => _Centered(
@@ -247,6 +257,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                 onNextTopic: () =>
                     unawaited(controller.moveToNextWeeklyTopic()),
                 onDone: widget.onClosed,
+                onTurnOn: widget.onConsentRequested,
               ),
             },
           ),
@@ -460,6 +471,7 @@ class _Conversation extends StatelessWidget {
     required this.onKeepGoing,
     required this.onNextTopic,
     required this.onDone,
+    required this.onTurnOn,
   });
 
   final CoachSessionState state;
@@ -472,6 +484,7 @@ class _Conversation extends StatelessWidget {
   final VoidCallback onKeepGoing;
   final VoidCallback onNextTopic;
   final VoidCallback onDone;
+  final VoidCallback onTurnOn;
 
   @override
   Widget build(BuildContext context) {
@@ -555,6 +568,7 @@ class _Conversation extends StatelessWidget {
                   child: CoachUnavailableCard(
                     failure: failure ?? const CoachServerFailure(),
                     onRetry: onRetryStart,
+                    onTurnOn: onTurnOn,
                   ),
                 ),
               if (phase == CoachSessionPhase.failedToStart)

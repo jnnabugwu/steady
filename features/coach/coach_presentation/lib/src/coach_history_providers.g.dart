@@ -11,7 +11,7 @@ part of 'coach_history_providers.dart';
 /// Whether the coach can run on this iPhone now, before anything is sent:
 /// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
 /// that says why not ([checkCoachAvailable]). Rebuilds when consent
-/// changes.
+/// changes (given, or withdrawn in Settings → Coach).
 ///
 /// iPhone only: read it only where `coachSupportAvailableProvider` is
 /// `true`, since the model isn't bound anywhere else. **Never calls the
@@ -25,7 +25,7 @@ final coachAvailabilityProvider = CoachAvailabilityProvider._();
 /// Whether the coach can run on this iPhone now, before anything is sent:
 /// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
 /// that says why not ([checkCoachAvailable]). Rebuilds when consent
-/// changes.
+/// changes (given, or withdrawn in Settings → Coach).
 ///
 /// iPhone only: read it only where `coachSupportAvailableProvider` is
 /// `true`, since the model isn't bound anywhere else. **Never calls the
@@ -39,7 +39,7 @@ final class CoachAvailabilityProvider
   /// Whether the coach can run on this iPhone now, before anything is sent:
   /// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
   /// that says why not ([checkCoachAvailable]). Rebuilds when consent
-  /// changes.
+  /// changes (given, or withdrawn in Settings → Coach).
   ///
   /// iPhone only: read it only where `coachSupportAvailableProvider` is
   /// `true`, since the model isn't bound anywhere else. **Never calls the
@@ -71,7 +71,7 @@ final class CoachAvailabilityProvider
   }
 }
 
-String _$coachAvailabilityHash() => r'a7ec1a1f5b0b01bc9cd63aabb0c2a35a82049756';
+String _$coachAvailabilityHash() => r'21cbe0160544cc80cfb905e7f37f32051ac8edb2';
 
 /// Every stored coach session, newest first, read locally from
 /// `CoachRepository`. The live session invalidates it after each save, and

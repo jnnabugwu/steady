@@ -7,8 +7,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
+import 'helpers/fake_domains.dart';
 
 void main() {
   late FakeCoachModel model;
@@ -26,12 +28,16 @@ void main() {
 
   /// A container with the session's provider listened to, after its start
   /// has settled.
-  Future<CoachSessionController> start({bool consentGiven = true}) async {
+  Future<CoachSessionController> start({
+    bool consentGiven = true,
+    FakeCoachConsentRepository? consent,
+  }) async {
     container = ProviderContainer.test(
       overrides: coachTestOverrides(
         model: model,
         repository: repository,
         consentGiven: consentGiven,
+        consent: consent,
       ),
     )..listen(provider, (_, _) {});
     await pumpEventQueue();
@@ -619,6 +625,177 @@ void main() {
       await controller.retryCoachStart();
       expect(state().phase, CoachSessionPhase.ready);
       expect(model.availabilityChecks, 1);
+    });
+  });
+
+  group('consent (Settings → Coach)', () {
+    late FakeCoachConsentRepository consent;
+
+    setUp(
+      () => consent = FakeCoachConsentRepository(
+        agreed: CoachConsent.currentVersion,
+      ),
+    );
+
+    Future<void> withdraw() => container
+        .read(coachConsentGivenProvider.notifier)
+        .withdrawCoachConsent();
+
+    Future<void> give() =>
+        container.read(coachConsentGivenProvider.notifier).giveCoachConsent();
+
+    test('turned off mid-reply: the reply is cancelled and dropped, the '
+        'session says the coach is off, and nothing more is sent', () async {
+      model.manualReplies = true;
+      final controller = await start(consent: consent);
+      unawaited(controller.sendCoachMessage('Hi'));
+      await pumpEventQueue();
+      model.say('Tuesday was');
+      await pumpEventQueue();
+      expect(state().reply, 'Tuesday was');
+
+      await withdraw();
+      await pumpEventQueue();
+      expect(model.cancelled, isTrue);
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      expect(state().reply, isNull);
+      expect(state().session.messages.map((m) => m.text), ['Hi']);
+      // Stored without the dropped partial reply.
+      expect(repository.sessions.single.messages.map((m) => m.text), ['Hi']);
+
+      await controller.sendCoachMessage('Still there?');
+      await controller.retryCoachStart();
+      expect(model.requests, hasLength(1));
+    });
+
+    test('the reply is stopped the moment the switch is turned off, before '
+        'the store is written', () async {
+      model.manualReplies = true;
+      final controller = await start(consent: consent);
+      unawaited(controller.sendCoachMessage('Hi'));
+      await pumpEventQueue();
+      consent.holdWrites = Completer<void>();
+      final withdrawing = withdraw();
+      await pumpEventQueue();
+      expect(model.cancelled, isTrue);
+      expect(state().phase, CoachSessionPhase.unavailable);
+      consent.holdWrites!.complete();
+      await withdrawing;
+    });
+
+    test('turned off while the week is read: unavailable, not stuck '
+        'starting, and nothing is sent', () async {
+      final cravings = FakeCravings();
+      final hold = Completer<void>();
+      cravings.hold = hold.future;
+      container = ProviderContainer.test(
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          consent: consent,
+          cravings: cravings,
+        ),
+      )..listen(provider, (_, _) {});
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.starting);
+
+      await withdraw();
+      hold.complete();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      expect(model.requests, isEmpty);
+
+      // And allowed again, it starts.
+      await give();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.ready);
+    });
+
+    test('turned off while ready: unavailable, and a message sends '
+        'nothing', () async {
+      final controller = await start(consent: consent);
+      expect(state().phase, CoachSessionPhase.ready);
+      await withdraw();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      await controller.sendCoachMessage('Hi');
+      expect(model.requests, isEmpty);
+    });
+
+    test('turned off while the summary is being written: it is dropped, and '
+        'the session is stored without one', () async {
+      final controller = await start(consent: consent);
+      await controller.sendCoachMessage('Hi');
+      final summarising = Completer<void>();
+      model.beforeReply = () {
+        model.beforeReply = null;
+        return summarising.future;
+      };
+      final ending = controller.endCoachSession();
+      await pumpEventQueue();
+      expect(model.summaryRequests, hasLength(1));
+
+      await withdraw();
+      await ending;
+      summarising.complete();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.ended);
+      expect(repository.sessions.single.summary, isNull);
+      expect(repository.sessions.single.endedAt, isNotNull);
+    });
+
+    test('ending after it was turned off sends no summary request', () async {
+      final controller = await start(consent: consent);
+      await controller.sendCoachMessage('Hi');
+      await withdraw();
+      await controller.endCoachSession();
+      expect(model.summaryRequests, isEmpty);
+      expect(state().phase, CoachSessionPhase.ended);
+      expect(repository.sessions.single.summary, isNull);
+    });
+
+    test('turned back on, the session starts by itself', () async {
+      consent.agreed = null;
+      await start(consent: consent);
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(model.availabilityChecks, 0);
+
+      await give();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.ready);
+      expect(model.availabilityChecks, 1);
+      expect(model.requests, isEmpty);
+    });
+
+    test('turned back on mid-conversation, the unanswered message is sent '
+        'again', () async {
+      model.manualReplies = true;
+      final controller = await start(consent: consent);
+      unawaited(controller.sendCoachMessage('Hi'));
+      await pumpEventQueue();
+      await withdraw();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.unavailable);
+
+      await give();
+      await pumpEventQueue();
+      expect(model.replyRequests, hasLength(2));
+      expect(model.replyRequests.last.turns, const [CoachTurn.person('Hi')]);
+      expect(state().phase, CoachSessionPhase.replying);
+    });
+
+    test('a bumped consent version asks again: an older agreement sends '
+        'nothing', () async {
+      consent.agreed = CoachConsent.currentVersion - 1;
+      final controller = await start(consent: consent);
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      await controller.sendCoachMessage('Hi');
+      expect(model.requests, isEmpty);
+      expect(model.availabilityChecks, 0);
     });
   });
 

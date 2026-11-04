@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:coach_domain/coach_domain.dart';
+import 'package:coach_presentation/src/coach_consent_controller.dart';
 import 'package:coach_presentation/src/providers.dart';
 import 'package:failures/failures.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -15,7 +16,7 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 /// Whether the coach can run on this iPhone now, before anything is sent:
 /// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
 /// that says why not ([checkCoachAvailable]). Rebuilds when consent
-/// changes.
+/// changes (given, or withdrawn in Settings → Coach).
 ///
 /// iPhone only: read it only where `coachSupportAvailableProvider` is
 /// `true`, since the model isn't bound anywhere else. **Never calls the
@@ -25,7 +26,9 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 @Riverpod(retry: _retryUnlessFailure)
 Future<Unit> coachAvailability(Ref ref) async =>
     switch (await checkCoachAvailable(
-      consentGiven: ref.watch(coachConsentGivenProvider),
+      consentGiven: await readCoachConsent(
+        ref.watch(coachConsentGivenProvider.future),
+      ),
       model: ref.watch(coachModelProvider),
     )) {
       Ok(:final value) => value,

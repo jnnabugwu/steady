@@ -1,11 +1,15 @@
 /// The coach on the iPhone (CLAUDE.md §11): the Coach tab
 /// (`CoachHomeModule`), a live session (`CoachSessionModule`), a past
-/// session's transcript (`CoachTranscriptModule`), Settings' "Coach" card
-/// (`CoachSettingsCard`), their Notifiers, the context use case
+/// session's transcript (`CoachTranscriptModule`), the consent screen
+/// (`CoachConsentModule`), Settings' "Coach" card (`CoachSettingsCard`,
+/// with the switch that turns the coach on or off), their Notifiers (the
+/// consent answer is `coachConsentGivenProvider`), the context use case
 /// (`BuildCoachWeekContext`) and the providers the app layer overrides
 /// (CLAUDE.md §9).
 library;
 
+export 'src/coach_consent_controller.dart';
+export 'src/coach_consent_module.dart';
 export 'src/coach_history_controller.dart';
 export 'src/coach_history_providers.dart';
 export 'src/coach_home_module.dart';

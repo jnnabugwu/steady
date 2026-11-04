@@ -9,6 +9,7 @@ part of 'app_router.dart';
 List<RouteBase> get $appRoutes => [
   $appShellRoute,
   $coachWeeklyRoute,
+  $coachConsentRoute,
   $importRoute,
 ];
 
@@ -268,6 +269,33 @@ mixin $CoachWeeklyRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/weekly-check-in');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $coachConsentRoute => GoRouteData.$route(
+  path: '/coach-consent',
+  hasOverriddenOnExit: false,
+  factory: $CoachConsentRoute._fromState,
+);
+
+mixin $CoachConsentRoute on GoRouteData {
+  static CoachConsentRoute _fromState(GoRouterState state) =>
+      const CoachConsentRoute();
+
+  @override
+  String get location => GoRouteData.$location('/coach-consent');
 
   @override
   void go(BuildContext context) => context.go(location);

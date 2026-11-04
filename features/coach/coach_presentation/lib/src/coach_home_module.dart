@@ -11,14 +11,16 @@ import 'package:ui_kit/ui_kit.dart';
 /// read a past session.
 ///
 /// Top to bottom: the title, the coach card (a chat, or why the coach
-/// can't run here: [coachAvailabilityProvider]'s typed failure, such as no
-/// consent yet, through [CoachUnavailableCard]), the weekly check-in
+/// can't run here: [coachAvailabilityProvider]'s typed failure, through
+/// [CoachUnavailableCard]; with no consent, "The coach is off" and **Turn
+/// on the coach**, which opens the consent screen), the weekly check-in
 /// ([CoachWeeklyCard], while the coach is available), the "not medical
 /// advice" note, and the past sessions, newest first
 /// ([coachSessionListProvider]), each opening its read-only transcript.
 ///
 /// Knows nothing about routing (CLAUDE.md §5): [onChatRequested],
-/// [onWeeklyRequested] and [onSessionSelected] are wired by the app layer.
+/// [onWeeklyRequested], [onConsentRequested] and [onSessionSelected] are
+/// wired by the app layer. Past sessions stay readable with the coach off.
 /// Only ever built on the iPhone; the app has no route to it on the Mac.
 ///
 /// **Scrolls under the tab bar**, padding its end by
@@ -28,6 +30,7 @@ class CoachHomeModule extends ConsumerWidget {
   const CoachHomeModule({
     required this.onChatRequested,
     required this.onWeeklyRequested,
+    required this.onConsentRequested,
     required this.onSessionSelected,
     super.key,
   });
@@ -37,6 +40,10 @@ class CoachHomeModule extends ConsumerWidget {
 
   /// Called when the weekly card's "Start the check-in" is tapped.
   final void Function() onWeeklyRequested;
+
+  /// Called by "Turn on the coach" while the coach is off: open the
+  /// consent screen. The tab follows the answer by itself.
+  final void Function() onConsentRequested;
 
   /// Called with a past session's id when it's tapped.
   final void Function(String sessionId) onSessionSelected;
@@ -75,6 +82,7 @@ class CoachHomeModule extends ConsumerWidget {
                         ? error
                         : const CoachServerFailure(),
                     onRetry: () => ref.invalidate(coachAvailabilityProvider),
+                    onTurnOn: onConsentRequested,
                   ),
                   _ => const Padding(
                     padding: EdgeInsets.all(24),

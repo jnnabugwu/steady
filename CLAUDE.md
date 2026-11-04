@@ -39,9 +39,9 @@
   Anthropic API, reached only through Steady's own thin proxy on Vercel, which lives in its
   own repo, **`jnnabugwu/steady-backend`** (§12), holds the API key, verifies App Attest and
   owns the system prompt. Hosted only: the Foundation Models path is gone. The app side
-  (`HostedCoachModel`) and the App Attest client (#150) are built; the deployment, the App
-  ID's App Attest capability (#148), consent (#153) and a check on hardware are still open
-  (§11). The Mac has no coach. Decision record:
+  (`HostedCoachModel`), the App Attest client (#150) and consent (#153) are built; the
+  deployment, the App ID's App Attest capability (#148) and a check on hardware are still
+  open (§11). The Mac has no coach. Decision record:
   `docs/technical_decisions.md`, "The coach uses a hosted model".
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
   for parsing Cal AI exports. **No backend for parsing.** Validated against real exports:
@@ -151,7 +151,8 @@ steady/
 
 Each `*_presentation` package that needs a repository declares its providers in
 `lib/src/providers.dart` (§9): `checkin_presentation`, `coach_presentation` (the coach
-store, the hosted model, the consent gate and the context's sources, all bound on iOS only;
+store, the hosted model, the consent store behind `coachConsentGivenProvider` and the
+context's sources, all bound on iOS only;
 the sources
 to the owning features' own repositories), `cravings_presentation`,
 `metrics_presentation` and `pdf_import_presentation` today. Generated files (`*.g.dart`,
@@ -328,7 +329,7 @@ copy:
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
 | `coachNudgeDismissalProvider` ("Not tonight") | `keepAlive: true` | Holds the day the nudge was dismissed; it has to outlive Today's rebuilds. In memory only, so a relaunch shows the nudge again. |
-| `coachConsentGivenProvider` | `keepAlive: true` | The one consent answer every coach request checks (§11). `false` until #153. |
+| `coachConsentGivenProvider` (the `CoachConsentGiven` AsyncNotifier) | `keepAlive: true` | The one consent answer every coach request checks (§11); a settled `true` for the current consent version is the only yes (`isCoachConsentGiven`). |
 | `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
 | `routerProvider` (`app/lib/app_router.dart`) | `keepAlive: true` | Rebuilding the `GoRouter` would reset navigation state (§5). |
 
@@ -475,7 +476,15 @@ cards re-key. The coach nudge (§11) fills the `TodayScreen.coachNudge` slot:
 `HomeRoute` passes coach's `CoachNudgeCard`, which renders nothing on the Mac and nothing
 on the iPhone unless the weekly check-in is ready. Its "Talk now" opens `CoachWeeklyRoute`
 (`/weekly-check-in`, top-level on the root navigator, since both Today and the Coach tab
-open it; it redirects home on the Mac).
+open it; it redirects home on the Mac), after the consent screen when consent isn't given.
+
+**Consent (`/coach-consent`).** `CoachConsentRoute` (top-level, on the root navigator,
+redirects home on the Mac) shows coach's `CoachConsentModule` and pops with `true` for
+"Allow and continue", `false` for "Not now". The app pushes it through `_askCoachConsent`
+from every way into the coach: the Coach tab's "Turn on the coach", the nudge's "Talk now"
+(then `CoachWeeklyRoute` if allowed), a session opened without consent, and the Settings
+switch. The feature never sees the route: each Module takes an `onConsentRequested`
+callback, and the screens follow `coachConsentGivenProvider` by themselves.
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -576,16 +585,17 @@ Health's, or a Cal AI import's), steps and active/resting energy from Apple Heal
 week's craving check-ins (count and time of day; in the weekly session also what was behind
 them) and what the person types. Only after the person agrees on the consent screen, and
 never once they turn the coach off in Settings → Coach: every request checks
-`coachConsentGivenProvider` first, which is `false` until the consent screen lands (#153). What doesn't change: transcripts and
+`coachConsentGivenProvider` first (§11, "Consent"). What doesn't change: transcripts and
 summaries are **stored** only on the iPhone (`coach_sessions.json`, below and §11), the
 proxy keeps no request or response bodies (metadata-only logs), nothing goes to Steady's
 CloudKit container, and the export is the same. That keeps 5.1.3(ii) (no health information
 in iCloud storage); sharing with a third-party AI is what 5.1.2 asks apps to disclose and get
 explicit permission for, and 5.1.3(i) limits health data to health management, never
-advertising. Anthropic's own retention and training terms for API data are an **open item**:
-check Anthropic's current published terms before shipping, and don't state them in the docs
-or the consent copy until they're confirmed. `docs/PRIVACY.md` still describes the on-device
-build that shipped; it changes in the release that ships the hosted coach. Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model".
+advertising. Anthropic's terms for API data (standard terms, no zero data retention): inputs
+and outputs are deleted within 30 days, never used for training without express permission,
+and kept longer only if its automated trust and safety systems flag a conversation (up to two
+years) or the law requires it. `docs/PRIVACY.md` and the consent copy say so, with the
+sources linked in PRIVACY.md. Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model".
 
 **No security-rules layer, by design.** The generic starter's Firestore section spends a
 full section on role-based rules because it has two roles (staff/admin) reading a shared
@@ -663,8 +673,13 @@ the synced store. The coach reads them on the iPhone (§11); the Mac never sees 
 file is deliberately **left in the user's own iOS device backup** (iCloud Backup, if they use
 it), so a restored phone keeps its history; the Settings text and PRIVACY.md say so plainly.
 Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
-"Device-only" is about storage: once the hosted coach lands, a coach session also sends the
-week's craving check-ins to Anthropic for the reply, with consent (above).
+"Device-only" is about storage: a coach session also sends the week's craving check-ins to
+Anthropic for the reply, with consent (above).
+
+**The coach consent answer is device-only too.** `FileCoachConsentRepository`
+(`coach_data`) keeps `coach_consent.json` (`{"version": n}`, the consent text's version the
+person agreed to) next to `coach_sessions.json`: never SwiftData/CloudKit, never synced, in
+the person's own device backup like the sessions. Missing or corrupt reads as not given.
 
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
 (`share_plus`), built inside the owning feature's `_presentation` package. The card reads
@@ -813,9 +828,11 @@ Steady's own thin proxy on Vercel (decided 2026-10-30, "The coach uses a hosted 
 - **Built:** the proxy, in its own repo, **`jnnabugwu/steady-backend`** (#149; its `README.md`
   is the API contract), and the app side: the App Attest client (#150, §8),
   `HostedCoachModel` (#151) and the `coach_domain` cleanup (#152).
+- **Built (#153):** consent: the consent screen, the Settings → Coach switch and the
+  device-only consent store (below, "Consent").
 - **Not yet:** the Vercel deployment (no `COACH_PROXY_URL` exists to build with), App Attest
-  verified on a physical iPhone and the App ID capability (#148), the consent screen (#153;
-  until then the coach says "not set up yet" and sends nothing), the guardrail evaluation set
+  verified on a physical iPhone and the App ID capability (#148), the App Privacy answers in
+  App Store Connect (`docs/testflight.md` §6, Jordan's), the guardrail evaluation set
   (#154), and a reply streamed on a physical iPhone. Describe these as open until they are
   done. Tracking issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)" (#155).
 
@@ -866,10 +883,23 @@ server-sent events.
   `VERCEL_PROTECTION_BYPASS`, for a Preview deployment behind Vercel Authentication. Both are
   read behind the `kDebugMode` constant, so profile and release builds contain neither the
   values nor the code that sends them.
-- **Consent gate:** `coachConsentGivenProvider` (`coach_presentation`), `false` until #153
-  replaces it with a Notifier over a device-only consent store, keeping the name. The screens
-  check it before offering a session, and `HostedCoachModel` checks it again before every
-  request (`app/lib/providers.dart` binds its `consentGiven` to the provider).
+- **Consent (#153, App Store 5.1.2):** `coachConsentGivenProvider` is the `CoachConsentGiven`
+  keepAlive AsyncNotifier (`coach_presentation`) over `CoachConsentRepository`
+  (`coach_domain`), bound on iOS only to `FileCoachConsentRepository` (`coach_consent.json`,
+  device-only, §7); unbound, it's "not given". It's `true` only when the stored version equals
+  `CoachConsent.currentVersion` (`coach_domain`, next to the consent copy): **bump that
+  constant when what's sent changes materially** (journal notes, #85; another provider), and
+  everyone is asked again. Domain events: `giveCoachConsent` (CoachConsentGiven) and
+  `withdrawCoachConsent` (CoachConsentWithdrawn), which reads as "no" from its first line,
+  before the store is written. Only a settled `true` counts (`isCoachConsentGiven`). It's
+  checked by `coachAvailability`, by `CoachSessionController` (at the start, at Begin, and
+  before every request, the summary's included; a withdrawal cancels the reply in flight and
+  drops its text, and consent given again restarts a session that said it was off), and by
+  `HostedCoachModel` before every reply and again right before its `POST`. The consent screen
+  (`CoachConsentModule`, route in §5) comes before the first request from every entry point;
+  nothing is sent before "Allow and continue". Settings → Coach has the switch (on through the
+  consent screen, off at once) with one line on what it sends; "Delete coach history" stays
+  separate.
 - **The model is bound only by `appProviderOverridesFor(isIOS: true)`**, like cravings (§9).
   The Mac has no coach code path and stays parked (§1).
 
@@ -881,12 +911,13 @@ server-sent events.
   included in the phone's own iCloud Backup, never in Steady's CloudKit store. The hosted model
   changes what's **sent** for a reply (§7), not where anything is **stored**.
 - **Nudge card** (`TodayScreen.coachNudge`, §5; `CoachNudgeCard`, #81): "Talk now" / "Not
-  tonight", or why the coach can't run here (no consent yet, the coach off, this iPhone can't be
-  verified). Nothing on the Mac. Whether it exists never calls the model (`coachNudgeProvider`);
+  tonight", or why the coach can't run here (the proxy off, this iPhone can't be verified).
+  Without consent it looks the same, and "Talk now" shows the consent screen first ("Not now"
+  returns to Today); decided for #153, reversible (the alternative is hiding it until
+  consent). Nothing on the Mac. Whether it exists never calls the model (`coachNudgeProvider`);
   it needs all of: an iPhone, Friday to Sunday, last week passing the 4-of-7 rule with every day
   readable, no weekly session started since that week ended, and "Not tonight" not tapped today
-  (kept in memory). Whether it hides or leads to the consent screen without consent is #153's
-  call.
+  (kept in memory).
 - **Weekly session (#81):** looks back on the last completed Friday→Thursday week
   (`coachWeeklyWindow`). It doesn't start if fewer than 4 of the 7 days have any check-in
   status (`CheckWeeklyReadiness`, a use case; checked before the coach is touched and again on
@@ -909,7 +940,8 @@ server-sent events.
 - **A refusal** (`CoachRefusalFailure`) drops any partial reply, from the screen and from what's
   sent next, and shows `CoachCopy.helpLine`.
 - **Screens (#80):** the Coach tab (`CoachHomeModule`: start a chat, or why the coach can't run
-  here, per typed failure, and the past sessions), a live session (`CoachSessionModule`,
+  here, per typed failure, with "Turn on the coach" when it's off, and the past sessions,
+  readable either way), a live session (`CoachSessionModule`,
   `CoachSessionController`: `sendCoachMessage`, `stopCoachReply`, `keepGoing`,
   `endCoachSession`, `retryCoachStart`, which after a failure mid-conversation sends the last
   turn again) and a read-only transcript (`CoachTranscriptModule`). Routes in §5, "Tabs".

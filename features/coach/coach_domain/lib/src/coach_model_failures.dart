@@ -19,12 +19,13 @@ sealed class CoachUnavailableFailure extends CoachModelFailure {
 }
 
 /// The person hasn't agreed to the coach sending what a conversation needs
-/// (App Store 5.1.2). Never sent: the request is refused before it's built.
-/// The consent screen (#153) is what changes this.
+/// (App Store 5.1.2), or turned it off in Settings → Coach. Never sent: the
+/// request is refused before it's built. The consent screen
+/// (`CoachConsent`) is what changes this.
 final class CoachConsentNotGivenFailure extends CoachUnavailableFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
   const CoachConsentNotGivenFailure({
-    String message = "The coach isn't set up yet.",
+    String message = 'The coach is off until you turn it on.',
     super.cause,
   }) : super(message);
 }

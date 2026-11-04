@@ -42,9 +42,16 @@ part of 'coach_session_controller.dart';
 /// so far ([_turns]), app turns in place. The summary is one request of its
 /// own kind (`CoachRequestKind.summary`) over the transcript.
 ///
-/// **Nothing is sent without consent** ([coachConsentGivenProvider],
-/// through [checkCoachAvailable] at the start and before a retry; the
-/// hosted model checks it again before every request).
+/// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+/// checked through [checkCoachAvailable] at the start and before a retry,
+/// again at the weekly session's Begin, and before every request, the
+/// summary's included ([isCoachConsentGiven]); the hosted model checks it
+/// once more. **Turning the coach off** (Settings → Coach,
+/// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+/// reply's partial text, and leaves the session unavailable with
+/// [CoachConsentNotGivenFailure]; a session that was ending saves without
+/// a summary. **Turning it on** while the session says it's off starts it
+/// again ([retryCoachStart]).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -89,9 +96,16 @@ final coachSessionControllerProvider = CoachSessionControllerFamily._();
 /// so far ([_turns]), app turns in place. The summary is one request of its
 /// own kind (`CoachRequestKind.summary`) over the transcript.
 ///
-/// **Nothing is sent without consent** ([coachConsentGivenProvider],
-/// through [checkCoachAvailable] at the start and before a retry; the
-/// hosted model checks it again before every request).
+/// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+/// checked through [checkCoachAvailable] at the start and before a retry,
+/// again at the weekly session's Begin, and before every request, the
+/// summary's included ([isCoachConsentGiven]); the hosted model checks it
+/// once more. **Turning the coach off** (Settings → Coach,
+/// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+/// reply's partial text, and leaves the session unavailable with
+/// [CoachConsentNotGivenFailure]; a session that was ending saves without
+/// a summary. **Turning it on** while the session says it's off starts it
+/// again ([retryCoachStart]).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -134,9 +148,16 @@ final class CoachSessionControllerProvider
   /// so far ([_turns]), app turns in place. The summary is one request of its
   /// own kind (`CoachRequestKind.summary`) over the transcript.
   ///
-  /// **Nothing is sent without consent** ([coachConsentGivenProvider],
-  /// through [checkCoachAvailable] at the start and before a retry; the
-  /// hosted model checks it again before every request).
+  /// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+  /// checked through [checkCoachAvailable] at the start and before a retry,
+  /// again at the weekly session's Begin, and before every request, the
+  /// summary's included ([isCoachConsentGiven]); the hosted model checks it
+  /// once more. **Turning the coach off** (Settings → Coach,
+  /// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+  /// reply's partial text, and leaves the session unavailable with
+  /// [CoachConsentNotGivenFailure]; a session that was ending saves without
+  /// a summary. **Turning it on** while the session says it's off starts it
+  /// again ([retryCoachStart]).
   ///
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
@@ -189,7 +210,7 @@ final class CoachSessionControllerProvider
 }
 
 String _$coachSessionControllerHash() =>
-    r'21cb95da8f269f6d2fdfdac3922b3b6deb7c3842';
+    r'98ef0a596dcfb643e09b4ff3d4471726ce3a9f10';
 
 /// A live coach session on the iPhone: a chat or the weekly session, from
 /// opening the screen to its stored summary.
@@ -225,9 +246,16 @@ String _$coachSessionControllerHash() =>
 /// so far ([_turns]), app turns in place. The summary is one request of its
 /// own kind (`CoachRequestKind.summary`) over the transcript.
 ///
-/// **Nothing is sent without consent** ([coachConsentGivenProvider],
-/// through [checkCoachAvailable] at the start and before a retry; the
-/// hosted model checks it again before every request).
+/// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+/// checked through [checkCoachAvailable] at the start and before a retry,
+/// again at the weekly session's Begin, and before every request, the
+/// summary's included ([isCoachConsentGiven]); the hosted model checks it
+/// once more. **Turning the coach off** (Settings → Coach,
+/// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+/// reply's partial text, and leaves the session unavailable with
+/// [CoachConsentNotGivenFailure]; a session that was ending saves without
+/// a summary. **Turning it on** while the session says it's off starts it
+/// again ([retryCoachStart]).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more
@@ -287,9 +315,16 @@ final class CoachSessionControllerFamily extends $Family
   /// so far ([_turns]), app turns in place. The summary is one request of its
   /// own kind (`CoachRequestKind.summary`) over the transcript.
   ///
-  /// **Nothing is sent without consent** ([coachConsentGivenProvider],
-  /// through [checkCoachAvailable] at the start and before a retry; the
-  /// hosted model checks it again before every request).
+  /// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+  /// checked through [checkCoachAvailable] at the start and before a retry,
+  /// again at the weekly session's Begin, and before every request, the
+  /// summary's included ([isCoachConsentGiven]); the hosted model checks it
+  /// once more. **Turning the coach off** (Settings → Coach,
+  /// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+  /// reply's partial text, and leaves the session unavailable with
+  /// [CoachConsentNotGivenFailure]; a session that was ending saves without
+  /// a summary. **Turning it on** while the session says it's off starts it
+  /// again ([retryCoachStart]).
   ///
   /// **Saving.** The transcript is saved through `CoachRepository` after the
   /// person's message and after each reply (an upsert by id), and once more
@@ -341,9 +376,16 @@ final class CoachSessionControllerFamily extends $Family
 /// so far ([_turns]), app turns in place. The summary is one request of its
 /// own kind (`CoachRequestKind.summary`) over the transcript.
 ///
-/// **Nothing is sent without consent** ([coachConsentGivenProvider],
-/// through [checkCoachAvailable] at the start and before a retry; the
-/// hosted model checks it again before every request).
+/// **Nothing is sent without consent** ([coachConsentGivenProvider]):
+/// checked through [checkCoachAvailable] at the start and before a retry,
+/// again at the weekly session's Begin, and before every request, the
+/// summary's included ([isCoachConsentGiven]); the hosted model checks it
+/// once more. **Turning the coach off** (Settings → Coach,
+/// `withdrawCoachConsent`) stops whatever is streaming at once, drops that
+/// reply's partial text, and leaves the session unavailable with
+/// [CoachConsentNotGivenFailure]; a session that was ending saves without
+/// a summary. **Turning it on** while the session says it's off starts it
+/// again ([retryCoachStart]).
 ///
 /// **Saving.** The transcript is saved through `CoachRepository` after the
 /// person's message and after each reply (an upsert by id), and once more

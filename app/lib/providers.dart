@@ -61,8 +61,11 @@
 /// stays unbound, and there's no coach code in `app/macos/` at all. The
 /// proxy's URL comes from `--dart-define=COACH_PROXY_URL`
 /// (`CoachProxyConfig.fromEnvironment`); without it the coach says it's
-/// off. **Nothing is sent without consent:** the model reads
-/// `coachConsentGivenProvider` before every request (`false` until #153).
+/// off. **Nothing is sent without consent** (#153): the model reads
+/// `coachConsentGivenProvider` before every request, and that answer comes
+/// from `coachConsentRepositoryProvider`, bound in the same iOS-only block
+/// to `coach_consent.json` ([coachConsentFile]), device-only like the
+/// sessions. Anywhere it isn't bound, consent reads as not given.
 /// The coach's context providers (#80: check-ins, calories eaten, Health,
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
@@ -197,6 +200,13 @@ Future<File> coachStoreFile() async => File(
   '${(await getApplicationSupportDirectory()).path}/coach_sessions.json',
 );
 
+/// The device-only coach consent file: `coach_consent.json` in the
+/// application support directory, next to `coach_sessions.json`. Holds only
+/// the version of the consent text the person agreed to. Never synced; in
+/// the person's own device backup like the sessions. Looked up on first use.
+Future<File> coachConsentFile() async =>
+    File('${(await getApplicationSupportDirectory()).path}/coach_consent.json');
+
 /// [appProviderOverrides] for a given platform. The platform choices in it
 /// are Apple Health, craving support and the coach, all bound only when
 /// [isIOS] (see the library comment). A function, not just the list, so
@@ -214,6 +224,11 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     coachRepositoryProvider.overrideWith(
       (ref) => FileCoachRepository.locatedBy(coachStoreFile),
     ),
+    // Whether the person agreed to what the coach sends (#153): the version
+    // of the consent text, in a device-only file.
+    coachConsentRepositoryProvider.overrideWith(
+      (ref) => FileCoachConsentRepository.locatedBy(coachConsentFile),
+    ),
     // The export reads each session's date, kind and summary through the
     // coach's own repository: the same instance, so the same file.
     exportCoachRepositoryProvider.overrideWith(
@@ -229,8 +244,10 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
         config: CoachProxyConfig.fromEnvironment(),
         appAttest: ref.watch(coachAppAttestProvider),
         keyStore: ref.watch(coachAppAttestKeyStoreProvider),
-        // Read before every request, so a later "no" stops the next one.
-        consentGiven: () => ref.read(coachConsentGivenProvider),
+        // Read before every request, so a later "no" stops the next one:
+        // only a settled yes counts (a withdrawal being written is a no).
+        consentGiven: () =>
+            isCoachConsentGiven(ref.read(coachConsentGivenProvider)),
       );
       ref.onDispose(model.close);
       return model;

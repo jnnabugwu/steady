@@ -12,6 +12,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 import 'helpers/fake_domains.dart';
@@ -23,6 +24,7 @@ void main() {
   late FakeCoachRepository repository;
   late FakeCheckIns checkIns;
   late FakeCravings cravings;
+  late FakeCoachConsentRepository consent;
   final provider = coachSessionControllerProvider(
     CoachSessionKind.weekly,
     'session-1',
@@ -38,6 +40,7 @@ void main() {
     repository = FakeCoachRepository();
     checkIns = daysOfWeek(4);
     cravings = FakeCravings();
+    consent = FakeCoachConsentRepository(agreed: CoachConsent.currentVersion);
   });
 
   List<Override> overrides() => coachTestOverrides(
@@ -45,6 +48,7 @@ void main() {
     repository: repository,
     checkIns: checkIns,
     cravings: cravings,
+    consent: consent,
   );
 
   group('controller', () {
@@ -192,6 +196,47 @@ void main() {
       expect(state().phase, CoachSessionPhase.ready);
     });
 
+    test('without consent it never reaches Begin: the coach is off, and '
+        'nothing is sent', () async {
+      consent.agreed = null;
+      final controller = await start();
+      expect(state().phase, CoachSessionPhase.unavailable);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+      await controller.startWeeklySession();
+      expect(model.requests, isEmpty);
+      expect(model.availabilityChecks, 0);
+    });
+
+    test('Begin after the coach was turned off sends nothing, and says it '
+        'is off', () async {
+      final controller = await start();
+      expect(state().phase, CoachSessionPhase.awaitingStart);
+      await container
+          .read(coachConsentGivenProvider.notifier)
+          .withdrawCoachConsent();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.unavailable);
+
+      // Even if Begin is reached (the screen still showed it), nothing goes.
+      await controller.startWeeklySession();
+      expect(model.requests, isEmpty);
+      expect(state().failure, isA<CoachConsentNotGivenFailure>());
+    });
+
+    test('allowed after it said the coach was off: back to Begin, with '
+        'nothing sent until it is tapped', () async {
+      consent.agreed = null;
+      final controller = await start();
+      await container
+          .read(coachConsentGivenProvider.notifier)
+          .giveCoachConsent();
+      await pumpEventQueue();
+      expect(state().phase, CoachSessionPhase.awaitingStart);
+      expect(model.requests, isEmpty);
+      await controller.startWeeklySession();
+      expect(model.replyRequests, hasLength(1));
+    });
+
     test('Begin after the week lost check-ins does not start', () async {
       final controller = await start();
       checkIns.statuses.clear();
@@ -263,6 +308,7 @@ void main() {
             home: CoachSessionModule(
               kind: CoachSessionKind.weekly,
               onClosed: () {},
+              onConsentRequested: () {},
             ),
           ),
         ),
