@@ -90,12 +90,12 @@ String _$coachRepositoryHash() => r'33015002c10110eccfc36663949035be74915bfc';
 
 /// Whether this device has the coach at all: `true` on iOS only.
 ///
-/// A platform fact, not the model's runtime availability (whether this
-/// iPhone supports Apple Intelligence and the model is ready), which the
-/// coach checks separately when a session starts. `false` by default;
-/// `app/lib/providers.dart` sets it from the platform
-/// (`appProviderOverridesFor(isIOS: ...)`), so tests can cover both. When
-/// it's `false` the coach's Settings card renders nothing.
+/// A platform fact, not whether the coach can reply right now (consent, a
+/// configured proxy, a verifiable iPhone, a connection), which the coach
+/// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
+/// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+/// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
+/// both. When it's `false` the coach's Settings card renders nothing.
 ///
 /// `keepAlive`: a constant for the app's lifetime.
 
@@ -104,12 +104,12 @@ final coachSupportAvailableProvider = CoachSupportAvailableProvider._();
 
 /// Whether this device has the coach at all: `true` on iOS only.
 ///
-/// A platform fact, not the model's runtime availability (whether this
-/// iPhone supports Apple Intelligence and the model is ready), which the
-/// coach checks separately when a session starts. `false` by default;
-/// `app/lib/providers.dart` sets it from the platform
-/// (`appProviderOverridesFor(isIOS: ...)`), so tests can cover both. When
-/// it's `false` the coach's Settings card renders nothing.
+/// A platform fact, not whether the coach can reply right now (consent, a
+/// configured proxy, a verifiable iPhone, a connection), which the coach
+/// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
+/// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+/// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
+/// both. When it's `false` the coach's Settings card renders nothing.
 ///
 /// `keepAlive`: a constant for the app's lifetime.
 
@@ -118,12 +118,12 @@ final class CoachSupportAvailableProvider
     with $Provider<bool> {
   /// Whether this device has the coach at all: `true` on iOS only.
   ///
-  /// A platform fact, not the model's runtime availability (whether this
-  /// iPhone supports Apple Intelligence and the model is ready), which the
-  /// coach checks separately when a session starts. `false` by default;
-  /// `app/lib/providers.dart` sets it from the platform
-  /// (`appProviderOverridesFor(isIOS: ...)`), so tests can cover both. When
-  /// it's `false` the coach's Settings card renders nothing.
+  /// A platform fact, not whether the coach can reply right now (consent, a
+  /// configured proxy, a verifiable iPhone, a connection), which the coach
+  /// checks separately ([coachConsentGivenProvider], `coachAvailability`, and
+  /// each reply). `false` by default; `app/lib/providers.dart` sets it from the
+  /// platform (`appProviderOverridesFor(isIOS: ...)`), so tests can cover
+  /// both. When it's `false` the coach's Settings card renders nothing.
   ///
   /// `keepAlive`: a constant for the app's lifetime.
   CoachSupportAvailableProvider._()
@@ -162,47 +162,47 @@ final class CoachSupportAvailableProvider
 String _$coachSupportAvailableHash() =>
     r'66af6f8ec10efe0f25537579d583370a0a49df0a';
 
-/// The on-device model the coach talks through (Apple Foundation Models).
+/// The model the coach talks through: Claude, behind Steady's proxy
+/// (`HostedCoachModel` in `coach_data`, CLAUDE.md §11).
 ///
 /// Typed against the domain interface only: this package never depends on
 /// `coach_data` (CLAUDE.md §3). `app/lib/providers.dart` binds it on iOS
-/// only, to the `steady/coach` channel; on macOS it stays unbound, so a Mac
-/// path that reads it fails loudly instead of reaching for a model that
-/// isn't there (§11). Tests override it with a fake. Reading it without an
-/// override throws.
+/// only; on macOS it stays unbound, so a Mac path that reads it fails
+/// loudly instead of reaching for a model that isn't there (§11). Tests
+/// override it with a fake. Reading it without an override throws.
 ///
-/// `keepAlive`: cheap and stateless (D6); the native side holds the
-/// sessions.
+/// `keepAlive`: it owns the HTTP client and the one-reply-at-a-time queue
+/// (D6).
 
 @ProviderFor(coachModel)
 final coachModelProvider = CoachModelProvider._();
 
-/// The on-device model the coach talks through (Apple Foundation Models).
+/// The model the coach talks through: Claude, behind Steady's proxy
+/// (`HostedCoachModel` in `coach_data`, CLAUDE.md §11).
 ///
 /// Typed against the domain interface only: this package never depends on
 /// `coach_data` (CLAUDE.md §3). `app/lib/providers.dart` binds it on iOS
-/// only, to the `steady/coach` channel; on macOS it stays unbound, so a Mac
-/// path that reads it fails loudly instead of reaching for a model that
-/// isn't there (§11). Tests override it with a fake. Reading it without an
-/// override throws.
+/// only; on macOS it stays unbound, so a Mac path that reads it fails
+/// loudly instead of reaching for a model that isn't there (§11). Tests
+/// override it with a fake. Reading it without an override throws.
 ///
-/// `keepAlive`: cheap and stateless (D6); the native side holds the
-/// sessions.
+/// `keepAlive`: it owns the HTTP client and the one-reply-at-a-time queue
+/// (D6).
 
 final class CoachModelProvider
     extends $FunctionalProvider<CoachModel, CoachModel, CoachModel>
     with $Provider<CoachModel> {
-  /// The on-device model the coach talks through (Apple Foundation Models).
+  /// The model the coach talks through: Claude, behind Steady's proxy
+  /// (`HostedCoachModel` in `coach_data`, CLAUDE.md §11).
   ///
   /// Typed against the domain interface only: this package never depends on
   /// `coach_data` (CLAUDE.md §3). `app/lib/providers.dart` binds it on iOS
-  /// only, to the `steady/coach` channel; on macOS it stays unbound, so a Mac
-  /// path that reads it fails loudly instead of reaching for a model that
-  /// isn't there (§11). Tests override it with a fake. Reading it without an
-  /// override throws.
+  /// only; on macOS it stays unbound, so a Mac path that reads it fails
+  /// loudly instead of reaching for a model that isn't there (§11). Tests
+  /// override it with a fake. Reading it without an override throws.
   ///
-  /// `keepAlive`: cheap and stateless (D6); the native side holds the
-  /// sessions.
+  /// `keepAlive`: it owns the HTTP client and the one-reply-at-a-time queue
+  /// (D6).
   CoachModelProvider._()
     : super(
         from: null,
@@ -237,6 +237,94 @@ final class CoachModelProvider
 }
 
 String _$coachModelHash() => r'683d504a6b6ec41f3f38295db61e9e43b875736a';
+
+/// Whether the person has agreed to what the coach sends, to whom and for
+/// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
+/// the coach screens check it before they offer a session
+/// (`coachAvailability`, `CoachSessionController`), and the hosted model
+/// checks it again before every request (`app/lib/providers.dart` binds its
+/// `consentGiven` to this provider).
+///
+/// `false`, always, until the consent screen and Settings → Coach toggle
+/// land (#153). Until then the coach shows "not set up yet"
+/// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
+/// this with a Notifier backed by a device-only consent store (with
+/// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
+/// reader above follows it.
+///
+/// `keepAlive`: the one answer for the whole app.
+
+@ProviderFor(coachConsentGiven)
+final coachConsentGivenProvider = CoachConsentGivenProvider._();
+
+/// Whether the person has agreed to what the coach sends, to whom and for
+/// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
+/// the coach screens check it before they offer a session
+/// (`coachAvailability`, `CoachSessionController`), and the hosted model
+/// checks it again before every request (`app/lib/providers.dart` binds its
+/// `consentGiven` to this provider).
+///
+/// `false`, always, until the consent screen and Settings → Coach toggle
+/// land (#153). Until then the coach shows "not set up yet"
+/// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
+/// this with a Notifier backed by a device-only consent store (with
+/// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
+/// reader above follows it.
+///
+/// `keepAlive`: the one answer for the whole app.
+
+final class CoachConsentGivenProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// Whether the person has agreed to what the coach sends, to whom and for
+  /// what (App Store 5.1.2). **Nothing reaches the proxy until it's `true`:**
+  /// the coach screens check it before they offer a session
+  /// (`coachAvailability`, `CoachSessionController`), and the hosted model
+  /// checks it again before every request (`app/lib/providers.dart` binds its
+  /// `consentGiven` to this provider).
+  ///
+  /// `false`, always, until the consent screen and Settings → Coach toggle
+  /// land (#153). Until then the coach shows "not set up yet"
+  /// (`CoachConsentNotGivenFailure`) instead of a conversation. #153 replaces
+  /// this with a Notifier backed by a device-only consent store (with
+  /// `giveCoachConsent` / `withdrawCoachConsent`), keeping the name so every
+  /// reader above follows it.
+  ///
+  /// `keepAlive`: the one answer for the whole app.
+  CoachConsentGivenProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachConsentGivenProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachConsentGivenHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return coachConsentGiven(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$coachConsentGivenHash() => r'dc984469ebd23258d32292d6353acf9ff051f434';
 
 /// Check-in statuses, for the coach's context. Bound by the app to the
 /// check-in feature's own repository (the same instance, so the same

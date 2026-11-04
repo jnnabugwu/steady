@@ -17,17 +17,19 @@ import 'package:ui_kit/ui_kit.dart';
 /// transcript, the coach's reply streaming in, the message box with its
 /// send / stop button, and "End", which writes the summary.
 ///
-/// - **Streaming:** the model sends cumulative snapshots; the reply bubble
+/// - **Streaming:** the proxy sends cumulative snapshots; the reply bubble
 ///   shows the latest one. Before the first, three teal dots.
 /// - **Stop:** while the coach replies, the send button becomes a stop
 ///   button. What it had said stays in the transcript.
 /// - **Ending:** "End" asks for the summary and shows it, with "Done".
 ///   Closing (X) ends the session too, in the background, and leaves at
 ///   once; a session where the person said nothing records nothing.
-/// - **Unavailable:** the model's typed failure, through
-///   [CoachUnavailableCard], with "Check again" where that could help.
+/// - **Unavailable:** the typed failure (no consent yet, the coach off,
+///   this iPhone can't be verified), through [CoachUnavailableCard], with
+///   "Check again" where that could help.
 /// - **Safety:** `CoachCopy.notMedicalAdvice` at the top, and
-///   `CoachCopy.helpLine` when Apple's guardrails stop a reply (#82).
+///   `CoachCopy.helpLine` when the model refuses a reply (#82); the refused
+///   reply's partial text is never shown.
 /// - **Accessibility:** every target at least 44pt; screen readers hear
 ///   each finished coach reply once (never a partial snapshot); Reduce
 ///   Motion keeps the dots still and jumps instead of scrolling.
@@ -204,9 +206,7 @@ class _CoachSessionModuleState extends ConsumerState<CoachSessionModule> {
                 ),
               CoachSessionPhase.unavailable => _Centered(
                 child: CoachUnavailableCard(
-                  failure:
-                      session.failure ??
-                      const CoachModelUnavailableUnknownFailure(),
+                  failure: session.failure ?? const CoachServerFailure(),
                   onRetry: () => unawaited(controller.retryCoachStart()),
                 ),
               ),
@@ -543,7 +543,7 @@ class _Conversation extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (state.guardrailTripped)
+                if (state.replyRefused)
                   const Padding(
                     padding: EdgeInsets.only(bottom: 14),
                     child: CoachHelpCard(),
@@ -553,8 +553,7 @@ class _Conversation extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: CoachUnavailableCard(
-                    failure:
-                        failure ?? const CoachModelUnavailableUnknownFailure(),
+                    failure: failure ?? const CoachServerFailure(),
                     onRetry: onRetryStart,
                   ),
                 ),
@@ -563,7 +562,7 @@ class _Conversation extends StatelessWidget {
                   padding: const EdgeInsets.only(bottom: 14),
                   child: _NoteCard(
                     key: const Key('coachLostSession'),
-                    title: 'The coach lost its place',
+                    title: "The coach couldn't carry on",
                     body:
                         'What you said is still here. Try again to carry '
                         'on, or end the conversation.',
@@ -612,8 +611,8 @@ class _Conversation extends StatelessWidget {
             ],
           ),
         ),
-        // The last reply ran into the reply cap and was cut back to its
-        // last full sentence (`CoachKeepGoing`).
+        // The last reply was cut off at the proxy's token limit
+        // (`CoachStopReason.maxTokens`); shown as it came (`CoachKeepGoing`).
         if (state.replyCutOff && phase == CoachSessionPhase.ready)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
@@ -653,23 +652,16 @@ class _Conversation extends StatelessWidget {
   }
 
   static String _replyFailureLine(Failure failure) => switch (failure) {
-    CoachInferenceFailure(
-      reason: CoachInferenceFailureReason.guardrailViolation,
-    ) =>
-      "The coach can't reply to that one.",
-    CoachInferenceFailure(reason: CoachInferenceFailureReason.refusal) =>
-      "The coach can't help with that one. You can ask something else.",
-    CoachInferenceFailure(
-      reason: CoachInferenceFailureReason.unsupportedLanguage,
-    ) =>
-      "The coach can't reply in this language yet.",
-    CoachInferenceFailure(
-      reason: CoachInferenceFailureReason.rateLimited ||
-          CoachInferenceFailureReason.busy ||
-          CoachInferenceFailureReason.timeout,
-    ) =>
+    CoachRefusalFailure() => "The coach can't reply to that one.",
+    CoachOfflineFailure() =>
+      "Couldn't reach the coach. Check your connection and try sending it "
+          'again.',
+    CoachRateLimitedFailure(:final retryAfter) =>
+      'The coach has reached its limit for today. Try again '
+          '${coachRetryAfterLabel(retryAfter)}.',
+    CoachServerFailure() =>
       "The coach couldn't reply just now. Try sending it again.",
-    CoachModelUnavailableFailure() => coachUnavailableCopy(failure).body,
+    CoachUnavailableFailure() => coachUnavailableCopy(failure).body,
     _ => "The coach couldn't reply. Try sending it again.",
   };
 }

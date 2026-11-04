@@ -131,13 +131,13 @@ void main() {
   testWidgets('unavailable: says why instead, and can check again', (
     tester,
   ) async {
-    model.availability = const Err(CoachModelNotReadyFailure());
+    model.availability = const Err(CoachTurnedOffFailure());
     await pumpHome(tester);
     expect(find.byKey(const Key('coachChatCard')), findsNothing);
-    expect(find.text('The coach is still getting ready'), findsOneWidget);
+    expect(find.text('The coach is off right now'), findsOneWidget);
     expect(model.availabilityChecks, 1);
 
-    model.availability = const Ok(CoachModelInfo(contextSize: 4096));
+    model.availability = const Ok(unit);
     await tester.tap(find.byKey(const Key('coachCheckAgain')));
     await tester.pumpAndSettle();
     expect(model.availabilityChecks, 2);
@@ -147,7 +147,7 @@ void main() {
   testWidgets('a device that can never run it offers no "Check again"', (
     tester,
   ) async {
-    model.availability = const Err(CoachDeviceNotEligibleFailure());
+    model.availability = const Err(CoachDeviceNotVerifiedFailure());
     await pumpHome(tester);
     expect(find.byKey(const Key('coachUnavailableCard')), findsOneWidget);
     expect(find.byKey(const Key('coachCheckAgain')), findsNothing);

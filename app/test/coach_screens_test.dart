@@ -36,6 +36,7 @@ void main() {
     required bool isIOS,
     _FakeModel? model,
     _MemoryRepository? repository,
+    bool consentGiven = true,
     String? coldStart,
     DateTime? now,
     DateTime Function()? clock,
@@ -54,6 +55,8 @@ void main() {
         ...appProviderOverridesFor(isIOS: false),
         if (isIOS) ...[
           coachSupportAvailableProvider.overrideWithValue(true),
+          // Until #153's consent screen; the gate's default is tested below.
+          coachConsentGivenProvider.overrideWithValue(consentGiven),
           coachModelProvider.overrideWithValue(model ?? _FakeModel()),
           coachRepositoryProvider.overrideWithValue(
             repository ?? _MemoryRepository(),
@@ -152,15 +155,25 @@ void main() {
       expect(find.byKey(const Key('coachSettingsCard')), findsOneWidget);
     });
 
-    testWidgets('an unavailable model says why on the Coach tab; the rest '
+    testWidgets("without consent the Coach tab says the coach isn't set up "
+        'yet, and nothing is sent', (tester) async {
+      final model = _FakeModel();
+      await pumpApp(tester, isIOS: true, model: model, consentGiven: false);
+      await tapTab(tester, 'Coach');
+      expect(find.text("The coach isn't set up yet"), findsOneWidget);
+      expect(find.byKey(const Key('coachStartChat')), findsNothing);
+      expect(model.requests, isEmpty);
+    });
+
+    testWidgets('the coach turned off says why on the Coach tab; the rest '
         'of the app is unaffected', (tester) async {
       final model = _FakeModel()
-        ..availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+        ..availability = const Err(CoachTurnedOffFailure());
       await pumpApp(tester, isIOS: true, model: model);
       expect(find.byType(TodayScreen), findsOneWidget);
 
       await tapTab(tester, 'Coach');
-      expect(find.text('The coach needs Apple Intelligence'), findsOneWidget);
+      expect(find.text('The coach is off right now'), findsOneWidget);
       expect(find.byKey(const Key('coachStartChat')), findsNothing);
 
       await tapTab(tester, 'Week');
@@ -345,40 +358,28 @@ void main() {
 
 /// A model that's available and answers at once.
 class _FakeModel implements CoachModel {
-  Result<CoachModelInfo> availability = const Ok(
-    CoachModelInfo(contextSize: 4096),
-  );
-  var _next = 0;
+  Result<Unit> availability = const Ok(unit);
+
+  /// Every request, in order.
+  final List<CoachRequest> requests = [];
 
   @override
-  ResultFuture<CoachModelInfo> checkAvailability() async => availability;
+  ResultFuture<Unit> checkAvailability() async => availability;
 
   @override
-  ResultFuture<CoachModelSession> startSession({
-    required String instructions,
-  }) async => Ok(CoachModelSession(id: 's${_next++}'));
-
-  @override
-  Stream<Result<CoachReplySnapshot>> streamResponse(
-    CoachModelSession session,
-    String prompt,
-  ) => Stream.fromIterable([
-    Ok(
-      CoachReplySnapshot(
-        text: prompt.startsWith(CoachInstructions.summaryRequest)
-            ? 'A short summary.'
-            : 'Coach reply.',
+  Stream<Result<CoachReplySnapshot>> reply(CoachRequest request) {
+    requests.add(request);
+    return Stream.value(
+      Ok(
+        CoachReplySnapshot(
+          text: request.kind == CoachRequestKind.summary
+              ? 'A short summary.'
+              : 'Coach reply.',
+          stopReason: CoachStopReason.endTurn,
+        ),
       ),
-    ),
-  ]);
-
-  @override
-  ResultFuture<Unit> cancelResponse(CoachModelSession session) async =>
-      const Ok(unit);
-
-  @override
-  ResultFuture<Unit> endSession(CoachModelSession session) async =>
-      const Ok(unit);
+    );
+  }
 }
 
 /// An in-memory coach store (the file store's own tests are in

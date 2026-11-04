@@ -8,43 +8,44 @@ part of 'coach_history_providers.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// Whether the on-device model can run on this iPhone now: its
-/// [CoachModelInfo], or an `AsyncError` carrying the typed
-/// [CoachModelUnavailableFailure] that says why not.
+/// Whether the coach can run on this iPhone now, before anything is sent:
+/// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
+/// that says why not ([checkCoachAvailable]). Rebuilds when consent
+/// changes.
 ///
 /// iPhone only: read it only where `coachSupportAvailableProvider` is
-/// `true`, since the model isn't bound anywhere else. Auto-dispose; the app
-/// invalidates it on every return to the foreground, since the person may
-/// have turned Apple Intelligence on in Settings meanwhile.
+/// `true`, since the model isn't bound anywhere else. **Never calls the
+/// network** (CLAUDE.md §11: the nudge and the Coach tab must not call the
+/// model). Auto-dispose; the app invalidates it on every return to the
+/// foreground, cheaply.
 
 @ProviderFor(coachAvailability)
 final coachAvailabilityProvider = CoachAvailabilityProvider._();
 
-/// Whether the on-device model can run on this iPhone now: its
-/// [CoachModelInfo], or an `AsyncError` carrying the typed
-/// [CoachModelUnavailableFailure] that says why not.
+/// Whether the coach can run on this iPhone now, before anything is sent:
+/// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
+/// that says why not ([checkCoachAvailable]). Rebuilds when consent
+/// changes.
 ///
 /// iPhone only: read it only where `coachSupportAvailableProvider` is
-/// `true`, since the model isn't bound anywhere else. Auto-dispose; the app
-/// invalidates it on every return to the foreground, since the person may
-/// have turned Apple Intelligence on in Settings meanwhile.
+/// `true`, since the model isn't bound anywhere else. **Never calls the
+/// network** (CLAUDE.md §11: the nudge and the Coach tab must not call the
+/// model). Auto-dispose; the app invalidates it on every return to the
+/// foreground, cheaply.
 
 final class CoachAvailabilityProvider
-    extends
-        $FunctionalProvider<
-          AsyncValue<CoachModelInfo>,
-          CoachModelInfo,
-          FutureOr<CoachModelInfo>
-        >
-    with $FutureModifier<CoachModelInfo>, $FutureProvider<CoachModelInfo> {
-  /// Whether the on-device model can run on this iPhone now: its
-  /// [CoachModelInfo], or an `AsyncError` carrying the typed
-  /// [CoachModelUnavailableFailure] that says why not.
+    extends $FunctionalProvider<AsyncValue<Unit>, Unit, FutureOr<Unit>>
+    with $FutureModifier<Unit>, $FutureProvider<Unit> {
+  /// Whether the coach can run on this iPhone now, before anything is sent:
+  /// `unit`, or an `AsyncError` carrying the typed [CoachUnavailableFailure]
+  /// that says why not ([checkCoachAvailable]). Rebuilds when consent
+  /// changes.
   ///
   /// iPhone only: read it only where `coachSupportAvailableProvider` is
-  /// `true`, since the model isn't bound anywhere else. Auto-dispose; the app
-  /// invalidates it on every return to the foreground, since the person may
-  /// have turned Apple Intelligence on in Settings meanwhile.
+  /// `true`, since the model isn't bound anywhere else. **Never calls the
+  /// network** (CLAUDE.md §11: the nudge and the Coach tab must not call the
+  /// model). Auto-dispose; the app invalidates it on every return to the
+  /// foreground, cheaply.
   CoachAvailabilityProvider._()
     : super(
         from: null,
@@ -61,17 +62,16 @@ final class CoachAvailabilityProvider
 
   @$internal
   @override
-  $FutureProviderElement<CoachModelInfo> $createElement(
-    $ProviderPointer pointer,
-  ) => $FutureProviderElement(pointer);
+  $FutureProviderElement<Unit> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
 
   @override
-  FutureOr<CoachModelInfo> create(Ref ref) {
+  FutureOr<Unit> create(Ref ref) {
     return coachAvailability(ref);
   }
 }
 
-String _$coachAvailabilityHash() => r'2ba330f544666ffd49e156dc7c9ff983641aca7b';
+String _$coachAvailabilityHash() => r'a7ec1a1f5b0b01bc9cd63aabb0c2a35a82049756';
 
 /// Every stored coach session, newest first, read locally from
 /// `CoachRepository`. The live session invalidates it after each save, and

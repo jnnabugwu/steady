@@ -11,10 +11,12 @@ environment:
 dependencies:
   coach_domain:
     path: ../coach_domain
+  crypto: ^3.0.7
   failures:
     path: ../../../packages/shared/failures
   flutter:
     sdk: flutter
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:

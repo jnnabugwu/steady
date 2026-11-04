@@ -9,11 +9,16 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ## The coach uses a hosted model (2026-10-30)
 
-**Status: decided, not built.** Nothing below exists in the code yet. The shipped coach still
-runs on Apple Foundation Models on the iPhone, and `docs/PRIVACY.md`, the App Privacy answers
-(`docs/testflight.md` §6) and the Health usage string still describe that. They change in the
+**Status (2026-11-02): the proxy and the app side are built; not shipped.** The proxy is in
+its own repo, `jnnabugwu/steady-backend` (#149), and the app talks to it through
+`HostedCoachModel` (#151), signing with the App Attest client (#150), with the on-device
+machinery removed (#152). Still open: the Vercel deployment, the App ID's App Attest
+capability (#148), the consent screen (#153), the guardrail evaluation set (#154) and a check
+on a physical iPhone. The build on TestFlight still runs
+Apple Foundation Models, and `docs/PRIVACY.md`, the App Privacy answers
+(`docs/testflight.md` §6) and the Health usage string still describe it. They change in the
 same release as the hosted coach, not before. Tracking issue: "Hosted coach (Claude Opus 5.5
-via Vercel proxy)".
+via Vercel proxy)" (#155).
 
 **Decision:**
 
@@ -22,9 +27,10 @@ via Vercel proxy)".
    API.
 2. **Hosted only.** The Foundation Models path (`MethodChannelCoachModel`,
    `app/ios/Runner/CoachChannel.swift`) is removed, not kept as a fallback.
-3. The app never holds the API key. It talks to a **thin, stateless proxy** in a new top-level
-   `backend/` folder (TypeScript, Vercel Functions with streaming responses, the official
-   `@anthropic-ai/sdk`), deployed on **Vercel**. The proxy:
+3. The app never holds the API key. It talks to a **thin, stateless proxy** in its own repo,
+   **`jnnabugwu/steady-backend`** (first planned as a `backend/` folder here; a separate repo
+   deploys, versions and runs CI on its own), in TypeScript with Vercel Functions streaming
+   responses and the official `@anthropic-ai/sdk`, deployed on **Vercel**. The proxy:
    - holds the Anthropic API key (a key from the Anthropic Console, paid from Jordan's API
      credits, about $100 a month; a Claude Max subscription doesn't cover API usage);
    - verifies **Apple App Attest** on every request. There are still no user accounts:
@@ -101,8 +107,9 @@ to TestFlight. The on-device model limits who can use the coach and how good it 
     are an open item.** They must be checked against Anthropic's current published terms
     before shipping, and the consent copy and PRIVACY.md state them only once confirmed. This
     record deliberately states no retention period or training terms.
-- **Steady now has a backend** (CLAUDE.md §12). It's one stateless proxy for one feature, with
-  no database of people's data, no accounts and no sync role. Everything else stays on-device or
+- **Steady now has a backend** (CLAUDE.md §12), in `jnnabugwu/steady-backend`. It's one
+  stateless proxy for one feature, with no database of people's data, no accounts and no sync
+  role. Everything else stays on-device or
   in the person's own iCloud.
 - **`coach_domain` sheds the 4,096-token machinery:** `CoachContextBudget`, `CoachConversation`'s
   move to a fresh session and its carried summary, `estimateCoachTokens`,

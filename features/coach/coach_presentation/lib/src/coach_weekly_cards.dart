@@ -104,10 +104,11 @@ String coachWeekLabel(DateTime first, DateTime last) {
 
 /// The Today screen's coach nudge (`TodayScreen.coachNudge`, iPhone only).
 ///
-/// Offers the weekly check-in ([coachNudgeProvider]). Where the model can
-/// run: **Talk now** ([onTalkNow]) and **Not tonight**. Where it can't, the
-/// reason in a sentence instead of "Talk now". Nothing at all on the Mac,
-/// where it never reads the model.
+/// Offers the weekly check-in ([coachNudgeProvider]). Where the coach can
+/// run: **Talk now** ([onTalkNow]) and **Not tonight**. Where it can't (no
+/// consent yet, the coach off, this iPhone can't be verified), the reason
+/// in a sentence instead of "Talk now". Never calls the network. Nothing at
+/// all on the Mac, where it never reads the model.
 class CoachNudgeCard extends ConsumerWidget {
   /// Creates the nudge.
   const CoachNudgeCard({required this.onTalkNow, super.key});
@@ -128,7 +129,7 @@ class CoachNudgeCard extends ConsumerWidget {
     }
     final failure = switch (availability) {
       AsyncError(:final error) =>
-        error is Failure ? error : const CoachModelUnavailableUnknownFailure(),
+        error is Failure ? error : const CoachServerFailure(),
       _ => null,
     };
     final label = coachWeekLabel(week.first, week.last);

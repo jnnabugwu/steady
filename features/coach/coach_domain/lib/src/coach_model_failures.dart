@@ -1,123 +1,99 @@
 import 'package:failures/failures.dart';
 
-/// The on-device model can't run on this iPhone right now. One subtype per
-/// reason, so the coach UI can `switch` on it and say plainly why (CLAUDE.md
-/// §11). Mapped from Foundation Models' `SystemLanguageModel.availability`
-/// at the `coach_data` boundary.
-sealed class CoachModelUnavailableFailure extends Failure {
+/// Why the coach couldn't reply, or can't run at all: every failure a
+/// `CoachModel` returns. One final class per thing the coach screens have
+/// to say plainly, so they can `switch` on it (CLAUDE.md §11). Mapped from
+/// the proxy's error codes and from transport and App Attest errors at the
+/// `coach_data` boundary (CLAUDE.md §9).
+sealed class CoachModelFailure extends Failure {
   /// Creates the failure with a plain-English [message].
-  const CoachModelUnavailableFailure(super.message, {super.cause});
+  const CoachModelFailure(super.message, {super.cause});
 }
 
-/// This iPhone doesn't support Apple Intelligence
-/// (`UnavailableReason.deviceNotEligible`). Nothing the user can change.
-final class CoachDeviceNotEligibleFailure extends CoachModelUnavailableFailure {
+/// The coach can't run here right now, before anything is sent: no consent
+/// yet, the coach turned off, or this iPhone can't be verified. The coach
+/// screens show a card saying why instead of a conversation.
+sealed class CoachUnavailableFailure extends CoachModelFailure {
+  /// Creates the failure with a plain-English [message].
+  const CoachUnavailableFailure(super.message, {super.cause});
+}
+
+/// The person hasn't agreed to the coach sending what a conversation needs
+/// (App Store 5.1.2). Never sent: the request is refused before it's built.
+/// The consent screen (#153) is what changes this.
+final class CoachConsentNotGivenFailure extends CoachUnavailableFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
-  const CoachDeviceNotEligibleFailure({
-    String message =
-        "This iPhone doesn't support Apple Intelligence, "
-        'which the coach needs.',
+  const CoachConsentNotGivenFailure({
+    String message = "The coach isn't set up yet.",
     super.cause,
   }) : super(message);
 }
 
-/// Apple Intelligence is supported but turned off
-/// (`UnavailableReason.appleIntelligenceNotEnabled`). The user can turn it
-/// on in Settings → Apple Intelligence & Siri.
-final class CoachAppleIntelligenceNotEnabledFailure
-    extends CoachModelUnavailableFailure {
+/// The coach is off: the proxy's kill switch (`coach_disabled`), or a build
+/// with no proxy configured. Nothing was sent to the model. Not a transport
+/// failure: no retry loop, just "try again later".
+final class CoachTurnedOffFailure extends CoachUnavailableFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
-  const CoachAppleIntelligenceNotEnabledFailure({
-    String message =
-        'The coach needs Apple Intelligence. You can turn it '
-        'on in Settings → Apple Intelligence & Siri.',
+  const CoachTurnedOffFailure({
+    String message = 'The coach is off right now.',
     super.cause,
   }) : super(message);
 }
 
-/// Apple Intelligence is on, but the model isn't ready yet, usually still
-/// downloading (`UnavailableReason.modelNotReady`, or the model's assets
-/// going missing mid-session). Worth trying again later.
-final class CoachModelNotReadyFailure extends CoachModelUnavailableFailure {
+/// This iPhone can't prove it's running the genuine app (App Attest isn't
+/// supported here), which the proxy requires. Nothing the person can change.
+final class CoachDeviceNotVerifiedFailure extends CoachUnavailableFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
-  const CoachModelNotReadyFailure({
-    String message =
-        "Apple Intelligence isn't ready yet. It may still be "
-        'downloading; try again in a little while.',
+  const CoachDeviceNotVerifiedFailure({
+    String message = "This iPhone can't be verified, which the coach needs.",
     super.cause,
   }) : super(message);
 }
 
-/// The iPhone runs an iOS older than 26, which has no Foundation Models.
-/// The app's iOS floor is 17, so this is a real case.
-final class CoachOsTooOldFailure extends CoachModelUnavailableFailure {
+/// No connection, or the proxy didn't answer in time. Worth trying again.
+final class CoachOfflineFailure extends CoachModelFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
-  const CoachOsTooOldFailure({
-    String message = 'The coach needs iOS 26 or later.',
+  const CoachOfflineFailure({
+    String message = "Couldn't reach the coach.",
     super.cause,
   }) : super(message);
 }
 
-/// Unavailable for a reason this build doesn't know (a reason added in a
-/// later iOS).
-final class CoachModelUnavailableUnknownFailure
-    extends CoachModelUnavailableFailure {
+/// This iPhone's daily limit, or the coach's overall one, is used up
+/// (`rate_limited`, HTTP 429).
+final class CoachRateLimitedFailure extends CoachModelFailure {
   /// Creates the failure; [message] defaults to plain-English copy.
-  const CoachModelUnavailableUnknownFailure({
-    String message = "The coach isn't available on this iPhone right now.",
+  const CoachRateLimitedFailure({
+    this.retryAfter,
+    String message = 'The coach has reached its limit for today.',
     super.cause,
   }) : super(message);
-}
 
-/// Why a response failed, once the model was available.
-enum CoachInferenceFailureReason {
-  /// The session used up its context window (instructions, data, prompts
-  /// and replies together). Start a new session with less in it.
-  contextExceeded,
-
-  /// Apple's built-in safety guardrails stopped the prompt or the reply.
-  /// The coach UI should offer the help line (`CoachCopy.helpLine`), since
-  /// this can be what a crisis message looks like from here.
-  guardrailViolation,
-
-  /// The model declined to answer.
-  refusal,
-
-  /// The device's language or region isn't supported by the model.
-  unsupportedLanguage,
-
-  /// The system is limiting requests (for example, the app is in the
-  /// background). Try again shortly.
-  rateLimited,
-
-  /// The session was already answering a prompt.
-  busy,
-
-  /// The model took too long to answer.
-  timeout,
-
-  /// The session was ended, or never existed on the native side (for
-  /// example, after the app was restarted).
-  sessionEnded,
-
-  /// Any other inference error.
-  other,
-}
-
-/// A response failed after the model was available: a guardrail or refusal,
-/// the context window running out, and so on ([reason]). Mapped from
-/// Foundation Models' errors at the `coach_data` boundary.
-final class CoachInferenceFailure extends Failure {
-  /// Creates the failure for [reason].
-  const CoachInferenceFailure(
-    super.message, {
-    required this.reason,
-    super.cause,
-  });
-
-  /// What went wrong.
-  final CoachInferenceFailureReason reason;
+  /// How long until the limit resets, if the proxy said.
+  final Duration? retryAfter;
 
   @override
-  List<Object?> get props => [message, reason];
+  List<Object?> get props => [message, retryAfter];
+}
+
+/// The model declined to answer (`refusal`), even after the proxy's
+/// fallback. This can be what a hard moment looks like from here, so the
+/// coach screens discard any partial reply and show `CoachCopy.helpLine`.
+final class CoachRefusalFailure extends CoachModelFailure {
+  /// Creates the failure; [message] defaults to plain-English copy.
+  const CoachRefusalFailure({
+    String message = "The coach can't reply to that.",
+    super.cause,
+  }) : super(message);
+}
+
+/// Anything else on the proxy's side or between: a server error, the model
+/// provider unavailable, a malformed or broken stream, a request the proxy
+/// rejected, or attestation that kept failing. Worth trying again shortly.
+final class CoachServerFailure extends CoachModelFailure {
+  /// Creates the failure; [message] defaults to plain-English copy.
+  const CoachServerFailure({
+    String message = "The coach couldn't reply just now.",
+    super.cause,
+  }) : super(message);
 }

@@ -156,20 +156,31 @@ void main() {
     review(tester, 'Coach tab');
     expect(find.byKey(const Key('coachChatCard')), findsOneWidget);
 
-    model.availability = const Err(CoachDeviceNotEligibleFailure());
-    await pump(
-      tester,
-      CoachHomeModule(
-        onChatRequested: () {},
-        onWeeklyRequested: () {},
-        onSessionSelected: (_) {},
-      ),
-      scope: 'unavailable',
-    );
-    // Proof this pass is reviewing the unavailable screen and not the
-    // previous one over again.
-    expect(find.byKey(const Key('coachUnavailableCard')), findsOneWidget);
-    review(tester, 'Coach tab, unavailable');
+    // Every reason the coach can't run or reply, consent first.
+    for (final (i, failure) in <Failure>[
+      const CoachConsentNotGivenFailure(),
+      const CoachTurnedOffFailure(),
+      const CoachDeviceNotVerifiedFailure(),
+      const CoachOfflineFailure(),
+      const CoachRateLimitedFailure(retryAfter: Duration(hours: 3)),
+      const CoachServerFailure(),
+    ].indexed) {
+      model.availability = Err(failure);
+      await pump(
+        tester,
+        CoachHomeModule(
+          onChatRequested: () {},
+          onWeeklyRequested: () {},
+          onSessionSelected: (_) {},
+        ),
+        scope: 'unavailable $i',
+      );
+      // Proof this pass is reviewing the unavailable screen and not the
+      // previous one over again.
+      expect(find.byKey(const Key('coachUnavailableCard')), findsOneWidget);
+      expect(find.text(coachUnavailableCopy(failure).title), findsOneWidget);
+      review(tester, 'Coach tab, ${failure.runtimeType}');
+    }
   });
 
   testWidgets('a thin week on the Coach tab', (tester) async {
@@ -190,14 +201,14 @@ void main() {
     await pump(tester, Center(child: CoachNudgeCard(onTalkNow: () {})));
     expect(find.byKey(const Key('coachNudgeCard')), findsOneWidget);
     review(tester, 'nudge');
-    model.availability = const Err(CoachModelNotReadyFailure());
+    model.availability = const Err(CoachConsentNotGivenFailure());
     await pump(
       tester,
       Center(child: CoachNudgeCard(onTalkNow: () {})),
       scope: 'unavailable',
     );
     // As above: proof the unavailable copy is what's on screen now.
-    expect(find.text('The coach is still getting ready'), findsOneWidget);
+    expect(find.text("The coach isn't set up yet"), findsOneWidget);
     review(tester, 'nudge, unavailable');
   });
 
@@ -212,15 +223,12 @@ void main() {
 
     await tester.tap(find.byKey(const Key('coachWeeklyBegin')));
     await tester.pumpAndSettle();
-    model.failNext = const CoachInferenceFailure(
-      'g',
-      reason: CoachInferenceFailureReason.guardrailViolation,
-    );
+    model.failNext = const CoachRefusalFailure();
     await tester.enterText(find.byKey(const Key('coachMessageField')), 'Hi');
     await tester.tap(find.byKey(const Key('coachSend')));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('coachHelpCard')), findsOneWidget);
-    review(tester, 'weekly, guardrail');
+    review(tester, 'weekly, refusal');
 
     await tester.tap(find.byKey(const Key('coachSessionEnd')));
     await tester.pumpAndSettle();
