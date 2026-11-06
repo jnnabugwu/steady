@@ -183,7 +183,7 @@ items land; don't let it drift into a change log — keep it a current-state che
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
 "The coach runs on the iPhone"). Decided 2026-10-30: its model moves to hosted Claude; the app
 side is built (#151, #152), the Foundation Models channel is gone, and consent is built
-(#153). What's still open (deployment, App Attest, the App Privacy answers, hardware) is under
+(#153). What's still open (the App Privacy answers, the check on hardware) is under
 "Hosted coach" below.
 - [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
@@ -255,23 +255,24 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       deleted within 30 days, no training without express permission, kept longer only if
       flagged by automated safety systems (up to two years) or by law. In the consent copy
       and PRIVACY.md (#153).
-- [ ] Jordan: create the Console API key, set a monthly spend limit, add the key to
-      Vercel.
+- [x] Jordan: create the Console API key, cap spend and add the key to Vercel (#148).
+      Auto-reload is off, so the API credit balance is the ceiling.
 - [x] The proxy, in its own repo, `jnnabugwu/steady-backend` (#149; not a `backend/` folder
       here): TypeScript, Vercel Functions, `@anthropic-ai/sdk`. Holds the key; verifies App
       Attest on every request (Upstash Redis for attested keys and counters); owns the
       system prompt and guardrails, with their tests; per-device and global daily limits
       and a kill switch; metadata-only logs; SSE replies. Its README is the API contract.
-- [ ] The proxy deployed on Vercel (Preview and Production), with its environment
-      variables, and smoke-tested. Not yet: the Vercel project doesn't exist.
+- [x] The proxy deployed on Vercel (Production), with Upstash Redis and its environment
+      variables (#148). Release builds bake its address in from `scripts/coach-proxy-url`,
+      and `scripts/verify-ios-ipa.sh` fails a build without it.
 - [ ] App Attest client in `app/ios/Runner` (`DCAppAttestService`: key, one attestation, an
       assertion per request), its channel and typed failures; the App Attest entitlement.
       Built (#150): `AppAttestChannel.swift`, `MethodChannelAppAttest`,
       `FileAppAttestKeyStore` (`app_attest_key.json` in application support, bound on iOS
       only in `app/lib/providers.dart`) and the per-configuration entitlement. The key
-      lifecycle and the debug-only bypass are `HostedCoachModel`'s (#151). Still open: a
-      debug build on a physical iPhone attesting and asserting against a Preview
-      deployment, and the App ID capability (#148).
+      lifecycle and the debug-only bypass are `HostedCoachModel`'s (#151). The App ID has
+      the App Attest capability and the profiles are regenerated (#148). Still open:
+      attesting and asserting on a physical iPhone (the first internal TestFlight build).
 - [x] `HostedCoachModel` in `coach_data` (#151), replacing `MethodChannelCoachModel`,
       `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift` (all deleted).
       `CoachModel` is stateless: `reply(CoachRequest)` sends the session kind, the week
@@ -305,9 +306,11 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       lands too.
 - [ ] On hardware: a TestFlight-config build streams a reply from the production proxy on a
       physical iPhone (#151).
-- [ ] Guardrail evaluation set (calorie targets, weight goals, diet prescriptions, crisis
-      language, cravings) run against the proxy and passing before any TestFlight build with
-      the hosted coach.
+- [x] Guardrail evaluation set (#154) in steady-backend's `evals/`: 35 cases (calorie
+      targets, weight goals, diets, crisis language, cravings, shame, numbers, medical
+      questions, prompt injection, summaries, over-refusal), 3 reps each through the real
+      handler. Passed 2026-11-06 (every critical rep safe; 93% of the rest, bar 90%). Run it
+      again after any change to the instructions, the effort level or the model.
 - [ ] Notes retrieval (#85) feeds a hosted prompt: the retrieved notes count as sent data,
       under the same consent and disclosure.
 
@@ -400,8 +403,8 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [ ] Entitlements: HealthKit (iOS only). CloudKit container entitlement is set. The coach
       no longer uses Foundation Models (#151). The App Attest entitlement
       (`com.apple.developer.devicecheck.appattest-environment`, #150) is set: `development`
-      for Debug, `production` for Release and Profile. It won't sign until the App ID has the
-      App Attest capability and match's profile is regenerated (#148).
+      for Debug, `production` for Release and Profile. The App ID has the App Attest
+      capability and match's profile is regenerated (#148).
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
       run only from Actions → Ship iOS (`docs/fastlane.md`).

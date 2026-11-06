@@ -38,10 +38,10 @@
   (device-only, §7). Its replies come from Claude Opus 5.5 (`claude-opus-5-5`) through the
   Anthropic API, reached only through Steady's own thin proxy on Vercel, which lives in its
   own repo, **`jnnabugwu/steady-backend`** (§12), holds the API key, verifies App Attest and
-  owns the system prompt. Hosted only: the Foundation Models path is gone. The app side
-  (`HostedCoachModel`), the App Attest client (#150) and consent (#153) are built; the
-  deployment, the App ID's App Attest capability (#148) and a check on hardware are still
-  open (§11). The Mac has no coach. Decision record:
+  owns the system prompt. Hosted only: the Foundation Models path is gone. The proxy is
+  deployed (Production), the app side (`HostedCoachModel`), the App Attest client (#150) and
+  consent (#153) are built, and the guardrail eval passes (#154); a check on a physical
+  iPhone is still open (§11). The Mac has no coach. Decision record:
   `docs/technical_decisions.md`, "The coach uses a hosted model".
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
   for parsing Cal AI exports. **No backend for parsing.** Validated against real exports:
@@ -732,8 +732,8 @@ and nothing coach-related exists in `app/macos/` — not a disabled path, an abs
 key lifecycle against the proxy. The entitlement
 `com.apple.developer.devicecheck.appattest-environment` is `$(STEADY_APP_ATTEST_ENVIRONMENT)`
 in `Runner.entitlements`: `development` in `Flutter/Debug.xcconfig`, `production` in
-`Flutter/Release.xcconfig` (Release and Profile). It signs only once the App ID has the App
-Attest capability and the profiles are regenerated (#148).
+`Flutter/Release.xcconfig` (Release and Profile). The App ID has the App Attest capability
+and the profiles are regenerated (#148), so it signs.
 
 ---
 
@@ -819,7 +819,7 @@ Attest capability and the profiles are regenerated (#148).
 
 ## 11. The coach runs on the iPhone, on a hosted model
 
-**Where this stands (2026-11-02).** The coach (the 5-minute weekly session and chat) runs on
+**Where this stands (2026-11-06).** The coach (the 5-minute weekly session and chat) runs on
 the iPhone only (decided 2026-10-24, "The coach runs on the iPhone"). Its replies come from
 **Claude Opus 5.5** (`claude-opus-5-5`) through the Anthropic API, reached only through
 Steady's own thin proxy on Vercel (decided 2026-10-30, "The coach uses a hosted model", both in
@@ -830,11 +830,16 @@ Steady's own thin proxy on Vercel (decided 2026-10-30, "The coach uses a hosted 
   `HostedCoachModel` (#151) and the `coach_domain` cleanup (#152).
 - **Built (#153):** consent: the consent screen, the Settings → Coach switch and the
   device-only consent store (below, "Consent").
-- **Not yet:** the Vercel deployment (no `COACH_PROXY_URL` exists to build with), App Attest
-  verified on a physical iPhone and the App ID capability (#148), the App Privacy answers in
-  App Store Connect (`docs/testflight.md` §6, Jordan's), the guardrail evaluation set
-  (#154), and a reply streamed on a physical iPhone. Describe these as open until they are
-  done. Tracking issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)" (#155).
+- **Deployed (#148):** the proxy's Production deployment on Vercel, with the Anthropic key,
+  Upstash Redis and the daily limits. Release builds bake its address in from
+  `scripts/coach-proxy-url` (`docs/fastlane.md`). The App ID has the App Attest capability.
+  Spend is capped by the API credit balance, with auto-reload off.
+- **Passed (#154):** the guardrail eval in steady-backend's `evals/` (35 risky cases, 3 reps
+  each, through the real handler, graded by string checks and a Claude judge). Run it again
+  after any change to the instructions, the effort level or the model.
+- **Not yet:** App Attest and a streamed reply verified on a physical iPhone (the first
+  internal TestFlight build with the hosted coach), and the App Privacy answers in App Store
+  Connect (`docs/testflight.md` §6, Jordan's). Describe these as open until they are done. Tracking issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)" (#155).
 
 **Why the iPhone:** the coach's context lives there. Steps and burned energy come from
 HealthKit, which works only there and can't sync through iCloud (§1, §7), and craving

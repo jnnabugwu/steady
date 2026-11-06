@@ -23,12 +23,13 @@ One Flutter codebase, two platform targets — iOS and macOS, not two separate a
 | Client | Flutter — iOS + macOS |
 | Local persistence, sync, and auth | **SwiftData (CloudKit-backed)** — Apple ID is the entire auth story, no separate login system |
 | Step / energy data | **HealthKit** on iOS only, read live and never stored in iCloud (App Store 5.1.3); no Health data on the Mac |
-| On-device coach LLM | Apple **Foundation Models** — **iPhone only**, where Health data and cravings live; transcripts stay on the device. The Mac has no coach |
+| Coach model | Hosted **Claude Opus 5.5**, reached only through Steady's own thin proxy on Vercel (`jnnabugwu/steady-backend`), after the person's consent — **iPhone only**, where Health data and cravings live; transcripts are stored only on the device. The Mac has no coach |
 | PDF parsing | **`pdfrx_engine`** (pure Dart) — parses Cal AI weekly exports on-device, no backend at all |
 | Routing | **go_router** with `go_router_builder` / `@TypedGoRoute` — typed, date-carrying routes for links into a specific day (e.g. `/checkin/<date>` from a cold start) |
 
-There is no backend, and no separate auth system — CloudKit's per-account private
-container already covers both. See [`CLAUDE.md`](CLAUDE.md) for the full reasoning
+There is no backend beyond the coach's stateless proxy (it holds the API key and checks App
+Attest), and no separate auth system — CloudKit's per-account private container already
+covers both. See [`CLAUDE.md`](CLAUDE.md) for the full reasoning
 behind each of these choices.
 
 ## Repo layout
@@ -43,7 +44,7 @@ steady/
 ├── features/
 │   ├── metrics/          # Weekly view + metrics history
 │   ├── checkin/           # End-of-day logged/partial/skipped status
-│   ├── coach/              # iPhone only: weekly session + chat (Foundation Models)
+│   ├── coach/              # iPhone only: weekly session + chat (hosted Claude)
 │   ├── pdf_import/          # Cal AI PDF upload + on-device parsing
 │   └── notes/                  # Planned (RAG) — journal notes for the coach to draw on
 ├── packages/
@@ -83,5 +84,5 @@ flutter pub get
 flutter run
 ```
 
-The coach needs iOS 26+ on an iPhone that supports Apple Intelligence (checked at runtime; the rest of the app runs without it). iOS's minimum OS version is not yet finalized (see
+The coach needs a network connection and the proxy's address at build time (`--dart-define=COACH_PROXY_URL=...`); without it the coach says it's off and the rest of the app runs normally. Release builds take it from `scripts/coach-proxy-url` (`docs/fastlane.md`); debug builds and the Simulator's App Attest bypass are in [`CLAUDE.md`](CLAUDE.md) §11. iOS's minimum OS version is not yet finalized (see
 [`docs/steady_product_overview.md`](docs/steady_product_overview.md) §2).
