@@ -2,6 +2,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
+import 'helpers/harness.dart';
+
 Widget _host(Widget child, {bool disableAnimations = false}) => ShadcnApp(
   theme: steadyTheme,
   home: MediaQuery(
@@ -220,6 +222,46 @@ void main() {
     testWidgets('never says Plus or upgrade', (tester) async {
       expect(PaidBadge.text.toLowerCase(), isNot(contains('plus')));
       expect(PaidBadge.text.toLowerCase(), isNot(contains('upgrade')));
+    });
+  });
+
+  // Goldens are a local visual check on macOS (see helpers/harness.dart).
+  group('OnboardingCairn golden', skip: goldenSkip, () {
+    testWidgets('mid-flow, with a skipped step and the next to place', (
+      tester,
+    ) async {
+      await loadGoldenFonts();
+      await tester.pumpWidget(
+        goldenFrame(
+          size: const Size(220, 220),
+          child: const Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              spacing: 12,
+              children: [
+                OnboardingCairn(
+                  stones: [
+                    OnboardingStone.placed,
+                    OnboardingStone.placed,
+                    OnboardingStone.dimmed,
+                    OnboardingStone.placed,
+                    OnboardingStone.pending,
+                    OnboardingStone.none,
+                    OnboardingStone.none,
+                    OnboardingStone.none,
+                    OnboardingStone.none,
+                  ],
+                ),
+                PaidBadge(),
+              ],
+            ),
+          ),
+        ),
+      );
+      await expectLater(
+        find.byKey(goldenKey),
+        matchesGoldenFile('goldens/onboarding_cairn.png'),
+      );
     });
   });
 }
