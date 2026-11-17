@@ -83,6 +83,28 @@ skip sends nothing. This needs, in order:
 and someone updating from 1.0 sees it on their first launch after the update. Finishing or
 skipping to the end marks it done; it never comes back on its own.
 
+**Leaving early (decided 2026-11-17).** Nothing ever traps someone in the flow.
+
+- **"Not now"**, in the corner of every screen, goes straight to Today: one tap, no "are you
+  sure?". It marks onboarding done. The answers given so far are kept, and Settings → About me
+  has every question for later.
+- **Closing the app mid-flow** (swiped away, or iOS ends it in the background) isn't leaving.
+  Each answer is saved as it's given, with the screen the person was on, and the next launch
+  opens on that screen with the earlier answers filled in.
+- **Apple Health is never asked for without screen 4 in front of it.** Steady no longer asks
+  at launch. Someone who leaves before screen 4 reaches the same screen from Settings → Apple
+  Health or Today's empty Health tiles.
+- **Leaving before screen 8** means no consent, and every way into the coach already asks for
+  it first.
+- **Screen 3's answer** is sent only when it's chosen. Leaving or skipping sends nothing, and
+  nothing is stored.
+- **A first launch from a link** (`/checkin/<date>`) opens the link. Onboarding shows on the
+  next ordinary launch.
+- **An unreadable `onboarding.json` counts as done**, so a damaged file never puts the flow in
+  front of someone, and the next save replaces it with a record that says done.
+- **`onboarding_exited`** (PostHog, with the screen's fixed code only) records where people
+  leave, so the screens that lose people can be fixed.
+
 **The coach steps are marked paid (decided 2026-11-17).** The coach, including the weekly
 check-in, is what Steady will charge for. Until the paywall exists, screens 7 and 8 carry a
 small "paid" badge, so nobody is surprised later. The coach is the main thing Steady does,
