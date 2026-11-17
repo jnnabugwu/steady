@@ -879,7 +879,8 @@ accounts); **owns the system prompt and guardrails** and their tests, so the app
 session kind, the week context and the conversation; caps cost per device and globally per
 day, with a kill switch (`coach_disabled`); logs metadata only; sends Anthropic no
 per-device identifier (no `metadata.user_id`, removed in steady-backend#10, so what Anthropic
-keeps for up to 30 days isn't linked to anyone, which is what the App Privacy label's "not
+keeps (up to 30 days; longer only if its safety systems flag a conversation or the law
+requires it) isn't linked to any identifier Steady supplies, which is what the App Privacy label's "not
 linked" rests on; adding one back means answering "Linked to you" first); and streams replies as
 server-sent events.
 

@@ -187,8 +187,10 @@ identity**; **not used for tracking**):
 
 "Not linked to identity": there are no accounts, no email, no name. The proxy keeps the App
 Attest key id and its daily counts, but no message content, so the two are never stored
-together. Anthropic, which does keep the content (up to 30 days), gets **no identifier at
-all**: the proxy sent a hash of the key id as `metadata.user_id` until steady-backend#10
+together. Anthropic, which does keep the content (up to 30 days, longer only if its safety systems flag
+a conversation or the law requires it), gets **no identifier from Steady**: no per-device id
+or anything else the proxy adds. (What the person types goes as written, so it can contain
+whatever they choose to say.) The proxy sent a hash of the key id as `metadata.user_id` until steady-backend#10
 (2026-11-17) removed it, precisely so this answer holds. Adding any per-device id to
 Anthropic requests again means changing Health, Fitness and Other User Content to "Linked to
 you" first. An IP address is seen in transit only, never kept, and not used for location.
