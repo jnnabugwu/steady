@@ -119,6 +119,8 @@ void main() {
       await repo.saveAboutMe(_answers);
       await repo.markCompleted();
       expect(onDisk().keys, {'schemaVersion', 'completed', 'aboutMe'});
+      await repo.saveStep(OnboardingStep.health);
+      expect(onDisk().keys, {'schemaVersion', 'completed', 'step', 'aboutMe'});
       expect((onDisk()['aboutMe']! as Map<String, Object?>).keys, {
         'voice',
         'tracking',
@@ -127,6 +129,15 @@ void main() {
         'hardParts',
         'note',
       });
+    });
+
+    test('writes the step by code, and leaves it out once done', () async {
+      final repo = FileOnboardingRepository(file);
+      await repo.saveStep(OnboardingStep.meetCoach);
+      expect(onDisk()['step'], 'meetCoach');
+      expect(onDisk()['schemaVersion'], 1);
+      await repo.markCompleted();
+      expect(onDisk().containsKey('step'), isFalse);
     });
 
     test('leaves no .tmp behind after a write', () async {
@@ -142,6 +153,14 @@ void main() {
       expect(
         _ok(await FileOnboardingRepository(file).read()),
         const OnboardingRecord(aboutMe: _answers),
+      );
+    });
+
+    test('the step persists, so a relaunch resumes there', () async {
+      await FileOnboardingRepository(file).saveStep(OnboardingStep.hardParts);
+      expect(
+        _ok(await FileOnboardingRepository(file).read()).step,
+        OnboardingStep.hardParts,
       );
     });
 
@@ -210,6 +229,7 @@ void main() {
         },
       ),
       'note as a number': () => validFile(aboutMe: {'note': 42}),
+      'step as a number': () => {...validFile(), 'step': 4},
     };
 
     for (final MapEntry(key: name, value: contents) in corrupt.entries) {
@@ -250,34 +270,27 @@ void main() {
       );
     });
 
-    test('saveAboutMe replaces it, starting from a first launch', () async {
-      // Our decision, not a platform fact: nothing in a corrupt file can be
-      // read, and keeping it would block every later write. "completed"
-      // can't be known, so it's false (onboarding may show once more).
-      file.parent.createSync(recursive: true);
-      file.writeAsStringSync('not json');
-      final repo = FileOnboardingRepository(file);
-      expect(
-        _ok(await repo.saveAboutMe(_answers)),
-        const OnboardingRecord(aboutMe: _answers),
-      );
-      expect(
-        _ok(await FileOnboardingRepository(file).read()).aboutMe,
-        _answers,
-      );
-    });
-
-    test('markCompleted replaces it, with nothing answered', () async {
-      file.parent.createSync(recursive: true);
-      file.writeAsStringSync('not json');
-      expect(
-        _ok(await FileOnboardingRepository(file).markCompleted()),
-        const OnboardingRecord(completed: true),
-      );
-      expect(
-        _ok(await FileOnboardingRepository(file).read()),
-        const OnboardingRecord(completed: true),
-      );
+    test('every write replaces it, starting from done', () async {
+      // Our decision (#161), not a platform fact: the app treats an
+      // unreadable file as onboarding done, so the file that replaces it
+      // says done too. The same rule is in the shared contract; this
+      // checks it against what's on disk afterwards.
+      for (final write
+          in <String, Future<Object?> Function(FileOnboardingRepository)>{
+            'saveAboutMe': (r) => r.saveAboutMe(_answers),
+            'saveStep': (r) => r.saveStep(OnboardingStep.voice),
+            'markCompleted': (r) => r.markCompleted(),
+          }.entries) {
+        file.parent.createSync(recursive: true);
+        file.writeAsStringSync('not json');
+        await write.value(FileOnboardingRepository(file));
+        expect(onDisk()['completed'], isTrue, reason: write.key);
+        expect(
+          _ok(await FileOnboardingRepository(file).read()).completed,
+          isTrue,
+          reason: write.key,
+        );
+      }
     });
 
     test('a read recovers once the file is fixed', () async {
@@ -347,6 +360,19 @@ void main() {
         _ok(await FileOnboardingRepository(file).read()),
         const OnboardingRecord(completed: true, aboutMe: _answers),
       );
+    });
+
+    test('an unknown step reads as not started', () async {
+      write({...validFile(completed: false), 'step': 'paywall'});
+      final record = _ok(await FileOnboardingRepository(file).read());
+      expect(record.step, isNull);
+      expect(record.aboutMe, _answers);
+    });
+
+    test('a file from before step (no key) reads as not started', () async {
+      // The shape this branch wrote before `step` existed.
+      write(validFile(completed: false));
+      expect(_ok(await FileOnboardingRepository(file).read()).step, isNull);
     });
 
     test('missing and null answers read as skipped', () async {

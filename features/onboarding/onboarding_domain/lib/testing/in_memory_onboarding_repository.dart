@@ -21,11 +21,28 @@ class InMemoryOnboardingRepository implements OnboardingRepository {
   OnboardingRecord get record => _record;
 
   /// When set, the next call returns `Err` of this failure and changes
-  /// nothing, and this is cleared.
+  /// nothing, and this is cleared. For an unreadable store, use
+  /// [makeUnreadable] instead: it also changes what the next write does.
   Failure? failNextWith;
 
+  bool _unreadable = false;
+
+  /// Makes the store act like a corrupt file: [read] returns
+  /// `Err(OnboardingUnreadableFailure)` until the next write, which starts
+  /// from [OnboardingRecord.whenUnreadable], as `FileOnboardingRepository`
+  /// does.
+  void makeUnreadable() => _unreadable = true;
+
   @override
-  ResultFuture<OnboardingRecord> read() async => _failure() ?? Ok(_record);
+  ResultFuture<OnboardingRecord> read() async {
+    if (_failure() case final failure?) return failure;
+    if (_unreadable) {
+      return const Err(
+        OnboardingUnreadableFailure('In-memory onboarding store unreadable'),
+      );
+    }
+    return Ok(_record);
+  }
 
   @override
   ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe) async {
@@ -37,12 +54,22 @@ class InMemoryOnboardingRepository implements OnboardingRepository {
         ),
       );
     }
-    return Ok(_record = _record.copyWith(aboutMe: aboutMe));
+    return Ok(_write((r) => r.copyWith(aboutMe: aboutMe)));
   }
 
   @override
+  ResultFuture<OnboardingRecord> saveStep(OnboardingStep step) async =>
+      _failure() ?? Ok(_write((r) => r.copyWith(step: step)));
+
+  @override
   ResultFuture<OnboardingRecord> markCompleted() async =>
-      _failure() ?? Ok(_record = _record.copyWith(completed: true));
+      _failure() ?? Ok(_write((r) => r.copyWith(completed: true, step: null)));
+
+  OnboardingRecord _write(OnboardingRecord Function(OnboardingRecord) change) {
+    final current = _unreadable ? OnboardingRecord.whenUnreadable : _record;
+    _unreadable = false;
+    return _record = change(current);
+  }
 
   Err<OnboardingRecord>? _failure() {
     final failure = failNextWith;

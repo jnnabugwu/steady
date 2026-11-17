@@ -11,12 +11,18 @@ void main() {
     setUp(() => dir = Directory.systemTemp.createTempSync('onboarding_test'));
     tearDown(() => dir.deleteSync(recursive: true));
 
+    File file() => File('${dir.path}/onboarding.json');
     runOnboardingRepositoryContractTests(
-      () => FileOnboardingRepository(File('${dir.path}/onboarding.json')),
+      () => FileOnboardingRepository(file()),
+      makeUnreadable: (_) async => file().writeAsStringSync('{"schemaVer'),
     );
   });
 
   group('InMemoryOnboardingRepository', () {
-    runOnboardingRepositoryContractTests(InMemoryOnboardingRepository.new);
+    runOnboardingRepositoryContractTests(
+      InMemoryOnboardingRepository.new,
+      makeUnreadable: (repo) async =>
+          (repo as InMemoryOnboardingRepository).makeUnreadable(),
+    );
   });
 }

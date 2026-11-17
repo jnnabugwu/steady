@@ -17,7 +17,9 @@ mixin _$OnboardingRecord {
 
 /// Whether the person has finished (or skipped to the end of)
 /// onboarding.
- bool get completed;/// Their answers so far; [AboutMe.empty] if none.
+ bool get completed;/// The screen the person was last on, to resume from; `null` if they
+/// haven't started, and once onboarding is completed.
+ OnboardingStep? get step;/// Their answers so far; [AboutMe.empty] if none.
  AboutMe get aboutMe;
 /// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
@@ -30,20 +32,20 @@ $OnboardingRecordCopyWith<OnboardingRecord> get copyWith => _$OnboardingRecordCo
 @override
 bool operator ==(Object other) {
   final _this = this as OnboardingRecord;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnboardingRecord&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.aboutMe, _this.aboutMe) || other.aboutMe == _this.aboutMe));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnboardingRecord&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.step, _this.step) || other.step == _this.step)&&(identical(other.aboutMe, _this.aboutMe) || other.aboutMe == _this.aboutMe));
 }
 
 
 @override
 int get hashCode {
   final _this = this as OnboardingRecord;
-  return Object.hash(runtimeType,_this.completed,_this.aboutMe);
+  return Object.hash(runtimeType,_this.completed,_this.step,_this.aboutMe);
 }
 
 @override
 String toString() {
   final _this = this as OnboardingRecord;
-  return 'OnboardingRecord(completed: ${_this.completed}, aboutMe: ${_this.aboutMe})';
+  return 'OnboardingRecord(completed: ${_this.completed}, step: ${_this.step}, aboutMe: ${_this.aboutMe})';
 }
 
 
@@ -54,7 +56,7 @@ abstract mixin class $OnboardingRecordCopyWith<$Res>  {
   factory $OnboardingRecordCopyWith(OnboardingRecord value, $Res Function(OnboardingRecord) _then) = _$OnboardingRecordCopyWithImpl;
 @useResult
 $Res call({
- bool completed, AboutMe aboutMe
+ bool completed, OnboardingStep? step, AboutMe aboutMe
 });
 
 
@@ -71,10 +73,11 @@ class _$OnboardingRecordCopyWithImpl<$Res>
 
 /// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? completed = null,Object? aboutMe = null,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? completed = null,Object? step = freezed,Object? aboutMe = null,}) {
   return _then(OnboardingRecord(
 completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
-as bool,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
+as bool,step: freezed == step ? _self.step : step // ignore: cast_nullable_to_non_nullable
+as OnboardingStep?,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
 as AboutMe,
   ));
 }
@@ -169,10 +172,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool completed,  AboutMe aboutMe)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool completed,  OnboardingStep? step,  AboutMe aboutMe)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _OnboardingRecord() when $default != null:
-return $default(_that.completed,_that.aboutMe);case _:
+return $default(_that.completed,_that.step,_that.aboutMe);case _:
   return orElse();
 
 }
@@ -190,10 +193,10 @@ return $default(_that.completed,_that.aboutMe);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool completed,  AboutMe aboutMe)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool completed,  OnboardingStep? step,  AboutMe aboutMe)  $default,) {final _that = this;
 switch (_that) {
 case _OnboardingRecord():
-return $default(_that.completed,_that.aboutMe);case _:
+return $default(_that.completed,_that.step,_that.aboutMe);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -210,10 +213,10 @@ return $default(_that.completed,_that.aboutMe);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool completed,  AboutMe aboutMe)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool completed,  OnboardingStep? step,  AboutMe aboutMe)?  $default,) {final _that = this;
 switch (_that) {
 case _OnboardingRecord() when $default != null:
-return $default(_that.completed,_that.aboutMe);case _:
+return $default(_that.completed,_that.step,_that.aboutMe);case _:
   return null;
 
 }
@@ -225,12 +228,15 @@ return $default(_that.completed,_that.aboutMe);case _:
 
 
 class _OnboardingRecord implements OnboardingRecord {
-  const _OnboardingRecord({this.completed = false, this.aboutMe = AboutMe.empty});
+  const _OnboardingRecord({this.completed = false, this.step, this.aboutMe = AboutMe.empty});
   
 
 /// Whether the person has finished (or skipped to the end of)
 /// onboarding.
 @override@JsonKey() final  bool completed;
+/// The screen the person was last on, to resume from; `null` if they
+/// haven't started, and once onboarding is completed.
+@override final  OnboardingStep? step;
 /// Their answers so far; [AboutMe.empty] if none.
 @override@JsonKey() final  AboutMe aboutMe;
 
@@ -244,18 +250,18 @@ _$OnboardingRecordCopyWith<_OnboardingRecord> get copyWith => __$OnboardingRecor
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnboardingRecord&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.aboutMe, aboutMe) || other.aboutMe == aboutMe));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnboardingRecord&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.step, step) || other.step == step)&&(identical(other.aboutMe, aboutMe) || other.aboutMe == aboutMe));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,completed,aboutMe);
+    return Object.hash(runtimeType,completed,step,aboutMe);
 }
 
 @override
 String toString() {
-    return 'OnboardingRecord(completed: $completed, aboutMe: $aboutMe)';
+    return 'OnboardingRecord(completed: $completed, step: $step, aboutMe: $aboutMe)';
 }
 
 
@@ -266,7 +272,7 @@ abstract mixin class _$OnboardingRecordCopyWith<$Res> implements $OnboardingReco
   factory _$OnboardingRecordCopyWith(_OnboardingRecord value, $Res Function(_OnboardingRecord) _then) = __$OnboardingRecordCopyWithImpl;
 @override @useResult
 $Res call({
- bool completed, AboutMe aboutMe
+ bool completed, OnboardingStep? step, AboutMe aboutMe
 });
 
 
@@ -283,10 +289,11 @@ class __$OnboardingRecordCopyWithImpl<$Res>
 
 /// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? completed = null,Object? aboutMe = null,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? completed = null,Object? step = freezed,Object? aboutMe = null,}) {
   return _then(_OnboardingRecord(
 completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
-as bool,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
+as bool,step: freezed == step ? _self.step : step // ignore: cast_nullable_to_non_nullable
+as OnboardingStep?,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
 as AboutMe,
   ));
 }

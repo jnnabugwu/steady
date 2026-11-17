@@ -25,9 +25,13 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 ///   [OnboardingRecord.initial] and nothing is written.
 /// - **Unreadable** (not UTF-8, not JSON, or not the shape Steady writes):
 ///   [read] returns `Err(OnboardingUnreadableFailure)` and leaves the file
-///   alone; a write replaces it, starting from [OnboardingRecord.initial].
-///   A newer Steady's additions are tolerated, not unreadable
+///   alone. The app treats that as onboarding done, so a write replaces
+///   the file starting from [OnboardingRecord.whenUnreadable] (completed,
+///   nothing answered, no step), agreeing with what the person saw. A
+///   newer Steady's additions are tolerated, not unreadable
 ///   ([decodeOnboardingFile]).
+/// - **File-system errors never replace anything:** if the read inside a
+///   write fails that way, the write is refused.
 /// - **Atomic writes.** A write goes to `<file>.tmp` and is renamed over
 ///   the file, so a crash mid-write leaves the previous contents intact.
 ///   Parent directories are created if missing.
@@ -63,12 +67,17 @@ class FileOnboardingRepository implements OnboardingRepository {
         ),
       );
     }
-    return _run((file) => _update(file, (s) => s.copyWith(aboutMe: aboutMe)));
+    return _run((file) => _update(file, (r) => r.copyWith(aboutMe: aboutMe)));
   }
 
   @override
-  ResultFuture<OnboardingRecord> markCompleted() =>
-      _run((file) => _update(file, (s) => s.copyWith(completed: true)));
+  ResultFuture<OnboardingRecord> saveStep(OnboardingStep step) =>
+      _run((file) => _update(file, (r) => r.copyWith(step: step)));
+
+  @override
+  ResultFuture<OnboardingRecord> markCompleted() => _run(
+    (file) => _update(file, (r) => r.copyWith(completed: true, step: null)),
+  );
 
   Future<Result<OnboardingRecord>> _read(File file) async {
     final List<int> bytes;
@@ -97,7 +106,8 @@ class FileOnboardingRepository implements OnboardingRepository {
   }
 
   /// Reads the stored record (an unreadable file counts as
-  /// [OnboardingRecord.initial]), applies [change] and writes the result.
+  /// [OnboardingRecord.whenUnreadable]), applies [change] and writes the
+  /// result.
   Future<Result<OnboardingRecord>> _update(
     File file,
     OnboardingRecord Function(OnboardingRecord) change,
@@ -107,7 +117,7 @@ class FileOnboardingRepository implements OnboardingRepository {
       case Ok(:final value):
         current = value;
       case Err(failure: OnboardingUnreadableFailure()):
-        current = OnboardingRecord.initial;
+        current = OnboardingRecord.whenUnreadable;
       case Err(:final failure):
         return Err(failure);
     }

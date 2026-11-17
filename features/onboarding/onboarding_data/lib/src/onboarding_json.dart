@@ -8,7 +8,8 @@ const onboardingSchemaVersion = 1;
 /// ```json
 /// {
 ///   "schemaVersion": 1,
-///   "completed": true,
+///   "completed": false,
+///   "step": "voice",
 ///   "aboutMe": {
 ///     "voice": "gentle",
 ///     "tracking": "calAi",
@@ -20,6 +21,11 @@ const onboardingSchemaVersion = 1;
 /// }
 /// ```
 ///
+/// `step` is the screen to resume from, by `name`; it's left out when
+/// `null` (not started, or completed). It was added within
+/// `schemaVersion` 1: [decodeOnboardingFile] has always ignored unknown
+/// keys, so a reader from before it simply starts from the beginning.
+///
 /// `aboutMe` is the shape the coach proxy will receive
 /// (docs/design/onboarding.md): enum values by `name`, the wire code. A
 /// skipped single answer or note is left out; a skipped multi-select is
@@ -28,6 +34,7 @@ const onboardingSchemaVersion = 1;
 Map<String, Object?> encodeOnboardingFile(OnboardingRecord record) => {
   'schemaVersion': onboardingSchemaVersion,
   'completed': record.completed,
+  'step': ?record.step?.name,
   'aboutMe': encodeAboutMe(record.aboutMe),
 };
 
@@ -54,8 +61,8 @@ List<String> _codes<E extends Enum>(List<E> values, Set<E> chosen) => [
 /// Tolerant of a newer Steady, whose additions should be additive: a
 /// higher `schemaVersion` is read the same way, unknown keys are ignored,
 /// an unknown code is dropped (a single answer reads as skipped, a list
-/// loses that entry), and a note over [aboutMeNoteMaxChars] code points is
-/// cut to the limit.
+/// loses that entry, a `step` reads as not started), and a note over
+/// [aboutMeNoteMaxChars] code points is cut to the limit.
 OnboardingRecord decodeOnboardingFile(Object? json) {
   if (json is! Map<String, Object?>) {
     throw const FormatException('Onboarding file is not a JSON object');
@@ -68,8 +75,13 @@ OnboardingRecord decodeOnboardingFile(Object? json) {
   if (completed is! bool) {
     throw FormatException('Bad onboarding "completed"', completed);
   }
+  final step = json['step'];
+  if (step is! String?) {
+    throw FormatException('Bad onboarding "step"', step);
+  }
   return OnboardingRecord(
     completed: completed,
+    step: step == null ? null : _byCode(OnboardingStep.values, step),
     aboutMe: _decodeAboutMe(json['aboutMe']),
   );
 }

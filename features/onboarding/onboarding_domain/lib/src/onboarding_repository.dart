@@ -1,22 +1,26 @@
 import 'package:failures/failures.dart';
 import 'package:onboarding_domain/src/about_me.dart';
 import 'package:onboarding_domain/src/onboarding_record.dart';
+import 'package:onboarding_domain/src/onboarding_step.dart';
 
-/// Stores whether onboarding is done and the person's About me, **on this
-/// iPhone only** (CLAUDE.md §7): never SwiftData or CloudKit, never synced.
+/// Stores whether onboarding is done, the screen the person was last on and
+/// their About me, **on this iPhone only** (CLAUDE.md §7): never SwiftData
+/// or CloudKit, never synced.
 ///
-/// Small on purpose: one read and two writes, each changing one thing.
-/// [saveAboutMe] never touches `completed` and [markCompleted] never
-/// touches `aboutMe`, so Settings → About me can edit the answers after
-/// onboarding without bringing it back.
+/// Small on purpose: one read and three writes, each changing one thing.
+/// [saveAboutMe] never touches `completed` or `step`, [saveStep] never
+/// touches `completed` or `aboutMe`, and [markCompleted] never touches
+/// `aboutMe`, so Settings → About me can edit the answers after onboarding
+/// without bringing it back.
 ///
 /// Failures:
 ///
 /// - `Err(OnboardingUnreadableFailure)`: something is stored but it isn't
-///   in the format Steady writes. [read] reports it; a write **replaces**
-///   it, starting from [OnboardingRecord.initial] (nothing in it can be
-///   read, and keeping it would mean the person could never finish
-///   onboarding or save About me again).
+///   in the format Steady writes. [read] reports it, and the app treats it
+///   as onboarding done. A write **replaces** it, starting from
+///   [OnboardingRecord.whenUnreadable] (completed, nothing answered, no
+///   step) so the replacement agrees with what the person saw; keeping it
+///   would mean About me could never be saved again.
 /// - `Err(OnboardingStorageFailure)`: the store couldn't be found, read or
 ///   written. Nothing changed; trying again may work.
 /// - `Err(ValidationFailure)`: [saveAboutMe] with a note longer than
@@ -28,11 +32,17 @@ abstract class OnboardingRepository {
   /// What's stored, or [OnboardingRecord.initial] if nothing is.
   ResultFuture<OnboardingRecord> read();
 
-  /// Replaces the stored About me with [aboutMe], keeping `completed` as
-  /// it is. Returns the record now stored.
+  /// Replaces the stored About me with [aboutMe], keeping `completed` and
+  /// `step` as they are. Returns the record now stored.
   ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe);
 
-  /// Marks onboarding done, for good, keeping the About me as it is.
-  /// Calling it again changes nothing. Returns the record now stored.
+  /// Records [step] as the screen the person is on, so a relaunch resumes
+  /// there. Keeps `completed` and `aboutMe` as they are. Returns the record
+  /// now stored.
+  ResultFuture<OnboardingRecord> saveStep(OnboardingStep step);
+
+  /// Marks onboarding done, for good, keeping the About me as it is and
+  /// clearing `step` (there's nothing left to resume). Calling it again
+  /// changes nothing. Returns the record now stored.
   ResultFuture<OnboardingRecord> markCompleted();
 }

@@ -99,12 +99,19 @@ void main() {
   });
 
   group('OnboardingRecord', () {
-    test('initial is not completed, with nothing answered', () {
+    test('initial is not completed, not started, nothing answered', () {
       expect(OnboardingRecord.initial.completed, isFalse);
+      expect(OnboardingRecord.initial.step, isNull);
       expect(OnboardingRecord.initial.aboutMe, AboutMe.empty);
       // The default constructor itself, not the constant.
       // ignore: use_named_constants
       expect(const OnboardingRecord(), OnboardingRecord.initial);
+    });
+
+    test('whenUnreadable is done, with nothing answered and no step', () {
+      expect(OnboardingRecord.whenUnreadable.completed, isTrue);
+      expect(OnboardingRecord.whenUnreadable.step, isNull);
+      expect(OnboardingRecord.whenUnreadable.aboutMe, AboutMe.empty);
     });
   });
 }

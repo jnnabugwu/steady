@@ -8,12 +8,15 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 /// in-memory one that presentation tests use behaves like the real store by
 /// construction.
 ///
-/// What a file does across restarts, or when it's corrupt, is the file
-/// store's own tests. Lives under `lib/testing/` so `app/` can import it.
-/// Test-only: never import it from `lib/src/`.
+/// [makeUnreadable] puts what [build] last returned into the unreadable
+/// state (a corrupt file, or the in-memory store's `makeUnreadable`), for
+/// the tests of what a write over it does. Other corrupt-file details, and
+/// restarts, are the file store's own tests. Lives under `lib/testing/` so
+/// `app/` can import it. Test-only: never import it from `lib/src/`.
 void runOnboardingRepositoryContractTests(
-  OnboardingRepository Function() build,
-) {
+  OnboardingRepository Function() build, {
+  required Future<void> Function(OnboardingRepository repo) makeUnreadable,
+}) {
   T ok<T>(Result<T> result) => switch (result) {
     Ok(:final value) => value,
     Err(:final failure) => fail('Expected Ok, got $failure'),
@@ -68,7 +71,10 @@ void runOnboardingRepositoryContractTests(
     test('markCompleted with nothing answered (skipped to the end)', () async {
       final repo = build();
       ok(await repo.markCompleted());
-      expect(ok(await repo.read()), const OnboardingRecord(completed: true));
+      expect(
+        ok(await repo.read()),
+        OnboardingRecord.initial.copyWith(completed: true),
+      );
     });
 
     test('markCompleted again changes nothing', () async {
@@ -99,7 +105,10 @@ void runOnboardingRepositoryContractTests(
       await repo.saveAboutMe(answers);
       await repo.markCompleted();
       await repo.saveAboutMe(AboutMe.empty);
-      expect(ok(await repo.read()), const OnboardingRecord(completed: true));
+      expect(
+        ok(await repo.read()),
+        OnboardingRecord.initial.copyWith(completed: true),
+      );
     });
 
     test('a note at the limit, in code points, is saved', () async {
@@ -148,6 +157,120 @@ void runOnboardingRepositoryContractTests(
           }
         }
       }
+    });
+
+    group('step', () {
+      test('saveStep stores it and returns the record', () async {
+        final repo = build();
+        final saved = ok(await repo.saveStep(OnboardingStep.week));
+        expect(saved, const OnboardingRecord(step: OnboardingStep.week));
+        expect(ok(await repo.read()), saved);
+      });
+
+      test('saveStep keeps the answers, and saveAboutMe the step', () async {
+        final repo = build();
+        await repo.saveAboutMe(answers);
+        await repo.saveStep(OnboardingStep.hardParts);
+        const fewer = AboutMe(voice: CoachVoice.gentle);
+        final saved = ok(await repo.saveAboutMe(fewer));
+        expect(
+          saved,
+          const OnboardingRecord(
+            step: OnboardingStep.hardParts,
+            aboutMe: fewer,
+          ),
+        );
+        expect(ok(await repo.read()), saved);
+      });
+
+      test('saveStep replaces the step, back or forward', () async {
+        final repo = build();
+        await repo.saveStep(OnboardingStep.voice);
+        await repo.saveStep(OnboardingStep.tracking);
+        expect(ok(await repo.read()).step, OnboardingStep.tracking);
+      });
+
+      test('every step round-trips', () async {
+        final repo = build();
+        for (final step in OnboardingStep.values) {
+          await repo.saveStep(step);
+          expect(ok(await repo.read()).step, step);
+        }
+      });
+
+      test('markCompleted clears the step and keeps the answers', () async {
+        final repo = build();
+        await repo.saveAboutMe(answers);
+        await repo.saveStep(OnboardingStep.cairn);
+        final completed = ok(await repo.markCompleted());
+        expect(
+          completed,
+          const OnboardingRecord(completed: true, aboutMe: answers),
+        );
+        expect(ok(await repo.read()), completed);
+      });
+    });
+
+    group('a write over an unreadable store', () {
+      test('read reports it as OnboardingUnreadableFailure', () async {
+        final repo = build();
+        await makeUnreadable(repo);
+        expect(
+          await repo.read(),
+          isA<Err<OnboardingRecord>>().having(
+            (e) => e.failure,
+            'failure',
+            isA<OnboardingUnreadableFailure>(),
+          ),
+        );
+      });
+
+      test('saveAboutMe starts from done: completed, no step', () async {
+        final repo = build();
+        await repo.saveStep(OnboardingStep.week);
+        await makeUnreadable(repo);
+        final saved = ok(await repo.saveAboutMe(answers));
+        expect(
+          saved,
+          const OnboardingRecord(completed: true, aboutMe: answers),
+        );
+        expect(ok(await repo.read()), saved);
+      });
+
+      test('saveStep starts from done, too', () async {
+        // Odd but consistent: the app treats an unreadable store as done,
+        // so it shouldn't be in the flow to save a step. If it is, the
+        // replacement still agrees with what the app showed.
+        final repo = build();
+        await makeUnreadable(repo);
+        final saved = ok(await repo.saveStep(OnboardingStep.voice));
+        expect(
+          saved,
+          const OnboardingRecord(completed: true, step: OnboardingStep.voice),
+        );
+        expect(ok(await repo.read()), saved);
+      });
+
+      test('markCompleted is completed, with nothing answered', () async {
+        final repo = build();
+        await repo.saveAboutMe(answers);
+        await makeUnreadable(repo);
+        expect(ok(await repo.markCompleted()), OnboardingRecord.whenUnreadable);
+        expect(ok(await repo.read()), OnboardingRecord.whenUnreadable);
+      });
+
+      test('a refused note still changes nothing', () async {
+        final repo = build();
+        await makeUnreadable(repo);
+        final result = await repo.saveAboutMe(
+          AboutMe(note: 'a' * (aboutMeNoteMaxChars + 1)),
+        );
+        expect((result as Err).failure, isA<ValidationFailure>());
+        expect(
+          (await repo.read() as Err).failure,
+          isA<OnboardingUnreadableFailure>(),
+        );
+      });
     });
   });
 }

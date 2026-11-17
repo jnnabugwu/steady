@@ -1,6 +1,6 @@
 /// Onboarding: the About me answers (each enum value's `name` is its wire
-/// code for the coach proxy), whether onboarding is done, and the
-/// repository they're stored through.
+/// code for the coach proxy), whether onboarding is done, the step to
+/// resume from, and the repository they're stored through.
 ///
 /// Stored **on this iPhone only**, like the coach consent answer
 /// (CLAUDE.md §7): never synced, never in Steady's CloudKit container.
@@ -18,3 +18,4 @@ export 'src/about_me_answers.dart';
 export 'src/onboarding_failures.dart';
 export 'src/onboarding_record.dart';
 export 'src/onboarding_repository.dart';
+export 'src/onboarding_step.dart';
