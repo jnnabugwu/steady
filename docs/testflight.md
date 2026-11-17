@@ -150,15 +150,18 @@ TestFlight → Test Information:
 
 ## 6. App Privacy questionnaire
 
-App Store Connect → App Privacy. Answers that match `docs/PRIVACY.md`. **Jordan sets these in
-App Store Connect before the hosted coach ships**; what follows is the proposal and the
-reasoning, not a record of what's set.
+App Store Connect → App Privacy. Answers that match `docs/PRIVACY.md`. **Decided
+2026-11-17; Jordan enters them in App Store Connect before the first build with the hosted
+coach goes to App Review.** Steady 1.0, live on the App Store, doesn't include the hosted
+coach, so its current label (no data collected) is still right for it. The App Privacy
+section can be edited at any time, without a new build.
 
 > **Usage analytics (PostHog, 2026-11-17) adds three data types**, at the end of the table,
 > with a different purpose: **Analytics**, not App Functionality. Set them before submitting
 > any build from `main` after #156: every such build carries PostHog's privacy manifest.
 
-**Data collection: "Yes, we collect data from this app"** once the hosted coach ships.
+**Data collection: "Yes, we collect data from this app"** from the next build from `main`,
+which has both the hosted coach and usage analytics.
 
 Apple's definition: "collect" means transmitting data off the device in a way that lets the
 developer **or third-party partners** access it for longer than needed to service the request
@@ -169,34 +172,40 @@ sent only after consent and used only for the reply. Calories eaten and check-in
 user's own CloudKit **private** database still aren't collected (the developer can't read
 them).
 
-Proposed answers (all **not linked to the user's identity** and **not used for tracking**;
-purpose **App Functionality** for the coach's data, **Analytics** for usage events):
+The answers (all **not linked to the user's identity** and **not used for tracking**; purpose
+**App Functionality** for the coach's data, **Analytics** for the usage events):
 
 | Data type | Declare? | Why |
 |---|---|---|
 | **Health & Fitness → Health** | Yes | Calories eaten and active/resting energy from Apple Health (and an imported Cal AI total) go into the coach's week context, and so do the craving check-ins (counts, time of day, and the reason picked from a fixed list). |
 | **Health & Fitness → Fitness** | Yes | Steps from Apple Health, in the same context. |
 | **User Content → Other User Content** | Yes | What the person types to the coach. Apple's "Other User Content" covers user-generated content not in the other categories. |
-| **Identifiers → Device ID** | Probably not; Jordan's call | The App Attest key id is a per-install key the proxy stores (with its counter, in Upstash Redis) to verify requests and count the daily limit. It isn't the IDFA or IDFV, can't be tied to the person, and is used for fraud prevention/security. Apple's Device ID is "such as the device's advertising identifier, or other device-level ID". The conservative answer is to declare it (App Functionality, not linked, not tracking); the narrow reading is that a per-install attestation key isn't a device-level ID. |
+| **Identifiers → Device ID** | Yes | The App Attest key id is a per-install key the proxy keeps (with its counter, in Upstash Redis, up to 180 days unused) to verify requests and count the daily limit. It isn't the IDFA or IDFV and isn't tied to the person. Declared because the proxy keeps it longer than real time; fraud prevention and security are App Functionality in Apple's definitions. The narrower reading (a per-install attestation key isn't a "device-level ID") was considered and not taken: under-declaring is the riskier mistake. |
 | **Usage Data → Product Interaction** | Yes: **Analytics**, not linked, not tracking | The anonymous usage events (a check-in saved, an import finished, and so on). |
 | **Usage Data → Other Usage Data** | Yes: **Analytics**, not linked, not tracking | PostHog's lifecycle events (installed, opened, backgrounded). Declared in the SDK's privacy manifest. |
 | **Diagnostics → Crash Data** | Yes: **Analytics**, not linked, not tracking | Declared in the SDK's privacy manifest (PLCrashReporter), so the label matches it even though Steady doesn't turn PostHog's crash reporting on. |
 | **Contact Info, Location, Financial Info, etc.** | No | Nothing else leaves the phone. |
 
-"Not linked to identity": there are no accounts, no email, no name; the proxy sees an App
-Attest key id and an IP address in transit, and keeps no message content. Anthropic sees only
-the proxy's requests, with no identifier of the person.
+"Not linked to identity": there are no accounts, no email, no name. The proxy keeps the App
+Attest key id and its daily counts, but no message content, so the two are never stored
+together. Anthropic, which does keep the content (up to 30 days, longer only if its safety systems flag
+a conversation or the law requires it), gets **no identifier from Steady**: no per-device id
+or anything else the proxy adds. (What the person types goes as written, so it can contain
+whatever they choose to say.) The proxy sent a hash of the key id as `metadata.user_id` until steady-backend#10
+(2026-11-17) removed it, precisely so this answer holds. Adding any per-device id to
+Anthropic requests again means changing Health, Fitness and Other User Content to "Linked to
+you" first. An IP address is seen in transit only, never kept, and not used for location.
 
-**Open questions for Jordan:**
+**Settled 2026-11-17** (formerly open questions):
 
-- Device ID for the App Attest key id: declare (conservative) or not (narrow reading above)?
-- Craving check-ins: proposed under Health (they read as health data, the same reason they
-  stay off iCloud). Their reasons are a fixed list, not free text, so they aren't "Other User
+- Device ID for the App Attest key id: declared (above).
+- Craving check-ins: under Health (they read as health data, the same reason they stay off
+  iCloud). Their reasons are a fixed list, not free text, so they aren't "Other User
   Content"; typed coach messages are.
-- Check-in statuses (logged, partial, skipped) are also sent. Proposed under Health with the
-  rest of the week context; there's no closer Apple category.
-- Confirm the "collected" reading: Anthropic's 30-day retention is what makes it so. If
-  Steady ever moves to zero data retention with Anthropic, revisit.
+- Check-in statuses (logged, partial, skipped): under Health with the rest of the week
+  context; there's no closer Apple category.
+- "Collected" rests on Anthropic's 30-day retention. If Steady ever moves to zero data
+  retention with Anthropic, revisit.
 
 ## 7. External testers and Beta App Review
 
