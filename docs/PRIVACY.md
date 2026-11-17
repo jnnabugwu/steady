@@ -141,7 +141,7 @@ see which features get used and where things go wrong. Versions from the App Sto
   nothing more. The events are: the app was installed, opened or closed; a check-in was saved
   (and whether it was logged, partial or skipped); a Cal AI PDF import finished (how many days
   it had) or failed; the craving check-in reached its end; whether the coach can run on this
-  iPhone (and if not, why, such as Apple Intelligence being off); and, once per launch,
+  iPhone (and if not, why: it's switched off, or this iPhone can't be verified); and, once per launch,
   whether Apple Health returned any steps and any calories eaten in the last seven days (yes
   or no, not the amounts). Each event also carries the app version, the iPhone model, the iOS
   version, language and time zone, and a random ID made for this install.
