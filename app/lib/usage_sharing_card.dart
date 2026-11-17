@@ -32,10 +32,10 @@ class UsageSharingCard extends ConsumerWidget {
           const Text('Usage sharing', style: SteadyType.cardTitle),
           const SizedBox(height: 8),
           const Text(
-            'This TestFlight beta sends anonymous events to PostHog, like '
-            'a check-in being saved or an import finishing, so the developer '
-            "can see what's used. Never your numbers, Health data, cravings "
-            'or coach conversations. App Store versions send nothing.',
+            'Steady sends anonymous events to PostHog, like a check-in '
+            'being saved or an import finishing, so the developer can see '
+            "what's used. Never your numbers, Health data, cravings or coach "
+            'conversations. Turn it off here at any time.',
             style: SteadyType.body,
           ),
           const SizedBox(height: 16),

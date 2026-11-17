@@ -91,12 +91,9 @@ TestFlight → Test Information:
   (`docs/PRIVACY.md` must be merged to `main` first, or the link 404s).
 - **Beta App Review information:** contact name, phone and email in App Store Connect.
   **Sign-in required: off** (no account).
-- **Usage sharing (builds with a PostHog key):** TestFlight installs send anonymous usage
-  events to PostHog (`docs/PRIVACY.md`, "TestFlight beta builds"); App Store installs never
-  do. Add a line to the beta's What to Test: "This beta sends anonymous usage events (no
-  Health values, cravings or coach text) to help improve Steady. Turn it off in Settings →
-  Usage sharing." The App Review answers below describe the App Store build, which sends
-  nothing, so they stay as they are until analytics ships there.
+- **Usage sharing (builds with a PostHog key):** App Store and TestFlight installs send
+  anonymous usage events to PostHog, on by default (`docs/PRIVACY.md`, "Anonymous usage
+  events"). Turn it off in Settings → Usage sharing.
 - **Review notes:** Apple asks every new app from a new account for the six answers
   below, as a **2.1.0 App Completeness** rejection ("Information Needed") that pauses review
   until you reply. It happened on Steady's first App Store submission (October 2026). Paste
@@ -120,7 +117,7 @@ TestFlight → Test Information:
   - Coach: Coach tab > Turn on the coach > read the consent screen > Allow and continue (Not now leaves it off and sends nothing) > Start a chat. Needs a network connection. Settings > Coach has the switch to turn it off again. The weekly check-in appears Friday to Sunday once 4 of the previous 7 days have a check-in, so the January sample won't show it.
   - Settings also has data export, the privacy policy, and Delete coach history / Delete craving history.
 
-  4. External services: HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and, for the coach only and only after the user's consent, the Anthropic API (Claude), reached through Steady's own small proxy on Vercel. The proxy holds the API key, checks Apple App Attest on every request (DeviceCheck App Attest), sets daily limits, keeps no message content (metadata-only logs) and passes each request to Anthropic for the reply. Anthropic deletes API inputs and outputs within 30 days, except when its automated safety systems flag a conversation (up to two years) or the law requires longer, and doesn't train on them. No third-party SDKs, analytics, ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
+  4. External services: HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and, for the coach only and only after the user's consent, the Anthropic API (Claude), reached through Steady's own small proxy on Vercel. The proxy holds the API key, checks Apple App Attest on every request (DeviceCheck App Attest), sets daily limits, keeps no message content (metadata-only logs) and passes each request to Anthropic for the reply. Anthropic deletes API inputs and outputs within 30 days, except when its automated safety systems flag a conversation (up to two years) or the law requires longer, and doesn't train on them. Anonymous usage analytics through PostHog (no Health values, cravings or coach text; turned off in Settings → Usage sharing). No ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
 
   5. Regions: the app works the same in every region. The coach needs a network connection; without one it says it can't reach the coach and the rest of the app works. The help lines shown (ANAD and 988) are US services.
 

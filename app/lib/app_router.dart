@@ -282,7 +282,7 @@ class WeekRoute extends GoRouteData with $WeekRoute {
 /// iPhone only), "Sample data" ([SampleDataCard], shown only while the
 /// sample export's days are in the store), "Privacy" ([PrivacyCard], the
 /// privacy policy link App Store guideline 5.1.1(i) asks for), "Usage
-/// sharing" ([UsageSharingCard], TestFlight builds only) and the
+/// sharing" ([UsageSharingCard], builds with a PostHog key) and the
 /// debug-only Developer
 /// card ([developerSettingsSections]) composed in above the export.
 ///
@@ -306,7 +306,7 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       ),
       const SampleDataCard(),
       const PrivacyCard(),
-      // Renders nothing unless this is a TestFlight install with a key.
+      // Renders nothing without a PostHog key or a known install source.
       const UsageSharingCard(),
       ...developerSettingsSections(),
     ],

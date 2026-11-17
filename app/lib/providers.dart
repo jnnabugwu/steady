@@ -70,10 +70,10 @@
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
 ///
-/// **Usage sharing** (TestFlight only, `usage_sharing.dart`):
+/// **Usage sharing** (`usage_sharing.dart`):
 /// `analyticsProvider`, which features record their events through, is
 /// bound to [postHogAnalyticsProvider], `null` (so nothing is sent) unless
-/// `main.dart` built one: a key, iOS, and a TestFlight install. Tests built
+/// `main.dart` built one: a key, iOS, and a known install source. Tests built
 /// from this list send nothing.
 library;
 
@@ -277,7 +277,7 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     ),
   ],
   // Usage events go to PostHog only through the sink main.dart builds on a
-  // TestFlight install; everywhere else they go nowhere.
+  // known install with a key; everywhere else they go nowhere.
   analyticsProvider.overrideWith(
     (ref) => ref.watch(postHogAnalyticsProvider) ?? const NoAnalytics(),
   ),

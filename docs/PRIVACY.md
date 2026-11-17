@@ -14,9 +14,10 @@ check-in. This policy describes what the app does with your data.
   goes through one small Steady server, which keeps none of it, to Anthropic, the company
   that makes the Claude model the coach uses, only to write the coach's replies. See
   "Coach" below.
-- No ads and no tracking. Nothing is ever used for advertising. Beta builds from TestFlight
-  also send anonymous usage events (see "TestFlight beta builds"); versions from the App
-  Store send nothing.
+- No ads and no tracking. Nothing is ever used for advertising. Steady does send anonymous
+  usage events, such as "a check-in was saved", so the developer can see what's used. Never
+  your numbers, Health data, cravings or anything you write, and you can turn it off (see
+  "Anonymous usage events").
 
 ## What Steady stores
 
@@ -131,11 +132,12 @@ on Health in iCloud. That's Apple's storage, managed in the Health app and your 
 settings, not Steady's. You can turn off Steady's access at any time in the Health app or in
 Settings → Privacy & Security → Health. The Mac app doesn't use Apple Health.
 
-## TestFlight beta builds
+## Anonymous usage events
 
-If you're testing Steady through Apple's TestFlight app, the beta sends anonymous usage
-events to [PostHog](https://posthog.com/privacy), an analytics service, so the developer can
-see which features get used and where things go wrong. Versions from the App Store never do.
+Steady sends anonymous usage events to [PostHog](https://posthog.com/privacy), an analytics
+service, so the developer can see which features get used and where things go wrong. This is
+on by default, in the App Store version and in TestFlight betas, and you can turn it off at
+any time.
 
 - **What's sent:** that something happened, with a few yes/no answers, labels or counts and
   nothing more. The events are: the app was installed, opened or closed; a check-in was saved
@@ -161,8 +163,8 @@ see which features get used and where things go wrong. Versions from the App Sto
   go through Steady's coach server, which keeps none of it, to Anthropic, only for the
   coach's replies (see "Coach").
 - No advertising or tracking. The third parties that receive anything are Anthropic, for the
-  coach's replies with your permission, and PostHog, for the anonymous usage events in
-  TestFlight beta builds described above.
+  coach's replies with your permission, and PostHog, for the anonymous usage events
+  described above.
 - No selling of your data, and no sharing of it beyond those two.
 
 Apple may pass crash reports to the developer if you've turned on sharing with app

@@ -11,9 +11,10 @@ import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/usage_sharing.dart';
 
-/// Usage sharing (TestFlight only): PostHog is set up only on a TestFlight
-/// or debug install, events wait for that answer, the Settings switch turns
-/// it off for good, and the app-level events carry yes/nos and labels only.
+/// Usage sharing: PostHog is set up on an App Store, TestFlight or debug
+/// install (never when the source is unknown), events wait for that
+/// answer, the Settings switch turns it off for good, and the app-level
+/// events carry yes/nos and labels only.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -53,6 +54,17 @@ void main() {
       },
     );
 
+    test('an App Store install is on by default, like TestFlight', () async {
+      final analytics = analyticsFrom(InstallSource.appStore)
+        ..record(AnalyticsEvent.cravingFlowFinished);
+
+      expect(await analytics.status, UsageSharingStatus.on);
+      expect(client.setups, [false]);
+      expect(client.sent, [
+        ['craving_flow_finished', <String, Object>{}],
+      ]);
+    });
+
     test('a debug install is offered too', () async {
       expect(
         await analyticsFrom(InstallSource.development).status,
@@ -60,9 +72,10 @@ void main() {
       );
     });
 
-    for (final source in [InstallSource.appStore, InstallSource.unknown]) {
-      test('$source never sets PostHog up and drops every event', () async {
-        final analytics = analyticsFrom(source)
+    test(
+      'an unknown install never sets PostHog up and drops every event',
+      () async {
+        final analytics = analyticsFrom(InstallSource.unknown)
           ..record(AnalyticsEvent.cravingFlowFinished);
 
         expect(await analytics.status, UsageSharingStatus.notOffered);
@@ -70,8 +83,8 @@ void main() {
 
         expect(client.setups, isEmpty);
         expect(client.captured, isEmpty);
-      });
-    }
+      },
+    );
 
     test('turned off before: set up opted out, and nothing is sent', () async {
       store.off = true;
@@ -115,7 +128,7 @@ void main() {
     });
 
     test('where it is not offered, the switch changes nothing', () async {
-      final analytics = analyticsFrom(InstallSource.appStore);
+      final analytics = analyticsFrom(InstallSource.unknown);
       expect(await analytics.share(on: true), UsageSharingStatus.notOffered);
       expect(store.off, isFalse);
       expect(client.optIns, 0);
@@ -228,7 +241,7 @@ void main() {
       );
       await refreshWith(
         health,
-        analytics: analyticsFrom(InstallSource.appStore),
+        analytics: analyticsFrom(InstallSource.unknown),
       );
 
       expect(health.dailyTotalsCalls, 0);
