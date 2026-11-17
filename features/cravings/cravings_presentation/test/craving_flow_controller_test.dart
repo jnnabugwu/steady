@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:analytics/analytics.dart';
+import 'package:analytics/testing.dart';
 import 'package:cravings_domain/cravings_domain.dart';
 import 'package:cravings_presentation/cravings_presentation.dart';
 import 'package:failures/failures.dart';
@@ -12,9 +14,11 @@ void main() {
   late FakeCravingRepository repository;
   late ProviderContainer container;
   late DateTime now;
+  late RecordingAnalytics analytics;
 
   setUp(() {
     repository = FakeCravingRepository();
+    analytics = RecordingAnalytics();
     now = DateTime(2026, 10, 23, 20);
     container =
         ProviderContainer.test(
@@ -22,6 +26,7 @@ void main() {
               cravingRepositoryProvider.overrideWithValue(repository),
               cravingClockProvider.overrideWithValue(() => now),
               cravingIdGeneratorProvider.overrideWithValue(() => 'id-1'),
+              analyticsProvider.overrideWithValue(analytics),
             ],
           )
           // Keep the auto-dispose flow alive for the test.
@@ -57,6 +62,7 @@ void main() {
 
     expect(state().step, CravingStep.hungry);
     expect(state().saved, isTrue);
+    expect(analytics.events, [AnalyticsEvent.cravingFlowFinished]);
     expect(
       repository.saveCalls.single,
       CravingEvent(
@@ -178,11 +184,13 @@ void main() {
       expect(state().step, CravingStep.finished);
       expect(state().saveFailure, const UnknownFailure('disk full'));
       expect(state().saved, isFalse);
+      expect(analytics.events, isEmpty);
 
       repository.onSave = null;
       await flow().retrySave();
       expect(state().saveFailure, isNull);
       expect(state().saved, isTrue);
+      expect(analytics.events, [AnalyticsEvent.cravingFlowFinished]);
       expect(repository.saveCalls.map((e) => e.id), ['id-1', 'id-1']);
       expect(repository.events, hasLength(1));
     },

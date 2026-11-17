@@ -34,6 +34,8 @@ dependencies:
     path: ../features/account/account_domain
   account_presentation:
     path: ../features/account/account_presentation
+  analytics:
+    path: ../packages/shared/analytics
   checkin_data:
     path: ../features/checkin/checkin_data
   checkin_domain:
@@ -97,6 +99,7 @@ dependencies:
     path: ../features/pdf_import/pdf_import_presentation
 
   pdfrx_engine: ^0.7.4
+  posthog_flutter: ^5.58.3
   riverpod_annotation: ^4.0.7
   shadcn_flutter: ^0.0.53
 

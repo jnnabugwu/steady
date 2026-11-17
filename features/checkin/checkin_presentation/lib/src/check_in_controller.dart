@@ -1,3 +1,4 @@
+import 'package:analytics/analytics.dart';
 import 'package:checkin_domain/checkin_domain.dart';
 import 'package:checkin_presentation/src/providers.dart';
 import 'package:checkin_presentation/src/retry_unless_failure.dart';
@@ -44,8 +45,12 @@ class CheckInController extends _$CheckInController {
   /// Ignored while the state is loading (the initial read or another write
   /// still in flight), so rapid taps can't start concurrent writes, and
   /// after the provider has been disposed.
+  ///
+  /// A saved check-in is recorded as `check_in_logged` (its status only),
+  /// even if the screen closed meanwhile.
   Future<void> logCheckIn(CheckInStatus status) async {
     if (!ref.mounted || state.isLoading) return;
+    final analytics = ref.read(analyticsProvider);
     state = const AsyncLoading();
     final Result<Unit> result;
     try {
@@ -59,6 +64,9 @@ class CheckInController extends _$CheckInController {
           : UnknownFailure('Saving the check-in failed.', cause: error);
       state = AsyncError(failure, stackTrace);
       return;
+    }
+    if (result is Ok) {
+      analytics.record(AnalyticsEvent.checkInLogged(status: status.name));
     }
     if (!ref.mounted) return;
     state = switch (result) {

@@ -9,6 +9,8 @@ environment:
   flutter: ">=1.17.0"
 
 dependencies:
+  analytics:
+    path: ../../../packages/shared/analytics
   failures:
     path: ../../../packages/shared/failures
   file_selector: ^1.1.0

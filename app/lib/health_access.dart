@@ -20,16 +20,25 @@
 /// (`authorizationStatus`, from `getRequestStatusForAuthorization`), and
 /// iOS never shows it twice for the same types anyway. The first refresh
 /// asks; every later one finds `requested` and goes straight to re-reading.
+///
+/// **Usage sharing** (TestFlight only, `usage_sharing.dart`): once per
+/// launch, after the first refresh that finds Health asked, the controller
+/// reads the last seven days and records `health_connected` with two
+/// yes/nos, any steps and any calories eaten, never the numbers. HealthKit
+/// never says whether access was allowed, so data coming back is the only
+/// sign it was. Skipped, Health unread, unless sharing is on.
 library;
 
 import 'dart:async';
 import 'dart:developer' as developer;
 
+import 'package:analytics/analytics.dart' show AnalyticsEvent;
 import 'package:failures/failures.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/providers.dart';
+import 'package:steady/usage_sharing.dart';
 
 part 'health_access.g.dart';
 
@@ -51,6 +60,7 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 @Riverpod(keepAlive: true, retry: _retryUnlessFailure)
 class HealthAccessController extends _$HealthAccessController {
   Future<void>? _inFlight;
+  var _reportedThisLaunch = false;
 
   @override
   Future<HealthAuthorizationStatus> build() async {
@@ -107,6 +117,30 @@ class HealthAccessController extends _$HealthAccessController {
       ref
         ..invalidate(healthDayTotalsProvider)
         ..invalidate(healthWeightUnitProvider);
+      await _reportHealthConnected(health);
+    }
+  }
+
+  /// Records `health_connected` once per launch (see the library comment).
+  /// A failed read records nothing; there's no next try until relaunch.
+  Future<void> _reportHealthConnected(HealthKitRepository health) async {
+    final analytics = ref.read(postHogAnalyticsProvider);
+    if (_reportedThisLaunch || analytics == null) return;
+    _reportedThisLaunch = true;
+    if (await analytics.status != UsageSharingStatus.on) return;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final week = await health.dailyTotals(
+      today.subtract(const Duration(days: 6)),
+      today,
+    );
+    if (week case Ok(value: final days)) {
+      analytics.record(
+        AnalyticsEvent.healthConnected(
+          steps: days.any((day) => day.steps != null),
+          caloriesEaten: days.any((day) => day.caloriesEaten != null),
+        ),
+      );
     }
   }
 

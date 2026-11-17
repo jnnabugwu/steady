@@ -58,6 +58,7 @@ import 'package:steady/privacy_card.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/sample_data_card.dart';
 import 'package:steady/today_screen.dart';
+import 'package:steady/usage_sharing_card.dart';
 import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
 
 part 'app_router.g.dart';
@@ -280,7 +281,8 @@ class WeekRoute extends GoRouteData with $WeekRoute {
 /// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
 /// iPhone only), "Sample data" ([SampleDataCard], shown only while the
 /// sample export's days are in the store), "Privacy" ([PrivacyCard], the
-/// privacy policy link App Store guideline 5.1.1(i) asks for) and the
+/// privacy policy link App Store guideline 5.1.1(i) asks for), "Usage
+/// sharing" ([UsageSharingCard], TestFlight builds only) and the
 /// debug-only Developer
 /// card ([developerSettingsSections]) composed in above the export.
 ///
@@ -304,6 +306,8 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       ),
       const SampleDataCard(),
       const PrivacyCard(),
+      // Renders nothing unless this is a TestFlight install with a key.
+      const UsageSharingCard(),
       ...developerSettingsSections(),
     ],
   );
