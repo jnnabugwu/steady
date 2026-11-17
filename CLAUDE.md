@@ -40,8 +40,10 @@
   own repo, **`jnnabugwu/steady-backend`** (§12), holds the API key, verifies App Attest and
   owns the system prompt. Hosted only: the Foundation Models path is gone. The proxy is
   deployed (Production), the app side (`HostedCoachModel`), the App Attest client (#150) and
-  consent (#153) are built, and the guardrail eval passes (#154); a check on a physical
-  iPhone is still open (§11). The Mac has no coach. Decision record:
+  consent (#153) are built, the guardrail eval passes (#154), and it's been verified on a
+  physical iPhone in an internal TestFlight build. Steady 1.0 on the App Store doesn't
+  include it yet; its App Privacy answers go into App Store Connect before the first build
+  with it goes to App Review (§11). The Mac has no coach. Decision record:
   `docs/technical_decisions.md`, "The coach uses a hosted model".
 - **`pdfrx_engine`** — pure-Dart PDF text extraction, used directly in `pdf_import_data`
   for parsing Cal AI exports. **No backend for parsing.** Validated against real exports:
@@ -736,7 +738,7 @@ would be premature.
 same reason as HealthKit: mostly "call the native API, marshal the result". The model itself
 is reached over HTTPS from Dart (`HostedCoachModel`, §11), so there's no inference channel,
 and nothing coach-related exists in `app/macos/` — not a disabled path, an absent one.
-**Built (#150), not yet verified on hardware:** `app/ios/Runner/AppAttestChannel.swift` on
+**Built (#150), verified on a physical iPhone (internal TestFlight):** `app/ios/Runner/AppAttestChannel.swift` on
 `steady/app_attest` (`isSupported`, `generateKey`, `attestKey`, `generateAssertion`;
 `DCError` codes translated to wire codes, no logic), with `MethodChannelAppAttest` and
 `FileAppAttestKeyStore` in `features/coach/coach_data/lib/src/app_attest/` (contract:
@@ -849,9 +851,14 @@ Steady's own thin proxy on Vercel (decided 2026-10-30, "The coach uses a hosted 
 - **Passed (#154):** the guardrail eval in steady-backend's `evals/` (35 risky cases, 3 reps
   each, through the real handler, graded by string checks and a Claude judge). Run it again
   after any change to the instructions, the effort level or the model.
-- **Not yet:** App Attest and a streamed reply verified on a physical iPhone (the first
-  internal TestFlight build with the hosted coach), and the App Privacy answers in App Store
-  Connect (`docs/testflight.md` §6, Jordan's). Describe these as open until they are done. Tracking issue: "Hosted coach (Claude Opus 5.5 via Vercel proxy)" (#155).
+- **Verified:** App Attest and a streamed reply on a physical iPhone, in an internal
+  TestFlight build.
+- **Not yet:** the App Privacy answers entered in App Store Connect. They're decided
+  (`docs/testflight.md` §6: collected; Health, Fitness, Other User Content and Device ID; App
+  Functionality, not linked, not tracking) and are Jordan's to enter **before the first build
+  with the hosted coach goes to App Review**. Steady 1.0, live on the App Store, doesn't include
+  the hosted coach. Describe this as open until it's done. Tracking issue: "Hosted coach (Claude
+  Opus 5.5 via Vercel proxy)" (#155).
 
 **Why the iPhone:** the coach's context lives there. Steps and burned energy come from
 HealthKit, which works only there and can't sync through iCloud (§1, §7), and craving
@@ -870,7 +877,11 @@ the proxy lets the system prompt and guardrails change without App Review.
 **Apple App Attest** on every request (attested keys and counters in Upstash Redis; no user
 accounts); **owns the system prompt and guardrails** and their tests, so the app sends only the
 session kind, the week context and the conversation; caps cost per device and globally per
-day, with a kill switch (`coach_disabled`); logs metadata only; and streams replies as
+day, with a kill switch (`coach_disabled`); logs metadata only; sends Anthropic no
+per-device identifier (no `metadata.user_id`, removed in steady-backend#10, so what Anthropic
+keeps (up to 30 days; longer only if its safety systems flag a conversation or the law
+requires it) isn't linked to any identifier Steady supplies, which is what the App Privacy label's "not
+linked" rests on; adding one back means answering "Linked to you" first); and streams replies as
 server-sent events.
 
 **The app side** (`coach_domain`, `coach_data`, `coach_presentation`):

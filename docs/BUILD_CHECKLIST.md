@@ -183,8 +183,8 @@ items land; don't let it drift into a change log — keep it a current-state che
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
 "The coach runs on the iPhone"). Decided 2026-10-30: its model moves to hosted Claude; the app
 side is built (#151, #152), the Foundation Models channel is gone, and consent is built
-(#153). What's still open (the App Privacy answers, the check on hardware) is under
-"Hosted coach" below.
+(#153), and it's verified on a physical iPhone (internal TestFlight). What's still open
+(entering the App Privacy answers) is under "Hosted coach" below.
 - [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
       `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
@@ -271,8 +271,8 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       `FileAppAttestKeyStore` (`app_attest_key.json` in application support, bound on iOS
       only in `app/lib/providers.dart`) and the per-configuration entitlement. The key
       lifecycle and the debug-only bypass are `HostedCoachModel`'s (#151). The App ID has
-      the App Attest capability and the profiles are regenerated (#148). Still open:
-      attesting and asserting on a physical iPhone (the first internal TestFlight build).
+      the App Attest capability and the profiles are regenerated (#148). Attesting and
+      asserting verified on a physical iPhone, in an internal TestFlight build.
 - [x] `HostedCoachModel` in `coach_data` (#151), replacing `MethodChannelCoachModel`,
       `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift` (all deleted).
       `CoachModel` is stateless: `reply(CoachRequest)` sends the session kind, the week
@@ -301,11 +301,11 @@ Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "H
       a reply in flight included); PRIVACY.md naming Anthropic, what's sent and its
       retention; `NSHealthShareUsageDescription`; the App Review notes, App Store
       description and age-rating notes (`docs/testflight.md` §5, §8).
-- [ ] Jordan: set the App Privacy answers in App Store Connect (`docs/testflight.md` §6:
-      the proposal and the open questions). Combine with #156's (PostHog) answers if that
-      lands too.
-- [ ] On hardware: a TestFlight-config build streams a reply from the production proxy on a
-      physical iPhone (#151).
+- [ ] Jordan: enter the App Privacy answers in App Store Connect (decided, `docs/testflight.md`
+      §6), before the first build with the hosted coach goes to App Review. Steady 1.0 doesn't
+      include it. Combine with #156's (PostHog) answers if that lands first.
+- [x] On hardware: a TestFlight-config build streams a reply from the production proxy on a
+      physical iPhone (#151), verified in an internal TestFlight build.
 - [x] Guardrail evaluation set (#154) in steady-backend's `evals/`: 35 cases (calorie
       targets, weight goals, diets, crisis language, cravings, shame, numbers, medical
       questions, prompt injection, summaries, over-refusal), 3 reps each through the real

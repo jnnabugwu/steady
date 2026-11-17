@@ -79,7 +79,10 @@ replied. To stop misuse, each request carries an Apple App Attest signature prov
 from the genuine Steady app on a real iPhone, and the server counts requests per iPhone for a
 daily limit; neither identifies you.
 
-Anthropic receives this only to write the coach's replies. Under its API terms it deletes it
+Anthropic receives this only to write the coach's replies. Steady's server adds nothing that
+identifies you or your iPhone: it doesn't pass on the App Attest key or any other identifier.
+What you type to the coach is sent as you wrote it.
+Under its API terms it deletes it
 within 30 days and doesn't use it to train its models. It may keep a conversation longer
 only if its automated safety systems flag it (up to two years) or the law requires it.
 Sources: Anthropic's
