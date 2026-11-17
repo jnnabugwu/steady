@@ -4,20 +4,15 @@ import 'package:flutter/foundation.dart';
 /// [AnalyticsEvent.coachAvailability]. Mirrors the coach's typed
 /// unavailable failures (`coach_domain`), without depending on them.
 enum CoachAvailabilityReason {
-  /// The on-device model is ready.
+  /// The coach can run: the build has its proxy address and this iPhone can
+  /// be verified.
   available,
 
-  /// The iPhone can't run Apple Intelligence.
-  deviceNotEligible,
+  /// The coach is off: no proxy address in this build, or the kill switch.
+  turnedOff,
 
-  /// Apple Intelligence is turned off.
-  appleIntelligenceNotEnabled,
-
-  /// The model is still downloading or otherwise not ready.
-  modelNotReady,
-
-  /// Older than iOS 26.
-  osTooOld,
+  /// This iPhone can't be verified (App Attest isn't available).
+  deviceNotVerified,
 
   /// Unavailable for a reason Steady doesn't know, or the check failed.
   unknown,

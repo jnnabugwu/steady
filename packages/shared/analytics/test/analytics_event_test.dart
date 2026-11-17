@@ -30,9 +30,9 @@ void main() {
       );
       expect(
         AnalyticsEvent.coachAvailability(
-          reason: CoachAvailabilityReason.modelNotReady,
+          reason: CoachAvailabilityReason.deviceNotVerified,
         ).properties,
-        {'available': false, 'reason': 'modelNotReady'},
+        {'available': false, 'reason': 'deviceNotVerified'},
       );
       expect(
         AnalyticsEvent.healthConnected(

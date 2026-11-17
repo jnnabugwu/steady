@@ -16,7 +16,7 @@ enum CoachMessageRole {
   /// The person using Steady.
   user,
 
-  /// The on-device coach.
+  /// The coach.
   coach,
 }
 

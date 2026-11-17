@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 
+import 'helpers/fake_coach_consent_repository.dart';
+
 void main() {
   test('the coach model is unbound until the app overrides it', () {
     final container = ProviderContainer.test();
@@ -46,6 +48,63 @@ void main() {
     expect(randomCoachSessionId(), isNot(a));
   });
 
+  group('the consent gate', () {
+    test('defaults to not given: no store is bound', () async {
+      final container = ProviderContainer.test();
+      expect(container.read(coachConsentRepositoryProvider), isNull);
+      expect(await container.read(coachConsentGivenProvider.future), isFalse);
+    });
+
+    test('without it the coach is unavailable, and the model is never '
+        'asked', () async {
+      final model = _FakeCoachModel();
+      final container = ProviderContainer.test(
+        overrides: [coachModelProvider.overrideWithValue(model)],
+      );
+      await expectLater(
+        container.read(coachAvailabilityProvider.future),
+        throwsA(isA<CoachConsentNotGivenFailure>()),
+      );
+      expect(model.checks, 0);
+    });
+
+    test("with it, availability is the model's local check", () async {
+      final model = _FakeCoachModel();
+      final container = ProviderContainer.test(
+        overrides: [
+          coachModelProvider.overrideWithValue(model),
+          coachConsentRepositoryProvider.overrideWithValue(
+            FakeCoachConsentRepository(agreed: CoachConsent.currentVersion),
+          ),
+        ],
+      );
+      expect(await container.read(coachAvailabilityProvider.future), unit);
+      expect(model.checks, 1);
+    });
+
+    test('availability follows consent: withdrawn, the coach is off again '
+        'without asking the model', () async {
+      final model = _FakeCoachModel();
+      final container = ProviderContainer.test(
+        overrides: [
+          coachModelProvider.overrideWithValue(model),
+          coachConsentRepositoryProvider.overrideWithValue(
+            FakeCoachConsentRepository(agreed: CoachConsent.currentVersion),
+          ),
+        ],
+      )..listen(coachAvailabilityProvider, (_, _) {});
+      expect(await container.read(coachAvailabilityProvider.future), unit);
+      await container
+          .read(coachConsentGivenProvider.notifier)
+          .withdrawCoachConsent();
+      await expectLater(
+        container.read(coachAvailabilityProvider.future),
+        throwsA(isA<CoachConsentNotGivenFailure>()),
+      );
+      expect(model.checks, 1);
+    });
+  });
+
   test('an override is what the coach reads', () {
     final model = _FakeCoachModel();
     final container = ProviderContainer.test(
@@ -56,26 +115,15 @@ void main() {
 }
 
 class _FakeCoachModel implements CoachModel {
-  @override
-  ResultFuture<CoachModelInfo> checkAvailability() async =>
-      const Err(CoachDeviceNotEligibleFailure());
+  int checks = 0;
 
   @override
-  ResultFuture<CoachModelSession> startSession({
-    required String instructions,
-  }) async => const Err(CoachDeviceNotEligibleFailure());
+  ResultFuture<Unit> checkAvailability() async {
+    checks++;
+    return const Ok(unit);
+  }
 
   @override
-  Stream<Result<CoachReplySnapshot>> streamResponse(
-    CoachModelSession session,
-    String prompt,
-  ) => const Stream.empty();
-
-  @override
-  ResultFuture<Unit> cancelResponse(CoachModelSession session) async =>
-      const Ok(unit);
-
-  @override
-  ResultFuture<Unit> endSession(CoachModelSession session) async =>
-      const Ok(unit);
+  Stream<Result<CoachReplySnapshot>> reply(CoachRequest request) =>
+      const Stream.empty();
 }

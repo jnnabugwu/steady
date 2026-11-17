@@ -54,12 +54,18 @@
 /// [appProviderOverridesFor] is built with `isIOS: true`; the Mac binds no
 /// coach provider at all.
 ///
-/// **The coach is iOS only** (#79, CLAUDE.md §11): its on-device model
-/// (`coachModelProvider`, Apple Foundation Models through the
-/// `steady/coach` channel) is bound only when [appProviderOverridesFor] is
-/// built with `isIOS: true`. On macOS it stays unbound, and there's no
-/// coach code in `app/macos/` at all. Whether the model can actually run
-/// on a given iPhone is a runtime check (`CoachModel.checkAvailability`).
+/// **The coach is iOS only** (#151, CLAUDE.md §11): its model
+/// (`coachModelProvider`, `HostedCoachModel`: Claude behind Steady's proxy,
+/// `jnnabugwu/steady-backend`, over HTTPS with App Attest) is bound only
+/// when [appProviderOverridesFor] is built with `isIOS: true`. On macOS it
+/// stays unbound, and there's no coach code in `app/macos/` at all. The
+/// proxy's URL comes from `--dart-define=COACH_PROXY_URL`
+/// (`CoachProxyConfig.fromEnvironment`); without it the coach says it's
+/// off. **Nothing is sent without consent** (#153): the model reads
+/// `coachConsentGivenProvider` before every request, and that answer comes
+/// from `coachConsentRepositoryProvider`, bound in the same iOS-only block
+/// to `coach_consent.json` ([coachConsentFile]), device-only like the
+/// sessions. Anywhere it isn't bound, consent reads as not given.
 /// The coach's context providers (#80: check-ins, calories eaten, Health,
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
@@ -143,6 +149,35 @@ DailyMetricRepository dailyMetricRepository(Ref ref) =>
 @Riverpod(keepAlive: true)
 HealthKitRepository? healthKitRepository(Ref ref) => null;
 
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+/// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+/// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+/// else throws, as the coach's own providers do on the Mac.
+///
+/// `keepAlive`: cheap and stateless (D6).
+@Riverpod(keepAlive: true)
+AppAttest coachAppAttest(Ref ref) =>
+    throw UnimplementedError('coachAppAttestProvider is bound on iOS only');
+
+/// The device-only file where the coach's attested App Attest key id is kept
+/// between launches: `app_attest_key.json` in the application support
+/// directory, next to `coach_sessions.json`. Looked up on first use.
+Future<File> appAttestKeyFile() async => File(
+  '${(await getApplicationSupportDirectory()).path}/app_attest_key.json',
+);
+
+/// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+/// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+/// throws.
+///
+/// `keepAlive`: cheap; the file is the state.
+@Riverpod(keepAlive: true)
+AppAttestKeyStore coachAppAttestKeyStore(Ref ref) => throw UnimplementedError(
+  'coachAppAttestKeyStoreProvider is bound on iOS only',
+);
+
 /// Opens an external link in the browser. Returns whether it opened.
 typedef AppLinkOpener = Future<bool> Function(Uri uri);
 
@@ -173,6 +208,13 @@ Future<File> coachStoreFile() async => File(
   '${(await getApplicationSupportDirectory()).path}/coach_sessions.json',
 );
 
+/// The device-only coach consent file: `coach_consent.json` in the
+/// application support directory, next to `coach_sessions.json`. Holds only
+/// the version of the consent text the person agreed to. Never synced; in
+/// the person's own device backup like the sessions. Looked up on first use.
+Future<File> coachConsentFile() async =>
+    File('${(await getApplicationSupportDirectory()).path}/coach_consent.json');
+
 /// [appProviderOverrides] for a given platform. The platform choices in it
 /// are Apple Health, craving support and the coach, all bound only when
 /// [isIOS] (see the library comment). A function, not just the list, so
@@ -190,12 +232,34 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     coachRepositoryProvider.overrideWith(
       (ref) => FileCoachRepository.locatedBy(coachStoreFile),
     ),
+    // Whether the person agreed to what the coach sends (#153): the version
+    // of the consent text, in a device-only file.
+    coachConsentRepositoryProvider.overrideWith(
+      (ref) => FileCoachConsentRepository.locatedBy(coachConsentFile),
+    ),
     // The export reads each session's date, kind and summary through the
     // coach's own repository: the same instance, so the same file.
     exportCoachRepositoryProvider.overrideWith(
       (ref) => ref.watch(coachRepositoryProvider),
     ),
-    coachModelProvider.overrideWith((ref) => MethodChannelCoachModel()),
+    // App Attest (#150): the channel, and the device-only key file.
+    coachAppAttestProvider.overrideWith((ref) => MethodChannelAppAttest()),
+    coachAppAttestKeyStoreProvider.overrideWith(
+      (ref) => FileAppAttestKeyStore.locatedBy(appAttestKeyFile),
+    ),
+    coachModelProvider.overrideWith((ref) {
+      final model = HostedCoachModel(
+        config: CoachProxyConfig.fromEnvironment(),
+        appAttest: ref.watch(coachAppAttestProvider),
+        keyStore: ref.watch(coachAppAttestKeyStoreProvider),
+        // Read before every request, so a later "no" stops the next one:
+        // only a settled yes counts (a withdrawal being written is a no).
+        consentGiven: () =>
+            isCoachConsentGiven(ref.read(coachConsentGivenProvider)),
+      );
+      ref.onDispose(model.close);
+      return model;
+    }),
     // The coach's context (#80) reads the other features through their own
     // repositories: the same instances, so the same stores (the shared
     // daily-metrics store, the device-only craving file, live Health).

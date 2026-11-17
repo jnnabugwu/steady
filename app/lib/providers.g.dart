@@ -216,6 +216,138 @@ final class HealthKitRepositoryProvider
 String _$healthKitRepositoryHash() =>
     r'e8c8cdadc90ff969e3423a0b40941dc4a6d33f11';
 
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+/// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+/// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+/// else throws, as the coach's own providers do on the Mac.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+@ProviderFor(coachAppAttest)
+final coachAppAttestProvider = CoachAppAttestProvider._();
+
+/// App Attest for the hosted coach (#150), read only by the iOS-bound
+/// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+/// the app layer is where `coach_data`'s implementations are chosen.
+/// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+/// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+/// else throws, as the coach's own providers do on the Mac.
+///
+/// `keepAlive`: cheap and stateless (D6).
+
+final class CoachAppAttestProvider
+    extends $FunctionalProvider<AppAttest, AppAttest, AppAttest>
+    with $Provider<AppAttest> {
+  /// App Attest for the hosted coach (#150), read only by the iOS-bound
+  /// `coachModelProvider`. Declared here, like [healthKitRepositoryProvider]:
+  /// the app layer is where `coach_data`'s implementations are chosen.
+  /// [appProviderOverridesFor] binds it on iOS only, to the `steady/app_attest`
+  /// channel (`app/ios/Runner/AppAttestChannel.swift`); reading it anywhere
+  /// else throws, as the coach's own providers do on the Mac.
+  ///
+  /// `keepAlive`: cheap and stateless (D6).
+  CoachAppAttestProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachAppAttestProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachAppAttestHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppAttest> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  AppAttest create(Ref ref) {
+    return coachAppAttest(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppAttest value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppAttest>(value),
+    );
+  }
+}
+
+String _$coachAppAttestHash() => r'cfdf8621d41a5a5726bb605db24e0f96cc8e413a';
+
+/// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+/// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+/// throws.
+///
+/// `keepAlive`: cheap; the file is the state.
+
+@ProviderFor(coachAppAttestKeyStore)
+final coachAppAttestKeyStoreProvider = CoachAppAttestKeyStoreProvider._();
+
+/// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+/// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+/// throws.
+///
+/// `keepAlive`: cheap; the file is the state.
+
+final class CoachAppAttestKeyStoreProvider
+    extends
+        $FunctionalProvider<
+          AppAttestKeyStore,
+          AppAttestKeyStore,
+          AppAttestKeyStore
+        >
+    with $Provider<AppAttestKeyStore> {
+  /// Where the coach's attested key id is kept (#150). [appProviderOverridesFor]
+  /// binds it on iOS only, to [appAttestKeyFile]; reading it anywhere else
+  /// throws.
+  ///
+  /// `keepAlive`: cheap; the file is the state.
+  CoachAppAttestKeyStoreProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'coachAppAttestKeyStoreProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$coachAppAttestKeyStoreHash();
+
+  @$internal
+  @override
+  $ProviderElement<AppAttestKeyStore> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  AppAttestKeyStore create(Ref ref) {
+    return coachAppAttestKeyStore(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(AppAttestKeyStore value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<AppAttestKeyStore>(value),
+    );
+  }
+}
+
+String _$coachAppAttestKeyStoreHash() =>
+    r'b3879343b1bd6ee8462cee9458adab2c13aeab2e';
+
 /// How app-level screens open an external link (Settings' privacy policy).
 /// Defaults to the system browser through `url_launcher`; tests override
 /// it so they never reach the plugin.

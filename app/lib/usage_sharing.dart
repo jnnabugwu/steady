@@ -349,16 +349,12 @@ class UsageSharingController extends _$UsageSharingController {
 }
 
 /// [CoachAvailabilityReason] for the coach model's availability check.
-CoachAvailabilityReason coachAvailabilityReason(
-  Result<CoachModelInfo> result,
-) => switch (result) {
-  Ok() => CoachAvailabilityReason.available,
-  Err(failure: CoachDeviceNotEligibleFailure()) =>
-    CoachAvailabilityReason.deviceNotEligible,
-  Err(failure: CoachAppleIntelligenceNotEnabledFailure()) =>
-    CoachAvailabilityReason.appleIntelligenceNotEnabled,
-  Err(failure: CoachModelNotReadyFailure()) =>
-    CoachAvailabilityReason.modelNotReady,
-  Err(failure: CoachOsTooOldFailure()) => CoachAvailabilityReason.osTooOld,
-  Err() => CoachAvailabilityReason.unknown,
-};
+CoachAvailabilityReason coachAvailabilityReason(Result<Unit> result) =>
+    switch (result) {
+      Ok() => CoachAvailabilityReason.available,
+      Err(failure: CoachTurnedOffFailure()) =>
+        CoachAvailabilityReason.turnedOff,
+      Err(failure: CoachDeviceNotVerifiedFailure()) =>
+        CoachAvailabilityReason.deviceNotVerified,
+      Err() => CoachAvailabilityReason.unknown,
+    };

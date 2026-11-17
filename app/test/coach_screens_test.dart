@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' show Switch;
 import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
@@ -36,6 +37,8 @@ void main() {
     required bool isIOS,
     _FakeModel? model,
     _MemoryRepository? repository,
+    bool consentGiven = true,
+    _MemoryConsent? consent,
     String? coldStart,
     DateTime? now,
     DateTime Function()? clock,
@@ -54,6 +57,14 @@ void main() {
         ...appProviderOverridesFor(isIOS: false),
         if (isIOS) ...[
           coachSupportAvailableProvider.overrideWithValue(true),
+          // The real consent Notifier over an in-memory store (the file
+          // store's own tests are in `coach_data`).
+          coachConsentRepositoryProvider.overrideWithValue(
+            consent ??
+                _MemoryConsent(
+                  agreed: consentGiven ? CoachConsent.currentVersion : null,
+                ),
+          ),
           coachModelProvider.overrideWithValue(model ?? _FakeModel()),
           coachRepositoryProvider.overrideWithValue(
             repository ?? _MemoryRepository(),
@@ -126,6 +137,7 @@ void main() {
       '/coach/chat',
       '/coach/sessions/abc',
       '/weekly-check-in',
+      '/coach-consent',
     ]) {
       testWidgets('a cold start at $path goes home', (tester) async {
         final container = await pumpApp(tester, isIOS: false, coldStart: path);
@@ -152,15 +164,223 @@ void main() {
       expect(find.byKey(const Key('coachSettingsCard')), findsOneWidget);
     });
 
-    testWidgets('an unavailable model says why on the Coach tab; the rest '
+    group('consent (#153)', () {
+      final consentScreen = find.byType(CoachConsentModule);
+
+      Future<void> tapKey(WidgetTester tester, String key) async {
+        final target = find.byKey(Key(key));
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> scrollToNudge(WidgetTester tester) async {
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('coachNudgeTalkNow')),
+          200,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('todayScroll')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.drag(
+          find.byKey(const Key('todayScroll')),
+          const Offset(0, -200),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('the Coach tab: "Turn on the coach" shows the consent '
+          'screen; "Not now" leaves it off, "Allow and continue" turns it '
+          'on; nothing is sent either way', (tester) async {
+        final model = _FakeModel();
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          model: model,
+          consent: consent,
+        );
+        await tapTab(tester, 'Coach');
+        expect(find.text('The coach is off'), findsOneWidget);
+        expect(find.byKey(const Key('coachStartChat')), findsNothing);
+
+        await tapKey(tester, 'coachTurnOn');
+        expect(location(container), '/coach-consent');
+        expect(consentScreen, findsOneWidget);
+        expect(find.text(CoachConsent.title), findsOneWidget);
+        // Over the shell.
+        expect(tabBar.hitTestable(), findsNothing);
+
+        await tapKey(tester, 'coachConsentNotNow');
+        expect(location(container), '/coach');
+        expect(find.text('The coach is off'), findsOneWidget);
+        expect(consent.agreed, isNull);
+
+        await tapKey(tester, 'coachTurnOn');
+        await tapKey(tester, 'coachConsentAllow');
+        expect(location(container), '/coach');
+        expect(consent.agreed, CoachConsent.currentVersion);
+        expect(find.byKey(const Key('coachStartChat')), findsOneWidget);
+        expect(model.requests, isEmpty);
+      });
+
+      testWidgets('the nudge without consent: Talk now shows the consent '
+          'screen first; "Not now" returns to Today; allowed, it opens the '
+          'weekly session, which sends nothing before Begin', (tester) async {
+        final model = _FakeModel();
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          model: model,
+          consent: consent,
+          now: DateTime(2026, 10, 23, 20),
+          checkInsLastWeek: 4,
+        );
+        await scrollToNudge(tester);
+        expect(find.textContaining('Oct 16 – 22 is ready'), findsOneWidget);
+
+        await tapKey(tester, 'coachNudgeTalkNow');
+        expect(location(container), '/coach-consent');
+        expect(consentScreen, findsOneWidget);
+
+        await tapKey(tester, 'coachConsentNotNow');
+        expect(location(container), '/');
+        expect(find.byType(CoachSessionModule), findsNothing);
+        expect(find.byKey(const Key('coachNudgeTalkNow')), findsOneWidget);
+        expect(consent.agreed, isNull);
+
+        await tapKey(tester, 'coachNudgeTalkNow');
+        await tapKey(tester, 'coachConsentAllow');
+        expect(location(container), '/weekly-check-in');
+        expect(find.byKey(const Key('coachWeeklyBegin')), findsOneWidget);
+        expect(model.requests, isEmpty);
+
+        await tapKey(tester, 'coachWeeklyBegin');
+        expect(model.requests.single.kind, CoachRequestKind.weekly);
+      });
+
+      testWidgets('the nudge with consent goes straight to the weekly '
+          'session', (tester) async {
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          now: DateTime(2026, 10, 23, 20),
+          checkInsLastWeek: 4,
+        );
+        await scrollToNudge(tester);
+        await tapKey(tester, 'coachNudgeTalkNow');
+        expect(location(container), '/weekly-check-in');
+        expect(consentScreen, findsNothing);
+      });
+
+      testWidgets('the weekly session opened without consent (a link): no '
+          'Begin until "Turn on the coach" and "Allow and continue"', (
+        tester,
+      ) async {
+        final model = _FakeModel();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          model: model,
+          consentGiven: false,
+          now: DateTime(2026, 10, 23, 20),
+          checkInsLastWeek: 4,
+          coldStart: '/weekly-check-in',
+        );
+        expect(location(container), '/weekly-check-in');
+        expect(find.byKey(const Key('coachWeeklyBegin')), findsNothing);
+        expect(find.text('The coach is off'), findsOneWidget);
+
+        await tapKey(tester, 'coachTurnOn');
+        expect(consentScreen, findsOneWidget);
+        await tapKey(tester, 'coachConsentAllow');
+        expect(location(container), '/weekly-check-in');
+        expect(find.byKey(const Key('coachWeeklyBegin')), findsOneWidget);
+        expect(model.requests, isEmpty);
+      });
+
+      testWidgets('a chat opened without consent (a link) sends nothing, and '
+          'starts once it is allowed', (tester) async {
+        final model = _FakeModel();
+        await pumpApp(
+          tester,
+          isIOS: true,
+          model: model,
+          consentGiven: false,
+          coldStart: '/coach/chat',
+        );
+        expect(find.byKey(const Key('coachMessageField')), findsNothing);
+        await tapKey(tester, 'coachTurnOn');
+        await tapKey(tester, 'coachConsentAllow');
+        expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+        expect(model.requests, isEmpty);
+      });
+
+      testWidgets('Settings: the switch on goes through the consent screen '
+          '("Not now" keeps it off), and off withdraws at once', (
+        tester,
+      ) async {
+        final consent = _MemoryConsent();
+        final container = await pumpApp(tester, isIOS: true, consent: consent);
+        await tapTab(tester, 'Settings');
+        final switchFinder = find.byKey(const Key('coachConsentSwitch'));
+        bool on() => tester.widget<Switch>(switchFinder).value;
+        expect(on(), isFalse);
+
+        await tapKey(tester, 'coachConsentSwitch');
+        expect(location(container), '/coach-consent');
+        await tapKey(tester, 'coachConsentNotNow');
+        expect(location(container), '/settings');
+        expect(on(), isFalse);
+        expect(consent.agreed, isNull);
+
+        await tapKey(tester, 'coachConsentSwitch');
+        await tapKey(tester, 'coachConsentAllow');
+        expect(location(container), '/settings');
+        expect(on(), isTrue);
+        expect(consent.agreed, CoachConsent.currentVersion);
+
+        await tapKey(tester, 'coachConsentSwitch');
+        expect(on(), isFalse);
+        expect(consent.agreed, isNull);
+        expect(
+          isCoachConsentGiven(container.read(coachConsentGivenProvider)),
+          isFalse,
+        );
+
+        // The Coach tab follows: off again.
+        await tapTab(tester, 'Coach');
+        expect(find.text('The coach is off'), findsOneWidget);
+      });
+
+      testWidgets('a cold start at /coach-consent: "Not now" goes home, and '
+          'nothing changes', (tester) async {
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          consent: consent,
+          coldStart: '/coach-consent',
+        );
+        expect(consentScreen, findsOneWidget);
+        await tapKey(tester, 'coachConsentNotNow');
+        expect(location(container), '/');
+        expect(consent.agreed, isNull);
+      });
+    });
+
+    testWidgets('the coach turned off says why on the Coach tab; the rest '
         'of the app is unaffected', (tester) async {
       final model = _FakeModel()
-        ..availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+        ..availability = const Err(CoachTurnedOffFailure());
       await pumpApp(tester, isIOS: true, model: model);
       expect(find.byType(TodayScreen), findsOneWidget);
 
       await tapTab(tester, 'Coach');
-      expect(find.text('The coach needs Apple Intelligence'), findsOneWidget);
+      expect(find.text('The coach is off right now'), findsOneWidget);
       expect(find.byKey(const Key('coachStartChat')), findsNothing);
 
       await tapTab(tester, 'Week');
@@ -345,40 +565,50 @@ void main() {
 
 /// A model that's available and answers at once.
 class _FakeModel implements CoachModel {
-  Result<CoachModelInfo> availability = const Ok(
-    CoachModelInfo(contextSize: 4096),
-  );
-  var _next = 0;
+  Result<Unit> availability = const Ok(unit);
+
+  /// Every request, in order.
+  final List<CoachRequest> requests = [];
 
   @override
-  ResultFuture<CoachModelInfo> checkAvailability() async => availability;
+  ResultFuture<Unit> checkAvailability() async => availability;
 
   @override
-  ResultFuture<CoachModelSession> startSession({
-    required String instructions,
-  }) async => Ok(CoachModelSession(id: 's${_next++}'));
-
-  @override
-  Stream<Result<CoachReplySnapshot>> streamResponse(
-    CoachModelSession session,
-    String prompt,
-  ) => Stream.fromIterable([
-    Ok(
-      CoachReplySnapshot(
-        text: prompt.startsWith(CoachInstructions.summaryRequest)
-            ? 'A short summary.'
-            : 'Coach reply.',
+  Stream<Result<CoachReplySnapshot>> reply(CoachRequest request) {
+    requests.add(request);
+    return Stream.value(
+      Ok(
+        CoachReplySnapshot(
+          text: request.kind == CoachRequestKind.summary
+              ? 'A short summary.'
+              : 'Coach reply.',
+          stopReason: CoachStopReason.endTurn,
+        ),
       ),
-    ),
-  ]);
+    );
+  }
+}
+
+/// An in-memory consent store.
+class _MemoryConsent implements CoachConsentRepository {
+  _MemoryConsent({this.agreed});
+
+  int? agreed;
 
   @override
-  ResultFuture<Unit> cancelResponse(CoachModelSession session) async =>
-      const Ok(unit);
+  ResultFuture<int?> readAgreedVersion() async => Ok(agreed);
 
   @override
-  ResultFuture<Unit> endSession(CoachModelSession session) async =>
-      const Ok(unit);
+  ResultFuture<Unit> giveConsent(int version) async {
+    agreed = version;
+    return const Ok(unit);
+  }
+
+  @override
+  ResultFuture<Unit> withdrawConsent() async {
+    agreed = null;
+    return const Ok(unit);
+  }
 }
 
 /// An in-memory coach store (the file store's own tests are in

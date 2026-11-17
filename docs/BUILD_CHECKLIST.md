@@ -84,8 +84,11 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] Each `*_presentation` package declares its repository providers (throw unless
       overridden), typed against its own `*_domain` interface, in `lib/src/providers.dart`:
       checkin, metrics, pdf_import, cravings, coach (`coachRepositoryProvider`, bound on
-      iOS only). `coach_presentation` also declares `coachModelProvider` — the on-device
-      model, an inference port rather than a repository — bound on iOS only.
+      iOS only). `coach_presentation` also declares `coachModelProvider` — the hosted
+      model (`HostedCoachModel`), an inference port rather than a repository — bound on
+      iOS only, and `coachConsentRepositoryProvider` (the device-only consent store, iOS
+      only; unbound reads as not given) behind the `coachConsentGivenProvider` Notifier
+      (#153).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -172,24 +175,16 @@ items land; don't let it drift into a change log — keep it a current-state che
 - [x] iOS: PDFium via `pdfium_flutter` (a `pdf_import_data` dependency, which also links it
       on macOS); the document picker needs no Info.plist key. Same e2e test passes on the iOS
       simulator with `--dart-define=E2E_PDF_PATH=...`. Not yet tried on a physical iPhone.
-- [x] Rows land in SwiftData rather than the interim JSON file (no backend, ever — see
-      `CLAUDE.md` §12). Verified on macOS by `app/integration_test/pdf_import_e2e_test.dart`.
+- [x] Rows land in SwiftData rather than the interim JSON file (no backend for parsing —
+      see `CLAUDE.md` §6, §12). Verified on macOS by `app/integration_test/pdf_import_e2e_test.dart`.
 
 ## Feature: coach (CLAUDE.md §11)
 
 Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_decisions.md`,
-"The coach runs on the iPhone").
-
-- [x] `coach_data`: Apple Foundation Models channel in `app/ios` only
-      (`CoachChannel.swift`, `MethodChannelCoachModel`), with typed `Failure`s for each
-      unavailable reason (device not eligible, Apple Intelligence off, model not ready, iOS
-      older than 26) and for failed replies. Replies stream as cumulative snapshots. Context
-      limit: 4,096 tokens on iOS 26 (`CoachModelChannel.defaultContextSize`; the device
-      reports its own at runtime). No macOS implementation at all (#79).
-- [ ] The #79 "done when" on hardware: a debug build on a supported iPhone streams a
-      reply, and an unsupported iPhone (or Apple Intelligence off) shows a clear message.
-      The message exists now (the Coach tab and the session screen, #80); checking it on
-      hardware is still open.
+"The coach runs on the iPhone"). Decided 2026-10-30: its model moves to hosted Claude; the app
+side is built (#151, #152), the Foundation Models channel is gone, and consent is built
+(#153). What's still open (the App Privacy answers, the check on hardware) is under
+"Hosted coach" below.
 - [x] Transcripts and summaries in a device-only store, like `cravings_data`: never in
       the CloudKit store (5.1.3), so no `@Model` for coach sessions. `CoachSession` /
       `CoachMessage` / `CoachRepository` in `coach_domain`; `FileCoachRepository`
@@ -201,10 +196,10 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       per day. Coach history that can't be read doesn't block the export (decided
       2026-10-25): `coachSessions` is `null` and the screen says it was left out; it's
       the one exception to "an export is never partial" (#78).
-- [x] Coach summary prompt (#79/#82): summaries run in their own model session under
-      `CoachInstructions.summary` (not the coaching instructions, which ask questions),
-      asking for tracking habits and next week's plan, leaving out cravings and exact
-      numbers (cravings aren't in the export). A model can't be held to that every time,
+- [x] Coach summary (#79/#82, #152): one `kind: summary` request over the transcript; the
+      proxy builds the prompt under its summary instructions (not the coaching ones, which
+      ask questions), asking for tracking habits and next week's plan, leaving out cravings
+      and exact numbers (cravings aren't in the export). A model can't be held to that every time,
       so a summary may still mention a Health number or a craving (CLAUDE.md §7,
       PRIVACY.md).
 - [x] `coach_presentation`: chat on the iPhone (#80). The Coach tab (iPhone only; the Mac
@@ -212,29 +207,32 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
       streaming reply, a stop button, the transcript saved as it grows and a model-written
       summary at the end, and past sessions with a read-only transcript. Context from
       metrics, check-ins, live Health totals and cravings, domains only
-      (`BuildCoachWeekContext`), kept inside the 4,096-token window by
-      `CoachConversation` (tests: `coach_context_budget_test.dart`). Unavailable states per
-      typed reason; the "not medical advice" note on the tab and in every session, the help
-      line when guardrails stop a reply.
-- [ ] Live streaming on a supported iPhone: unverified (the simulators report Apple
-      Intelligence off / model not ready).
-- [x] Replies cut off at the 512-token cap: trimmed to the last full sentence, with a
-      **Keep going** button (`CoachKeepGoing`). A long chat's carried summary keeps
-      cravings and numbers (`CoachInstructions.contextSummary`); the stored one doesn't.
-- [ ] On a supported iPhone: iOS 27's output token count reaching the cap (the reliable
-      cut-off signal), and the iOS 26 fallback, both unverified on a real model.
+      (`BuildCoachWeekContext`), compact (`formatCoachWeek`, at most 1,200 characters) and
+      sent with the whole conversation on every turn. Unavailable states per typed
+      failure; the "not medical advice" note on the tab and in every session, the help line
+      when the model refuses a reply (its partial text is dropped).
+- [x] A reply cut off at the proxy's token limit (`done {stopReason: "max_tokens"}`) is
+      shown and stored as it came, with a **Keep going** button (`CoachKeepGoing`). The
+      on-device cut-off heuristic and trimming are gone (#152). Whether the button stays is
+      open for Jordan.
 - [x] `coach_presentation`: the weekly 5-minute session (#81). The last completed
       Friday→Thursday week; doesn't start with fewer than 4 of 7 days checked in
       (`CheckWeeklyReadiness`); logging, steps, cravings (when there were any) and next week
       as separate topics; a stored summary. `/weekly-check-in`, from the nudge and the
       Coach tab.
 - [x] Nudge card (`CoachNudgeCard` in `TodayScreen.coachNudge`): "Talk now" / "Not
-      tonight" where the model is available, an explanation where it isn't; nothing on the
-      Mac. Shown Friday to Sunday from check-in data only (#81).
-- [x] Tone and safety instructions in one place: `CoachInstructions` in `coach_domain`
-      (coach, not therapist; never originates calorie targets, weight goals, deficits or
-      diets, including from craving data; no streaks or shame; points to ANAD and 988 and
-      doesn't coach through disordered eating or a crisis), with a test per constraint (#82).
+      tonight" where the coach is available, an explanation where it isn't (the proxy off,
+      this iPhone can't be verified); without consent it looks the same and "Talk now" shows
+      the consent screen first (#153); nothing on the Mac. Shown Friday
+      to Sunday from check-in data only, and never calls the network (#81).
+- [x] Tone and safety instructions in one place: on the proxy now
+      (`src/coach/instructions.ts` and `src/coach/weekly.ts` in `jnnabugwu/steady-backend`,
+      moved word for word from the app's `CoachInstructions` and `weeklyTopicPrompt`, which
+      #152 deleted): coach, not therapist; never originates calorie targets, weight goals,
+      deficits or diets, including from craving data; no streaks or shame; points to ANAD
+      and 988 and doesn't coach through disordered eating or a crisis. A test per
+      constraint, on the proxy (#82). The app keeps `CoachCopy` (the not-medical-advice
+      note and the help line).
 - [x] UI review of coach screens against the no-shame rules (#82): teal ladder and
       neutrals only, no streaks, scores, grades or praise/blame words, topics shown as a
       position, never a checkmark. `coach_no_shame_test.dart` sweeps the Coach tab, the
@@ -245,6 +243,76 @@ Decided 2026-10-24: the coach runs on the iPhone, not the Mac (`docs/technical_d
 - [x] The coach ships in one release (screens, storage, Settings → Coach delete and the
       export's coach summaries), so `docs/PRIVACY.md`'s Coach section no longer says "The
       coach isn't in Steady yet". Effective date 26 October 2026.
+
+### Hosted coach (decided 2026-10-30; app side built, not deployed)
+
+Decision record: `docs/technical_decisions.md`, "The coach uses a hosted model". The coach
+moves to Claude Opus 5.5 (`claude-opus-5-5`) through a thin proxy on Vercel; hosted only, the
+Foundation Models path is removed. CLAUDE.md §7, §11, §12. Tracking issue: "Hosted coach
+(Claude Opus 5.5 via Vercel proxy)".
+
+- [x] Anthropic's API data terms confirmed (standard terms, no zero data retention):
+      deleted within 30 days, no training without express permission, kept longer only if
+      flagged by automated safety systems (up to two years) or by law. In the consent copy
+      and PRIVACY.md (#153).
+- [x] Jordan: create the Console API key, cap spend and add the key to Vercel (#148).
+      Auto-reload is off, so the API credit balance is the ceiling.
+- [x] The proxy, in its own repo, `jnnabugwu/steady-backend` (#149; not a `backend/` folder
+      here): TypeScript, Vercel Functions, `@anthropic-ai/sdk`. Holds the key; verifies App
+      Attest on every request (Upstash Redis for attested keys and counters); owns the
+      system prompt and guardrails, with their tests; per-device and global daily limits
+      and a kill switch; metadata-only logs; SSE replies. Its README is the API contract.
+- [x] The proxy deployed on Vercel (Production), with Upstash Redis and its environment
+      variables (#148). Release builds bake its address in from `scripts/coach-proxy-url`,
+      and `scripts/verify-ios-ipa.sh` fails a build without it.
+- [ ] App Attest client in `app/ios/Runner` (`DCAppAttestService`: key, one attestation, an
+      assertion per request), its channel and typed failures; the App Attest entitlement.
+      Built (#150): `AppAttestChannel.swift`, `MethodChannelAppAttest`,
+      `FileAppAttestKeyStore` (`app_attest_key.json` in application support, bound on iOS
+      only in `app/lib/providers.dart`) and the per-configuration entitlement. The key
+      lifecycle and the debug-only bypass are `HostedCoachModel`'s (#151). The App ID has
+      the App Attest capability and the profiles are regenerated (#148). Still open:
+      attesting and asserting on a physical iPhone (the first internal TestFlight build).
+- [x] `HostedCoachModel` in `coach_data` (#151), replacing `MethodChannelCoachModel`,
+      `coach_model_wire.dart` and `app/ios/Runner/CoachChannel.swift` (all deleted).
+      `CoachModel` is stateless: `reply(CoachRequest)` sends the session kind, the week
+      context and the whole conversation (weekly app turns in place) every turn, and streams
+      cumulative snapshots ending in `endTurn` / `maxTokens`. `package:http` over HTTPS,
+      SSE parsed in `coach_sse.dart`; the challenge → register once → assertion flow, with
+      one re-attest and retry on `attestation_failed`; one reply in flight at a time;
+      cancelling aborts the request. Every proxy error code and transport error maps to a
+      typed failure: consent not given, coach turned off (kill switch, or no
+      `COACH_PROXY_URL`), this iPhone can't be verified, offline, rate limited (with
+      `retryAfter`), refusal, server error. Debug builds only: the dev bypass
+      (`COACH_DEV_BYPASS_TOKEN`) where App Attest is unsupported, and the Vercel protection
+      bypass (`VERCEL_PROTECTION_BYPASS`); neither reaches a release build.
+- [x] `coach_domain` cleanup (#152): the 4,096-token machinery removed (`CoachContextBudget`,
+      `CoachConversation`, `estimateCoachTokens`, `CoachInstructions` and
+      `weeklyTopicPrompt` (on the proxy now), the `CoachKeepGoing` heuristic and trim,
+      `CoachModelInfo`, `CoachModelSession`, `CoachReplySnapshot.outputTokens`, the Apple
+      Intelligence failures), `coachMaxMessageChars` moved to `coach_message_limit.dart`,
+      and `CoachSessionController` simplified to match.
+- [x] Consent (#153): the consent screen (`CoachConsentModule`, `/coach-consent`) before
+      the first request from every entry point (Coach tab, nudge, a session opened from a
+      link, the Settings switch); `CoachConsentRepository` with a device-only file store
+      (`coach_consent.json`) holding the agreed version (`CoachConsent.currentVersion`, 1;
+      a bump asks again); the `coachConsentGivenProvider` Notifier (`giveCoachConsent`,
+      `withdrawCoachConsent`); the Settings → Coach switch (off stops every request,
+      a reply in flight included); PRIVACY.md naming Anthropic, what's sent and its
+      retention; `NSHealthShareUsageDescription`; the App Review notes, App Store
+      description and age-rating notes (`docs/testflight.md` §5, §8).
+- [ ] Jordan: set the App Privacy answers in App Store Connect (`docs/testflight.md` §6:
+      the proposal and the open questions). Combine with #156's (PostHog) answers if that
+      lands too.
+- [ ] On hardware: a TestFlight-config build streams a reply from the production proxy on a
+      physical iPhone (#151).
+- [x] Guardrail evaluation set (#154) in steady-backend's `evals/`: 35 cases (calorie
+      targets, weight goals, diets, crisis language, cravings, shame, numbers, medical
+      questions, prompt injection, summaries, over-refusal), 3 reps each through the real
+      handler. Passed 2026-11-06 (every critical rep safe; 93% of the rest, bar 90%). Run it
+      again after any change to the instructions, the effort level or the model.
+- [ ] Notes retrieval (#85) feeds a hosted prompt: the retrieved notes count as sent data,
+      under the same consent and disclosure.
 
 ## Feature: notifications — dropped
 
@@ -332,10 +400,11 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       only).
 - [x] iOS target is iPhone-only (`TARGETED_DEVICE_FAMILY = 1`), so no iPad screenshots or
       iPad review.
-- [ ] Entitlements: HealthKit (iOS only). Foundation Models needs none on iOS: checked
-      against the iOS 27.1 SDK (#79); only Apple's server model,
-      `PrivateCloudComputeLanguageModel`, needs a managed entitlement, and Steady doesn't use
-      it. CloudKit container entitlement is set.
+- [ ] Entitlements: HealthKit (iOS only). CloudKit container entitlement is set. The coach
+      no longer uses Foundation Models (#151). The App Attest entitlement
+      (`com.apple.developer.devicecheck.appattest-environment`, #150) is set: `development`
+      for Debug, `production` for Release and Profile. The App ID has the App Attest
+      capability and match's profile is regenerated (#148).
 - [ ] TestFlight steps for the first external build: `docs/testflight.md`.
 - [x] Manual ship workflow: fastlane `beta` (TestFlight) and `release` (App Review) lanes,
       run only from Actions → Ship iOS (`docs/fastlane.md`).

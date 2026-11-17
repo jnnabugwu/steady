@@ -8,6 +8,7 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 import 'helpers/coach_container.dart';
+import 'helpers/fake_coach_consent_repository.dart';
 import 'helpers/fake_coach_model.dart';
 import 'helpers/fake_coach_repository.dart';
 
@@ -15,24 +16,34 @@ void main() {
   late FakeCoachModel model;
   late FakeCoachRepository repository;
   late int closed;
+  late int consentAsks;
+  FakeCoachConsentRepository? consent;
 
   setUp(() {
     model = FakeCoachModel(manualReplies: true);
     repository = FakeCoachRepository();
     closed = 0;
+    consentAsks = 0;
+    consent = null;
   });
 
   Future<void> pump(
     WidgetTester tester, {
     bool accessibleNavigation = false,
     bool disableAnimations = false,
+    bool consentGiven = true,
   }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: coachTestOverrides(model: model, repository: repository),
+        overrides: coachTestOverrides(
+          model: model,
+          repository: repository,
+          consentGiven: consentGiven,
+          consent: consent,
+        ),
         child: ShadcnApp(
           theme: steadyTheme,
           home: Builder(
@@ -41,7 +52,10 @@ void main() {
                 accessibleNavigation: accessibleNavigation,
                 disableAnimations: disableAnimations,
               ),
-              child: CoachSessionModule(onClosed: () => closed++),
+              child: CoachSessionModule(
+                onClosed: () => closed++,
+                onConsentRequested: () => consentAsks++,
+              ),
             ),
           ),
         ),
@@ -101,12 +115,12 @@ void main() {
     expect(find.byKey(const Key('coachTyping')), findsOneWidget);
     expect(find.byKey(const Key('coachStop')), findsOneWidget);
 
-    model.reply('You logged');
+    model.say('You logged');
     await tester.pump();
     expect(find.text('You logged'), findsOneWidget);
     expect(find.byKey(const Key('coachTyping')), findsNothing);
 
-    model.reply('You logged five days.');
+    model.say('You logged five days.');
     await tester.pump();
     expect(find.text('You logged five days.'), findsOneWidget);
     expect(find.text('You logged'), findsNothing);
@@ -125,7 +139,7 @@ void main() {
   ) async {
     await pump(tester);
     await send(tester, 'Tell me about Tuesday.');
-    model.reply('Tuesday was a');
+    model.say('Tuesday was a');
     await tester.pump();
 
     await tester.tap(find.byKey(const Key('coachStop')));
@@ -171,56 +185,57 @@ void main() {
     expect(repository.sessions.single.summary, 'A short summary.');
   });
 
-  testWidgets('a guardrail stop shows the help line', (tester) async {
+  testWidgets('a refusal shows the help line, and the partial reply goes', (
+    tester,
+  ) async {
     await pump(tester);
     await send(tester, 'Everything feels out of control.');
-    model.fail(
-      const CoachInferenceFailure(
-        'guardrail',
-        reason: CoachInferenceFailureReason.guardrailViolation,
-      ),
-    );
+    model.say('Something the coach');
+    await tester.pump();
+    expect(find.text('Something the coach'), findsOneWidget);
+    model.fail(const CoachRefusalFailure());
     await tester.pump();
     await tester.pump();
+    expect(find.text('Something the coach'), findsNothing);
     expect(find.byKey(const Key('coachHelpCard')), findsOneWidget);
     expect(find.text(CoachCopy.helpLine), findsOneWidget);
     expect(find.byKey(const Key('coachReplyFailure')), findsOneWidget);
   });
 
-  testWidgets('another failed reply says so, without the help line', (
-    tester,
-  ) async {
-    await pump(tester);
-    await send(tester, 'Hi');
-    model.fail(
-      const CoachInferenceFailure(
-        'slow',
-        reason: CoachInferenceFailureReason.timeout,
-      ),
-    );
-    await tester.pump();
-    await tester.pump();
-    expect(
-      find.text("The coach couldn't reply just now. Try sending it again."),
-      findsOneWidget,
-    );
-    expect(find.byKey(const Key('coachHelpCard')), findsNothing);
-  });
+  final replyFailures = <Failure, String>{
+    const CoachServerFailure():
+        "The coach couldn't reply just now. Try sending it again.",
+    const CoachOfflineFailure():
+        "Couldn't reach the coach. Check your connection and try sending it "
+        'again.',
+    const CoachRateLimitedFailure(retryAfter: Duration(hours: 5)):
+        'The coach has reached its limit for today. Try again in about 5 '
+        'hours.',
+  };
+  for (final MapEntry(key: failure, value: line) in replyFailures.entries) {
+    testWidgets('a failed reply (${failure.runtimeType}) says so, without '
+        'the help line', (tester) async {
+      await pump(tester);
+      await send(tester, 'Hi');
+      model.fail(failure);
+      await tester.pump();
+      await tester.pump();
+      expect(find.text(line), findsOneWidget);
+      expect(find.byKey(const Key('coachHelpCard')), findsNothing);
+      expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+    });
+  }
 
-  final reasons = {
-    const CoachDeviceNotEligibleFailure(): (
-      "The coach isn't available on this iPhone",
-      'supports Apple Intelligence',
+  final reasons = <CoachUnavailableFailure, (String, String)>{
+    const CoachConsentNotGivenFailure(): (
+      'The coach is off',
+      'It asks before it sends anything',
     ),
-    const CoachAppleIntelligenceNotEnabledFailure(): (
-      'The coach needs Apple Intelligence',
-      'Settings → Apple Intelligence & Siri',
+    const CoachTurnedOffFailure(): ('The coach is off right now', 'later'),
+    const CoachDeviceNotVerifiedFailure(): (
+      "The coach can't run on this iPhone",
+      'couldn’t verify this iPhone',
     ),
-    const CoachModelNotReadyFailure(): (
-      'The coach is still getting ready',
-      'still setting up',
-    ),
-    const CoachOsTooOldFailure(): ('The coach needs iOS 26', 'iOS 26 or later'),
   };
   for (final MapEntry(key: failure, value: (title, line)) in reasons.entries) {
     testWidgets('unavailable (${failure.runtimeType}) says why, plainly', (
@@ -235,13 +250,77 @@ void main() {
     });
   }
 
+  testWidgets('without consent: "The coach is off", no message box, no '
+      'Check again, and nothing sent', (tester) async {
+    await pump(tester, consentGiven: false);
+    expect(find.text('The coach is off'), findsOneWidget);
+    expect(find.byKey(const Key('coachMessageField')), findsNothing);
+    expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
+    expect(model.requests, isEmpty);
+    expect(model.availabilityChecks, 0);
+  });
+
+  testWidgets('without consent, "Turn on the coach" asks for it; once given, '
+      'the session starts by itself', (tester) async {
+    consent = FakeCoachConsentRepository();
+    await pump(tester);
+    await tester.tap(find.byKey(const Key('coachTurnOn')));
+    expect(consentAsks, 1);
+    expect(model.requests, isEmpty);
+
+    // What the app's consent screen does on "Allow and continue".
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CoachSessionModule)),
+    );
+    await container.read(coachConsentGivenProvider.notifier).giveCoachConsent();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachUnavailableCard')), findsNothing);
+    expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
+    expect(model.requests, isEmpty);
+  });
+
+  testWidgets('turned off mid-reply: the reply stops, its text goes, and the '
+      'conversation stays with "Turn on the coach"', (tester) async {
+    consent = FakeCoachConsentRepository(agreed: CoachConsent.currentVersion);
+    await pump(tester);
+    await send(tester, 'Hi');
+    model.say('Tuesday was');
+    await tester.pump();
+    expect(find.textContaining('Tuesday was'), findsOneWidget);
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byType(CoachSessionModule)),
+    );
+    await container
+        .read(coachConsentGivenProvider.notifier)
+        .withdrawCoachConsent();
+    await tester.pump();
+    await tester.pump();
+    expect(model.cancelled, isTrue);
+    expect(find.textContaining('Tuesday was'), findsNothing);
+    expect(find.text('The coach is off'), findsOneWidget);
+    expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+    // What the person said is still there.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is CoachMessageBubble &&
+            w.role == CoachMessageRole.user &&
+            w.text == 'Hi',
+      ),
+      findsOneWidget,
+    );
+    expect(model.replyRequests, hasLength(1));
+  });
+
   testWidgets('"Check again" on the session screen starts the coach once it '
       'can', (tester) async {
-    model.availability = const Err(CoachAppleIntelligenceNotEnabledFailure());
+    model.availability = const Err(CoachTurnedOffFailure());
     await pump(tester);
     expect(find.byKey(const Key('coachMessageField')), findsNothing);
 
-    model.availability = const Ok(CoachModelInfo(contextSize: 4096));
+    model.availability = const Ok(unit);
     await tester.tap(find.byKey(const Key('coachCheckAgain')));
     await tester.pump();
     await tester.pump();
@@ -252,48 +331,47 @@ void main() {
   testWidgets('a start that fails offers Try again, which starts the coach', (
     tester,
   ) async {
-    model.startResult = const Err(PlatformChannelFailure('boom'));
+    model.availability = const Err(UnknownFailure('boom'));
     await pump(tester);
     expect(find.byKey(const Key('coachFailedToStart')), findsOneWidget);
 
-    model.startResult = null;
+    model.availability = const Ok(unit);
     await tester.tap(find.byKey(const Key('coachRetryStart')));
     await tester.pump();
     await tester.pump();
     expect(find.byKey(const Key('coachMessageField')), findsOneWidget);
   });
 
-  testWidgets('losing the model mid-conversation keeps the conversation on '
-      'screen, with Try again and End', (tester) async {
+  testWidgets('the coach turned off mid-conversation keeps the conversation '
+      'on screen, with Check again and End', (tester) async {
     await pump(tester);
-    model
-      ..failNext = const CoachInferenceFailure(
-        'full',
-        reason: CoachInferenceFailureReason.contextExceeded,
-      )
-      ..startResult = const Err(PlatformChannelFailure('boom'));
+    model.failNext = const CoachTurnedOffFailure();
     await send(tester, 'Hello');
-    expect(find.byKey(const Key('coachLostSession')), findsOneWidget);
+    expect(find.byKey(const Key('coachUnavailableCard')), findsOneWidget);
     expect(find.text('Hello'), findsOneWidget);
     expect(find.byKey(const Key('coachSessionEnd')), findsOneWidget);
 
-    model.startResult = null;
-    await tester.tap(find.byKey(const Key('coachRetryStart')));
+    await tester.tap(find.byKey(const Key('coachCheckAgain')));
     await tester.pump();
     await tester.pump();
-    expect(find.byKey(const Key('coachLostSession')), findsNothing);
+    model.say('Still here.');
+    await model.finish();
+    await tester.pump();
+    await tester.pump();
+    expect(find.byKey(const Key('coachUnavailableCard')), findsNothing);
     expect(find.text('Hello'), findsOneWidget);
+    expect(find.text('Still here.'), findsOneWidget);
   });
 
-  testWidgets('a reply cut off at the cap offers Keep going, which asks '
-      'the coach to carry on', (tester) async {
+  testWidgets('a reply cut off at the token limit is shown as it came and '
+      'offers Keep going, which asks the coach to carry on', (tester) async {
     model
       ..manualReplies = false
       ..replyFor = ((_) => 'You logged five days. On Friday you')
-      ..outputTokensNext = coachMaxReplyTokens;
+      ..stopReasonNext = CoachStopReason.maxTokens;
     await pump(tester);
     await send(tester, 'How was my week?');
-    expect(find.text('You logged five days.'), findsOneWidget);
+    expect(find.text('You logged five days. On Friday you'), findsOneWidget);
     final keepGoing = find.byKey(const Key('coachKeepGoing'));
     expect(keepGoing, findsOneWidget);
     expect(tester.getSize(keepGoing).height, greaterThanOrEqualTo(44));
@@ -308,7 +386,7 @@ void main() {
   });
 
   testWidgets('no "Check again" where it could never help', (tester) async {
-    model.availability = const Err(CoachDeviceNotEligibleFailure());
+    model.availability = const Err(CoachDeviceNotVerifiedFailure());
     await pump(tester);
     expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
   });
@@ -319,8 +397,8 @@ void main() {
     await pump(tester, accessibleNavigation: true);
     await send(tester, 'Hi');
     model
-      ..reply('Hel')
-      ..reply('Hello there.');
+      ..say('Hel')
+      ..say('Hello there.');
     await tester.pump();
     expect(announced, isEmpty);
     await model.finish();

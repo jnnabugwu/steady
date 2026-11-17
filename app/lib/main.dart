@@ -63,10 +63,10 @@ Future<void> main() async {
   );
 }
 
-/// Records `coach_availability` once per launch: whether the on-device model
-/// can run on this iPhone, and if not, why (usage sharing). Skipped where
-/// there's no coach or sharing isn't on, so it never calls the model for
-/// nothing.
+/// Records `coach_availability` once per launch: whether the coach can run
+/// on this iPhone, and if not, why (usage sharing). The check is local
+/// only (a proxy address in the build, App Attest): no network call.
+/// Skipped where there's no coach or sharing isn't on.
 Future<void> _recordCoachAvailability(ProviderContainer container) async {
   final analytics = container.read(postHogAnalyticsProvider);
   if (analytics == null || !container.read(coachSupportAvailableProvider)) {
@@ -216,7 +216,8 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         );
         _refreshHealth();
         _rollOverDay();
-        // The person may have turned Apple Intelligence on meanwhile.
+        // Local and cheap (no network): consent may have changed meanwhile
+        // (Settings → Coach, #153).
         if (ref.read(coachSupportAvailableProvider)) {
           ref.invalidate(coachAvailabilityProvider);
         }

@@ -18,7 +18,7 @@ import UIKit
       SteadyAccountChannel.register(messenger: registrar.messenger())
     }
     SteadyHealthKitChannel.register(with: engineBridge.pluginRegistry)
-    SteadyCoachChannel.register(with: engineBridge.pluginRegistry)
+    SteadyAppAttestChannel.register(with: engineBridge.pluginRegistry)
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "SteadyInstallChannel") {
       SteadyInstallChannel.register(messenger: registrar.messenger())
     }

@@ -26,9 +26,9 @@ mixin _$CoachSessionState {
 /// (while [CoachSessionPhase.ready]). `null` otherwise.
  Failure? get failure;/// Whether the last save to the coach history failed. The conversation
 /// carries on; the next save writes the whole session again.
- bool get saveFailed;/// Whether the coach's last reply was cut off at the reply cap
-/// (`CoachKeepGoing`). It's stored trimmed to its last complete
-/// sentence, and the screen offers "Keep going".
+ bool get saveFailed;/// Whether the coach's last reply was cut off at the proxy's token
+/// limit (`CoachStopReason.maxTokens`). It's stored as it came, and the
+/// screen offers "Keep going" (`CoachKeepGoing`).
  bool get replyCutOff;/// Weekly only: the week it looks back on (its Friday), once known.
  DateTime? get weekFirst;/// Weekly only: the week's Thursday, once known.
  DateTime? get weekLast;/// Weekly only: the session's topics, in order (`weeklyTopicsFor`).
@@ -268,9 +268,9 @@ class _CoachSessionState extends CoachSessionState {
 /// Whether the last save to the coach history failed. The conversation
 /// carries on; the next save writes the whole session again.
 @override@JsonKey() final  bool saveFailed;
-/// Whether the coach's last reply was cut off at the reply cap
-/// (`CoachKeepGoing`). It's stored trimmed to its last complete
-/// sentence, and the screen offers "Keep going".
+/// Whether the coach's last reply was cut off at the proxy's token
+/// limit (`CoachStopReason.maxTokens`). It's stored as it came, and the
+/// screen offers "Keep going" (`CoachKeepGoing`).
 @override@JsonKey() final  bool replyCutOff;
 /// Weekly only: the week it looks back on (its Friday), once known.
 @override final  DateTime? weekFirst;

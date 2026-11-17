@@ -151,26 +151,16 @@ void main() {
 
   test('coachAvailabilityReason maps each unavailable failure', () {
     expect(
-      coachAvailabilityReason(const Ok(CoachModelInfo(contextSize: 4096))),
+      coachAvailabilityReason(const Ok(unit)),
       CoachAvailabilityReason.available,
     );
     expect(
-      coachAvailabilityReason(const Err(CoachDeviceNotEligibleFailure())),
-      CoachAvailabilityReason.deviceNotEligible,
+      coachAvailabilityReason(const Err(CoachTurnedOffFailure())),
+      CoachAvailabilityReason.turnedOff,
     );
     expect(
-      coachAvailabilityReason(
-        const Err(CoachAppleIntelligenceNotEnabledFailure()),
-      ),
-      CoachAvailabilityReason.appleIntelligenceNotEnabled,
-    );
-    expect(
-      coachAvailabilityReason(const Err(CoachModelNotReadyFailure())),
-      CoachAvailabilityReason.modelNotReady,
-    );
-    expect(
-      coachAvailabilityReason(const Err(CoachOsTooOldFailure())),
-      CoachAvailabilityReason.osTooOld,
+      coachAvailabilityReason(const Err(CoachDeviceNotVerifiedFailure())),
+      CoachAvailabilityReason.deviceNotVerified,
     );
     expect(
       coachAvailabilityReason(const Err(UnknownFailure('channel down'))),
