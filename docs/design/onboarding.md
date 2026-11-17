@@ -55,7 +55,7 @@ dimmer one.
 |---|---|---|---|
 | 1 | Place your first stone | The person taps (or drags) a stone onto the ground; it wobbles and settles. Steady's version of hatching the egg. "Log more days, without the guilt." | — |
 | 2 | How you track food | Cal AI / another app that writes to Apple Health / I'm just starting. Reason line: so Today shows the right thing. | `tracking`; whether Today shows the import button |
-| 3 | Where did you hear about Steady? | A friend or family / TikTok / Instagram / Reddit / App Store search / something else. Reason line: helps a small app know what's working. Cal AI's attribution question. | PostHog event `onboarding_source` (`source`: a fixed code such as `tiktok`); never sent to the coach |
+| 3 | Where did you hear about Steady? | A friend or family / Instagram / Reddit / App Store search / TikTok / something else. Reason line: helps a small app know what's working. Cal AI's attribution question. | PostHog event `onboarding_source` (`source`: a fixed code such as `tiktok`); never sent to the coach |
 | 4 | Apple Health | A preview of the Today tiles first, then the system permission. | Health access |
 | 5 | Your week | Activity chips (tennis, gym, walks, runs, yoga, other) and "my weekends are busier / quieter / all over the place". | `activities`, `weekends` |
 | 6 | What gets in the way | Eating out, late nights, weekends, forgetting, travel, feeling judged. | `hardParts` |
@@ -65,8 +65,8 @@ dimmer one.
 | 10 | Your cairn | The stones placed so far. "Tonight's check-in adds the next." | — |
 
 **Where screen 3's answer goes (decided 2026-11-17): PostHog.** One anonymous event,
-`onboarding_source`, whose only property is a fixed code (`friend`, `tiktok`, `instagram`,
-`reddit`, `appStore`, `other`). There's no free text, so "something else" is just `other`. A
+`onboarding_source`, whose only property is a fixed code (`friend`, `instagram`, `reddit`,
+`appStore`, `tiktok`, `other`). There's no free text, so "something else" is just `other`. A
 skip sends nothing. This needs, in order:
 
 1. **#156 merged.** Its hold ("until 1.0 is approved") is lifted: 1.0 is live.
@@ -103,16 +103,19 @@ proxy and its own eval run, since a Direct coach still can't shame.
 
 ## Animation
 
-- **The first stone (screen 1)** is the one moment worth Rive: an interactive wobble and
-  settle, driven by data binding. Spike it on the prototype branch before paying for a
-  plan; check the build size and Simulator performance.
-- **Every other stone** stays in Flutter: `CairnWeek` is drawn from data in code and is
-  shared with Today and the share card, so a second copy in Rive would drift.
-  `flutter_animate` is enough for the remaining transitions.
+**Flutter only, no Rive (decided 2026-11-17).** Nothing in onboarding is worth a paid plan
+yet.
+
+- **The first stone (screen 1)** is drawn the way `CairnWeek` draws its stones: a
+  `GestureDetector` for the tap or drag, then a spring (`SpringSimulation` on an
+  `AnimationController`) for the wobble and settle.
+- **Every other stone** reuses `CairnWeek`'s drawing, which is already shared with Today and
+  the share card. `flutter_animate` (free, MIT) covers the screen transitions.
+- **Rive, later.** If the first stone ever needs more than a spring can give, a Rive version
+  can replace screen 1 alone, once paying for it is worth it.
 
 ## Open questions
 
-- [ ] Rive or Flutter for the first stone, decided after the spike.
 - [ ] PostHog in App Store builds: every #156 event, or only `onboarding_source`?
 - [ ] Ten screens and eight stones: merge 5 and 6 to get back to a seven-stone cairn, which would let the flow reuse `CairnWeek`?
 - [ ] Should "Your first week" (screen 9) also seed the first weekly session?
