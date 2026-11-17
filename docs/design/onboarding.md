@@ -79,10 +79,19 @@ skip sends nothing. This needs, in order:
    linked to the person, used for analytics (what PostHog's privacy manifests declare).
    `docs/PRIVACY.md` says the same.
 
-**Later, with the paywall:** a soft Steady+ offer between screens 9 and 10, in Finch's tone
-(the free app stays free; try the coach free for a week). It comes before the consent step
-for anyone who hasn't subscribed, so nobody agrees to send data for a feature they
-haven't chosen.
+**Who sees it (decided 2026-11-17): everyone, once.** A new install sees it on first launch,
+and someone updating from 1.0 sees it on their first launch after the update. Finishing or
+skipping to the end marks it done; it never comes back on its own.
+
+**The coach steps are marked paid (decided 2026-11-17).** The coach, including the weekly
+check-in, is what Steady will charge for. Until the paywall exists, screens 7 and 8 carry a
+small "paid" badge, so nobody is surprised later. The coach is the main thing Steady does,
+not an add-on, so the copy never calls it "Plus" or an upgrade. What exactly is free and what
+is paid is being decided separately.
+
+**Later, with the paywall:** the offer sits before the consent step (screen 8) for anyone who
+hasn't subscribed, so nobody agrees to send data for a feature they haven't chosen. Finch's
+tone: try the coach free for a week, without pressure.
 
 ## About me, as the proxy will receive it
 
@@ -117,5 +126,7 @@ yet.
 ## Open questions
 
 - [ ] PostHog in App Store builds: every #156 event, or only `onboarding_source`?
-- [ ] Ten screens and eight stones: merge 5 and 6 to get back to a seven-stone cairn, which would let the flow reuse `CairnWeek`?
+- [x] Ten screens and nine stones (screens 1–9 each place one): the onboarding cairn is its
+  own widget built from `CairnWeek`'s stone drawing, and `CairnWeek` keeps its seven days.
+- [ ] The paid badge's wording, once free and paid are decided.
 - [ ] Should "Your first week" (screen 9) also seed the first weekly session?
