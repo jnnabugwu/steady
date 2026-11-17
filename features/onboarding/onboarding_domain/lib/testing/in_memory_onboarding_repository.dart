@@ -12,23 +12,23 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 class InMemoryOnboardingRepository implements OnboardingRepository {
   /// Creates a repository holding [initial].
   InMemoryOnboardingRepository([
-    OnboardingState initial = OnboardingState.initial,
-  ]) : _state = initial;
+    OnboardingRecord initial = OnboardingRecord.initial,
+  ]) : _record = initial;
 
-  OnboardingState _state;
+  OnboardingRecord _record;
 
   /// What's stored now.
-  OnboardingState get state => _state;
+  OnboardingRecord get record => _record;
 
   /// When set, the next call returns `Err` of this failure and changes
   /// nothing, and this is cleared.
   Failure? failNextWith;
 
   @override
-  ResultFuture<OnboardingState> read() async => _failure() ?? Ok(_state);
+  ResultFuture<OnboardingRecord> read() async => _failure() ?? Ok(_record);
 
   @override
-  ResultFuture<OnboardingState> saveAboutMe(AboutMe aboutMe) async {
+  ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe) async {
     if (_failure() case final failure?) return failure;
     if (!isValidAboutMeNote(aboutMe.note)) {
       return const Err(
@@ -37,14 +37,14 @@ class InMemoryOnboardingRepository implements OnboardingRepository {
         ),
       );
     }
-    return Ok(_state = _state.copyWith(aboutMe: aboutMe));
+    return Ok(_record = _record.copyWith(aboutMe: aboutMe));
   }
 
   @override
-  ResultFuture<OnboardingState> markCompleted() async =>
-      _failure() ?? Ok(_state = _state.copyWith(completed: true));
+  ResultFuture<OnboardingRecord> markCompleted() async =>
+      _failure() ?? Ok(_record = _record.copyWith(completed: true));
 
-  Err<OnboardingState>? _failure() {
+  Err<OnboardingRecord>? _failure() {
     final failure = failNextWith;
     if (failure == null) return null;
     failNextWith = null;

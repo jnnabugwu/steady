@@ -30,13 +30,13 @@ void runOnboardingRepositoryContractTests(
 
   group('OnboardingRepository contract', () {
     test('an empty store is a first launch', () async {
-      expect(ok(await build().read()), OnboardingState.initial);
+      expect(ok(await build().read()), OnboardingRecord.initial);
     });
 
-    test('saveAboutMe stores the answers and returns the state', () async {
+    test('saveAboutMe stores the answers and returns the record', () async {
       final repo = build();
       final saved = ok(await repo.saveAboutMe(answers));
-      expect(saved, const OnboardingState(aboutMe: answers));
+      expect(saved, const OnboardingRecord(aboutMe: answers));
       expect(ok(await repo.read()), saved);
     });
 
@@ -60,7 +60,7 @@ void runOnboardingRepositoryContractTests(
       final completed = ok(await repo.markCompleted());
       expect(
         completed,
-        const OnboardingState(completed: true, aboutMe: answers),
+        const OnboardingRecord(completed: true, aboutMe: answers),
       );
       expect(ok(await repo.read()), completed);
     });
@@ -68,7 +68,7 @@ void runOnboardingRepositoryContractTests(
     test('markCompleted with nothing answered (skipped to the end)', () async {
       final repo = build();
       ok(await repo.markCompleted());
-      expect(ok(await repo.read()), const OnboardingState(completed: true));
+      expect(ok(await repo.read()), const OnboardingRecord(completed: true));
     });
 
     test('markCompleted again changes nothing', () async {
@@ -90,7 +90,7 @@ void runOnboardingRepositoryContractTests(
         note: null,
       );
       final saved = ok(await repo.saveAboutMe(edited));
-      expect(saved, OnboardingState(completed: true, aboutMe: edited));
+      expect(saved, OnboardingRecord(completed: true, aboutMe: edited));
       expect(ok(await repo.read()), saved);
     });
 
@@ -99,7 +99,7 @@ void runOnboardingRepositoryContractTests(
       await repo.saveAboutMe(answers);
       await repo.markCompleted();
       await repo.saveAboutMe(AboutMe.empty);
-      expect(ok(await repo.read()), const OnboardingState(completed: true));
+      expect(ok(await repo.read()), const OnboardingRecord(completed: true));
     });
 
     test('a note at the limit, in code points, is saved', () async {
@@ -118,9 +118,9 @@ void runOnboardingRepositoryContractTests(
       final result = await repo.saveAboutMe(
         AboutMe(note: 'a' * (aboutMeNoteMaxChars + 1)),
       );
-      expect(result, isA<Err<OnboardingState>>());
+      expect(result, isA<Err<OnboardingRecord>>());
       expect(
-        (result as Err<OnboardingState>).failure,
+        (result as Err<OnboardingRecord>).failure,
         isA<ValidationFailure>(),
       );
       expect(ok(await repo.read()), before);

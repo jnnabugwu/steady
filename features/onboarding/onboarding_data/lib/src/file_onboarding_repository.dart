@@ -22,10 +22,10 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 /// - **No cache.** Every call reads the file (it's a few hundred bytes), so
 ///   memory can never disagree with disk.
 /// - **Missing is a first launch:** [read] returns
-///   [OnboardingState.initial] and nothing is written.
+///   [OnboardingRecord.initial] and nothing is written.
 /// - **Unreadable** (not UTF-8, not JSON, or not the shape Steady writes):
 ///   [read] returns `Err(OnboardingUnreadableFailure)` and leaves the file
-///   alone; a write replaces it, starting from [OnboardingState.initial].
+///   alone; a write replaces it, starting from [OnboardingRecord.initial].
 ///   A newer Steady's additions are tolerated, not unreadable
 ///   ([decodeOnboardingFile]).
 /// - **Atomic writes.** A write goes to `<file>.tmp` and is renamed over
@@ -50,10 +50,10 @@ class FileOnboardingRepository implements OnboardingRepository {
   Future<void> _queue = Future<void>.value();
 
   @override
-  ResultFuture<OnboardingState> read() => _run(_read);
+  ResultFuture<OnboardingRecord> read() => _run(_read);
 
   @override
-  ResultFuture<OnboardingState> saveAboutMe(AboutMe aboutMe) {
+  ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe) {
     if (!isValidAboutMeNote(aboutMe.note)) {
       return Future.value(
         const Err(
@@ -67,15 +67,15 @@ class FileOnboardingRepository implements OnboardingRepository {
   }
 
   @override
-  ResultFuture<OnboardingState> markCompleted() =>
+  ResultFuture<OnboardingRecord> markCompleted() =>
       _run((file) => _update(file, (s) => s.copyWith(completed: true)));
 
-  Future<Result<OnboardingState>> _read(File file) async {
+  Future<Result<OnboardingRecord>> _read(File file) async {
     final List<int> bytes;
     try {
       bytes = await file.readAsBytes();
     } on PathNotFoundException {
-      return const Ok(OnboardingState.initial);
+      return const Ok(OnboardingRecord.initial);
     } on FileSystemException catch (e) {
       return Err(
         OnboardingStorageFailure(
@@ -96,18 +96,18 @@ class FileOnboardingRepository implements OnboardingRepository {
     }
   }
 
-  /// Reads the stored state (an unreadable file counts as
-  /// [OnboardingState.initial]), applies [change] and writes the result.
-  Future<Result<OnboardingState>> _update(
+  /// Reads the stored record (an unreadable file counts as
+  /// [OnboardingRecord.initial]), applies [change] and writes the result.
+  Future<Result<OnboardingRecord>> _update(
     File file,
-    OnboardingState Function(OnboardingState) change,
+    OnboardingRecord Function(OnboardingRecord) change,
   ) async {
-    final OnboardingState current;
+    final OnboardingRecord current;
     switch (await _read(file)) {
       case Ok(:final value):
         current = value;
       case Err(failure: OnboardingUnreadableFailure()):
-        current = OnboardingState.initial;
+        current = OnboardingRecord.initial;
       case Err(:final failure):
         return Err(failure);
     }

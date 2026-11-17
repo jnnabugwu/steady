@@ -3,7 +3,7 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 /// The `schemaVersion` [encodeOnboardingFile] writes.
 const onboardingSchemaVersion = 1;
 
-/// Encodes [state] as the onboarding file's JSON object:
+/// Encodes [record] as the onboarding file's JSON object:
 ///
 /// ```json
 /// {
@@ -25,10 +25,10 @@ const onboardingSchemaVersion = 1;
 /// skipped single answer or note is left out; a skipped multi-select is
 /// `[]`. Lists are in each enum's declaration order, so the same answers
 /// always write the same bytes.
-Map<String, Object?> encodeOnboardingFile(OnboardingState state) => {
+Map<String, Object?> encodeOnboardingFile(OnboardingRecord record) => {
   'schemaVersion': onboardingSchemaVersion,
-  'completed': state.completed,
-  'aboutMe': encodeAboutMe(state.aboutMe),
+  'completed': record.completed,
+  'aboutMe': encodeAboutMe(record.aboutMe),
 };
 
 /// Encodes [aboutMe] as the `aboutMe` object in [encodeOnboardingFile].
@@ -56,7 +56,7 @@ List<String> _codes<E extends Enum>(List<E> values, Set<E> chosen) => [
 /// an unknown code is dropped (a single answer reads as skipped, a list
 /// loses that entry), and a note over [aboutMeNoteMaxChars] code points is
 /// cut to the limit.
-OnboardingState decodeOnboardingFile(Object? json) {
+OnboardingRecord decodeOnboardingFile(Object? json) {
   if (json is! Map<String, Object?>) {
     throw const FormatException('Onboarding file is not a JSON object');
   }
@@ -68,7 +68,7 @@ OnboardingState decodeOnboardingFile(Object? json) {
   if (completed is! bool) {
     throw FormatException('Bad onboarding "completed"', completed);
   }
-  return OnboardingState(
+  return OnboardingRecord(
     completed: completed,
     aboutMe: _decodeAboutMe(json['aboutMe']),
   );

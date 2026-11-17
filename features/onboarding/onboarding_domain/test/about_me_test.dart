@@ -98,13 +98,13 @@ void main() {
     });
   });
 
-  group('OnboardingState', () {
+  group('OnboardingRecord', () {
     test('initial is not completed, with nothing answered', () {
-      expect(OnboardingState.initial.completed, isFalse);
-      expect(OnboardingState.initial.aboutMe, AboutMe.empty);
+      expect(OnboardingRecord.initial.completed, isFalse);
+      expect(OnboardingRecord.initial.aboutMe, AboutMe.empty);
       // The default constructor itself, not the constant.
       // ignore: use_named_constants
-      expect(const OnboardingState(), OnboardingState.initial);
+      expect(const OnboardingRecord(), OnboardingRecord.initial);
     });
   });
 }

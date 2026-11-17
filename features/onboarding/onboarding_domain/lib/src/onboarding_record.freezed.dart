@@ -3,7 +3,7 @@
 // ignore_for_file: type=lint, type=warning, deprecated_member_use, deprecated_member_use_from_same_package
 // ignore_for_file: unused_element, deprecated_member_use, deprecated_member_use_from_same_package, use_function_type_syntax_for_parameters, unnecessary_const, avoid_init_to_null, invalid_override_different_default_values_named, prefer_expression_function_bodies, annotate_overrides, invalid_annotation_target, unnecessary_question_mark
 
-part of 'onboarding_state.dart';
+part of 'onboarding_record.dart';
 
 // **************************************************************************
 // FreezedGenerator
@@ -13,45 +13,45 @@ part of 'onboarding_state.dart';
 // dart format off
 T _$identity<T>(T value) => value;
 /// @nodoc
-mixin _$OnboardingState {
+mixin _$OnboardingRecord {
 
 /// Whether the person has finished (or skipped to the end of)
 /// onboarding.
  bool get completed;/// Their answers so far; [AboutMe.empty] if none.
  AboutMe get aboutMe;
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-$OnboardingStateCopyWith<OnboardingState> get copyWith => _$OnboardingStateCopyWithImpl<OnboardingState>(this as OnboardingState, _$identity);
+$OnboardingRecordCopyWith<OnboardingRecord> get copyWith => _$OnboardingRecordCopyWithImpl<OnboardingRecord>(this as OnboardingRecord, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-  final _this = this as OnboardingState;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnboardingState&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.aboutMe, _this.aboutMe) || other.aboutMe == _this.aboutMe));
+  final _this = this as OnboardingRecord;
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is OnboardingRecord&&(identical(other.completed, _this.completed) || other.completed == _this.completed)&&(identical(other.aboutMe, _this.aboutMe) || other.aboutMe == _this.aboutMe));
 }
 
 
 @override
 int get hashCode {
-  final _this = this as OnboardingState;
+  final _this = this as OnboardingRecord;
   return Object.hash(runtimeType,_this.completed,_this.aboutMe);
 }
 
 @override
 String toString() {
-  final _this = this as OnboardingState;
-  return 'OnboardingState(completed: ${_this.completed}, aboutMe: ${_this.aboutMe})';
+  final _this = this as OnboardingRecord;
+  return 'OnboardingRecord(completed: ${_this.completed}, aboutMe: ${_this.aboutMe})';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class $OnboardingStateCopyWith<$Res>  {
-  factory $OnboardingStateCopyWith(OnboardingState value, $Res Function(OnboardingState) _then) = _$OnboardingStateCopyWithImpl;
+abstract mixin class $OnboardingRecordCopyWith<$Res>  {
+  factory $OnboardingRecordCopyWith(OnboardingRecord value, $Res Function(OnboardingRecord) _then) = _$OnboardingRecordCopyWithImpl;
 @useResult
 $Res call({
  bool completed, AboutMe aboutMe
@@ -62,23 +62,23 @@ $AboutMeCopyWith<$Res> get aboutMe;
 
 }
 /// @nodoc
-class _$OnboardingStateCopyWithImpl<$Res>
-    implements $OnboardingStateCopyWith<$Res> {
-  _$OnboardingStateCopyWithImpl(this._self, this._then);
+class _$OnboardingRecordCopyWithImpl<$Res>
+    implements $OnboardingRecordCopyWith<$Res> {
+  _$OnboardingRecordCopyWithImpl(this._self, this._then);
 
-  final OnboardingState _self;
-  final $Res Function(OnboardingState) _then;
+  final OnboardingRecord _self;
+  final $Res Function(OnboardingRecord) _then;
 
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @pragma('vm:prefer-inline') @override $Res call({Object? completed = null,Object? aboutMe = null,}) {
-  return _then(OnboardingState(
+  return _then(OnboardingRecord(
 completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
 as AboutMe,
   ));
 }
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')
@@ -91,8 +91,8 @@ $AboutMeCopyWith<$Res> get aboutMe {
 }
 
 
-/// Adds pattern-matching-related methods to [OnboardingState].
-extension OnboardingStatePatterns on OnboardingState {
+/// Adds pattern-matching-related methods to [OnboardingRecord].
+extension OnboardingRecordPatterns on OnboardingRecord {
 /// A variant of `map` that fallback to returning `orElse`.
 ///
 /// It is equivalent to doing:
@@ -105,10 +105,10 @@ extension OnboardingStatePatterns on OnboardingState {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _OnboardingState value)?  $default,{required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>(TResult Function( _OnboardingRecord value)?  $default,{required TResult orElse(),}){
 final _that = this;
 switch (_that) {
-case _OnboardingState() when $default != null:
+case _OnboardingRecord() when $default != null:
 return $default(_that);case _:
   return orElse();
 
@@ -127,10 +127,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _OnboardingState value)  $default,){
+@optionalTypeArgs TResult map<TResult extends Object?>(TResult Function( _OnboardingRecord value)  $default,){
 final _that = this;
 switch (_that) {
-case _OnboardingState():
+case _OnboardingRecord():
 return $default(_that);case _:
   throw StateError('Unexpected subclass');
 
@@ -148,10 +148,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _OnboardingState value)?  $default,){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>(TResult? Function( _OnboardingRecord value)?  $default,){
 final _that = this;
 switch (_that) {
-case _OnboardingState() when $default != null:
+case _OnboardingRecord() when $default != null:
 return $default(_that);case _:
   return null;
 
@@ -171,7 +171,7 @@ return $default(_that);case _:
 
 @optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( bool completed,  AboutMe aboutMe)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
-case _OnboardingState() when $default != null:
+case _OnboardingRecord() when $default != null:
 return $default(_that.completed,_that.aboutMe);case _:
   return orElse();
 
@@ -192,7 +192,7 @@ return $default(_that.completed,_that.aboutMe);case _:
 
 @optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( bool completed,  AboutMe aboutMe)  $default,) {final _that = this;
 switch (_that) {
-case _OnboardingState():
+case _OnboardingRecord():
 return $default(_that.completed,_that.aboutMe);case _:
   throw StateError('Unexpected subclass');
 
@@ -212,7 +212,7 @@ return $default(_that.completed,_that.aboutMe);case _:
 
 @optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( bool completed,  AboutMe aboutMe)?  $default,) {final _that = this;
 switch (_that) {
-case _OnboardingState() when $default != null:
+case _OnboardingRecord() when $default != null:
 return $default(_that.completed,_that.aboutMe);case _:
   return null;
 
@@ -224,8 +224,8 @@ return $default(_that.completed,_that.aboutMe);case _:
 /// @nodoc
 
 
-class _OnboardingState implements OnboardingState {
-  const _OnboardingState({this.completed = false, this.aboutMe = AboutMe.empty});
+class _OnboardingRecord implements OnboardingRecord {
+  const _OnboardingRecord({this.completed = false, this.aboutMe = AboutMe.empty});
   
 
 /// Whether the person has finished (or skipped to the end of)
@@ -234,17 +234,17 @@ class _OnboardingState implements OnboardingState {
 /// Their answers so far; [AboutMe.empty] if none.
 @override@JsonKey() final  AboutMe aboutMe;
 
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @override @JsonKey(includeFromJson: false, includeToJson: false)
 @pragma('vm:prefer-inline')
-_$OnboardingStateCopyWith<_OnboardingState> get copyWith => __$OnboardingStateCopyWithImpl<_OnboardingState>(this, _$identity);
+_$OnboardingRecordCopyWith<_OnboardingRecord> get copyWith => __$OnboardingRecordCopyWithImpl<_OnboardingRecord>(this, _$identity);
 
 
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnboardingState&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.aboutMe, aboutMe) || other.aboutMe == aboutMe));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _OnboardingRecord&&(identical(other.completed, completed) || other.completed == completed)&&(identical(other.aboutMe, aboutMe) || other.aboutMe == aboutMe));
 }
 
 
@@ -255,15 +255,15 @@ int get hashCode {
 
 @override
 String toString() {
-    return 'OnboardingState(completed: $completed, aboutMe: $aboutMe)';
+    return 'OnboardingRecord(completed: $completed, aboutMe: $aboutMe)';
 }
 
 
 }
 
 /// @nodoc
-abstract mixin class _$OnboardingStateCopyWith<$Res> implements $OnboardingStateCopyWith<$Res> {
-  factory _$OnboardingStateCopyWith(_OnboardingState value, $Res Function(_OnboardingState) _then) = __$OnboardingStateCopyWithImpl;
+abstract mixin class _$OnboardingRecordCopyWith<$Res> implements $OnboardingRecordCopyWith<$Res> {
+  factory _$OnboardingRecordCopyWith(_OnboardingRecord value, $Res Function(_OnboardingRecord) _then) = __$OnboardingRecordCopyWithImpl;
 @override @useResult
 $Res call({
  bool completed, AboutMe aboutMe
@@ -274,24 +274,24 @@ $Res call({
 
 }
 /// @nodoc
-class __$OnboardingStateCopyWithImpl<$Res>
-    implements _$OnboardingStateCopyWith<$Res> {
-  __$OnboardingStateCopyWithImpl(this._self, this._then);
+class __$OnboardingRecordCopyWithImpl<$Res>
+    implements _$OnboardingRecordCopyWith<$Res> {
+  __$OnboardingRecordCopyWithImpl(this._self, this._then);
 
-  final _OnboardingState _self;
-  final $Res Function(_OnboardingState) _then;
+  final _OnboardingRecord _self;
+  final $Res Function(_OnboardingRecord) _then;
 
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @override @pragma('vm:prefer-inline') $Res call({Object? completed = null,Object? aboutMe = null,}) {
-  return _then(_OnboardingState(
+  return _then(_OnboardingRecord(
 completed: null == completed ? _self.completed : completed // ignore: cast_nullable_to_non_nullable
 as bool,aboutMe: null == aboutMe ? _self.aboutMe : aboutMe // ignore: cast_nullable_to_non_nullable
 as AboutMe,
   ));
 }
 
-/// Create a copy of OnboardingState
+/// Create a copy of OnboardingRecord
 /// with the given fields replaced by the non-null parameter values.
 @override
 @pragma('vm:prefer-inline')

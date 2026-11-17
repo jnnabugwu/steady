@@ -1,6 +1,6 @@
 import 'package:failures/failures.dart';
 
-/// The stored onboarding state exists but can't be read: it isn't in the
+/// The stored onboarding record exists but can't be read: it isn't in the
 /// format Steady writes. The next write replaces it
 /// (`OnboardingRepository`).
 class OnboardingUnreadableFailure extends Failure {

@@ -16,5 +16,5 @@ library;
 export 'src/about_me.dart';
 export 'src/about_me_answers.dart';
 export 'src/onboarding_failures.dart';
+export 'src/onboarding_record.dart';
 export 'src/onboarding_repository.dart';
-export 'src/onboarding_state.dart';

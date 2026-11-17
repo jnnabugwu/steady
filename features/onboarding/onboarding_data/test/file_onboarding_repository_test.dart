@@ -57,7 +57,7 @@ void main() {
   group('a missing file', () {
     test('is a first launch, and nothing is written', () async {
       final repo = FileOnboardingRepository(file);
-      expect(_ok(await repo.read()), OnboardingState.initial);
+      expect(_ok(await repo.read()), OnboardingRecord.initial);
       expect(file.existsSync(), isFalse);
       expect(file.parent.existsSync(), isFalse);
     });
@@ -141,7 +141,7 @@ void main() {
       // A fresh instance can only see it through the file.
       expect(
         _ok(await FileOnboardingRepository(file).read()),
-        const OnboardingState(aboutMe: _answers),
+        const OnboardingRecord(aboutMe: _answers),
       );
     });
 
@@ -165,7 +165,7 @@ void main() {
         final saved = _ok(
           await FileOnboardingRepository(file).saveAboutMe(edited),
         );
-        expect(saved, const OnboardingState(completed: true, aboutMe: edited));
+        expect(saved, const OnboardingRecord(completed: true, aboutMe: edited));
         expect(_ok(await FileOnboardingRepository(file).read()), saved);
       },
     );
@@ -259,7 +259,7 @@ void main() {
       final repo = FileOnboardingRepository(file);
       expect(
         _ok(await repo.saveAboutMe(_answers)),
-        const OnboardingState(aboutMe: _answers),
+        const OnboardingRecord(aboutMe: _answers),
       );
       expect(
         _ok(await FileOnboardingRepository(file).read()).aboutMe,
@@ -272,11 +272,11 @@ void main() {
       file.writeAsStringSync('not json');
       expect(
         _ok(await FileOnboardingRepository(file).markCompleted()),
-        const OnboardingState(completed: true),
+        const OnboardingRecord(completed: true),
       );
       expect(
         _ok(await FileOnboardingRepository(file).read()),
-        const OnboardingState(completed: true),
+        const OnboardingRecord(completed: true),
       );
     });
 
@@ -289,7 +289,7 @@ void main() {
       write(validFile());
       expect(
         _ok(await repo.read()),
-        const OnboardingState(completed: true, aboutMe: _answers),
+        const OnboardingRecord(completed: true, aboutMe: _answers),
       );
     });
   });
@@ -345,7 +345,7 @@ void main() {
       });
       expect(
         _ok(await FileOnboardingRepository(file).read()),
-        const OnboardingState(completed: true, aboutMe: _answers),
+        const OnboardingRecord(completed: true, aboutMe: _answers),
       );
     });
 
@@ -434,7 +434,7 @@ void main() {
           return file;
         });
         expect(_err(await repo.read()), isA<OnboardingStorageFailure>());
-        expect(_ok(await repo.read()), OnboardingState.initial);
+        expect(_ok(await repo.read()), OnboardingRecord.initial);
         expect(calls, 2);
       },
     );
@@ -474,7 +474,7 @@ void main() {
     expect(_ok(results[1]).completed, isTrue);
     expect(
       _ok(await FileOnboardingRepository(file).read()),
-      OnboardingState(
+      OnboardingRecord(
         completed: true,
         aboutMe: _answers.copyWith(note: 'second'),
       ),
@@ -490,7 +490,7 @@ void main() {
     await b.markCompleted();
     expect(
       _ok(await a.read()),
-      const OnboardingState(completed: true, aboutMe: _answers),
+      const OnboardingRecord(completed: true, aboutMe: _answers),
     );
   });
 }
