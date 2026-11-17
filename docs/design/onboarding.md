@@ -55,7 +55,7 @@ dimmer one.
 |---|---|---|---|
 | 1 | Place your first stone | The person taps (or drags) a stone onto the ground; it wobbles and settles. Steady's version of hatching the egg. "Log more days, without the guilt." | — |
 | 2 | How you track food | Cal AI / another app that writes to Apple Health / I'm just starting. Reason line: so Today shows the right thing. | `tracking`; whether Today shows the import button |
-| 3 | Where did you hear about Steady? | A friend or family / TikTok / Instagram / Reddit / App Store search / something else. Reason line: helps a small app know what's working. Cal AI's attribution question. | A count with no identifier; never sent to the coach |
+| 3 | Where did you hear about Steady? | A friend or family / TikTok / Instagram / Reddit / App Store search / something else. Reason line: helps a small app know what's working. Cal AI's attribution question. | PostHog event `onboarding_source` (`source`: a fixed code such as `tiktok`); never sent to the coach |
 | 4 | Apple Health | A preview of the Today tiles first, then the system permission. | Health access |
 | 5 | Your week | Activity chips (tennis, gym, walks, runs, yoga, other) and "my weekends are busier / quieter / all over the place". | `activities`, `weekends` |
 | 6 | What gets in the way | Eating out, late nights, weekends, forgetting, travel, feeling judged. | `hardParts` |
@@ -63,6 +63,21 @@ dimmer one.
 | 8 | Meet the coach | The existing consent screen, plus an optional line: "Anything else the coach should know?" (about 200 characters). | consent; `note` |
 | 9 | Your first week | Two or three tiny suggestions built from the answers by templates in the app, e.g. "On tennis days, log lunch before you head out." | — |
 | 10 | Your cairn | The stones placed so far. "Tonight's check-in adds the next." | — |
+
+**Where screen 3's answer goes (decided 2026-11-17): PostHog.** One anonymous event,
+`onboarding_source`, whose only property is a fixed code (`friend`, `tiktok`, `instagram`,
+`reddit`, `appStore`, `other`). There's no free text, so "something else" is just `other`. A
+skip sends nothing. This needs, in order:
+
+1. **#156 merged.** Its hold ("until 1.0 is approved") is lifted: 1.0 is live.
+2. **PostHog in App Store builds.** #156 sends from TestFlight builds only, which would count
+   only testers. Sending from App Store builds is a change to its decision record ("Usage
+   events from TestFlight builds only"), covering the events it already has, or only this
+   one.
+3. **The App Privacy label first.** Before a build that sends from the App Store goes to
+   review, App Store Connect's answers change from "Data Not Collected" to usage data not
+   linked to the person, used for analytics (what PostHog's privacy manifests declare).
+   `docs/PRIVACY.md` says the same.
 
 **Later, with the paywall:** a soft Steady+ offer between screens 9 and 10, in Finch's tone
 (the free app stays free; try the coach free for a week). It comes before the consent step
@@ -98,6 +113,6 @@ proxy and its own eval run, since a Direct coach still can't shame.
 ## Open questions
 
 - [ ] Rive or Flutter for the first stone, decided after the spike.
-- [ ] Where-did-you-hear answers: counted how, and where? Steady has no analytics yet.
+- [ ] PostHog in App Store builds: every #156 event, or only `onboarding_source`?
 - [ ] Ten screens and eight stones: merge 5 and 6 to get back to a seven-stone cairn, which would let the flow reuse `CairnWeek`?
 - [ ] Should "Your first week" (screen 9) also seed the first weekly session?
