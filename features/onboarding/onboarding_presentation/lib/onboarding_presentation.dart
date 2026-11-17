@@ -12,5 +12,6 @@ export 'src/first_week_suggestions.dart';
 export 'src/onboarding_controller.dart';
 export 'src/onboarding_copy.dart';
 export 'src/onboarding_flow_state.dart';
+export 'src/onboarding_module.dart';
 export 'src/onboarding_source.dart';
 export 'src/providers.dart';
