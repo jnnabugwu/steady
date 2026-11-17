@@ -30,6 +30,24 @@ void main() {
     });
   });
 
+  group('trimAboutMeNote', () {
+    test('a blank or null note is no note', () {
+      expect(trimAboutMeNote(null), isNull);
+      expect(trimAboutMeNote(''), isNull);
+      expect(trimAboutMeNote(' \n\t '), isNull);
+    });
+
+    test('trims the ends only', () {
+      expect(trimAboutMeNote('  I work\n nights \n'), 'I work\n nights');
+    });
+
+    test('never cuts: an over-long note stays over-long', () {
+      final long = 'a' * (aboutMeNoteMaxChars + 1);
+      expect(trimAboutMeNote(' $long '), long);
+      expect(isValidAboutMeNote(trimAboutMeNote(long)), isFalse);
+    });
+  });
+
   group('clampAboutMeNote', () {
     test('trims, and leaves a short note as it is', () {
       expect(clampAboutMeNote('  I work nights  '), 'I work nights');

@@ -385,6 +385,28 @@ void main() {
       );
     });
 
+    test('a blank note on disk reads as no note; others trimmed', () async {
+      // Not written by this version (it saves notes trimmed), but read the
+      // same way, so `isEmpty` holds whatever wrote the file.
+      write(validFile(aboutMe: {'note': '   '}));
+      final blank = _ok(await FileOnboardingRepository(file).read()).aboutMe;
+      expect(blank.note, isNull);
+      expect(blank.isEmpty, isTrue);
+
+      write(validFile(aboutMe: {'note': ' hi '}));
+      expect(
+        _ok(await FileOnboardingRepository(file).read()).aboutMe.note,
+        'hi',
+      );
+    });
+
+    test('a blank note is never written to the file', () async {
+      await FileOnboardingRepository(file)
+          .saveAboutMe(const AboutMe(note: '  '));
+      final aboutMe = onDisk()['aboutMe']! as Map<String, Object?>;
+      expect(aboutMe.containsKey('note'), isFalse);
+    });
+
     test('a note over the limit is cut to it, by code point', () async {
       write(validFile(aboutMe: {'note': '😀' * (aboutMeNoteMaxChars + 20)}));
       expect(

@@ -62,7 +62,8 @@ List<String> _codes<E extends Enum>(List<E> values, Set<E> chosen) => [
 /// higher `schemaVersion` is read the same way, unknown keys are ignored,
 /// an unknown code is dropped (a single answer reads as skipped, a list
 /// loses that entry, a `step` reads as not started), and a note over
-/// [aboutMeNoteMaxChars] code points is cut to the limit.
+/// [aboutMeNoteMaxChars] code points is cut to the limit. A note is read
+/// the way it's saved: trimmed, and a blank one as `null`.
 OnboardingRecord decodeOnboardingFile(Object? json) {
   if (json is! Map<String, Object?>) {
     throw const FormatException('Onboarding file is not a JSON object');
@@ -113,7 +114,7 @@ AboutMe _decodeAboutMe(Object? json) {
         throw FormatException('Bad About me code in "$key"', code),
   };
 
-  final note = field<String>('note');
+  final note = trimAboutMeNote(field<String>('note'));
   return AboutMe(
     voice: one(CoachVoice.values, 'voice'),
     tracking: one(FoodTracking.values, 'tracking'),

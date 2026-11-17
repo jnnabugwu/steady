@@ -58,7 +58,8 @@ class FileOnboardingRepository implements OnboardingRepository {
 
   @override
   ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe) {
-    if (!isValidAboutMeNote(aboutMe.note)) {
+    final note = trimAboutMeNote(aboutMe.note);
+    if (!isValidAboutMeNote(note)) {
       return Future.value(
         const Err(
           ValidationFailure(
@@ -67,7 +68,8 @@ class FileOnboardingRepository implements OnboardingRepository {
         ),
       );
     }
-    return _run((file) => _update(file, (r) => r.copyWith(aboutMe: aboutMe)));
+    final stored = aboutMe.copyWith(note: note);
+    return _run((file) => _update(file, (r) => r.copyWith(aboutMe: stored)));
   }
 
   @override

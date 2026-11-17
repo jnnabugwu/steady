@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:failures/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboarding_domain/onboarding_domain.dart';
@@ -116,6 +118,56 @@ void runOnboardingRepositoryContractTests(
       final note = '😀' * aboutMeNoteMaxChars;
       ok(await repo.saveAboutMe(AboutMe(note: note)));
       expect(ok(await repo.read()).aboutMe.note, note);
+    });
+
+    group('a blank note', () {
+      for (final blank in ['', '   ', ' \n\t ']) {
+        test('${jsonEncode(blank)} is stored as no note', () async {
+          final repo = build();
+          final saved = ok(await repo.saveAboutMe(AboutMe(note: blank)));
+          expect(saved.aboutMe.note, isNull);
+          expect(saved.aboutMe.isEmpty, isTrue);
+          final read = ok(await repo.read()).aboutMe;
+          expect(read.note, isNull);
+          expect(read.isEmpty, isTrue);
+        });
+      }
+
+      test('alongside answers, only the note is dropped', () async {
+        final repo = build();
+        final saved = ok(await repo.saveAboutMe(answers.copyWith(note: '  ')));
+        expect(saved.aboutMe, answers.copyWith(note: null));
+        expect(ok(await repo.read()).aboutMe, answers.copyWith(note: null));
+      });
+    });
+
+    group('a non-blank note', () {
+      // Our decision: surrounding whitespace means nothing to the coach
+      // and would count against the limit, so it's trimmed on save.
+      test('is stored trimmed; inner whitespace stays', () async {
+        final repo = build();
+        final saved = ok(
+          await repo.saveAboutMe(const AboutMe(note: '  I work\n nights  \n')),
+        );
+        expect(saved.aboutMe.note, 'I work\n nights');
+        expect(ok(await repo.read()).aboutMe.note, 'I work\n nights');
+      });
+
+      test('the limit counts the trimmed note', () async {
+        final repo = build();
+        final note = 'a' * aboutMeNoteMaxChars;
+        ok(await repo.saveAboutMe(AboutMe(note: '   $note   ')));
+        expect(ok(await repo.read()).aboutMe.note, note);
+      });
+
+      test('over the limit once trimmed is still refused, not cut', () async {
+        final repo = build();
+        final result = await repo.saveAboutMe(
+          AboutMe(note: '  ${'a' * (aboutMeNoteMaxChars + 1)}  '),
+        );
+        expect((result as Err).failure, isA<ValidationFailure>());
+        expect(ok(await repo.read()), OnboardingRecord.initial);
+      });
     });
 
     test('a note over the limit is refused and nothing changes', () async {

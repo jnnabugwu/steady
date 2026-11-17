@@ -20,8 +20,17 @@ String? clampAboutMeNote(String? note) {
       : String.fromCharCodes(trimmed.runes.take(aboutMeNoteMaxChars));
 }
 
+/// [note] as a repository stores it: trimmed, and `null` if nothing is
+/// left (a blank note is a skipped one, so `AboutMe.isEmpty` holds). It
+/// never cuts: a note over [aboutMeNoteMaxChars] is refused, not shortened.
+String? trimAboutMeNote(String? note) {
+  final trimmed = note?.trim();
+  return trimmed == null || trimmed.isEmpty ? null : trimmed;
+}
+
 /// Whether [note] fits: `null`, or at most [aboutMeNoteMaxChars] code
-/// points. A repository refuses to save an [AboutMe] whose note doesn't.
+/// points. A repository refuses to save an [AboutMe] whose note, after
+/// [trimAboutMeNote], doesn't.
 bool isValidAboutMeNote(String? note) =>
     note == null || note.runes.length <= aboutMeNoteMaxChars;
 
@@ -59,7 +68,8 @@ abstract class AboutMe with _$AboutMe {
 
     /// "Anything else the coach should know?" (screen 8), at most
     /// [aboutMeNoteMaxChars] code points, or `null` if skipped. The only
-    /// free text in About me.
+    /// free text in About me. A repository stores it trimmed, and a blank
+    /// note as `null` ([trimAboutMeNote]).
     String? note,
   }) = _AboutMe;
 

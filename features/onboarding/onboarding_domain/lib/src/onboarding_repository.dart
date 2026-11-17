@@ -24,7 +24,7 @@ import 'package:onboarding_domain/src/onboarding_step.dart';
 /// - `Err(OnboardingStorageFailure)`: the store couldn't be found, read or
 ///   written. Nothing changed; trying again may work.
 /// - `Err(ValidationFailure)`: [saveAboutMe] with a note longer than
-///   `aboutMeNoteMaxChars` code points. Nothing is written.
+///   `aboutMeNoteMaxChars` code points once trimmed. Nothing is written.
 ///
 /// Whether onboarding shows after a failed [read] is the app's call, not
 /// the repository's (onboarding never blocks the app).
@@ -33,16 +33,24 @@ abstract class OnboardingRepository {
   ResultFuture<OnboardingRecord> read();
 
   /// Replaces the stored About me with [aboutMe], keeping `completed` and
-  /// `step` as they are. Returns the record now stored.
+  /// `step` as they are. The note is stored trimmed, and a blank one as
+  /// `null` (`trimAboutMeNote`); one still over `aboutMeNoteMaxChars` code
+  /// points is refused. Over an unreadable store it starts from
+  /// [OnboardingRecord.whenUnreadable] instead, so `completed` becomes
+  /// `true` and `step` `null`. Returns the record now stored.
   ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe);
 
   /// Records [step] as the screen the person is on, so a relaunch resumes
-  /// there. Keeps `completed` and `aboutMe` as they are. Returns the record
-  /// now stored.
+  /// there. Keeps `completed` and `aboutMe` as they are. Over an
+  /// unreadable store it starts from [OnboardingRecord.whenUnreadable]
+  /// instead, so `completed` becomes `true` and `aboutMe` empty. Returns
+  /// the record now stored.
   ResultFuture<OnboardingRecord> saveStep(OnboardingStep step);
 
   /// Marks onboarding done, for good, keeping the About me as it is and
   /// clearing `step` (there's nothing left to resume). Calling it again
-  /// changes nothing. Returns the record now stored.
+  /// changes nothing. Over an unreadable store the result is
+  /// [OnboardingRecord.whenUnreadable] (the About me there can't be read).
+  /// Returns the record now stored.
   ResultFuture<OnboardingRecord> markCompleted();
 }

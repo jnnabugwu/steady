@@ -47,14 +47,16 @@ class InMemoryOnboardingRepository implements OnboardingRepository {
   @override
   ResultFuture<OnboardingRecord> saveAboutMe(AboutMe aboutMe) async {
     if (_failure() case final failure?) return failure;
-    if (!isValidAboutMeNote(aboutMe.note)) {
+    final note = trimAboutMeNote(aboutMe.note);
+    if (!isValidAboutMeNote(note)) {
       return const Err(
         ValidationFailure(
           'An About me note is at most $aboutMeNoteMaxChars characters',
         ),
       );
     }
-    return Ok(_write((r) => r.copyWith(aboutMe: aboutMe)));
+    final stored = aboutMe.copyWith(note: note);
+    return Ok(_write((r) => r.copyWith(aboutMe: stored)));
   }
 
   @override

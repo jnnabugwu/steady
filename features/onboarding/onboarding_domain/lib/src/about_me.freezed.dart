@@ -23,7 +23,8 @@ mixin _$AboutMe {
  WeekendShape? get weekends;/// What gets in the way (screen 6). Empty if skipped.
  Set<HardPart> get hardParts;/// "Anything else the coach should know?" (screen 8), at most
 /// [aboutMeNoteMaxChars] code points, or `null` if skipped. The only
-/// free text in About me.
+/// free text in About me. A repository stores it trimmed, and a blank
+/// note as `null` ([trimAboutMeNote]).
  String? get note;
 /// Create a copy of AboutMe
 /// with the given fields replaced by the non-null parameter values.
@@ -256,7 +257,8 @@ class _AboutMe extends AboutMe {
 
 /// "Anything else the coach should know?" (screen 8), at most
 /// [aboutMeNoteMaxChars] code points, or `null` if skipped. The only
-/// free text in About me.
+/// free text in About me. A repository stores it trimmed, and a blank
+/// note as `null` ([trimAboutMeNote]).
 @override final  String? note;
 
 /// Create a copy of AboutMe
