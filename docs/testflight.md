@@ -154,9 +154,9 @@ App Store Connect → App Privacy. Answers that match `docs/PRIVACY.md`. **Jorda
 App Store Connect before the hosted coach ships**; what follows is the proposal and the
 reasoning, not a record of what's set.
 
-> **PR #156 (PostHog analytics) is open and changes this section too.** Whichever of it and
-> #153 lands second must combine the answers: the lists below are the coach's, and #156 adds
-> its own (for example Usage Data / Identifiers for analytics).
+> **Usage analytics (PostHog, 2026-11-17) adds three data types**, at the end of the table,
+> with a different purpose: **Analytics**, not App Functionality. Set them before submitting
+> any build from `main` after #156: every such build carries PostHog's privacy manifest.
 
 **Data collection: "Yes, we collect data from this app"** once the hosted coach ships.
 
@@ -169,8 +169,8 @@ sent only after consent and used only for the reply. Calories eaten and check-in
 user's own CloudKit **private** database still aren't collected (the developer can't read
 them).
 
-Proposed answers (all: purpose **App Functionality** only; **not linked to the user's
-identity**; **not used for tracking**):
+Proposed answers (all **not linked to the user's identity** and **not used for tracking**;
+purpose **App Functionality** for the coach's data, **Analytics** for usage events):
 
 | Data type | Declare? | Why |
 |---|---|---|
@@ -178,7 +178,10 @@ identity**; **not used for tracking**):
 | **Health & Fitness → Fitness** | Yes | Steps from Apple Health, in the same context. |
 | **User Content → Other User Content** | Yes | What the person types to the coach. Apple's "Other User Content" covers user-generated content not in the other categories. |
 | **Identifiers → Device ID** | Probably not; Jordan's call | The App Attest key id is a per-install key the proxy stores (with its counter, in Upstash Redis) to verify requests and count the daily limit. It isn't the IDFA or IDFV, can't be tied to the person, and is used for fraud prevention/security. Apple's Device ID is "such as the device's advertising identifier, or other device-level ID". The conservative answer is to declare it (App Functionality, not linked, not tracking); the narrow reading is that a per-install attestation key isn't a device-level ID. |
-| **Usage Data, Diagnostics, Contact Info, Location, Financial Info, etc.** | No (for the coach) | Nothing else leaves the phone for the coach. #156 may change Usage Data / Diagnostics. |
+| **Usage Data → Product Interaction** | Yes: **Analytics**, not linked, not tracking | The anonymous usage events (a check-in saved, an import finished, and so on). |
+| **Usage Data → Other Usage Data** | Yes: **Analytics**, not linked, not tracking | PostHog's lifecycle events (installed, opened, backgrounded). Declared in the SDK's privacy manifest. |
+| **Diagnostics → Crash Data** | Yes: **Analytics**, not linked, not tracking | Declared in the SDK's privacy manifest (PLCrashReporter), so the label matches it even though Steady doesn't turn PostHog's crash reporting on. |
+| **Contact Info, Location, Financial Info, etc.** | No | Nothing else leaves the phone. |
 
 "Not linked to identity": there are no accounts, no email, no name; the proxy sees an App
 Attest key id and an IP address in transit, and keeps no message content. Anthropic sees only

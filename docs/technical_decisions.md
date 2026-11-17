@@ -53,10 +53,11 @@ Transparency doesn't apply.
 ## Usage events from TestFlight builds only (2026-10-31)
 
 **Superseded in part (2026-11-17)** by "Usage events from App Store builds too", above:
-App Store installs now send the same events.
+App Store installs now send the same events. Everything below about keeping events out of the
+App Store build describes how it was until then.
 
 **Decision:** TestFlight builds send anonymous usage events to PostHog (cloud, free plan).
-App Store installs send nothing. The events are a fixed list in `packages/shared/analytics`
+App Store installs sent nothing (until 2026-11-17). The events are a fixed list in `packages/shared/analytics`
 (`AnalyticsEvent`), each a name plus labels, yes/nos or counts:
 
 - `health_connected`, once per launch: whether the last seven days had any steps and any
@@ -82,7 +83,8 @@ build next are:
 
 App Store Connect's own analytics can't answer those.
 
-**How it stays out of the App Store build:**
+**How it stayed out of the App Store build (until 2026-11-17; now only an install whose
+source can't be read sends nothing):**
 
 - **Runtime check.** A TestFlight binary is the same file that's submitted for review, so the
   gate is checked at runtime: `steady/install` (`AppDelegate.swift`) reads StoreKit's
@@ -110,7 +112,7 @@ count would be.
 - *A `health_connected` event when the permission sheet closes*, rejected. HealthKit never
   says whether access was allowed, so it would count "Don't Allow" as connected.
 
-**Before the App Store version sends anything:**
+**Before the App Store version sends anything (done 2026-11-17, in the record above):**
 
 - The App Privacy label changes.
 - `docs/PRIVACY.md` drops "TestFlight only".

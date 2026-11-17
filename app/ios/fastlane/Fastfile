@@ -80,7 +80,7 @@ platform :ios do
       defines = %w[POSTHOG_KEY POSTHOG_HOST]
         .reject { |name| ENV[name].to_s.strip.empty? }
         .map { |name| "--dart-define=#{name}=#{ENV[name].strip}" }
-      UI.message(defines.empty? ? "Usage sharing: off (no POSTHOG_KEY)" : "Usage sharing: on (App Store and TestFlight installs)")
+      UI.message(ENV["POSTHOG_KEY"].to_s.strip.empty? ? "Usage sharing: off (no POSTHOG_KEY)" : "Usage sharing: on (App Store and TestFlight installs)")
       Dir.chdir(APP_DIR) do
         sh("flutter", "pub", "get")
         sh("flutter", "build", "ios", "--release", "--config-only", "--no-codesign",

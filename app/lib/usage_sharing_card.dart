@@ -6,11 +6,11 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/usage_sharing.dart';
 import 'package:ui_kit/ui_kit.dart';
 
-/// Settings' "Usage sharing" section, on a TestFlight build only: what
-/// usage sharing sends, and the switch that turns it off
+/// Settings' "Usage sharing" section, on App Store and TestFlight installs:
+/// what usage sharing sends, and the switch that turns it off
 /// ([UsageSharingController]). Renders nothing where sharing isn't offered
-/// (the App Store, the Mac, a build without a PostHog key), while the
-/// status is loading, and if it couldn't be read.
+/// (the Mac, a build without a PostHog key, an install whose source can't
+/// be read), while the status is loading, and if it couldn't be read.
 class UsageSharingCard extends ConsumerWidget {
   /// Creates the card.
   const UsageSharingCard({super.key});
