@@ -108,9 +108,23 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
 
 **Consequences:**
 
-- **App Privacy label:** if the proxy receives the transaction (or its `originalTransactionId`),
-  that's purchase data the developer collects. Update the label and `docs/PRIVACY.md` before
-  the build with the paywall goes to review.
+- **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
+  to review; `docs/testflight.md` §6):
+  - **Purchases → Purchase History**, not linked, not tracking. It covers what RevenueCat's SDK
+    collects and the original transaction id the proxy keeps.
+  - **Identifiers → User ID** for RevenueCat's random per-install ID, not linked, purpose App
+    Functionality. RevenueCat's guidance says it needn't be declared; Apple's definition
+    includes any "assigned user ID", so Steady declares it. Declaring a little more costs
+    nothing visible.
+  - **Device ID** is already declared for App Attest. It also covers the IDFV that RevenueCat's
+    iOS SDK sends with every request, purpose App Functionality. Ask RevenueCat support what
+    they use it for, and add Analytics if they say so.
+  - `docs/PRIVACY.md` lists RevenueCat as a processor.
+- **Terms of Use: Apple's standard EULA.** Apple requires a Terms of Use link for any
+  auto-renewable subscription, on the paywall and in the App Store listing (3.1.2). It's about
+  the subscription, not user content. The paywall and the listing link to
+  <https://www.apple.com/legal/internet-services/itunes/dev/stdeula/>. Steady writes its own
+  terms only when it needs them, such as for Android (which has no standard EULA).
 - **Consent comes after subscribing.** The paywall sits before the coach consent screen, so
   nobody agrees to send data for a feature they haven't chosen (`docs/design/onboarding.md`).
 - **TestFlight testers** buy in the sandbox, so they aren't charged. Test the lapsed state
@@ -138,6 +152,106 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
   calls a week for every person, the largest cost, and the core of what the coach is for.
 - **A few free coach messages a month:** not now. It still means a server cost for people who
   never pay, and the free week already lets people try the coach.
+
+---
+
+## Android, if it ships, is local-only with no auth (2026-11-17)
+
+**Status: a direction, not committed work.** Nothing is built and Android isn't scheduled.
+This record settles the one question that would change the project's shape before anyone
+starts: how an Android Steady stores and syncs data.
+
+**Decision:**
+
+1. An Android version keeps Steady's **no-auth model**: no user accounts, no sign-in and no
+   server holding people's data. An Android Steady can't share data with an iPhone, an iPad or
+   another Android device.
+2. **Data lives on the phone.** The shared `DailyMetric` store on Android is local-only. Start
+   with `FileDailyMetricRepository` (`daily_metrics_data`), which already implements the
+   repository contract. Move to SQLite (for example drift) only if the file store gets slow.
+   Cravings, coach transcripts and coach consent use the JSON files they already use on iOS.
+3. **A replacement phone restores from Android Auto Backup**, the person's own Google backup,
+   the way iOS restores from iCloud Backup. Steady runs no backup copy of its own. The
+   user-triggered export (Settings → Export) stays the way to keep data beyond the device.
+4. **Health comes from Health Connect.** Steps, active and resting energy, and calories eaten
+   (where an app writes them there), behind the same `HealthKitRepository` interface as iOS.
+   Watches such as Garmin reach Steady through their companion app writing to Health
+   Connect, the way an Apple Watch reaches Apple Health. Health values are **read live, never
+   stored** in Steady's store, as on iOS.
+5. **The coach uses Play Integrity in place of App Attest.** Like App Attest, it proves a
+   request comes from the genuine app on a real device, not who the person is, so it's still
+   not auth. `steady-backend` gets a second verification path. The system prompt, the
+   guardrails, the consent screen and the device-only transcripts stay the same.
+
+**Why it came up:** a question about what an Android version would take. Most of the app ports
+as it is: every feature's domain and presentation code, routing, the shadcn screens, the PDF
+import (`pdfrx_engine` and `pdfium_flutter` support Android) and the file-backed stores.
+**Sync is the exception.** CloudKit has no Android client, and every way to sync across
+devices without it needs a server and accounts.
+
+**Rationale:**
+
+- No auth is a core property of Steady (CLAUDE.md §1, §12), not a gap. It's why there's no
+  sign-in screen, no account deletion flow, no password reset and no database of people's
+  health-adjacent data to secure. Cross-device sync on Android would bring all of that back
+  for one platform.
+- Local-only isn't new: it's how iOS already behaves when iCloud is signed out ("iCloud is
+  optional: a banner, not a gate" below). The domain and presentation code already handle it.
+- Since the Mac was parked ("The Mac is parked" below), Steady is a one-phone app. On iOS,
+  CloudKit sync mostly carries data to a replacement phone, which Auto Backup covers on
+  Android.
+
+**Consequences:**
+
+- **Sharing with an iPhone or iPad is out of scope.** Someone moving from iPhone to Android (or
+  back) starts fresh, or brings their history through a future import of Steady's own JSON
+  export. Not planned.
+- **Auto Backup puts device files in the person's Google backup**, including cravings and coach
+  transcripts. That matches the iOS stance that they're in the person's own iCloud Backup
+  ("Craving support" below), and Android's PRIVACY.md section says so. The files can be left out
+  with backup rules if that stance changes.
+- **The `isIOS` gate becomes a phone check.** `appProviderOverridesFor(isIOS:)` turns on Health,
+  cravings and the coach only on iOS. Android needs those too, with its own bindings for Health
+  and attestation. The `account` feature's iCloud banner has nothing to show on Android, so it's
+  bound to a "local-only" status or hidden.
+- **The proxy gains Play Integrity verification:** a Google Cloud project and service
+  account, its credentials in Vercel, and per-request token checks next to `src/attest/`. Play
+  Integrity has no lasting key per install the way App Attest does, so the app makes its own
+  random install id and includes it in what Play Integrity vouches for. The guardrail eval
+  doesn't need a re-run for this, since the prompt doesn't change.
+- **The paid coach on Android** follows "The coach is paid; everything on the phone is free"
+  (above), with the same split, prices and limits (15 chat messages a day, the weekly coach
+  check-in guaranteed):
+  - **A purchase works only in the store it was made in.** With no accounts, a subscription
+    bought on an iPhone can't unlock the coach on Android, or the other way round. The paywall
+    and FAQ say so plainly; it isn't a reason to add accounts.
+  - **The proxy's subscription check gets a Google Play implementation**, verifying the
+    purchase token through Google's API, behind the same platform-neutral function as Apple's
+    signed transaction. Daily limits count per Play purchase, as they count per original
+    transaction id on iOS.
+  - **Steady's own Terms of Use are needed.** Google Play has no equivalent of Apple's standard
+    EULA, which iOS links to, so Android ships with terms Steady writes.
+  - Google Play's subscription fee, trial rules and purchase-token API are from memory, not
+    checked against Google's docs. Check them before building.
+- **Android-specific copy:** "Apple Health" and "iCloud" in the screens, the consent text and
+  PRIVACY.md. The Play Console needs a Data safety form and a Health Connect permissions
+  declaration.
+- **Notes/RAG (#85) needs another design on Android:** `RAGKitCore` uses Apple's
+  `NLEmbedding`.
+- **Unchanged:** iOS keeps CloudKit sync, and nothing on iOS changes because of this record.
+
+**Alternatives considered:**
+
+- *Sync through a backend with accounts* (Firebase, or a store behind `steady-backend` with
+  Google or Apple sign-in). Rejected: it adds auth, account deletion and a server holding
+  people's data, all to sync a one-phone app. It's the step CLAUDE.md §12 calls "a new
+  decision, not a natural extension", and that decision is no.
+- *Sync through the person's own Google Drive* (the app data folder), CloudKit's closest
+  Android match. Not picked: it needs Google sign-in inside the app and a sync and conflict
+  layer Steady would have to write, since Drive offers file storage, not record sync. Auto
+  Backup already covers the phone-replacement case.
+- *No Android version.* Still possible. This record only fixes the storage shape if one is
+  built.
 
 ---
 
