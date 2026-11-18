@@ -56,11 +56,7 @@ void main() {
       expect(generalSuggestions, hasLength(2));
     });
 
-    test('any answer gets three; the general ones fill in', () {
-      expect(
-        firstWeekSuggestions(const AboutMe(voice: CoachVoice.gentle)),
-        generalSuggestions,
-      );
+    test('one templated answer gets three; the general ones fill in', () {
       final one = firstWeekSuggestions(
         const AboutMe(tracking: FoodTracking.justStarting),
       );
@@ -68,6 +64,32 @@ void main() {
         'Start with one meal a day. More can come later.',
         ...generalSuggestions,
       ]);
+    });
+
+    test('only the voice or the note gets the two general ones: '
+        'they shape how the coach talks, not what to try', () {
+      for (final aboutMe in [
+        const AboutMe(voice: CoachVoice.gentle),
+        const AboutMe(note: 'I work nights'),
+        const AboutMe(voice: CoachVoice.playful, note: 'I work nights'),
+      ]) {
+        expect(firstWeekSuggestions(aboutMe), generalSuggestions);
+      }
+    });
+
+    test('three exactly when an answer has a template behind it', () {
+      for (final aboutMe in _everyShape()) {
+        final templated =
+            aboutMe.tracking != null ||
+            aboutMe.weekends != null ||
+            aboutMe.activities.isNotEmpty ||
+            aboutMe.hardParts.isNotEmpty;
+        expect(
+          firstWeekSuggestions(aboutMe),
+          hasLength(templated ? 3 : 2),
+          reason: '$aboutMe',
+        );
+      }
     });
 
     test('two or three, never repeated, whatever the answers', () {

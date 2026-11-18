@@ -80,10 +80,14 @@ abstract final class OnboardingCopy {
   /// Screen 4's title.
   static const healthTitle = 'Bring in Apple Health';
 
-  /// Screen 4's reason line.
+  /// Screen 4's reason line. The claim is Steady's own, not Apple Health's
+  /// (which can sync through iCloud itself): Steady reads Health live and
+  /// never saves its values, so they never reach Steady's iCloud sync
+  /// (CLAUDE.md §7).
   static const healthReason =
-      'Steps, energy and calories eaten show up on Today. They stay on this '
-      'iPhone and are never stored in iCloud.';
+      'Steps, energy and calories eaten show up on Today. Steady reads them '
+      'live and never saves them, so they never go into Steady’s iCloud '
+      'sync.';
 
   /// The caption over the sample tiles.
   static const healthPreviewCaption = 'A sample of Today';

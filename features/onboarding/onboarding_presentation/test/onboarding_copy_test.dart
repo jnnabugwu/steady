@@ -110,4 +110,16 @@ void main() {
       'other',
     ]);
   });
+
+  test("Health copy makes Steady's claim, not one about Apple Health", () {
+    for (final text in _everyString()) {
+      if (!text.contains('iCloud')) continue;
+      // Apple Health can sync through iCloud itself; what Steady can
+      // promise is that its own iCloud sync never holds Health values.
+      expect(text, contains('Steady’s iCloud'), reason: text);
+      expect(text, isNot(contains('never stored in iCloud')), reason: text);
+      expect(text, isNot(contains('stay on this iPhone')), reason: text);
+    }
+    expect(OnboardingCopy.healthReason, contains('reads them live'));
+  });
 }

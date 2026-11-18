@@ -11,8 +11,12 @@ import 'package:onboarding_domain/onboarding_domain.dart';
 ///   an activity, then the weekends and how the person tracks food, then
 ///   the rest of each, in the answers' own order. Two general suggestions
 ///   fill in where the answers run out.
-/// - An empty About me (everything skipped) gets the two general ones; any
-///   answer gets three.
+/// - **Three when any answer has a template behind it** (what gets in
+///   the way, an activity, the weekends, how food is tracked): the
+///   tailored ones, then the general ones to make up three. **Two, the
+///   general ones, when none has:** everything skipped, or only the voice
+///   or the note answered, since those shape how the coach talks, not
+///   what to try.
 ///
 /// Pure and deterministic: the same answers always give the same list.
 List<String> firstWeekSuggestions(AboutMe aboutMe) {
@@ -24,17 +28,18 @@ List<String> firstWeekSuggestions(AboutMe aboutMe) {
     for (final activity in OnboardingActivity.values)
       if (aboutMe.activities.contains(activity)) _forActivity(activity),
   ];
-  final candidates = [
+  final tailored = [
     ...hardParts.take(1),
     ...activities.take(1),
     if (aboutMe.weekends case final weekends?) _forWeekends(weekends),
     if (aboutMe.tracking case final tracking?) _forTracking(tracking),
     ...hardParts.skip(1),
     ...activities.skip(1),
-    ...generalSuggestions,
   ];
-  final count = aboutMe.isEmpty ? 2 : 3;
-  return candidates.toSet().take(count).toList();
+  return {
+    ...tailored,
+    ...generalSuggestions,
+  }.take(tailored.isEmpty ? 2 : 3).toList();
 }
 
 /// The suggestions for anyone, whatever they answered.
