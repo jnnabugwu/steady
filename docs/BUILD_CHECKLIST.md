@@ -390,7 +390,13 @@ Design: `docs/design/onboarding.md`.
       never both (`todayHealthPromptProvider`; every combination tested).
 - [x] `onboarding_source` and `onboarding_exited` usage events (TestFlight only, like the
       rest; `docs/PRIVACY.md`).
-- [ ] Settings → About me, to change the answers later.
+- [x] Settings → About me (#172, `AboutMeRoute` at `/settings/about-me`, iPhone only): food
+      tracking, your week, what gets in the way, the coach's voice and the note, each
+      editable on its own and saved through `saveAboutMe` (never changes whether
+      onboarding is done); clearing an answer puts it back to skipped; the voice and the
+      note carry the paid badge; a failed save keeps the edit on screen with the quiet
+      line. A tracking edit changes Today's import button, Cal AI card and empty text
+      straight away (`onboardingFoodTrackingProvider`, invalidated after every save).
 - [ ] About me reaching the coach (the proxy's context).
 - [ ] Sending `onboarding_source` from App Store builds: needs the App Privacy label and a
       change to "Usage events from TestFlight builds only" first (design doc).
