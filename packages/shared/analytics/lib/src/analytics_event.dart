@@ -112,10 +112,6 @@ final class AnalyticsEvent {
     'reason': reason.name,
   });
 
-  /// The craving flow reached its end and was saved. Which outcome was
-  /// chosen is left out.
-  static const cravingFlowFinished = AnalyticsEvent._('craving_flow_finished');
-
   /// Onboarding screen 3 was answered: where the person heard about
   /// Steady, as one of [onboardingSourceCodes]. A fixed code only, never
   /// free text; a skip sends nothing.
@@ -136,6 +132,10 @@ final class AnalyticsEvent {
     );
     return AnalyticsEvent._('onboarding_exited', {'step': step});
   }
+
+  /// The craving flow reached its end and was saved. Which outcome was
+  /// chosen is left out.
+  static const cravingFlowFinished = AnalyticsEvent._('craving_flow_finished');
 
   /// The event's name in PostHog.
   final String name;
