@@ -40,11 +40,17 @@ const onboardingSourceCodes = {
   'other',
 };
 
-/// The codes [AnalyticsEvent.onboardingExited] accepts: the onboarding
+/// What [AnalyticsEvent.onboardingExited] sends when the screen isn't
+/// known ("Not now" after the stored answers couldn't be read).
+const onboardingStepUnknown = 'unknown';
+
+/// The codes [AnalyticsEvent.onboardingExited] sends: the onboarding
 /// screens, by `OnboardingStep` code (`onboarding_domain`), mirrored
-/// without depending on it; `app/test/onboarding_test.dart` checks the two
-/// match.
-const onboardingStepCodes = {
+/// without depending on it, plus [onboardingStepUnknown].
+/// `app/test/onboarding_test.dart` checks they're exactly the enum's codes
+/// and `unknown`.
+const onboardingStepCodes = <String>{
+  onboardingStepUnknown,
   'firstStone',
   'tracking',
   'source',
@@ -123,14 +129,17 @@ final class AnalyticsEvent {
     return AnalyticsEvent._('onboarding_source', {'source': source});
   }
 
-  /// The person left onboarding early ("Not now") on [step], one of
-  /// [onboardingStepCodes]. Not sent on finishing.
-  factory AnalyticsEvent.onboardingExited({required String step}) {
+  /// The person left onboarding early ("Not now") on [step], an
+  /// `OnboardingStep` code from [onboardingStepCodes], or `null` when the
+  /// screen isn't known, sent as [onboardingStepUnknown]. Not sent on
+  /// finishing.
+  factory AnalyticsEvent.onboardingExited({required String? step}) {
+    final code = step ?? onboardingStepUnknown;
     assert(
-      onboardingStepCodes.contains(step),
-      'Unknown onboarding step: $step',
+      onboardingStepCodes.contains(code),
+      'Unknown onboarding step: $code',
     );
-    return AnalyticsEvent._('onboarding_exited', {'step': step});
+    return AnalyticsEvent._('onboarding_exited', {'step': code});
   }
 
   /// The craving flow reached its end and was saved. Which outcome was

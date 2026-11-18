@@ -55,6 +55,9 @@ void main() {
             .having((e) => e.name, 'name', 'onboarding_source')
             .having((e) => e.properties, 'properties', {'source': 'appStore'}),
       );
+      expect(AnalyticsEvent.onboardingExited(step: null).properties, {
+        'step': 'unknown',
+      });
       expect(
         AnalyticsEvent.onboardingExited(step: 'meetCoach'),
         isA<AnalyticsEvent>()
@@ -72,7 +75,9 @@ void main() {
         'tiktok',
         'other',
       });
-      expect(onboardingStepCodes, hasLength(10));
+      // The ten screens, and `unknown`.
+      expect(onboardingStepCodes, hasLength(11));
+      expect(onboardingStepCodes, contains('unknown'));
     });
 
     test('an unknown onboarding source or step fails in debug', () {
