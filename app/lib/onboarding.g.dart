@@ -8,22 +8,34 @@ part of 'onboarding.dart';
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // ignore_for_file: type=lint, type=warning
-/// How the person tracks food, from onboarding screen 2, or `null`: not
-/// answered, no onboarding on this device, or the record couldn't be read.
+/// How the person tracks food, from onboarding screen 2 or Settings → About
+/// me, or `null`: not answered, no onboarding on this device, or the record
+/// couldn't be read.
 ///
-/// Auto-dispose: read again whenever Today is built afresh, which is the
-/// case after onboarding (it replaces the shell); the onboarding route
-/// also invalidates it on the way out.
+/// **The one source** for everything on Today that follows the answer
+/// ([todayImportButtonShownProvider], [todayMetricsEmptyHintProvider] and
+/// `todayHealthPromptProvider`): whoever writes the record invalidates
+/// this, and they all follow. The onboarding route does on the way out,
+/// and Settings → About me after every edit (`AboutMeRoute`), so Today
+/// changes straight away, without a relaunch.
+///
+/// Auto-dispose: read again whenever Today is built afresh too.
 
 @ProviderFor(onboardingFoodTracking)
 final onboardingFoodTrackingProvider = OnboardingFoodTrackingProvider._();
 
-/// How the person tracks food, from onboarding screen 2, or `null`: not
-/// answered, no onboarding on this device, or the record couldn't be read.
+/// How the person tracks food, from onboarding screen 2 or Settings → About
+/// me, or `null`: not answered, no onboarding on this device, or the record
+/// couldn't be read.
 ///
-/// Auto-dispose: read again whenever Today is built afresh, which is the
-/// case after onboarding (it replaces the shell); the onboarding route
-/// also invalidates it on the way out.
+/// **The one source** for everything on Today that follows the answer
+/// ([todayImportButtonShownProvider], [todayMetricsEmptyHintProvider] and
+/// `todayHealthPromptProvider`): whoever writes the record invalidates
+/// this, and they all follow. The onboarding route does on the way out,
+/// and Settings → About me after every edit (`AboutMeRoute`), so Today
+/// changes straight away, without a relaunch.
+///
+/// Auto-dispose: read again whenever Today is built afresh too.
 
 final class OnboardingFoodTrackingProvider
     extends
@@ -33,12 +45,18 @@ final class OnboardingFoodTrackingProvider
           FutureOr<FoodTracking?>
         >
     with $FutureModifier<FoodTracking?>, $FutureProvider<FoodTracking?> {
-  /// How the person tracks food, from onboarding screen 2, or `null`: not
-  /// answered, no onboarding on this device, or the record couldn't be read.
+  /// How the person tracks food, from onboarding screen 2 or Settings → About
+  /// me, or `null`: not answered, no onboarding on this device, or the record
+  /// couldn't be read.
   ///
-  /// Auto-dispose: read again whenever Today is built afresh, which is the
-  /// case after onboarding (it replaces the shell); the onboarding route
-  /// also invalidates it on the way out.
+  /// **The one source** for everything on Today that follows the answer
+  /// ([todayImportButtonShownProvider], [todayMetricsEmptyHintProvider] and
+  /// `todayHealthPromptProvider`): whoever writes the record invalidates
+  /// this, and they all follow. The onboarding route does on the way out,
+  /// and Settings → About me after every edit (`AboutMeRoute`), so Today
+  /// changes straight away, without a relaunch.
+  ///
+  /// Auto-dispose: read again whenever Today is built afresh too.
   OnboardingFoodTrackingProvider._()
     : super(
         from: null,

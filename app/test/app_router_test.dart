@@ -477,6 +477,30 @@ void main() {
       expect(location(container), '/onboarding');
     });
 
+    testWidgets('iPhone: a cold start at /settings/about-me opens About me '
+        'in the Settings tab, with Settings beneath it', (tester) async {
+      final container = await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(
+          const OnboardingRecord(
+            completed: true,
+            aboutMe: AboutMe(tracking: FoodTracking.calAi),
+          ),
+        ),
+        coldStartLocation: '/settings/about-me',
+      );
+      expect(onboarding, findsNothing);
+      expect(find.byType(AboutMeModule), findsOneWidget);
+      expect(location(container), '/settings/about-me');
+      expect(selectedTab(tester), 2);
+
+      await tester.tap(find.byKey(const Key('aboutMeBack')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(find.byType(AboutMeSettingsCard), findsOneWidget);
+      expect(location(container), '/settings');
+    });
+
     testWidgets('unbound (the Mac, most tests) never shows it, even at '
         '/onboarding', (tester) async {
       final container = await pumpApp(tester);
@@ -528,6 +552,37 @@ void main() {
         expect(find.byType(TodayScreen), findsOneWidget);
       },
     );
+
+    test('AboutMeRoute.location is /settings/about-me', () {
+      expect(const AboutMeRoute().location, '/settings/about-me');
+    });
+
+    testWidgets('unbound (the Mac, most tests): no "About me" row, and '
+        '/settings/about-me redirects to /settings', (tester) async {
+      final container = await pumpApp(tester);
+      await tapTab(tester, 'Settings');
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(find.byType(AboutMeSettingsCard), findsNothing);
+
+      container.read(routerProvider).go(const AboutMeRoute().location);
+      await tester.pumpAndSettle();
+      expect(find.byType(AboutMeModule), findsNothing);
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(location(container), '/settings');
+    });
+
+    testWidgets('unbound: a cold start at /settings/about-me opens Settings', (
+      tester,
+    ) async {
+      final container = await pumpApp(
+        tester,
+        coldStartLocation: '/settings/about-me',
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AboutMeModule), findsNothing);
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(location(container), '/settings');
+    });
 
     testWidgets('back from a cold-started /settings returns home', (
       tester,

@@ -35,7 +35,8 @@
 /// root goes there once per launch when it's due (`onboarding.dart`); no
 /// redirect sends anyone there.
 ///
-/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" and
+/// [SettingsRoute] (`/settings`) hosts "About me" (iPhone, opening
+/// [AboutMeRoute] at `/settings/about-me`), Apple Health, "Cravings" and
 /// "Coach" (iPhone), "Sample data" and the data export (and, in debug
 /// builds, the Developer card). [CravingRoute] (`/craving`, iPhone only)
 /// is the craving flow, pushed from the Today screen's "Having a craving?"
@@ -130,7 +131,12 @@ GoRouter router(Ref ref) {
       ],
     ),
     TypedStatefulShellBranch<SettingsBranch>(
-      routes: [TypedGoRoute<SettingsRoute>(path: '/settings')],
+      routes: [
+        TypedGoRoute<SettingsRoute>(
+          path: '/settings',
+          routes: [TypedGoRoute<AboutMeRoute>(path: 'about-me')],
+        ),
+      ],
     ),
   ],
 )
@@ -167,7 +173,8 @@ class CoachBranch extends StatefulShellBranchData {
   const CoachBranch();
 }
 
-/// The Settings tab's branch: [SettingsRoute].
+/// The Settings tab's branch: [SettingsRoute] and what's pushed on it
+/// ([AboutMeRoute]).
 class SettingsBranch extends StatefulShellBranchData {
   /// Creates the Settings branch.
   const SettingsBranch();
@@ -295,7 +302,8 @@ class WeekRoute extends GoRouteData with $WeekRoute {
 }
 
 /// `/settings`, the Settings tab: the settings screen (`DataExportModule`),
-/// with the Apple Health section ([AppleHealthCard]), "Cravings"
+/// with "About me" first ([AboutMeSettingsCard], iPhone only, opening
+/// [AboutMeRoute]), the Apple Health section ([AppleHealthCard]), "Cravings"
 /// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
 /// iPhone only), "Sample data" ([SampleDataCard], shown only while the
 /// sample export's days are in the store), "Privacy" ([PrivacyCard], the
@@ -315,6 +323,15 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
     onBack: () =>
         context.canPop() ? context.pop() : const HomeRoute().go(context),
     sections: [
+      // Onboarding's answers, to change later (screen 7 says "You can
+      // change it later in Settings"). iPhone only, like onboarding.
+      if (ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(onboardingSupportAvailableProvider))
+        AboutMeSettingsCard(
+          onOpen: () => unawaited(const AboutMeRoute().push<void>(context)),
+        ),
       const AppleHealthCard(),
       // Both render nothing on macOS.
       const CravingSettingsCard(),
@@ -329,6 +346,49 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       ...developerSettingsSections(),
     ],
   );
+}
+
+/// `/settings/about-me`: Settings → About me ([AboutMeModule], #172),
+/// iPhone only. Every onboarding answer, each editable on its own.
+///
+/// Nested under [SettingsRoute] in the Settings branch: pushed from the
+/// "About me" row, with Settings beneath it and the tab bar still up, even
+/// on a cold start straight to the link. Back pops to Settings.
+///
+/// **Today follows each edit straight away:** after every save the editor
+/// calls `onAboutMeChanged`, and this invalidates
+/// `onboardingFoodTrackingProvider`, the one read of the record that
+/// Today's import button, its Apple Health prompt and its empty-metrics
+/// text all derive from (`onboarding.dart`). Today stays mounted in its
+/// own branch, so it re-reads at once; no relaunch.
+///
+/// Redirects to `/settings` where there's no onboarding (the Mac, and
+/// tests that don't bind it), so a typed-in link can't open it where the
+/// repository isn't bound.
+class AboutMeRoute extends GoRouteData with $AboutMeRoute {
+  /// Creates the About me route.
+  const AboutMeRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(onboardingSupportAvailableProvider)
+      ? null
+      : const SettingsRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return AboutMeModule(
+      onBack: () =>
+          context.canPop() ? context.pop() : const SettingsRoute().go(context),
+      // Today's tracking-driven cards all read this one provider.
+      onAboutMeChanged: () =>
+          container.invalidate(onboardingFoodTrackingProvider),
+    );
+  }
 }
 
 /// `/onboarding`: the first-launch flow ([OnboardingModule], #161), iPhone

@@ -417,6 +417,124 @@ void main() {
       });
     });
 
+    group('Settings → About me (#172)', () {
+      const calAiDone = OnboardingRecord(
+        completed: true,
+        aboutMe: AboutMe(
+          tracking: FoodTracking.calAi,
+          voice: CoachVoice.gentle,
+        ),
+      );
+
+      Future<void> openAboutMe(WidgetTester tester) async {
+        await tester.tap(
+          find.descendant(
+            of: byKey('appTabBar'),
+            matching: find.text('Settings'),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tapKey(tester, 'aboutMeSettingsRow');
+      }
+
+      Future<void> backToToday(WidgetTester tester) async {
+        await tapKey(tester, 'aboutMeBack');
+        expect(find.byType(AboutMeModule), findsNothing);
+        await tester.tap(
+          find.descendant(of: byKey('appTabBar'), matching: find.text('Today')),
+        );
+        await tester.pumpAndSettle();
+        expect(find.byType(TodayScreen), findsOneWidget);
+      }
+
+      String emptyText(WidgetTester tester) => tester
+          .widget<Text>(
+            find.descendant(
+              of: byKey('todayMetricsEmpty'),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+
+      testWidgets('the "About me" row opens the editor at /settings/about-me, '
+          'inside the Settings tab', (tester) async {
+        final container = await pumpApp(
+          tester,
+          InMemoryOnboardingRepository(calAiDone),
+        );
+        await openAboutMe(tester);
+
+        expect(find.byType(AboutMeModule), findsOneWidget);
+        expect(
+          container.read(routerProvider).state.matchedLocation,
+          '/settings/about-me',
+        );
+        // Still in the shell, on the Settings tab.
+        expect(byKey('appTabBar'), findsOneWidget);
+        await tapKey(tester, 'aboutMeBack');
+        expect(find.byKey(const Key('aboutMeSettingsRow')), findsOneWidget);
+        expect(
+          container.read(routerProvider).state.matchedLocation,
+          '/settings',
+        );
+      });
+
+      testWidgets('Today follows a tracking edit straight away: the import '
+          'button, the Cal AI card and the empty text', (tester) async {
+        // Health asked and empty: a Cal AI tracker gets the Cal AI card,
+        // and the week is empty, so the empty text shows.
+        health = InMemoryHealthKitRepository(
+          status: HealthAuthorizationStatus.requested,
+        );
+        final onboarding = InMemoryOnboardingRepository(calAiDone);
+        await pumpApp(tester, onboarding);
+        expect(byKey('importButton_header'), findsOneWidget);
+        expect(byKey('calAiHealthCard'), findsOneWidget);
+        await tester.ensureVisible(byKey('todayMetricsEmpty'));
+        expect(emptyText(tester), TodayMetricsEmptyHint.calAiImport.text);
+
+        // Another Health app: no import button, no Cal AI card, and the
+        // empty text says calories come through Apple Health.
+        await openAboutMe(tester);
+        await tapKey(tester, 'aboutMeOption_otherHealthApp');
+        expect(onboarding.record.aboutMe.tracking, FoodTracking.otherHealthApp);
+        await backToToday(tester);
+        expect(byKey('importButton_header'), findsNothing);
+        expect(byKey('calAiHealthCard'), findsNothing);
+        await tester.ensureVisible(byKey('todayMetricsEmpty'));
+        expect(emptyText(tester), TodayMetricsEmptyHint.healthApp.text);
+
+        // Cleared (back to skipped): Today treats it as no answer, like
+        // Cal AI.
+        await openAboutMe(tester);
+        await tapKey(tester, 'aboutMeOption_otherHealthApp');
+        expect(onboarding.record.aboutMe.tracking, isNull);
+        await backToToday(tester);
+        expect(byKey('importButton_header'), findsOneWidget);
+        expect(byKey('calAiHealthCard'), findsOneWidget);
+        await tester.ensureVisible(byKey('todayMetricsEmpty'));
+        expect(emptyText(tester), TodayMetricsEmptyHint.calAiImport.text);
+
+        // Editing never brought onboarding back, or undid it.
+        expect(onboarding.record.completed, isTrue);
+        expect(find.byType(OnboardingModule), findsNothing);
+      });
+
+      testWidgets('a failed save leaves Today on what is stored', (
+        tester,
+      ) async {
+        final onboarding = InMemoryOnboardingRepository(calAiDone);
+        await pumpApp(tester, onboarding);
+        await openAboutMe(tester);
+        onboarding.failNextWith = const OnboardingStorageFailure('disk');
+        await tapKey(tester, 'aboutMeOption_justStarting');
+        expect(byKey('onboardingSaveFailed'), findsOneWidget);
+
+        await backToToday(tester);
+        expect(byKey('importButton_header'), findsOneWidget);
+      });
+    });
+
     group("Today's \"Connect Apple Health\"", () {
       // Another Health app: no Cal AI card, so the pill is the one prompt.
       // (For a Cal AI tracker the card asks instead: cal_ai_health_card_test.)
