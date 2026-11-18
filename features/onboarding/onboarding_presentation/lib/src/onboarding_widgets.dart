@@ -56,7 +56,9 @@ class OnboardingHeader extends StatelessWidget {
                 height: cairnHeight,
                 child: FittedBox(child: OnboardingCairn(stones: stones)),
               ),
-              null => const SizedBox(height: GlassIconButton.size),
+              // The same height as the cairn, so the content under the
+              // header doesn't jump on a screen without one.
+              null => const SizedBox(height: cairnHeight),
             },
           ),
         ),

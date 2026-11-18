@@ -324,4 +324,80 @@ void main() {
       expect(repo.record.aboutMe.tracking, FoodTracking.calAi);
     },
   );
+
+  group('review fixes', () {
+    test('an answered current screen resumes with its stone, '
+        'one that stores nothing with its stone still to place', () async {
+      final answered = containerFor(
+        RecordingOnboardingRepository(
+          const OnboardingRecord(
+            step: OnboardingStep.voice,
+            aboutMe: AboutMe(voice: CoachVoice.direct),
+          ),
+        ),
+      );
+      await started(answered);
+      expect(
+        flowOf(answered).stones[OnboardingStep.voice],
+        OnboardingStone.placed,
+      );
+      expect(
+        flowOf(answered).cairn[OnboardingStep.voice.index],
+        OnboardingStone.placed,
+      );
+
+      final unanswered = containerFor(
+        RecordingOnboardingRepository(
+          const OnboardingRecord(step: OnboardingStep.health),
+        ),
+      );
+      await started(unanswered);
+      expect(flowOf(unanswered).stones, isNot(contains(OnboardingStep.health)));
+      expect(
+        flowOf(unanswered).cairn[OnboardingStep.health.index],
+        OnboardingStone.pending,
+      );
+    });
+
+    test('a failed About me save still saves the step', () async {
+      final container = containerFor(RecordingOnboardingRepository());
+      final controller = await started(container);
+      repository.store.failNextWith = const OnboardingStorageFailure('disk');
+
+      await controller.answerFoodTracking(FoodTracking.calAi);
+
+      expect(repository.calls, ['read', 'saveAboutMe', 'saveStep:source']);
+      // A relaunch resumes on the screen the person is on.
+      expect(repository.record.step, OnboardingStep.source);
+      expect(repository.record.aboutMe, AboutMe.empty);
+      expect(flowOf(container).saveFailure, isA<OnboardingStorageFailure>());
+    });
+
+    test('an earlier failure finishing late does not outlive a later '
+        'success', () async {
+      final container = containerFor(RecordingOnboardingRepository());
+      final controller = await started(container);
+      final hold = repository.holdWrites = Completer<void>();
+      repository.store.failNextWith = const OnboardingStorageFailure('disk');
+
+      final first = controller.answerFoodTracking(FoodTracking.calAi);
+      final second = controller.completeOnboardingStep(OnboardingStep.source);
+      hold.complete();
+      await first;
+      // The first save failed after the second event cleared the error.
+      expect(flowOf(container).saveFailure, isA<OnboardingStorageFailure>());
+      await second;
+      expect(flowOf(container).saveFailure, isNull);
+      expect(repository.record.step, OnboardingStep.health);
+    });
+
+    test('the latest save failing keeps the error', () async {
+      final container = containerFor(RecordingOnboardingRepository());
+      final controller = await started(container);
+      await controller.answerFoodTracking(FoodTracking.calAi);
+      repository.store.failNextWith = const OnboardingStorageFailure('disk');
+      await controller.completeOnboardingStep(OnboardingStep.source);
+      expect(flowOf(container).saveFailure, isA<OnboardingStorageFailure>());
+    });
+  });
 }

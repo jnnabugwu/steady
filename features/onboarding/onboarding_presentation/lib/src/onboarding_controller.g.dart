@@ -97,7 +97,7 @@ final class OnboardingControllerProvider
 }
 
 String _$onboardingControllerHash() =>
-    r'9ae6e2fb14658189fd7e248eb78de7b00386a4fe';
+    r'60c800ac38906394c386fa14e6e3228609f11af9';
 
 /// The onboarding flow: which screen the person is on, their answers and
 /// the stones placed, over the stored `OnboardingRecord`.

@@ -63,7 +63,9 @@ abstract class OnboardingFlowState with _$OnboardingFlowState {
   /// stored: a question with a stored answer placed a stone, one without
   /// placed a dimmer one, and a screen that stores nothing (the first
   /// stone, where you heard about Steady, Apple Health, meeting the coach,
-  /// the first week) placed a full one.
+  /// the first week) placed a full one. The screen itself has a stone only
+  /// if its question already has a stored answer (the person went back to
+  /// it); otherwise its stone is still to place.
   factory OnboardingFlowState.resumedFrom(OnboardingRecord record) {
     final step = record.step ?? OnboardingStep.firstStone;
     final aboutMe = record.aboutMe;
@@ -75,6 +77,8 @@ abstract class OnboardingFlowState with _$OnboardingFlowState {
           passed: (answered(passed, aboutMe) ?? true)
               ? OnboardingStone.placed
               : OnboardingStone.dimmed,
+        if (step.placesStone && (answered(step, aboutMe) ?? false))
+          step: OnboardingStone.placed,
       },
     );
   }

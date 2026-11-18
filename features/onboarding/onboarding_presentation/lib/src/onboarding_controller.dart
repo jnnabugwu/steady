@@ -36,6 +36,10 @@ class OnboardingController extends _$OnboardingController {
   /// The last save queued, so the next waits for it.
   Future<void> _lastSave = Future<void>.value();
 
+  /// How many saves have been queued, so a save can tell whether it's the
+  /// latest.
+  int _savesQueued = 0;
+
   @override
   Future<OnboardingFlowState> build() async {
     final result = await ref.watch(onboardingRepositoryProvider).read();
@@ -172,6 +176,9 @@ class OnboardingController extends _$OnboardingController {
 
   /// Places [step]'s [stone], applies [change] to About me, moves to the
   /// next screen, then saves the About me (when changed) and the new step.
+  /// The step is saved even if the About me save fails, so a relaunch
+  /// resumes on the screen the person is on; the About me failure is the
+  /// one reported.
   Future<void> _advance(
     OnboardingStep step,
     OnboardingStone stone, {
@@ -190,20 +197,24 @@ class OnboardingController extends _$OnboardingController {
       ),
     );
     await _save((repository) async {
-      if (aboutMe != null) {
-        final saved = await repository.saveAboutMe(aboutMe);
-        if (saved case Err(:final failure)) return failure;
-      }
-      return _failureOf(await repository.saveStep(next));
+      final aboutMeFailure = aboutMe == null
+          ? null
+          : _failureOf(await repository.saveAboutMe(aboutMe));
+      final stepFailure = _failureOf(await repository.saveStep(next));
+      return aboutMeFailure ?? stepFailure;
     });
   }
 
-  /// Runs [write] after every save queued before it, then records its
-  /// failure, if any, in the state.
+  /// Runs [write] after every save queued before it, then records the
+  /// outcome in [OnboardingFlowState.saveFailure]: a failure is shown, and
+  /// the latest save queued succeeding clears it. An earlier save's failure
+  /// finishing after a later event can't outlive that later save's
+  /// success.
   Future<void> _save(
     Future<Failure?> Function(OnboardingRepository repository) write,
   ) async {
     final repository = ref.read(onboardingRepositoryProvider);
+    final queued = ++_savesQueued;
     final previous = _lastSave;
     final done = Completer<void>();
     _lastSave = done.future;
@@ -214,9 +225,13 @@ class OnboardingController extends _$OnboardingController {
     } finally {
       done.complete();
     }
-    if (!ref.mounted || failure == null) return;
+    if (!ref.mounted) return;
     final current = state.value;
     if (current == null) return;
+    if (failure == null) {
+      // Only the latest save's success speaks for what's stored now.
+      if (queued != _savesQueued || current.saveFailure == null) return;
+    }
     state = AsyncData(current.copyWith(saveFailure: failure));
   }
 

@@ -339,7 +339,10 @@ class _FlowState extends ConsumerState<_Flow> {
 }
 
 /// The stored answers couldn't be read: try again, or leave.
-class _ReadFailed extends StatelessWidget {
+///
+/// "Not now" runs once: further taps are ignored, and both buttons are
+/// off, until it's done.
+class _ReadFailed extends StatefulWidget {
   const _ReadFailed({
     required this.loading,
     required this.onTryAgain,
@@ -351,22 +354,42 @@ class _ReadFailed extends StatelessWidget {
   final Future<void> Function() onNotNow;
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      OnboardingHeader(
-        onBack: null,
-        onNotNow: loading ? null : () => unawaited(onNotNow()),
-      ),
-      Expanded(
-        child: OnboardingPage(
-          key: const Key('onboardingReadFailed'),
-          title: OnboardingCopy.readFailed,
-          body: const SizedBox.shrink(),
-          primaryLabel: OnboardingCopy.tryAgain,
-          onPrimary: loading ? null : onTryAgain,
+  State<_ReadFailed> createState() => _ReadFailedState();
+}
+
+class _ReadFailedState extends State<_ReadFailed> {
+  bool _leaving = false;
+
+  Future<void> _leave() async {
+    if (_leaving) return;
+    setState(() => _leaving = true);
+    try {
+      await widget.onNotNow();
+    } finally {
+      if (mounted) setState(() => _leaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = widget.loading || _leaving;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OnboardingHeader(
+          onBack: null,
+          onNotNow: busy ? null : () => unawaited(_leave()),
         ),
-      ),
-    ],
-  );
+        Expanded(
+          child: OnboardingPage(
+            key: const Key('onboardingReadFailed'),
+            title: OnboardingCopy.readFailed,
+            body: const SizedBox.shrink(),
+            primaryLabel: OnboardingCopy.tryAgain,
+            onPrimary: busy ? null : widget.onTryAgain,
+          ),
+        ),
+      ],
+    );
+  }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -137,7 +139,8 @@ void main() {
         OnboardingStone.placed,
         OnboardingStone.placed,
         OnboardingStone.dimmed, // the week wasn't answered
-        OnboardingStone.pending,
+        // The screen it resumed on is answered, so its stone is there.
+        OnboardingStone.placed,
       ]);
 
       // Going back shows the earlier answer too.
@@ -650,5 +653,52 @@ void main() {
         expect(byKey('onboardingContinue'), findsOneWidget);
       });
     }
+  });
+
+  group('review fixes', () {
+    testWidgets('the header keeps its height on the last screen', (
+      tester,
+    ) async {
+      await pumpModule(
+        tester,
+        record: const OnboardingRecord(step: OnboardingStep.firstWeek),
+      );
+      final before = tester.getSize(find.byType(OnboardingHeader)).height;
+      final titleBefore = tester.getTopLeft(
+        find.text(OnboardingCopy.firstWeekTitle),
+      );
+      await tapContinue(tester);
+      expect(find.text(OnboardingCopy.cairnTitle), findsOneWidget);
+      expect(tester.getSize(find.byType(OnboardingHeader)).height, before);
+      expect(
+        tester.getTopLeft(find.text(OnboardingCopy.cairnTitle)).dy,
+        titleBefore.dy,
+      );
+    });
+
+    testWidgets('"Not now" after a failed read runs once on a double tap', (
+      tester,
+    ) async {
+      late Completer<void> hold;
+      await pumpModule(
+        tester,
+        arrange: (repo) {
+          repo.store.failNextWith = const OnboardingStorageFailure('disk');
+          hold = repo.holdWrites = Completer<void>();
+        },
+      );
+      expect(byKey('onboardingReadFailed'), findsOneWidget);
+
+      await tester.tap(byKey('onboardingNotNow'));
+      await tester.tap(byKey('onboardingNotNow'), warnIfMissed: false);
+      await tester.pump();
+      // Hidden while it runs.
+      expect(byKey('onboardingNotNow'), findsNothing);
+      hold.complete();
+      await tester.pumpAndSettle();
+
+      expect(repository.calls.where((c) => c == 'markCompleted'), hasLength(1));
+      expect(leftAt, [OnboardingStep.firstStone]);
+    });
   });
 }
