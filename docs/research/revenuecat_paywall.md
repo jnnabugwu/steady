@@ -340,20 +340,29 @@ code, but it trusts a bare ID.
 
 ---
 
-## Open questions for Jordan
+## Answered (2026-11-17)
 
-- **Plans:** monthly, yearly or both, and at what prices? Is the trial one week ("try the coach
-  free for a week", onboarding doc)?
-- **Family Sharing:** on or off? It can't be undone.
-- **Limits:** given §3.8(c), what daily cap do subscribers get, and what does the kill switch mean
-  for them? Should a fair-use limit be stated?
-- **Label:** declare Identifiers → User ID for the anonymous RevenueCat ID, which is more cautious
-  than RevenueCat's "No"? Which purpose goes on Device ID for the IDFV? (One question to
-  RevenueCat support would settle what they use it for.)
-- **Terms of Use:** Apple's standard EULA, or our own?
-- **Proxy:** is the Swift JWS channel acceptable, or is option A's simplicity worth a bare-ID
-  trust?
-- **Free vs paid:** what exactly is in each? The onboarding doc says this is still open.
+Jordan answered every open question. The decisions are recorded in `docs/technical_decisions.md`,
+"The coach is paid; everything on the phone is free"; this note stays research input.
+
+- **Plans:** both. $4.99 a month and $39.99 a year, with a 7-day free trial as the introductory
+  offer on both.
+- **Family Sharing:** off.
+- **Limits:** stated, not "fair use". 15 coach chat messages a day per subscription (keyed by the
+  original transaction id, not per device). The weekly coach check-in doesn't count against it
+  and has its own bound of about 40 replies a week. Failed replies don't count. The global daily
+  cap stops applying to verified subscribers. The kill switch is for emergencies only; if it's off
+  for more than about 48 hours, subscribers' renewal dates are extended. The proxy work is
+  [steady-backend#11](https://github.com/jnnabugwu/steady-backend/issues/11).
+- **Label:** yes, declare Identifiers → User ID for the anonymous RevenueCat ID (not linked, App
+  Functionality). Device ID covers the IDFV, purpose App Functionality, until RevenueCat support
+  says what they use it for.
+- **Terms of Use:** Apple's standard EULA. Steady's own terms only when needed, such as for
+  Android, where Google Play has no standard EULA.
+- **Proxy:** option C, the Swift JWS channel, behind a platform-neutral check so a Google Play
+  implementation can be added if Android ships.
+- **Free vs paid:** anything that calls the hosted model is paid (coach chat, the weekly coach
+  check-in). Everything on the phone is free, including craving support and its weekly summary.
 
 ---
 
