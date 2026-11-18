@@ -14,6 +14,7 @@ import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:onboarding_domain/onboarding_domain.dart';
 import 'package:onboarding_domain/testing/in_memory_onboarding_repository.dart';
 import 'package:onboarding_presentation/onboarding_presentation.dart';
+import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/onboarding.dart';
 import 'package:steady/providers.dart';
@@ -33,10 +34,14 @@ void main() {
       );
     });
 
-    test('steps', () {
+    test('steps: every screen, plus unknown', () {
+      expect(onboardingStepCodes, {
+        ...OnboardingStep.values.map((s) => s.name),
+        'unknown',
+      });
       expect(
-        OnboardingStep.values.map((s) => s.name).toSet(),
-        onboardingStepCodes,
+        OnboardingStep.values.map((s) => s.name),
+        isNot(contains(onboardingStepUnknown)),
       );
     });
   });
@@ -274,6 +279,31 @@ void main() {
         [
           'onboarding_exited',
           {'step': 'source'},
+        ],
+      ]);
+    });
+
+    testWidgets('"Not now" after a failed read sends step unknown', (
+      tester,
+    ) async {
+      final analytics = await sharing(InstallSource.testFlight);
+      final onboarding = InMemoryOnboardingRepository()
+        ..failNextWith = const OnboardingStorageFailure('disk');
+      // The launch decision's read fails too, so open the flow by hand.
+      final container = await pumpApp(tester, onboarding, analytics: analytics);
+      expect(find.byType(OnboardingModule), findsNothing);
+      onboarding.failNextWith = const OnboardingStorageFailure('disk');
+      container.read(routerProvider).go('/onboarding');
+      await tester.pumpAndSettle();
+      expect(byKey('onboardingReadFailed'), findsOneWidget);
+
+      await tapKey(tester, 'onboardingNotNow');
+
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(postHog.sent, [
+        [
+          'onboarding_exited',
+          {'step': 'unknown'},
         ],
       ]);
     });

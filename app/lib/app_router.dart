@@ -341,11 +341,11 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
 /// either is called, and nothing brings the flow back on its own.
 ///
 /// Its callbacks: "Not now" sends `onboarding_exited` with the screen's
-/// code, and screen 3's answer sends `onboarding_source`, both through
-/// `analyticsProvider` (usage sharing's gating, `usage_sharing.dart`, is
-/// unchanged). Screen 4 asks for Apple Health (`requestHealthAccess`), and
-/// screen 8 asks for the coach's consent through [CoachConsentRoute]
-/// ([_askCoachConsent]).
+/// code (`unknown` when the stored answers couldn't be read), and screen
+/// 3's answer sends `onboarding_source`, both through `analyticsProvider`
+/// (usage sharing's gating, `usage_sharing.dart`, is unchanged). Screen 4
+/// asks for Apple Health (`requestHealthAccess`), and screen 8 asks for the
+/// coach's consent through [CoachConsentRoute] ([_askCoachConsent]).
 ///
 /// Redirects home where there's no onboarding (the Mac, and tests that
 /// don't bind it), so a typed-in link can't open it there.
@@ -377,7 +377,7 @@ class OnboardingRoute extends GoRouteData with $OnboardingRoute {
       onLeft: (at) {
         container
             .read(analyticsProvider)
-            .record(AnalyticsEvent.onboardingExited(step: at.name));
+            .record(AnalyticsEvent.onboardingExited(step: at?.name));
         toToday();
       },
       onSourceChosen: (code) => container

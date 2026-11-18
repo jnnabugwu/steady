@@ -13,7 +13,7 @@ import 'helpers/recording_onboarding_repository.dart';
 
 late RecordingOnboardingRepository repository;
 late ProviderContainer container;
-late List<OnboardingStep> leftAt;
+late List<OnboardingStep?> leftAt;
 late int finished;
 late List<String> sources;
 late int healthAsks;
@@ -580,7 +580,8 @@ void main() {
             repo.store.failNextWith = const OnboardingStorageFailure('disk'),
       );
       await tapKey(tester, 'onboardingNotNow');
-      expect(leftAt, [OnboardingStep.firstStone]);
+      // The screen the person was on couldn't be read: unknown, not screen 1.
+      expect(leftAt, [null]);
       expect(repository.record.completed, isTrue);
     });
   });
@@ -698,7 +699,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repository.calls.where((c) => c == 'markCompleted'), hasLength(1));
-      expect(leftAt, [OnboardingStep.firstStone]);
+      expect(leftAt, [null]);
     });
   });
 }
