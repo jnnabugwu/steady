@@ -11,5 +11,7 @@ export 'src/widgets/glass_tab_bar.dart';
 export 'src/widgets/logging_status_indicator.dart';
 export 'src/widgets/metric_accent_chip.dart';
 export 'src/widgets/metric_tile.dart';
+export 'src/widgets/onboarding_cairn.dart';
+export 'src/widgets/paid_badge.dart';
 export 'src/widgets/status_option_tile.dart';
 export 'src/widgets/steady_card.dart';
