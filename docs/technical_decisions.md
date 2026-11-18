@@ -7,6 +7,103 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## The coach is paid; everything on the phone is free (2026-11-17)
+
+**Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
+Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free feature.
+
+**Decision:**
+
+1. **The rule: anything that calls the hosted model is paid; anything that runs only on the
+   phone is free.** Each coach reply costs API credit; nothing else in Steady costs anything per
+   person.
+2. **Free:**
+   - the daily check-in (logged / partial / skipped) and the Cairn week card;
+   - the Today screen: metric tiles and live Apple Health steps, energy and calories eaten;
+   - the Week tab (metrics history);
+   - Cal AI PDF import;
+   - craving support: the guided flow and the weekly craving summary. Free on principle too: a
+     paywall in front of someone mid-craving works against what the app is for;
+   - iCloud sync;
+   - data export (CSV/JSON), so leaving is never paid for;
+   - reading past coach sessions, after a subscription lapses too (read-only), and their
+     summaries in the export.
+3. **Paid:**
+   - coach chat;
+   - the weekly coach check-in (the 5-minute Friday-to-Sunday session) and its stored summary;
+   - later, anything that feeds the coach, such as notes / RAG (#85).
+4. **Naming: it's Steady, not "Steady+" or "Plus".** The coach is the main thing Steady does,
+   not an add-on. The person subscribes to Steady; the copy never says "upgrade" or "Plus"
+   (`docs/design/onboarding.md` already follows this). Keep the **daily check-in** (free) and
+   the **weekly coach check-in** (paid) clearly apart in the paywall copy and the App Store
+   listing, since both are called "check-in".
+5. **Prices: $4.99 a month, $39.99 a year**, one auto-renewable subscription group. The yearly
+   plan is a third off twelve months. $29.99 was proposed first and didn't cover cost (below);
+   $49.99 was considered and passed over, since it's only about two months free and the yearly
+   plan should read as a clear deal.
+6. **A free week**, as a StoreKit introductory offer (7 days free) on both plans. Apple allows
+   it once per Apple Account per subscription group, so Steady keeps no record of who tried it.
+7. **Subscribers get a stated usage limit.** The proxy's per-device daily cap stays, and the
+   app says what it is ("up to N coach messages a day") instead of it being a surprise. N is
+   set from measured token logs before launch; the current default
+   (`COACH_DAILY_LIMIT`, 60 replies a day) is a spend backstop, not a number to advertise.
+8. **The proxy checks the subscription, not only the app.** A client-side check alone can be
+   skipped. Every coach request carries the StoreKit 2 signed transaction (a JWS signed by
+   Apple), and `steady-backend` verifies Apple's signature and the expiry before calling the
+   model. Still no accounts: like App Attest, it proves something about the purchase, not who
+   the person is.
+
+9. **Free people still get the Friday nudge.** The nudge card shows on the same rules as for
+   subscribers, and "Talk now" opens the paywall instead of the session: that's the moment the
+   coach is most wanted. The paywall uses the consent screen's calm tone, and "Not now" returns
+   to Today, like "Not tonight". Hiding the nudge for non-subscribers was the alternative.
+
+**Check before launch: cost per person against the price.**
+
+- The proxy README puts a reply at about 2 to 4 cents (`low` effort, cached instructions). A
+  weekly session is roughly a dozen replies plus the summary, about $0.25 to $0.50, so four a
+  month is about $1 to $2 before any chat.
+- With the App Store Small Business Program (15%; enrol first, it isn't automatic), $4.99 a
+  month nets about $4.24. $29.99 a year nets about $25.49, **about $2.12 a month**.
+- At $29.99 a year the yearly plan roughly broke even on the weekly sessions alone, which is
+  why it's $39.99: that nets about $33.99, **about $2.83 a month**. The monthly plan covers a
+  regular user with room for chat. Before setting prices in App Store Connect, measure real
+  cost per subscriber from the proxy's logged token counts, and set N so a yearly subscriber
+  who chats most days still costs less than they pay.
+- A free week costs about one weekly session plus some chat per person who doesn't subscribe.
+
+**Rationale:**
+
+- The coach is the only part of Steady with a running cost, and the only part that needs a
+  server. Charging exactly for it keeps the free app honest: it's the whole tracking app, not a
+  demo.
+- Paywalling local features (history, import, export, cravings) would cost nothing to give
+  away and would make the free app feel held hostage.
+- Verifying the signed transaction on the proxy fits the existing shape: the proxy already
+  verifies App Attest, holds no accounts and stores no people's data (CLAUDE.md §12).
+
+**Consequences:**
+
+- **App Privacy label:** if the proxy receives the transaction (or its `originalTransactionId`),
+  that's purchase data the developer collects. Update the label and `docs/PRIVACY.md` before
+  the build with the paywall goes to review.
+- **Consent comes after subscribing.** The paywall sits before the coach consent screen, so
+  nobody agrees to send data for a feature they haven't chosen (`docs/design/onboarding.md`).
+- **TestFlight testers** buy in the sandbox, so they aren't charged. Test the lapsed state
+  (past sessions readable, new ones blocked) with a sandbox subscription that expires.
+- **The coach's typed failures** gain one for "not subscribed", next to
+  `CoachConsentNotGivenFailure`, so the Coach tab and the nudge show the paywall instead of an
+  error.
+
+**Alternatives considered:**
+
+- **A free weekly check-in with paid chat:** rejected. The weekly session is several model
+  calls a week for every person, the largest cost, and the core of what the coach is for.
+- **A few free coach messages a month:** not now. It still means a server cost for people who
+  never pay, and the free week already lets people try the coach.
+
+---
+
 ## Usage events from App Store builds too (2026-11-17)
 
 **Decision:** App Store installs send the same anonymous usage events as TestFlight builds,
