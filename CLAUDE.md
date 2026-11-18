@@ -547,7 +547,8 @@ onboarding), nothing is read, and `OnboardingRoute` redirects home.
 
 - `onFinished` and `onLeft` go to Today (`HomeRoute`). The module marks onboarding done
   before calling either.
-- `onLeft` also sends `onboarding_exited` with the screen's code, and `onSourceChosen`
+- `onLeft(OnboardingStep?)` also sends `onboarding_exited` with the screen's code (`null`,
+  after a failed read, sends `unknown`), and `onSourceChosen`
   sends `onboarding_source`, both through `analyticsProvider` (§1; TestFlight only).
 - `onHealthRequested` calls `requestHealthAccess` (§1).
 - `onConsentRequested` is `_askCoachConsent` (below).
