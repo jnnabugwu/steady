@@ -13,6 +13,10 @@ void main() {
         for (final reason in CoachAvailabilityReason.values)
           AnalyticsEvent.coachAvailability(reason: reason),
         AnalyticsEvent.cravingFlowFinished,
+        for (final source in onboardingSourceCodes)
+          AnalyticsEvent.onboardingSource(source: source),
+        for (final step in onboardingStepCodes)
+          AnalyticsEvent.onboardingExited(step: step),
       ];
       for (final event in events) {
         for (final value in event.properties.values) {
@@ -44,6 +48,41 @@ void main() {
       expect(
         AnalyticsEvent.pdfImportFailed(stage: PdfImportStage.parse).properties,
         {'stage': 'parse'},
+      );
+      expect(
+        AnalyticsEvent.onboardingSource(source: 'appStore'),
+        isA<AnalyticsEvent>()
+            .having((e) => e.name, 'name', 'onboarding_source')
+            .having((e) => e.properties, 'properties', {'source': 'appStore'}),
+      );
+      expect(
+        AnalyticsEvent.onboardingExited(step: 'meetCoach'),
+        isA<AnalyticsEvent>()
+            .having((e) => e.name, 'name', 'onboarding_exited')
+            .having((e) => e.properties, 'properties', {'step': 'meetCoach'}),
+      );
+    });
+
+    test('the onboarding codes are fixed', () {
+      expect(onboardingSourceCodes, {
+        'friend',
+        'instagram',
+        'reddit',
+        'appStore',
+        'tiktok',
+        'other',
+      });
+      expect(onboardingStepCodes, hasLength(10));
+    });
+
+    test('an unknown onboarding source or step fails in debug', () {
+      expect(
+        () => AnalyticsEvent.onboardingSource(source: 'my sister Ana'),
+        throwsA(isA<AssertionError>()),
+      );
+      expect(
+        () => AnalyticsEvent.onboardingExited(step: 'screen 4'),
+        throwsA(isA<AssertionError>()),
       );
     });
 

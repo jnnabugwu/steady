@@ -27,6 +27,36 @@ enum PdfImportStage {
   save,
 }
 
+/// The codes [AnalyticsEvent.onboardingSource] accepts: onboarding screen
+/// 3's answers to "Where did you hear about Steady?". Mirrors
+/// `OnboardingSource`'s codes (`onboarding_presentation`), without
+/// depending on it; `app/test/onboarding_test.dart` checks the two match.
+const onboardingSourceCodes = {
+  'friend',
+  'instagram',
+  'reddit',
+  'appStore',
+  'tiktok',
+  'other',
+};
+
+/// The codes [AnalyticsEvent.onboardingExited] accepts: the onboarding
+/// screens, by `OnboardingStep` code (`onboarding_domain`), mirrored
+/// without depending on it; `app/test/onboarding_test.dart` checks the two
+/// match.
+const onboardingStepCodes = {
+  'firstStone',
+  'tracking',
+  'source',
+  'health',
+  'week',
+  'hardParts',
+  'voice',
+  'meetCoach',
+  'firstWeek',
+  'cairn',
+};
+
 /// One usage event Steady may send (TestFlight builds only; see
 /// `app/lib/usage_sharing.dart`).
 ///
@@ -85,6 +115,27 @@ final class AnalyticsEvent {
   /// The craving flow reached its end and was saved. Which outcome was
   /// chosen is left out.
   static const cravingFlowFinished = AnalyticsEvent._('craving_flow_finished');
+
+  /// Onboarding screen 3 was answered: where the person heard about
+  /// Steady, as one of [onboardingSourceCodes]. A fixed code only, never
+  /// free text; a skip sends nothing.
+  factory AnalyticsEvent.onboardingSource({required String source}) {
+    assert(
+      onboardingSourceCodes.contains(source),
+      'Unknown onboarding source: $source',
+    );
+    return AnalyticsEvent._('onboarding_source', {'source': source});
+  }
+
+  /// The person left onboarding early ("Not now") on [step], one of
+  /// [onboardingStepCodes]. Not sent on finishing.
+  factory AnalyticsEvent.onboardingExited({required String step}) {
+    assert(
+      onboardingStepCodes.contains(step),
+      'Unknown onboarding step: $step',
+    );
+    return AnalyticsEvent._('onboarding_exited', {'step': step});
+  }
 
   /// The event's name in PostHog.
   final String name;
