@@ -30,6 +30,20 @@ private database for your Apple ID), so your iPhone and Mac stay in sync. Only y
 your private iCloud data; the developer can't. If your device isn't signed into iCloud, your
 data stays only on that device until you sign in.
 
+## Getting started
+
+The first time you open Steady on iPhone, a short introduction asks a few questions, each of
+which you can skip: how you track what you eat, what your week looks like, what gets in the
+way of logging, how you'd like the coach to talk to you, and anything else the coach should
+know. Steady keeps your answers, whether you finished or left the introduction, and the
+screen you were on, so it can pick up where you left off.
+
+- They're stored **on that iPhone** only, in the app's own storage, like craving check-ins:
+  not in iCloud storage, and not synced to your other devices. iOS includes them in an
+  iCloud Backup of the phone like any other app data. Deleting the app removes them.
+- "Where did you hear about Steady?" isn't stored. In TestFlight beta builds the answer is
+  sent as one anonymous usage event (see "TestFlight beta builds").
+
 ## Craving check-ins
 
 On iPhone, when you use "Having a craving?", Steady records each finished check-in: when it
@@ -144,7 +158,10 @@ see which features get used and where things go wrong. Versions from the App Sto
   nothing more. The events are: the app was installed, opened or closed; a check-in was saved
   (and whether it was logged, partial or skipped); a Cal AI PDF import finished (how many days
   it had) or failed; the craving check-in reached its end; whether the coach can run on this
-  iPhone (and if not, why: it's switched off, or this iPhone can't be verified); and, once per launch,
+  iPhone (and if not, why: it's switched off, or this iPhone can't be verified); where you
+  heard about Steady, if you answer that question when you first open the app (one of: a
+  friend or family, Instagram, Reddit, App Store search, TikTok, something else); which
+  screen of that first-run introduction you left on, if you tap "Not now"; and, once per launch,
   whether Apple Health returned any steps and any calories eaten in the last seven days (yes
   or no, not the amounts). Each event also carries the app version, the iPhone model, the iOS
   version, language and time zone, and a random ID made for this install.

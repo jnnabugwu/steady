@@ -33,6 +33,11 @@
   The Mac has no Health data: `HKHealthStore.isHealthDataAvailable()` returns false on
   macOS. Health values are read live and never stored in the synced store (App Store
   guideline 5.1.3; `docs/technical_decisions.md`, "Health data stays on the iPhone").
+  The permission sheet is never shown at launch: only `requestHealthAccess`
+  (`app/lib/health_access.dart`) shows it, from a screen that says why (onboarding's
+  screen 4, Settings → Apple Health, Today's "Connect Apple Health", the Cal AI card).
+  Launch and resume call `refreshHealthData`, which re-reads Health only once the sheet
+  has been shown (`requested`).
 - **The coach's model: hosted Claude (decided 2026-10-30).** The coach's sessions run on the
   iPhone, where its context lives: Health data (iOS only, above) and craving check-ins
   (device-only, §7). Its replies come from Claude Opus 5.5 (`claude-opus-5-5`) through the
@@ -88,12 +93,15 @@ steady/
 │   │   ├── app_router.dart        # routerProvider + typed routes, wires feature callbacks (§5)
 │   │   ├── app_shell.dart          # AppShell: the tab branches under the floating GlassTabBar (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
+│   │   ├── onboarding.dart         # once-per-launch onboarding decision; Today's import
+│   │   │                            # button from screen 2's answer (§5)
+│   │   ├── health_access.dart      # Apple Health: refresh (never asks) and request (§1)
 │   │   ├── usage_sharing.dart      # PostHog on TestFlight only: install check, opt-out (§1)
 │   │   ├── today_screen.dart       # TodayScreen, served at `/` by HomeRoute: composes the
 │   │   │                            # features' Today cards (§5)
 │   │   └── main.dart               # ProviderScope + ShadcnApp.router
 │   ├── test/                      # bootstrap_test (shared-store invariant), app_router_test,
-│   │                                # today_screen_test
+│   │                                # today_screen_test, onboarding_test
 │   ├── ios/
 │   └── macos/
 │
@@ -130,6 +138,12 @@ steady/
 │   │   ├── pdf_import_domain/
 │   │   ├── pdf_import_data/         # CalAIParser lives here — see §6
 │   │   └── pdf_import_presentation/
+│   ├── onboarding/                 # iPhone only: the ten-screen first-launch flow and
+│   │   │                            # About me. Device-only storage, never synced (§7)
+│   │   ├── onboarding_domain/       # OnboardingRecord, AboutMe, OnboardingStep,
+│   │   │                            # OnboardingRepository; lib/testing/ in-memory fake
+│   │   ├── onboarding_data/         # FileOnboardingRepository: onboarding.json in app support
+│   │   └── onboarding_presentation/ # OnboardingModule (callbacks only), its controller
 │   └── notes/                      # Planned (RAG) — headless for now, see docs §8
 │       ├── notes_domain/
 │       └── notes_data/              # Talks to RAGKitCore via rag_kit plugin (see §8)
@@ -168,7 +182,8 @@ store, the hosted model, the consent store behind `coachConsentGivenProvider` an
 context's sources, all bound on iOS only;
 the sources
 to the owning features' own repositories), `cravings_presentation`,
-`metrics_presentation` and `pdf_import_presentation` today. Generated files (`*.g.dart`,
+`metrics_presentation`, `onboarding_presentation` (bound on iOS only) and
+`pdf_import_presentation` today. Generated files (`*.g.dart`,
 `*.freezed.dart`) sit next to their sources and are committed (§9); the tree above
 doesn't list them.
 
@@ -337,7 +352,8 @@ copy:
 | Provider | Lifetime | Why |
 | --- | --- | --- |
 | `dailyMetricRepositoryProvider` | `keepAlive: true` | The shared store. Disposing it loses in-memory data and breaks the shared-store invariant (§9). |
-| Feature repository providers (checkin, metrics, pdf_import), overridden in `appProviderOverrides` | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
+| Feature repository providers (checkin, metrics, pdf_import, onboarding), overridden in `appProviderOverrides` | `keepAlive: true` | Cheap, stateless, recreating them gains nothing. |
+| `onboardingSupportAvailableProvider` (declared in `app/lib/providers.dart`; `true` on iOS only) | `keepAlive: true` | A constant for the app's lifetime. `false` means onboarding never shows and its repository is never read. |
 | `healthKitRepositoryProvider` (declared directly in `app/lib/providers.dart`; `null` except on iOS) | `keepAlive: true` | Same reason: cheap and stateless. `health_sync` is headless, so the app layer declares it (§9). |
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
@@ -473,7 +489,9 @@ session, on the root navigator over the shell) and `CoachTranscriptRoute`
 `CheckInRoute` (`/checkin/<date>`) and `CravingRoute` (`/craving`, iPhone only) are nested
 under `HomeRoute`, so Today is beneath them even on a cold start; the check-in keeps the
 tab bar, while `CravingRoute` is presented on the root navigator over the shell.
-`ImportRoute` (`/import`) is top-level, on the root navigator over the shell. The shell
+`ImportRoute` (`/import`) is top-level, on the root navigator over the shell.
+`OnboardingRoute` (`/onboarding`, iPhone only) is top-level too, and is gone to rather
+than pushed, so it replaces the shell (below, "First launch"). The shell
 raises `MediaQuery.padding.bottom` to clear the bar: a screen that should scroll under it
 (Today) pads its scroll content by `MediaQuery.paddingOf(context).bottom` instead of
 wrapping itself in a bottom `SafeArea`.
@@ -482,7 +500,10 @@ wrapping itself in a bottom `SafeArea`.
 feature's `*_presentation` package exports: the account feature's `ICloudSyncBanner`,
 checkin's `CheckInCard` and `CairnWeekCard`, metrics' `TodayMetricTiles`, and the cravings
 feature's `CravingHomeSection` (iPhone only). Its header holds the date, a time-of-day
-greeting and the import button. "Today" is checkin's `checkInTodayProvider` (local
+greeting and the import button (hidden by screen 2's answer; "First launch", below).
+Under the tiles, `TodayMetricTiles.onConnectHealth` shows "Connect Apple Health" while
+Health's sheet hasn't been shown (`healthConnectOfferedProvider`), and `HomeRoute` wires
+it to `requestHealthAccess`. "Today" is checkin's `checkInTodayProvider` (local
 midnight of `checkInClockProvider`, which tests pin). The app root (`SteadyApp` in
 `main.dart`) calls its `refreshToday` from a timer set for the next local midnight and on
 every resume, so a screen left open overnight moves to the new day and its date-keyed
@@ -492,13 +513,46 @@ on the iPhone unless the weekly check-in is ready. Its "Talk now" opens `CoachWe
 (`/weekly-check-in`, top-level on the root navigator, since both Today and the Coach tab
 open it; it redirects home on the Mac), after the consent screen when consent isn't given.
 
+**First launch (`/onboarding`).** Everyone sees onboarding once, 1.0 users included: no
+`onboarding.json` reads as not completed. `SteadyApp` decides once per launch, in
+`initState`, with `OnboardingLaunchCheck` (`app/lib/onboarding.dart`). It shows the flow
+only when all of these hold:
+
+- the platform's initial route is `/` (a cold start from `/checkin/<date>` opens the link,
+  and onboarding waits for the next ordinary launch);
+- the record says not completed. An unreadable file counts as done
+  (`OnboardingRecord.whenUnreadable`). A storage failure, or a read slower than
+  `onboardingLaunchReadTimeout` (1 s), means not this launch;
+- Today is still on screen, with nothing pushed over it, when the answer arrives.
+
+The first frame never waits: Today draws, and once the read answers `router.go` replaces
+it with `OnboardingRoute`. There's no tab bar, and a system back has nothing to pop to.
+Nothing re-checks after that one decision (no redirect runs on navigation), so leaving or
+finishing never leads back into the flow during the session. Where
+`onboardingSupportAvailableProvider` is `false` (the Mac, and tests that don't bind
+onboarding), nothing is read, and `OnboardingRoute` redirects home.
+
+`OnboardingRoute` wires `OnboardingModule`'s callbacks:
+
+- `onFinished` and `onLeft` go to Today (`HomeRoute`). The module marks onboarding done
+  before calling either.
+- `onLeft` also sends `onboarding_exited` with the screen's code, and `onSourceChosen`
+  sends `onboarding_source`, both through `analyticsProvider` (§1; TestFlight only).
+- `onHealthRequested` calls `requestHealthAccess` (§1).
+- `onConsentRequested` is `_askCoachConsent` (below).
+
+Screen 2's answer decides Today's header import button (`todayImportButtonShownProvider`).
+It's hidden for `otherHealthApp` and `justStarting`, and shown for `calAi`, no answer, an
+unreadable record and while loading. Week's header keeps its import button for everyone.
+
 **Consent (`/coach-consent`).** `CoachConsentRoute` (top-level, on the root navigator,
 redirects home on the Mac) shows coach's `CoachConsentModule` and pops with `true` for
 "Allow and continue", `false` for "Not now". The app pushes it through `_askCoachConsent`
 from every way into the coach: the Coach tab's "Turn on the coach", the nudge's "Talk now"
-(then `CoachWeeklyRoute` if allowed), a session opened without consent, and the Settings
-switch. The feature never sees the route: each Module takes an `onConsentRequested`
-callback, and the screens follow `coachConsentGivenProvider` by themselves.
+(then `CoachWeeklyRoute` if allowed), a session opened without consent, the Settings
+switch, and onboarding's screen 8. The feature never sees the route: each Module takes an
+`onConsentRequested` callback, and the screens follow `coachConsentGivenProvider` by
+themselves.
 
 **App shell.** `main.dart` builds `ShadcnApp.router(theme: steadyTheme, routerConfig:
 ref.watch(routerProvider))` and adds no Material localizations delegate. **Decided
@@ -695,6 +749,14 @@ Anthropic for the reply, with consent (above).
 person agreed to) next to `coach_sessions.json`: never SwiftData/CloudKit, never synced, in
 the person's own device backup like the sessions. Missing or corrupt reads as not given.
 
+**Onboarding is device-only too.** `FileOnboardingRepository` (`onboarding_data`) keeps
+`onboarding.json` (whether onboarding is done, the screen to resume from, and the About me
+answers) next to `coach_consent.json`. Like the consent file, it's never SwiftData/CloudKit
+and never synced, and it's in the person's own device backup. It's bound on iOS only.
+Missing reads as not completed. Unreadable counts as done, and the next write replaces it.
+Screen 3's answer (where the person heard about Steady) is never stored: it's only the
+`onboarding_source` event.
+
 **Sharing is share cards, not live data.** A rendered image handed to the system share sheet
 (`share_plus`), built inside the owning feature's `_presentation` package. The card reads
 existing check-in and metric data through those features' domain repositories (§2, §9); no new
@@ -818,6 +880,12 @@ and the profiles are regenerated (#148), so it signs.
   the shared store is the same SwiftData plugin on both targets, and everything else is
   in-memory. `dailyMetricStoreProvider` picks the store: in-memory by default, so tests
   built from `appProviderOverrides` need no native plugin, and SwiftData in `main.dart`.
+- Onboarding is bound on iOS only, in the same block as the coach's consent store:
+  `onboardingRepositoryProvider` to `FileOnboardingRepository` on `onboarding.json`
+  (`onboardingFile`), and `onboardingSupportAvailableProvider` (declared in
+  `app/lib/providers.dart`, `false` by default) to `true`. Unbound, the repository provider
+  throws, so the app checks `onboardingSupportAvailableProvider` first and never reads it.
+  `bootstrap_test.dart` runs the iOS binding against a real temp directory.
 - Providers for headless features have no `*_presentation` package to live in, so
   they're declared directly in `app/lib/providers.dart`: `healthKitRepositoryProvider`
   (`null` by default, bound to the HealthKit channel on iOS only), and the hosted coach's

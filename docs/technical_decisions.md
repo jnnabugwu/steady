@@ -20,6 +20,11 @@ App Store installs send nothing. The events are a fixed list in `packages/shared
 - `pdf_import_failed`: whether parse or save failed.
 - `coach_availability`, once per launch: available, or the unavailable reason.
 - `craving_flow_finished`: nothing else.
+- `onboarding_source`: where the person heard about Steady, as a fixed code (`friend`,
+  `instagram`, `reddit`, `appStore`, `tiktok`, `other`), sent only when screen 3 is
+  answered (#161).
+- `onboarding_exited`: the screen's fixed code (an `OnboardingStep`) when someone leaves
+  onboarding with "Not now". Not sent on finishing.
 - PostHog's own lifecycle events (installed, opened, backgrounded).
 
 There's a Settings switch to turn it off. Session replay, autocaptured taps, person

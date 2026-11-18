@@ -88,7 +88,8 @@ items land; don't let it drift into a change log — keep it a current-state che
       model (`HostedCoachModel`), an inference port rather than a repository — bound on
       iOS only, and `coachConsentRepositoryProvider` (the device-only consent store, iOS
       only; unbound reads as not given) behind the `coachConsentGivenProvider` Notifier
-      (#153).
+      (#153). onboarding (`onboardingRepositoryProvider`, bound on iOS only to
+      `onboarding.json`, with the app's `onboardingSupportAvailableProvider`; #161).
 - [x] `app/lib/providers.dart`: one `appProviderOverrides` list across both targets, used by
       `main.dart` and `app/test/bootstrap_test.dart`.
 - [ ] Platform-specific datasources (e.g. HealthKit, iOS only; macOS gets none) selected
@@ -361,6 +362,38 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
 - [ ] Not yet run on a physical iPhone (VoiceOver announcements, reduced motion, the help
       link opening Safari).
 
+## Feature: onboarding (iPhone only, device-only storage, #161)
+
+Design: `docs/design/onboarding.md`.
+
+- [x] `onboarding_domain`: `OnboardingRecord` (completed, the step to resume from, About me),
+      `AboutMe`, `OnboardingStep`, `OnboardingRepository`; an in-memory fake under
+      `lib/testing/`.
+- [x] `onboarding_data`: `FileOnboardingRepository` on `onboarding.json` (atomic writes,
+      serialized; missing is a first launch, unreadable counts as done and the next write
+      replaces it). Not SwiftData/CloudKit; never synced.
+- [x] `onboarding_presentation`: `OnboardingModule`, the ten screens with the cairn as the
+      progress bar; "Not now" on every screen but the last; callbacks only.
+- [x] Wired (`app/lib/onboarding.dart`, `OnboardingRoute` at `/onboarding`): bound on iOS
+      only; shown once per launch, only on an ordinary launch whose record says not
+      completed, never blocking the first frame (an unreadable file, a storage failure
+      or a read over 1 s skip it); finishing and "Not now" go to Today and nothing
+      brings it back. 1.0 users see it once.
+- [x] Apple Health is never asked at launch: only onboarding's screen 4, Settings →
+      Apple Health, Today's "Connect Apple Health" and the Cal AI card ask
+      (`requestHealthAccess`).
+- [x] Screen 8 asks for the coach's consent through `CoachConsentRoute`.
+- [x] Screen 2's answer hides Today's import button for `otherHealthApp` and
+      `justStarting` (Week keeps its own).
+- [x] `onboarding_source` and `onboarding_exited` usage events (TestFlight only, like the
+      rest; `docs/PRIVACY.md`).
+- [ ] Settings → About me, to change the answers later.
+- [ ] About me reaching the coach (the proxy's context).
+- [ ] Sending `onboarding_source` from App Store builds: needs the App Privacy label and a
+      change to "Usage events from TestFlight builds only" first (design doc).
+- [ ] Not yet run on a physical iPhone (the Health sheet from screen 4, VoiceOver, a
+      first launch after updating from 1.0).
+
 ## HealthKit (CLAUDE.md §1/§7/§8)
 
 - [x] Decided: Health data stays on the iPhone (App Store guideline 5.1.3(ii), no personal
@@ -376,6 +409,9 @@ device-only". Evidence and wording rules: `docs/research/craving_support.md` §4
       export may mention numbers the coach discussed (CLAUDE.md §7). Values an older
       build stored are removed at launch
       (`clearLegacyHealthFields`, run from `app/lib/main.dart`).
+- [x] The permission sheet is shown only from a screen that explains it
+      (`requestHealthAccess`: onboarding's screen 4, Settings → Apple Health, Today's
+      "Connect Apple Health", the Cal AI card), never at launch or resume (#161).
 - [x] Platform channels live directly in `app/ios` runner-adjacent code (no macOS
       implementation) — deliberately not extracted into a native package like `RAGKitCore`
       (less shared logic to isolate; mostly "call the native API, marshal the result").
