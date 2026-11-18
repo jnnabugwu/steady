@@ -260,6 +260,14 @@ abstract final class OnboardingCopy {
       'What you told Steady when you started. Change anything, any time. '
       'Tap a chosen answer again to clear it.';
 
+  /// Shown in the editor when a save failed, instead of [saveFailed] (which
+  /// points to Settings, where the person already is). True to what the
+  /// editor does: the edit stays on screen, and the next edit saves every
+  /// answer, this one included.
+  static const aboutMeSaveFailed =
+      'Couldn’t save that just now. Your answer is still here, and the next '
+      'change will try again.';
+
   /// The editor's food tracking section (screen 2's question). Its line is
   /// [trackingReason].
   static const aboutMeTrackingHeading = 'Food tracking';

@@ -279,8 +279,12 @@ void main() {
 
       expect(rowSelected(tester, FoodTracking.justStarting), isTrue);
       expect(rowSelected(tester, FoodTracking.calAi), isFalse);
-      expect(byKey('onboardingSaveFailed'), findsOneWidget);
-      expect(find.text(OnboardingCopy.saveFailed), findsOneWidget);
+      expect(byKey('aboutMeSaveFailed'), findsOneWidget);
+      // Its own line, not the flow's ("…later in Settings"): this is
+      // Settings.
+      expect(find.text(OnboardingCopy.aboutMeSaveFailed), findsOneWidget);
+      expect(find.text(OnboardingCopy.saveFailed), findsNothing);
+      expect(byKey('onboardingSaveFailed'), findsNothing);
       // Nothing was stored.
       expect(stored().tracking, FoodTracking.calAi);
     });
@@ -293,7 +297,7 @@ void main() {
       await tap(tester, option(FoodTracking.justStarting));
       await tap(tester, option(CoachVoice.direct));
 
-      expect(byKey('onboardingSaveFailed'), findsNothing);
+      expect(byKey('aboutMeSaveFailed'), findsNothing);
       expect(stored().tracking, FoodTracking.justStarting);
       expect(stored().voice, CoachVoice.direct);
     });
@@ -305,7 +309,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Night shifts'), findsOneWidget);
-      expect(byKey('onboardingSaveFailed'), findsOneWidget);
+      expect(byKey('aboutMeSaveFailed'), findsOneWidget);
       expect(stored().note, 'I work nights twice a month');
     });
   });
@@ -321,7 +325,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(stored().note, 'a' * aboutMeNoteMaxChars);
-      expect(byKey('onboardingSaveFailed'), findsNothing);
+      expect(byKey('aboutMeSaveFailed'), findsNothing);
     });
 
     testWidgets('counted in code points, as the store counts: an emoji '
@@ -336,7 +340,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(stored().note!.runes, hasLength(aboutMeNoteMaxChars));
-      expect(byKey('onboardingSaveFailed'), findsNothing);
+      expect(byKey('aboutMeSaveFailed'), findsNothing);
     });
   });
 

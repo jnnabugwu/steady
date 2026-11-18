@@ -528,7 +528,7 @@ void main() {
         await openAboutMe(tester);
         onboarding.failNextWith = const OnboardingStorageFailure('disk');
         await tapKey(tester, 'aboutMeOption_justStarting');
-        expect(byKey('onboardingSaveFailed'), findsOneWidget);
+        expect(byKey('aboutMeSaveFailed'), findsOneWidget);
 
         await backToToday(tester);
         expect(byKey('importButton_header'), findsOneWidget);

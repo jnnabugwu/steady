@@ -21,7 +21,8 @@ import 'package:ui_kit/ui_kit.dart';
 ///
 /// Every change shows at once and is saved behind it
 /// ([AboutMeController]); a failed save keeps the edit on screen and shows
-/// the same quiet line as onboarding ([OnboardingSaveFailedLine]).
+/// a quiet line of its own ([OnboardingSaveFailedLine.aboutMe]: the flow's
+/// says "later in Settings", and this is Settings).
 ///
 /// Knows nothing about routing or Today (CLAUDE.md §5): [onBack] and
 /// [onAboutMeChanged] are the app's. Scrolls under the tab bar, like the
@@ -160,7 +161,7 @@ class _EditorState extends ConsumerState<_Editor> {
         if (failed)
           Padding(
             padding: EdgeInsets.fromLTRB(22, 8, 22, 12 + bottomInset),
-            child: const OnboardingSaveFailedLine(),
+            child: const OnboardingSaveFailedLine.aboutMe(),
           ),
       ],
     );

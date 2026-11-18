@@ -499,16 +499,31 @@ class OnboardingBubble extends StatelessWidget {
   );
 }
 
-/// The quiet line shown when a save failed ([OnboardingCopy.saveFailed]).
-/// The answer stays on screen and in memory; nothing else changes.
+/// The quiet line shown when a save failed. The answer stays on screen and
+/// in memory; nothing else changes.
+///
+/// The flow says [OnboardingCopy.saveFailed] (keyed `onboardingSaveFailed`);
+/// Settings → About me, where "later in Settings" would make no sense,
+/// says [OnboardingCopy.aboutMeSaveFailed] ([OnboardingSaveFailedLine.aboutMe],
+/// keyed `aboutMeSaveFailed`).
 class OnboardingSaveFailedLine extends StatelessWidget {
-  /// Creates the line.
-  const OnboardingSaveFailedLine({super.key});
+  /// The flow's line.
+  const OnboardingSaveFailedLine({super.key})
+    : _message = OnboardingCopy.saveFailed,
+      _textKey = const Key('onboardingSaveFailed');
+
+  /// Settings → About me's line.
+  const OnboardingSaveFailedLine.aboutMe({super.key})
+    : _message = OnboardingCopy.aboutMeSaveFailed,
+      _textKey = const Key('aboutMeSaveFailed');
+
+  final String _message;
+  final Key _textKey;
 
   @override
   Widget build(BuildContext context) => Text(
-    OnboardingCopy.saveFailed,
-    key: const Key('onboardingSaveFailed'),
+    _message,
+    key: _textKey,
     style: SteadyType.body.copyWith(fontSize: 13),
   );
 }

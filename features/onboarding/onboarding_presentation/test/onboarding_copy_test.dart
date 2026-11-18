@@ -59,6 +59,7 @@ List<String> _everyString() => [
   OnboardingCopy.aboutMeTitle,
   OnboardingCopy.aboutMeRowDetail,
   OnboardingCopy.aboutMeIntro,
+  OnboardingCopy.aboutMeSaveFailed,
   OnboardingCopy.aboutMeTrackingHeading,
   OnboardingCopy.aboutMeWeekHeading,
   OnboardingCopy.aboutMeHardPartsHeading,
