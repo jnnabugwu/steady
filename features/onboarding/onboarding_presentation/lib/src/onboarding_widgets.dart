@@ -1,3 +1,5 @@
+import 'package:flutter/services.dart';
+import 'package:onboarding_domain/onboarding_domain.dart';
 import 'package:onboarding_presentation/src/onboarding_copy.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -168,11 +170,7 @@ class OnboardingPage extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (saveFailed) ...[
-                Text(
-                  OnboardingCopy.saveFailed,
-                  key: const Key('onboardingSaveFailed'),
-                  style: SteadyType.body.copyWith(fontSize: 13),
-                ),
+                const OnboardingSaveFailedLine(),
                 const SizedBox(height: 8),
               ],
               ConstrainedBox(
@@ -497,6 +495,160 @@ class OnboardingBubble extends StatelessWidget {
           ),
         ),
       ),
+    ),
+  );
+}
+
+/// The quiet line shown when a save failed ([OnboardingCopy.saveFailed]).
+/// The answer stays on screen and in memory; nothing else changes.
+class OnboardingSaveFailedLine extends StatelessWidget {
+  /// Creates the line.
+  const OnboardingSaveFailedLine({super.key});
+
+  @override
+  Widget build(BuildContext context) => Text(
+    OnboardingCopy.saveFailed,
+    key: const Key('onboardingSaveFailed'),
+    style: SteadyType.body.copyWith(fontSize: 13),
+  );
+}
+
+/// One question's answers as a column of [OnboardingChoiceRow]s, one per
+/// value of [options]. Shared by the onboarding screens and Settings →
+/// About me, so both offer the same rows in the same words.
+///
+/// Each row is keyed `<keyPrefix><code>` (the value's `name`).
+class OnboardingChoiceList<T extends Enum> extends StatelessWidget {
+  /// Creates the rows.
+  const OnboardingChoiceList({
+    required this.options,
+    required this.label,
+    required this.isSelected,
+    required this.onPressed,
+    this.detail,
+    this.multiSelect = false,
+    this.keyPrefix = 'onboardingOption_',
+    super.key,
+  });
+
+  /// The answers, in order.
+  final List<T> options;
+
+  /// Each answer's text.
+  final String Function(T) label;
+
+  /// Each answer's line under its text, if any.
+  final String Function(T)? detail;
+
+  /// Whether an answer is chosen.
+  final bool Function(T) isSelected;
+
+  /// Called when an answer's row is tapped.
+  final void Function(T) onPressed;
+
+  /// Whether more than one can be chosen (check boxes, not radio rings).
+  final bool multiSelect;
+
+  /// The rows' key prefix.
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    spacing: 10,
+    children: [
+      for (final option in options)
+        OnboardingChoiceRow(
+          key: Key('$keyPrefix${option.name}'),
+          label: label(option),
+          detail: detail?.call(option),
+          multiSelect: multiSelect,
+          selected: isSelected(option),
+          onPressed: () => onPressed(option),
+        ),
+    ],
+  );
+}
+
+/// "What keeps you moving" (screen 5): an [OnboardingChip] per
+/// [OnboardingActivity], any number chosen. Shared by screen 5 and
+/// Settings → About me. Each chip is keyed `<keyPrefix><code>`.
+class OnboardingActivityChips extends StatelessWidget {
+  /// Creates the chips.
+  const OnboardingActivityChips({
+    required this.selected,
+    required this.onPressed,
+    this.keyPrefix = 'onboardingOption_',
+    super.key,
+  });
+
+  /// The activities chosen.
+  final Set<OnboardingActivity> selected;
+
+  /// Called when an activity's chip is tapped.
+  final void Function(OnboardingActivity) onPressed;
+
+  /// The chips' key prefix.
+  final String keyPrefix;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      for (final activity in OnboardingActivity.values)
+        OnboardingChip(
+          key: Key('$keyPrefix${activity.name}'),
+          label: OnboardingCopy.activity(activity),
+          selected: selected.contains(activity),
+          onPressed: () => onPressed(activity),
+        ),
+    ],
+  );
+}
+
+/// "Anything else the coach should know?" (screen 8): the About me note's
+/// field. Shared by screen 8 and Settings → About me.
+///
+/// The field stops at [aboutMeNoteMaxChars] as Flutter counts characters
+/// (grapheme clusters); whoever saves the text still cuts it to that many
+/// code points (`clampAboutMeNote`), which is what the store allows.
+class AboutMeNoteField extends StatelessWidget {
+  /// Creates the field. [fieldKey] goes on the text field itself.
+  const AboutMeNoteField({
+    required this.controller,
+    required this.fieldKey,
+    this.enabled = true,
+    this.onChanged,
+    super.key,
+  });
+
+  /// The text.
+  final TextEditingController controller;
+
+  /// The text field's key.
+  final Key fieldKey;
+
+  /// Whether it can be edited.
+  final bool enabled;
+
+  /// Called with the text after every edit.
+  final ValueChanged<String>? onChanged;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: OnboardingCopy.noteLabel,
+    textField: true,
+    child: TextField(
+      key: fieldKey,
+      controller: controller,
+      enabled: enabled,
+      onChanged: onChanged,
+      placeholder: const Text(OnboardingCopy.notePlaceholder),
+      minLines: 2,
+      maxLines: 4,
+      maxLength: aboutMeNoteMaxChars,
+      maxLengthEnforcement: MaxLengthEnforcement.enforced,
     ),
   );
 }

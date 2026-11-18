@@ -56,6 +56,14 @@ List<String> _everyString() => [
   OnboardingCopy.cairnNext,
   OnboardingCopy.cairnSkipped,
   OnboardingCopy.goToToday,
+  OnboardingCopy.aboutMeTitle,
+  OnboardingCopy.aboutMeRowDetail,
+  OnboardingCopy.aboutMeIntro,
+  OnboardingCopy.aboutMeTrackingHeading,
+  OnboardingCopy.aboutMeWeekHeading,
+  OnboardingCopy.aboutMeHardPartsHeading,
+  OnboardingCopy.aboutMeVoiceHeading,
+  OnboardingCopy.aboutMeNoteHeading,
 ];
 
 void main() {

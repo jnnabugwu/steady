@@ -1,4 +1,3 @@
-import 'package:flutter/services.dart';
 import 'package:onboarding_domain/onboarding_domain.dart';
 import 'package:onboarding_presentation/src/first_stone.dart';
 import 'package:onboarding_presentation/src/onboarding_copy.dart';
@@ -122,18 +121,11 @@ class _SingleChoiceScreenState<T extends Enum>
       null => null,
     },
     onSkip: widget.onSkip,
-    body: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 10,
-      children: [
-        for (final option in widget.options)
-          OnboardingChoiceRow(
-            key: Key('onboardingOption_${option.name}'),
-            label: widget.label(option),
-            selected: option == _choice,
-            onPressed: () => setState(() => _choice = option),
-          ),
-      ],
+    body: OnboardingChoiceList<T>(
+      options: widget.options,
+      label: widget.label,
+      isSelected: (option) => option == _choice,
+      onPressed: (option) => setState(() => _choice = option),
     ),
   );
 }
@@ -277,40 +269,24 @@ class _WeekScreenState extends State<WeekScreen> {
       children: [
         const OnboardingGroupHeading(OnboardingCopy.activitiesHeading),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final activity in OnboardingActivity.values)
-              OnboardingChip(
-                key: Key('onboardingOption_${activity.name}'),
-                label: OnboardingCopy.activity(activity),
-                selected: _activities.contains(activity),
-                onPressed: () => setState(() {
-                  if (!_activities.remove(activity)) _activities.add(activity);
-                }),
-              ),
-          ],
+        OnboardingActivityChips(
+          selected: _activities,
+          onPressed: (activity) => setState(() {
+            if (!_activities.remove(activity)) _activities.add(activity);
+          }),
         ),
         const SizedBox(height: 28),
         const OnboardingGroupHeading(OnboardingCopy.weekendsHeading),
         const SizedBox(height: 10),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 10,
-          children: [
-            for (final weekends in WeekendShape.values)
-              OnboardingChoiceRow(
-                key: Key('onboardingOption_${weekends.name}'),
-                label: OnboardingCopy.weekends(weekends),
-                selected: weekends == _weekends,
-                // Tapping the chosen one again clears it: the activities
-                // alone can answer the screen.
-                onPressed: () => setState(
-                  () => _weekends = _weekends == weekends ? null : weekends,
-                ),
-              ),
-          ],
+        OnboardingChoiceList<WeekendShape>(
+          options: WeekendShape.values,
+          label: OnboardingCopy.weekends,
+          isSelected: (weekends) => weekends == _weekends,
+          // Tapping the chosen one again clears it: the activities alone
+          // can answer the screen.
+          onPressed: (weekends) => setState(
+            () => _weekends = _weekends == weekends ? null : weekends,
+          ),
         ),
       ],
     ),
@@ -355,21 +331,14 @@ class _HardPartsScreenState extends State<HardPartsScreen> {
     primaryLabel: OnboardingCopy.continueLabel,
     onPrimary: _parts.isEmpty ? null : () => widget.onAnswer(Set.of(_parts)),
     onSkip: widget.onSkip,
-    body: Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      spacing: 10,
-      children: [
-        for (final part in HardPart.values)
-          OnboardingChoiceRow(
-            key: Key('onboardingOption_${part.name}'),
-            label: OnboardingCopy.hardPart(part),
-            multiSelect: true,
-            selected: _parts.contains(part),
-            onPressed: () => setState(() {
-              if (!_parts.remove(part)) _parts.add(part);
-            }),
-          ),
-      ],
+    body: OnboardingChoiceList<HardPart>(
+      options: HardPart.values,
+      label: OnboardingCopy.hardPart,
+      multiSelect: true,
+      isSelected: _parts.contains,
+      onPressed: (part) => setState(() {
+        if (!_parts.remove(part)) _parts.add(part);
+      }),
     ),
   );
 }
@@ -421,18 +390,15 @@ class _VoiceScreenState extends State<VoiceScreen> {
     body: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final voice in CoachVoice.values) ...[
-          OnboardingChoiceRow(
-            key: Key('onboardingOption_${voice.name}'),
-            label: OnboardingCopy.voice(voice),
-            detail: OnboardingCopy.voiceDetail(voice),
-            selected: voice == _voice,
-            onPressed: () => setState(() => _voice = voice),
-          ),
-          const SizedBox(height: 10),
-        ],
+        OnboardingChoiceList<CoachVoice>(
+          options: CoachVoice.values,
+          label: OnboardingCopy.voice,
+          detail: OnboardingCopy.voiceDetail,
+          isSelected: (voice) => voice == _voice,
+          onPressed: (voice) => setState(() => _voice = voice),
+        ),
         if (_voice case final voice?) ...[
-          const SizedBox(height: 14),
+          const SizedBox(height: 24),
           const OnboardingBubble(
             text: OnboardingCopy.sampleSituation,
             speaker: OnboardingCopy.sampleYou,
@@ -510,19 +476,10 @@ class _MeetCoachScreenState extends State<MeetCoachScreen> {
         const SizedBox(height: 28),
         const OnboardingGroupHeading(OnboardingCopy.noteLabel),
         const SizedBox(height: 10),
-        Semantics(
-          label: OnboardingCopy.noteLabel,
-          textField: true,
-          child: TextField(
-            key: const Key('onboardingNote'),
-            controller: _note,
-            enabled: !widget.busy,
-            placeholder: const Text(OnboardingCopy.notePlaceholder),
-            minLines: 2,
-            maxLines: 4,
-            maxLength: aboutMeNoteMaxChars,
-            maxLengthEnforcement: MaxLengthEnforcement.enforced,
-          ),
+        AboutMeNoteField(
+          fieldKey: const Key('onboardingNote'),
+          controller: _note,
+          enabled: !widget.busy,
         ),
       ],
     ),
