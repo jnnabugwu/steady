@@ -43,15 +43,37 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
    plan should read as a clear deal.
 6. **A free week**, as a StoreKit introductory offer (7 days free) on both plans. Apple allows
    it once per Apple Account per subscription group, so Steady keeps no record of who tried it.
-7. **Subscribers get a stated usage limit.** The proxy's per-device daily cap stays, and the
-   app says what it is ("up to N coach messages a day") instead of it being a surprise. N is
-   set from measured token logs before launch; the current default
-   (`COACH_DAILY_LIMIT`, 60 replies a day) is a spend backstop, not a number to advertise.
+   **Family Sharing is off.** Once it's turned on for a product it can't be turned off, and each
+   family member would be a separate set of coach replies on one subscription.
+7. **Subscribers get stated limits, and the weekly check-in is guaranteed.** Apple asks apps to
+   "clearly describe what the user will get for the price" (3.1.2(c)) and holds them to the
+   offer "as marketed" (Schedule 2 §3.8(c)), so the limit is a plain number, not "fair use":
+   - **15 coach chat messages a day**, per subscription: keyed by the purchase's original
+     transaction id (from item 8), not per device, so a reinstall doesn't reset it and one
+     allowance covers all of a person's devices. Start at 15 because raising a limit later is
+     easy and lowering one mid-subscription isn't; raise it to 20 if measured cost per reply
+     comes in at or under 3 cents.
+   - **The weekly coach check-in doesn't count against the 15.** The `weekly` and `summary`
+     kinds get their own bound of about 40 replies a week, so a busy chat day never costs
+     someone their check-in.
+   - **Failed replies don't count:** the proxy gives the count back when the call to Anthropic
+     fails.
+   - **Reset time in local time.** The counter still resets at UTC midnight for 1.1.0; the app
+     shows when more messages are available in the person's local time (from `retryAfter`).
+     Counting from local midnight can come later.
+   - **Copy.** Paywall: "Up to 15 coach messages a day, plus your weekly coach check-in, every
+     week." Limit reached: "You've used today's 15 coach messages. You can send more after
+     4:00 PM. Your weekly coach check-in still works."
 8. **The proxy checks the subscription, not only the app.** A client-side check alone can be
    skipped. Every coach request carries the StoreKit 2 signed transaction (a JWS signed by
    Apple), and `steady-backend` verifies Apple's signature and the expiry before calling the
    model. Still no accounts: like App Attest, it proves something about the purchase, not who
-   the person is.
+   the person is. This is option C in `docs/research/revenuecat_paywall.md` (§5): a small
+   Swift channel returns the JWS from `Transaction.currentEntitlements`, the proxy ties each
+   original transaction id to at most about 5 App Attest keys, and rechecks refunds about
+   daily with Apple's subscription status API. Chosen over asking RevenueCat's API, which
+   trusts a bare ID. Keep the proxy's check behind one platform-neutral function, so an
+   Android version (Google Play purchase tokens) is a second implementation, not a redesign.
 
 9. **Free people still get the Friday nudge.** The nudge card shows on the same rules as for
    subscribers, and "Talk now" opens the paywall instead of the session: that's the moment the
@@ -67,9 +89,11 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
   month nets about $4.24. $29.99 a year nets about $25.49, **about $2.12 a month**.
 - At $29.99 a year the yearly plan roughly broke even on the weekly sessions alone, which is
   why it's $39.99: that nets about $33.99, **about $2.83 a month**. The monthly plan covers a
-  regular user with room for chat. Before setting prices in App Store Connect, measure real
-  cost per subscriber from the proxy's logged token counts, and set N so a yearly subscriber
-  who chats most days still costs less than they pay.
+  regular user with room for chat. Before launch, measure real cost per reply and per
+  subscriber from the proxy's logged token counts on TestFlight.
+- No useful cap keeps a heavy yearly subscriber at break-even: $2.83 a month covers about 94
+  replies, and four weekly check-ins use about 56. Price on the average person. Someone at the
+  full 15 a day every day costs about $13 to $14 a month on top of their check-ins.
 - A free week costs about one weekly session plus some chat per person who doesn't subscribe.
 
 **Rationale:**
@@ -94,6 +118,19 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
 - **The coach's typed failures** gain one for "not subscribed", next to
   `CoachConsentNotGivenFailure`, so the Coach tab and the nudge show the paywall instead of an
   error.
+- **Proxy changes in `steady-backend`** (today's behavior would break promises to paying
+  people): count chat per original transaction id instead of per App Attest key; a separate
+  weekly bound for `weekly` and `summary`; give the count back when Anthropic fails; the
+  global daily cap (1,000 a day) stops applying to verified subscribers and becomes an alert
+  set well above subscribers × 15; and the `rate_limited` error says which limit was hit, so
+  the app can tell "you've used today's messages" from "the coach is busy" (today both read
+  as the person's own limit).
+- **The kill switch is for emergencies only**, measured in hours. If the coach is off for more
+  than about 48 hours, extend affected subscribers' renewal dates in App Store Connect (Apple
+  allows it twice a calendar year, up to 90 days each).
+- **API credit: auto-reload on, with a monthly spend limit in the Anthropic Console set well
+  above expected cost.** With auto-reload off, an empty balance takes the coach down for every
+  paying person. Adjust the limit once real spend is known.
 
 **Alternatives considered:**
 
