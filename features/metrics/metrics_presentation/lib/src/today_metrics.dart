@@ -69,12 +69,20 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// so; a weight reading alone shows just the weight card. Lays
 /// itself out at full width with no outer padding; the app's Today screen
 /// places it.
+///
+/// With [onConnectHealth], a "Connect Apple Health" pill sits under them.
+/// This feature doesn't know whether Health has been asked for: the app
+/// passes the callback only while it hasn't (CLAUDE.md §5's callback
+/// pattern), and the callback asks.
 class TodayMetricTiles extends ConsumerWidget {
   /// Creates the tiles for [date] (normalized to midnight).
-  const TodayMetricTiles({required this.date, super.key});
+  const TodayMetricTiles({required this.date, this.onConnectHealth, super.key});
 
   /// The day the tiles' values are for, normally today.
   final DateTime date;
+
+  /// "Connect Apple Health" tapped, or `null` for no such action.
+  final VoidCallback? onConnectHealth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -98,7 +106,7 @@ class TodayMetricTiles extends ConsumerWidget {
         // error would otherwise stay up until something else invalidates.
         onRetry: () => ref.invalidate(todayMetricsProvider(day)),
       ),
-      AsyncValue(:final value?) => switch ((
+      AsyncValue(:final value?) => _withConnectHealth(switch ((
         _tiles(day, mergeLiveHealth(value, health)),
         weight,
       )) {
@@ -111,7 +119,7 @@ class TodayMetricTiles extends ConsumerWidget {
           spacing: 12,
           children: [tiles, weight],
         ),
-      },
+      }),
       _ => const Padding(
         padding: EdgeInsets.symmetric(vertical: 24),
         child: Center(
@@ -141,6 +149,34 @@ class TodayMetricTiles extends ConsumerWidget {
       trendKg: trendKg,
       todayKg: health[day]?.weightKg,
       unit: resolved,
+    );
+  }
+
+  /// [content], with the "Connect Apple Health" pill under it when
+  /// [onConnectHealth] is set.
+  Widget _withConnectHealth(Widget content) {
+    final onConnect = onConnectHealth;
+    if (onConnect == null) return content;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      spacing: 12,
+      children: [
+        content,
+        SizedBox(
+          height: 44,
+          child: Button(
+            key: const Key('todayConnectHealth'),
+            style: _Message._glassPillStyle,
+            alignment: Alignment.center,
+            leading: const Icon(LucideIcons.heartPulse, size: 16),
+            onPressed: onConnect,
+            child: const Text(
+              'Connect Apple Health',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
