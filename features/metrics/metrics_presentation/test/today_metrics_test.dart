@@ -22,6 +22,7 @@ void main() {
     HealthKitRepository? health,
     DateTime? date,
     VoidCallback? onConnectHealth,
+    TodayMetricsEmptyHint emptyHint = TodayMetricsEmptyHint.calAiImport,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -40,6 +41,7 @@ void main() {
                 TodayMetricTiles(
                   date: date ?? today,
                   onConnectHealth: onConnectHealth,
+                  emptyHint: emptyHint,
                 ),
               ],
             ),
@@ -200,6 +202,34 @@ void main() {
       expect(repository.getRangeCalls, hasLength(2));
       expect(find.byKey(const Key('todayMetricsError')), findsNothing);
       expect(tile(tester, 'eaten').value, '1,840');
+    });
+
+    String emptyText(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(const Key('todayMetricsEmpty')),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+
+    testWidgets('the empty card says what its hint says; the import only '
+        'for Cal AI', (tester) async {
+      await pump(tester);
+      expect(
+        emptyText(tester),
+        'No metrics this week yet. Import a Cal AI PDF to see what you’ve '
+        'eaten.',
+      );
+
+      for (final hint in TodayMetricsEmptyHint.values) {
+        await pump(tester, date: today, emptyHint: hint);
+        expect(emptyText(tester), hint.text);
+        expect(
+          hint.text.contains('PDF'),
+          hint == TodayMetricsEmptyHint.calAiImport,
+        );
+      }
     });
 
     testWidgets('the empty state has no Retry', (tester) async {

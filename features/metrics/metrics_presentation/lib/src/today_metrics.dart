@@ -49,6 +49,33 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
   };
 }
 
+/// What Today's empty-metrics card says, for how the person gets their
+/// calories eaten into Steady. The app picks it (from onboarding's answer);
+/// this feature only owns the words.
+enum TodayMetricsEmptyHint {
+  /// Cal AI, or not known: points at the PDF import.
+  calAiImport(
+    'No metrics this week yet. Import a Cal AI PDF to see what you’ve '
+    'eaten.',
+  ),
+
+  /// Another food app that writes to Apple Health: no PDF.
+  healthApp(
+    'No metrics this week yet. Calories eaten show up here once your food '
+    'app writes them to Apple Health.',
+  ),
+
+  /// Just starting: no PDF, nothing asked of them.
+  justStarting(
+    'Nothing here yet this week. What you log and your steps show up here.',
+  );
+
+  TodayMetricsEmptyHint(this.text);
+
+  /// The card's text.
+  final String text;
+}
+
 /// The Today screen's metrics (Pass 02 "Native Glass", artboard A2): one
 /// [MetricTile] per metric, its value for [date] over a sparkline of the
 /// seven days ending on [date].
@@ -66,7 +93,8 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// the window (iPhone only): the smoothed trend, and today's reading.
 ///
 /// With no metric and no weight reading this week, a short glass card says
-/// so; a weight reading alone shows just the weight card. Lays
+/// so, in [emptyHint]'s words; a weight reading alone shows just the weight
+/// card. Lays
 /// itself out at full width with no outer padding; the app's Today screen
 /// places it.
 ///
@@ -76,13 +104,21 @@ Future<List<DailyMetric>> todayMetrics(Ref ref, DateTime day) async {
 /// pattern), and the callback asks.
 class TodayMetricTiles extends ConsumerWidget {
   /// Creates the tiles for [date] (normalized to midnight).
-  const TodayMetricTiles({required this.date, this.onConnectHealth, super.key});
+  const TodayMetricTiles({
+    required this.date,
+    this.onConnectHealth,
+    this.emptyHint = TodayMetricsEmptyHint.calAiImport,
+    super.key,
+  });
 
   /// The day the tiles' values are for, normally today.
   final DateTime date;
 
   /// "Connect Apple Health" tapped, or `null` for no such action.
   final VoidCallback? onConnectHealth;
+
+  /// What the empty-week card says.
+  final TodayMetricsEmptyHint emptyHint;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -111,7 +147,10 @@ class TodayMetricTiles extends ConsumerWidget {
         weight,
       )) {
         // A weight reading is a metric too: no "No metrics" card above it.
-        (null, null) => _empty,
+        (null, null) => _Message(
+          key: const Key('todayMetricsEmpty'),
+          text: emptyHint.text,
+        ),
         (final tiles?, null) => tiles,
         (null, final weight?) => weight,
         (final tiles?, final weight?) => Column(
@@ -179,14 +218,6 @@ class TodayMetricTiles extends ConsumerWidget {
       ],
     );
   }
-
-  /// Shown when the week has no tile and no weight reading.
-  static const _empty = _Message(
-    key: Key('todayMetricsEmpty'),
-    text:
-        'No metrics this week yet. Import a Cal AI PDF to see '
-        'what you’ve eaten.',
-  );
 
   /// The tile row, or `null` when no metric has a value this week.
   Widget? _tiles(DateTime day, List<DailyMetric> merged) {
