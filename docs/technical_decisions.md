@@ -80,6 +80,29 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
    coach is most wanted. The paywall uses the consent screen's calm tone, and "Not now" returns
    to Today, like "Not tonight". Hiding the nudge for non-subscribers was the alternative.
 
+10. **RevenueCat handles the purchases; the paywall is Steady's own screen (amended
+    2026-11-18).** Research: `docs/research/revenuecat_paywall.md`.
+    - **The SDK:** `purchases_flutter` only (StoreKit 2, over Swift Package Manager), behind a
+      new `features/subscription` (`subscription_domain`, `subscription_data`,
+      `subscription_presentation`). Only `subscription_data` imports the SDK; the coach reads
+      `subscription_domain` for its gate, the same FFCA boundary as every other feature.
+      Anonymous RevenueCat IDs, no sign-in, and Restore Purchases on the paywall and in
+      Settings. The API keys come from `--dart-define`, one per build type.
+    - **No `purchases_ui_flutter`.** RevenueCat's paywalls are native screens configured in its
+      dashboard: they can't use `steadyTheme`, can't be widget-tested, and break the
+      shadcn-only rule ("Feature screens are shadcn-only"). The paywall is a `shadcn_flutter` /
+      `ui_kit` screen that shows what Apple requires: the billed price as the largest price, the
+      trial length and the price after it, "Cancel anytime", Restore, and links to the Terms of
+      Use and Privacy. Remote paywall experiments are given up; revisit only if they ever matter
+      more than the design.
+    - **One paywall, three ways in:** before "Meet the coach" in onboarding (#174), the Coach
+      tab, and the Friday nudge's "Talk now" (item 9).
+    - **RevenueCat is not on the coach's request path.** The proxy trusts Apple's signed
+      transaction (item 8), not RevenueCat's API. RevenueCat is the purchase layer and its
+      dashboard (trials, conversion, churn), and it carries Google Play later if Android ships.
+    - **Cost:** free below $2,500 in monthly tracked revenue, then 1%. At $4.99 a month that's
+      roughly 500 paying subscribers before any fee.
+
 **Check before launch: cost per person against the price.**
 
 - The proxy README puts a reply at about 2 to 4 cents (`low` effort, cached instructions). A
