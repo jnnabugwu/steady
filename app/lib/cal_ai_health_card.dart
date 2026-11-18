@@ -10,7 +10,13 @@
 ///
 /// It goes away by itself once a dietary-energy sample is read. "Not now"
 /// hides it for [calAiHealthCardSnooze], remembered on this device only
-/// ([CalAiCardSnoozeStore]). Nothing on the Mac, which has no Health.
+/// ([CalAiCardSnoozeStore]). Nothing on the Mac, which has no Health. It's
+/// only for someone who tracks with Cal AI, or hasn't said: onboarding's
+/// screen 2 answer `otherHealthApp` or `justStarting` hides it.
+///
+/// **One Health prompt on Today, never two.** Whether Today shows this card,
+/// the tiles' "Connect Apple Health" pill or neither is decided in one place,
+/// [todayHealthPromptProvider], which both read.
 ///
 /// In the app layer, like the Settings `AppleHealthCard`: `health_sync` is
 /// headless, and the card needs Health access (`health_access.dart`).
@@ -24,10 +30,12 @@ import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:onboarding_domain/onboarding_domain.dart' show FoodTracking;
 import 'package:path_provider/path_provider.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/health_access.dart';
+import 'package:steady/onboarding.dart';
 import 'package:steady/providers.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -143,10 +151,83 @@ class CalAiCardSnooze extends _$CalAiCardSnooze {
   }
 }
 
-/// Today's Cal AI how-to card for [date]'s Health window. Renders nothing on
-/// the Mac, while anything it needs is still loading, once Health has a
-/// dietary-energy sample in the window, and for [calAiHealthCardSnooze]
-/// after "Not now". See the library comment.
+/// The one Apple Health prompt Today shows, if any.
+enum TodayHealthPrompt {
+  /// Neither.
+  none,
+
+  /// [CalAiHealthCard]: how to get calories from Cal AI through Health.
+  calAiCard,
+
+  /// The metric tiles' "Connect Apple Health" pill.
+  connectHealth,
+}
+
+/// Which Health prompt Today shows for the Health window ending on [day]
+/// (local midnight): at most one, so the Cal AI card and the tiles' pill
+/// can never both ask.
+///
+/// - **None** on the Mac (no Health), while Health's status is loading, and
+///   where Health is unavailable.
+/// - **The Cal AI card** when all of these hold: screen 2's answer is
+///   `calAi` or there's none (no record, unreadable, or still loading, as
+///   for the import button); "Not now" isn't in force (and the snooze has
+///   been read); and either Health hasn't been asked yet, or it has and
+///   the window has been read with no dietary energy in it.
+/// - **The pill** when the card isn't showing and Health's permission sheet
+///   hasn't been shown (`notDetermined`).
+///
+/// Before the sheet, what Health returns isn't consulted: HealthKit gives
+/// nothing until it's allowed.
+@riverpod
+TodayHealthPrompt todayHealthPrompt(Ref ref, DateTime day) {
+  if (ref.watch(healthKitRepositoryProvider) == null) {
+    return TodayHealthPrompt.none;
+  }
+  final access = ref.watch(healthAccessControllerProvider).value;
+  if (access == null || access == HealthAuthorizationStatus.unavailable) {
+    return TodayHealthPrompt.none;
+  }
+  final asked = access == HealthAuthorizationStatus.requested;
+  final snooze = ref.watch(calAiCardSnoozeProvider);
+  // The card's own rules can't be settled until the snooze is read: show
+  // nothing rather than the pill for a moment and then the card.
+  if (snooze.isLoading) return TodayHealthPrompt.none;
+  if (_calAiCardWanted(ref, day, asked: asked, snoozedAt: snooze.value)) {
+    return TodayHealthPrompt.calAiCard;
+  }
+  return asked ? TodayHealthPrompt.none : TodayHealthPrompt.connectHealth;
+}
+
+bool _calAiCardWanted(
+  Ref ref,
+  DateTime day, {
+  required bool asked,
+  required DateTime? snoozedAt,
+}) {
+  final tracking = ref.watch(onboardingFoodTrackingProvider).value;
+  if (tracking == FoodTracking.otherHealthApp ||
+      tracking == FoodTracking.justStarting) {
+    return false;
+  }
+  if (snoozedAt != null &&
+      ref.read(checkInClockProvider)().difference(snoozedAt) <
+          calAiHealthCardSnooze) {
+    return false;
+  }
+  if (!asked) return true;
+  final window = healthHistoryWindow(day);
+  final days = ref
+      .watch(healthDayTotalsProvider(window.start, window.end))
+      .value;
+  // Still reading, a failed read (Settings says so), or Cal AI is already
+  // writing to Health: nothing to teach.
+  return days != null && !days.values.any((d) => d.caloriesEaten != null);
+}
+
+/// Today's Cal AI how-to card for [date]'s Health window, shown only when
+/// [todayHealthPromptProvider] picks it (see there, and the library
+/// comment).
 class CalAiHealthCard extends ConsumerWidget {
   /// Creates the card for the Health window ending on [date].
   const CalAiHealthCard({required this.date, super.key});
@@ -156,36 +237,14 @@ class CalAiHealthCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(healthKitRepositoryProvider) == null) {
+    final day = DateTime(date.year, date.month, date.day);
+    if (ref.watch(todayHealthPromptProvider(day)) !=
+        TodayHealthPrompt.calAiCard) {
       return const SizedBox.shrink();
     }
-    final snooze = ref.watch(calAiCardSnoozeProvider);
-    if (snooze.isLoading) return const SizedBox.shrink();
-    if (snooze.value case final at?) {
-      final now = ref.read(checkInClockProvider)();
-      if (now.difference(at) < calAiHealthCardSnooze) {
-        return const SizedBox.shrink();
-      }
-    }
-
-    final access = ref.watch(healthAccessControllerProvider).value;
-    switch (access) {
-      case null || HealthAuthorizationStatus.unavailable:
-        return const SizedBox.shrink();
-      case HealthAuthorizationStatus.notDetermined:
-        break;
-      case HealthAuthorizationStatus.requested:
-        final window = healthHistoryWindow(date);
-        final days = ref
-            .watch(healthDayTotalsProvider(window.start, window.end))
-            .value;
-        // Still reading, a failed read (Settings says so), or Cal AI is
-        // already writing to Health: nothing to teach.
-        if (days == null || days.values.any((d) => d.caloriesEaten != null)) {
-          return const SizedBox.shrink();
-        }
-    }
-    final asked = access == HealthAuthorizationStatus.requested;
+    final asked =
+        ref.watch(healthAccessControllerProvider).value ==
+        HealthAuthorizationStatus.requested;
 
     return GlassCard(
       key: const Key('calAiHealthCard'),

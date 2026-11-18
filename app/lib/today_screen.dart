@@ -17,12 +17,14 @@
 ///    Health's calories eaten passed in on the iPhone (they win over an
 ///    import's there, as on the metric tiles: #138).
 /// 5. Metrics: metrics' [TodayMetricTiles] for today (the Mac shows only
-///    what it has: no Apple Health there), with "Connect Apple Health"
-///    under them on an iPhone that hasn't been asked for Health yet
-///    (`healthConnectOfferedProvider`, `health_access.dart`), then the
-///    app's own [CalAiHealthCard], which on an iPhone explains how to get
-///    calories from Cal AI through Apple Health until Health has some
-///    (#138).
+///    what it has: no Apple Health there), then the app's own
+///    [CalAiHealthCard], which on an iPhone explains how to get calories
+///    from Cal AI through Apple Health until Health has some (#138). At
+///    most one Health prompt shows: that card, or "Connect Apple Health"
+///    under the tiles before Health has been asked
+///    (`todayHealthPromptProvider`, `cal_ai_health_card.dart`). The tiles'
+///    empty card follows screen 2's answer (`todayMetricsEmptyHintProvider`,
+///    `onboarding.dart`).
 /// 6. The coach nudge slot, [TodayScreen.coachNudge]: the app router puts
 ///    coach's `CoachNudgeCard` there, which offers the weekly check-in on
 ///    an iPhone from Friday to Sunday and renders nothing otherwise.
@@ -38,7 +40,6 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/cal_ai_health_card.dart';
-import 'package:steady/health_access.dart';
 import 'package:steady/onboarding.dart';
 import 'package:ui_kit/ui_kit.dart';
 
@@ -79,7 +80,8 @@ class TodayScreen extends ConsumerWidget {
   final void Function() onCravingRequested;
 
   /// Called when "Connect Apple Health", under the metric tiles, is tapped.
-  /// Offered only while Health's permission sheet hasn't been shown.
+  /// Offered only while Health's permission sheet hasn't been shown and the
+  /// Cal AI card isn't showing (`todayHealthPromptProvider`).
   final void Function() onConnectHealthRequested;
 
   /// The coach nudge card, below the metrics, or `null` for none. The
@@ -108,7 +110,10 @@ class TodayScreen extends ConsumerWidget {
         day: ?totals.caloriesEaten,
     };
     final showImport = ref.watch(todayImportButtonShownProvider);
-    final offerHealth = ref.watch(healthConnectOfferedProvider);
+    final offerHealth =
+        ref.watch(todayHealthPromptProvider(today)) ==
+        TodayHealthPrompt.connectHealth;
+    final emptyHint = ref.watch(todayMetricsEmptyHintProvider);
 
     return Scaffold(
       child: Stack(
@@ -166,6 +171,7 @@ class TodayScreen extends ConsumerWidget {
                             onConnectHealth: offerHealth
                                 ? onConnectHealthRequested
                                 : null,
+                            emptyHint: emptyHint,
                           ),
                           // Sizes to nothing on the Mac, and once Health
                           // has calories eaten.

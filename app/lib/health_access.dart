@@ -177,13 +177,3 @@ class HealthAccessController extends _$HealthAccessController {
     if (ref.mounted) state = AsyncError(failure, StackTrace.current);
   }
 }
-
-/// Whether Today offers "Connect Apple Health" under its metric tiles: only
-/// on an iPhone whose Health permission sheet hasn't been shown yet
-/// (`notDetermined`). Someone who was already asked (every 1.0 user) never
-/// sees it; after that the switch is in the Health app (Settings → Apple
-/// Health says where).
-@riverpod
-bool healthConnectOffered(Ref ref) =>
-    ref.watch(healthAccessControllerProvider).value ==
-    HealthAuthorizationStatus.notDetermined;

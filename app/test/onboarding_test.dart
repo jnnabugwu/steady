@@ -313,6 +313,44 @@ void main() {
       expect(find.text(OnboardingCopy.meetCoachTitle), findsNothing);
     });
 
+    group("Today's empty metrics card follows screen 2", () {
+      String emptyText(WidgetTester tester) => tester
+          .widget<Text>(
+            find.descendant(
+              of: byKey('todayMetricsEmpty'),
+              matching: find.byType(Text),
+            ),
+          )
+          .data!;
+
+      for (final (tracking, hint) in [
+        (FoodTracking.calAi, TodayMetricsEmptyHint.calAiImport),
+        (null, TodayMetricsEmptyHint.calAiImport),
+        (FoodTracking.otherHealthApp, TodayMetricsEmptyHint.healthApp),
+        (FoodTracking.justStarting, TodayMetricsEmptyHint.justStarting),
+      ]) {
+        testWidgets('${tracking?.name ?? 'unanswered'}: ${hint.name}', (
+          tester,
+        ) async {
+          // Nothing in Health either, so the week is empty.
+          health = InMemoryHealthKitRepository(
+            status: HealthAuthorizationStatus.requested,
+          );
+          await pumpApp(
+            tester,
+            InMemoryOnboardingRepository(
+              OnboardingRecord(
+                completed: true,
+                aboutMe: AboutMe(tracking: tracking),
+              ),
+            ),
+          );
+          await tester.ensureVisible(byKey('todayMetricsEmpty'));
+          expect(emptyText(tester), hint.text);
+        });
+      }
+    });
+
     group("Today's import button follows screen 2", () {
       for (final (tracking, shown) in [
         (FoodTracking.calAi, true),
@@ -350,12 +388,14 @@ void main() {
     });
 
     group("Today's \"Connect Apple Health\"", () {
+      // Another Health app: no Cal AI card, so the pill is the one prompt.
+      // (For a Cal AI tracker the card asks instead: cal_ai_health_card_test.)
       Future<void> pumpToday(WidgetTester tester) => pumpApp(
         tester,
         InMemoryOnboardingRepository(
           const OnboardingRecord(
             completed: true,
-            aboutMe: AboutMe(tracking: FoodTracking.calAi),
+            aboutMe: AboutMe(tracking: FoodTracking.otherHealthApp),
           ),
         ),
       );
@@ -363,6 +403,7 @@ void main() {
       testWidgets('offered before the sheet, and it asks', (tester) async {
         await pumpToday(tester);
         expect(health.requestAuthorizationCalls, 0);
+        expect(byKey('calAiHealthCard'), findsNothing);
 
         await tapKey(tester, 'todayConnectHealth');
 

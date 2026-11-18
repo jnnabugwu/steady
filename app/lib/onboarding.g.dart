@@ -68,6 +68,68 @@ final class OnboardingFoodTrackingProvider
 String _$onboardingFoodTrackingHash() =>
     r'59e97e87a80fab78acdc0e95ef1d1fcee7d9eb24';
 
+/// What Today's empty-metrics card says, from screen 2's answer: the Cal AI
+/// import for `calAi` and no answer (also while loading, or unreadable), a
+/// note that another food app's calories come through Apple Health for
+/// `otherHealthApp`, and no ask at all for `justStarting`.
+
+@ProviderFor(todayMetricsEmptyHint)
+final todayMetricsEmptyHintProvider = TodayMetricsEmptyHintProvider._();
+
+/// What Today's empty-metrics card says, from screen 2's answer: the Cal AI
+/// import for `calAi` and no answer (also while loading, or unreadable), a
+/// note that another food app's calories come through Apple Health for
+/// `otherHealthApp`, and no ask at all for `justStarting`.
+
+final class TodayMetricsEmptyHintProvider
+    extends
+        $FunctionalProvider<
+          TodayMetricsEmptyHint,
+          TodayMetricsEmptyHint,
+          TodayMetricsEmptyHint
+        >
+    with $Provider<TodayMetricsEmptyHint> {
+  /// What Today's empty-metrics card says, from screen 2's answer: the Cal AI
+  /// import for `calAi` and no answer (also while loading, or unreadable), a
+  /// note that another food app's calories come through Apple Health for
+  /// `otherHealthApp`, and no ask at all for `justStarting`.
+  TodayMetricsEmptyHintProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'todayMetricsEmptyHintProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$todayMetricsEmptyHintHash();
+
+  @$internal
+  @override
+  $ProviderElement<TodayMetricsEmptyHint> $createElement(
+    $ProviderPointer pointer,
+  ) => $ProviderElement(pointer);
+
+  @override
+  TodayMetricsEmptyHint create(Ref ref) {
+    return todayMetricsEmptyHint(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(TodayMetricsEmptyHint value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<TodayMetricsEmptyHint>(value),
+    );
+  }
+}
+
+String _$todayMetricsEmptyHintHash() =>
+    r'ec53be6f713bc9b4d56cabf92c505c91b7f2b29a';
+
 /// Whether Today's header shows the Cal AI import button
 /// (docs/design/onboarding.md, screen 2: the answer decides it). Hidden
 /// only for someone who said they track with another Health app, or are

@@ -137,14 +137,6 @@ void main() {
       expect(health.requestAuthorizationCalls, 0);
     });
 
-    test('healthConnectOffered only before the sheet', () async {
-      await container.read(healthAccessControllerProvider.future);
-      expect(container.read(healthConnectOfferedProvider), isTrue);
-
-      await request();
-      expect(container.read(healthConnectOfferedProvider), isFalse);
-    });
-
     test('a refresh makes the live Health read read Health again', () async {
       health.status = HealthAuthorizationStatus.requested;
       final totals = healthDayTotalsProvider(window.start, window.end);

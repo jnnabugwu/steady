@@ -28,6 +28,8 @@ import 'dart:async';
 import 'dart:developer' as developer;
 
 import 'package:failures/failures.dart';
+import 'package:metrics_presentation/metrics_presentation.dart'
+    show TodayMetricsEmptyHint;
 import 'package:onboarding_domain/onboarding_domain.dart';
 import 'package:onboarding_presentation/onboarding_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
@@ -118,6 +120,18 @@ Future<FoodTracking?> onboardingFoodTracking(Ref ref) async {
     Err() => null,
   };
 }
+
+/// What Today's empty-metrics card says, from screen 2's answer: the Cal AI
+/// import for `calAi` and no answer (also while loading, or unreadable), a
+/// note that another food app's calories come through Apple Health for
+/// `otherHealthApp`, and no ask at all for `justStarting`.
+@riverpod
+TodayMetricsEmptyHint todayMetricsEmptyHint(Ref ref) =>
+    switch (ref.watch(onboardingFoodTrackingProvider).value) {
+      FoodTracking.otherHealthApp => TodayMetricsEmptyHint.healthApp,
+      FoodTracking.justStarting => TodayMetricsEmptyHint.justStarting,
+      FoodTracking.calAi || null => TodayMetricsEmptyHint.calAiImport,
+    };
 
 /// Whether Today's header shows the Cal AI import button
 /// (docs/design/onboarding.md, screen 2: the answer decides it). Hidden
