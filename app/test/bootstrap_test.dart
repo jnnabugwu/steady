@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:account_domain/account_domain.dart';
 import 'package:account_presentation/account_presentation.dart';
 import 'package:checkin_domain/checkin_domain.dart';
@@ -8,14 +10,19 @@ import 'package:daily_metrics_domain/daily_metrics_domain.dart';
 import 'package:data_export_domain/data_export_domain.dart';
 import 'package:data_export_presentation/data_export_presentation.dart';
 import 'package:failures/failures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show ProviderException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:health_sync_data/health_sync_data.dart';
 import 'package:metrics_domain/metrics_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:onboarding_data/onboarding_data.dart';
+import 'package:onboarding_domain/onboarding_domain.dart';
+import 'package:onboarding_presentation/onboarding_presentation.dart';
 import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
+import 'package:steady/onboarding.dart';
 import 'package:steady/providers.dart';
 
 /// Guards the DI wiring in `lib/providers.dart`, built from the **real**
@@ -295,6 +302,104 @@ void main() {
       container.read(weekMetricsRepositoryProvider),
       same(container.read(metricsRepositoryProvider)),
     );
+  });
+
+  group('onboarding (#161)', () {
+    late Directory support;
+
+    setUp(() {
+      // path_provider's application support directory, as a real temp
+      // directory: the binding's own file lookup runs against it.
+      support = Directory.systemTemp.createTempSync('steady_support');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            (call) async => call.method == 'getApplicationSupportDirectory'
+                ? support.path
+                : null,
+          );
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+            const MethodChannel('plugins.flutter.io/path_provider'),
+            null,
+          );
+      support.deleteSync(recursive: true);
+    });
+
+    test('iOS binds the device-only file store on onboarding.json, and '
+        'still has one shared DailyMetricRepository', () async {
+      final ios = ProviderContainer.test(
+        overrides: appProviderOverridesFor(isIOS: true),
+      );
+      expect(ios.read(onboardingSupportAvailableProvider), isTrue);
+      final repository = ios.read(onboardingRepositoryProvider);
+      expect(repository, isA<FileOnboardingRepository>());
+      expect(ios.read(onboardingRepositoryProvider), same(repository));
+
+      // No file: a first launch (and a 1.0 user's first launch after the
+      // update), so the launch decision says show.
+      expect(await shouldShowOnboardingAtLaunch(repository), isTrue);
+      final file = File('${support.path}/onboarding.json');
+      expect(file.existsSync(), isFalse);
+
+      expect(await repository.markCompleted(), isA<Ok<OnboardingRecord>>());
+      expect(file.existsSync(), isTrue);
+      // A fresh launch reads the same file: done.
+      final relaunch = ProviderContainer.test(
+        overrides: appProviderOverridesFor(isIOS: true),
+      );
+      expect(
+        await shouldShowOnboardingAtLaunch(
+          relaunch.read(onboardingRepositoryProvider),
+        ),
+        isFalse,
+      );
+
+      // The shared-store invariant holds on the iOS list too.
+      final store = ios.read(dailyMetricRepositoryProvider);
+      expect(ios.read(exportDailyMetricRepositoryProvider), same(store));
+      final date = DateTime(2026, 8, 24);
+      await ios
+          .read(checkInRepositoryProvider)
+          .logCheckIn(date, CheckInStatus.logged);
+      final row = (await store.getByDate(date) as Ok<DailyMetric?>).value;
+      expect(row?.loggingStatus, LoggingStatus.logged);
+    });
+
+    test('a damaged onboarding.json counts as done', () async {
+      File('${support.path}/onboarding.json').writeAsStringSync('{not json');
+      final ios = ProviderContainer.test(
+        overrides: appProviderOverridesFor(isIOS: true),
+      );
+      final repository = ios.read(onboardingRepositoryProvider);
+      expect(
+        await repository.read(),
+        isA<Err<OnboardingRecord>>().having(
+          (e) => e.failure,
+          'failure',
+          isA<OnboardingUnreadableFailure>(),
+        ),
+      );
+      expect(await shouldShowOnboardingAtLaunch(repository), isFalse);
+    });
+
+    test('the Mac (and the default list here) binds no onboarding: not '
+        'available, and the repository is never bound', () {
+      for (final list in [
+        appProviderOverridesFor(isIOS: false),
+        appProviderOverrides,
+      ]) {
+        final mac = ProviderContainer.test(overrides: list);
+        expect(mac.read(onboardingSupportAvailableProvider), isFalse);
+        expect(
+          () => mac.read(onboardingRepositoryProvider),
+          throwsA(isA<ProviderException>()),
+        );
+      }
+    });
   });
 
   test('without appProviderOverrides, feature repositories are unbound', () {

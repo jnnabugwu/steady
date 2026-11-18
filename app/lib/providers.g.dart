@@ -348,6 +348,78 @@ final class CoachAppAttestKeyStoreProvider
 String _$coachAppAttestKeyStoreHash() =>
     r'b3879343b1bd6ee8462cee9458adab2c13aeab2e';
 
+/// Whether this device has onboarding: `false` by default, so the parked
+/// Mac and tests that don't opt in never show it and never read
+/// `onboardingRepositoryProvider` (which throws unless bound).
+/// [appProviderOverridesFor] sets it on iOS only, with the repository.
+///
+/// Declared here rather than in `onboarding_presentation`: whether and
+/// when the flow shows is the app's decision (`onboarding.dart`).
+///
+/// `keepAlive`: a constant for the app's lifetime.
+
+@ProviderFor(onboardingSupportAvailable)
+final onboardingSupportAvailableProvider =
+    OnboardingSupportAvailableProvider._();
+
+/// Whether this device has onboarding: `false` by default, so the parked
+/// Mac and tests that don't opt in never show it and never read
+/// `onboardingRepositoryProvider` (which throws unless bound).
+/// [appProviderOverridesFor] sets it on iOS only, with the repository.
+///
+/// Declared here rather than in `onboarding_presentation`: whether and
+/// when the flow shows is the app's decision (`onboarding.dart`).
+///
+/// `keepAlive`: a constant for the app's lifetime.
+
+final class OnboardingSupportAvailableProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// Whether this device has onboarding: `false` by default, so the parked
+  /// Mac and tests that don't opt in never show it and never read
+  /// `onboardingRepositoryProvider` (which throws unless bound).
+  /// [appProviderOverridesFor] sets it on iOS only, with the repository.
+  ///
+  /// Declared here rather than in `onboarding_presentation`: whether and
+  /// when the flow shows is the app's decision (`onboarding.dart`).
+  ///
+  /// `keepAlive`: a constant for the app's lifetime.
+  OnboardingSupportAvailableProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'onboardingSupportAvailableProvider',
+        isAutoDispose: false,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$onboardingSupportAvailableHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return onboardingSupportAvailable(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$onboardingSupportAvailableHash() =>
+    r'0150f43dfe3b7d8aac9f5ad16a70a542724af004';
+
 /// How app-level screens open an external link (Settings' privacy policy).
 /// Defaults to the system browser through `url_launcher`; tests override
 /// it so they never reach the plugin.

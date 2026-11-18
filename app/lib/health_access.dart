@@ -15,18 +15,23 @@
 /// `*_presentation` package). On macOS [healthKitRepositoryProvider] is
 /// `null`, so every call here is a no-op.
 ///
-/// **Asking for permission once.** There's no flag of Steady's own:
-/// HealthKit already remembers whether its permission sheet was shown
+/// **Asked only from a screen that says why** (docs/design/onboarding.md,
+/// "Leaving early"): onboarding's Apple Health screen, Settings → Apple
+/// Health, Today's "Connect Apple Health" under the metric tiles and the
+/// Cal AI card's "Allow Apple Health", each through
+/// [HealthAccessController.requestHealthAccess]. Launch and resume call
+/// [HealthAccessController.refreshHealthData], which never asks: it
+/// re-reads Health only once the sheet has been shown. There's no flag of
+/// Steady's own: HealthKit already remembers whether its sheet was shown
 /// (`authorizationStatus`, from `getRequestStatusForAuthorization`), and
-/// iOS never shows it twice for the same types anyway. The first refresh
-/// asks; every later one finds `requested` and goes straight to re-reading.
+/// iOS never shows it twice for the same types anyway.
 ///
 /// **Usage sharing** (TestFlight only, `usage_sharing.dart`): once per
-/// launch, after the first refresh that finds Health asked, the controller
-/// reads the last seven days and records `health_connected` with two
-/// yes/nos, any steps and any calories eaten, never the numbers. HealthKit
-/// never says whether access was allowed, so data coming back is the only
-/// sign it was. Skipped, Health unread, unless sharing is on.
+/// launch, after the first refresh or request that finds Health asked, the
+/// controller reads the last seven days and records `health_connected`
+/// with two yes/nos, any steps and any calories eaten, never the numbers.
+/// HealthKit never says whether access was allowed, so data coming back is
+/// the only sign it was. Skipped, Health unread, unless sharing is on.
 library;
 
 import 'dart:async';
@@ -59,7 +64,8 @@ Duration? _retryUnlessFailure(int retryCount, Object error) =>
 /// asking twice. Not a family, so nothing piles up.
 @Riverpod(keepAlive: true, retry: _retryUnlessFailure)
 class HealthAccessController extends _$HealthAccessController {
-  Future<void>? _inFlight;
+  Future<void>? _refreshing;
+  Future<void>? _requesting;
   var _reportedThisLaunch = false;
 
   @override
@@ -74,19 +80,37 @@ class HealthAccessController extends _$HealthAccessController {
 
   /// Domain event: HealthDataRefreshed.
   ///
-  /// Shows Health's read-permission sheet if it has never been shown, then
-  /// invalidates `healthDayTotalsProvider` and `healthWeightUnitProvider`,
-  /// so every screen showing Health values reads them from Health again
-  /// (today's steps keep counting).
-  /// Writes nothing anywhere.
+  /// Reads whether Health's permission sheet has been shown and, once it
+  /// has (`requested`), invalidates `healthDayTotalsProvider` and
+  /// `healthWeightUnitProvider`, so every screen showing Health values
+  /// reads them from Health again (today's steps keep counting). **Never
+  /// shows the sheet**: launch and resume call this, and asking is
+  /// [requestHealthAccess]'s job. Writes nothing anywhere.
   ///
   /// Never throws: a failure becomes an `AsyncError` carrying the
   /// [Failure], and is logged. A no-op where Health isn't bound (macOS). A
-  /// call while one is running returns that one.
+  /// call while a refresh or a request is running returns that one.
   Future<void> refreshHealthData() =>
-      _inFlight ??= _refresh().whenComplete(() => _inFlight = null);
+      _requesting ??
+      (_refreshing ??= _refresh(ask: false)
+          .whenComplete(() => _refreshing = null));
 
-  Future<void> _refresh() async {
+  /// Domain event: HealthAccessRequested.
+  ///
+  /// Shows Health's read-permission sheet if it has never been shown, then
+  /// refreshes as [refreshHealthData] does. Called only from a screen that
+  /// says why Steady reads Health (see the library comment). Completes once
+  /// the sheet is answered.
+  ///
+  /// Never throws, like [refreshHealthData]. A refresh already running is
+  /// waited for first, since it never asks; a request already running is
+  /// joined.
+  Future<void> requestHealthAccess() => _requesting ??= () async {
+    if (_refreshing case final running?) await running;
+    await _refresh(ask: true);
+  }().whenComplete(() => _requesting = null);
+
+  Future<void> _refresh({required bool ask}) async {
     final health = ref.read(healthKitRepositoryProvider);
     if (health == null) return;
     // Let build() settle first, so its result can't land on top of ours.
@@ -104,7 +128,7 @@ class HealthAccessController extends _$HealthAccessController {
       case Err(:final failure):
         return _fail(failure);
     }
-    if (status == HealthAuthorizationStatus.notDetermined) {
+    if (ask && status == HealthAuthorizationStatus.notDetermined) {
       state = const AsyncLoading<HealthAuthorizationStatus>();
       if (await health.requestAuthorization() case Err(:final failure)) {
         return _fail(failure);
@@ -153,3 +177,13 @@ class HealthAccessController extends _$HealthAccessController {
     if (ref.mounted) state = AsyncError(failure, StackTrace.current);
   }
 }
+
+/// Whether Today offers "Connect Apple Health" under its metric tiles: only
+/// on an iPhone whose Health permission sheet hasn't been shown yet
+/// (`notDetermined`). Someone who was already asked (every 1.0 user) never
+/// sees it; after that the switch is in the Health app (Settings → Apple
+/// Health says where).
+@riverpod
+bool healthConnectOffered(Ref ref) =>
+    ref.watch(healthAccessControllerProvider).value ==
+    HealthAuthorizationStatus.notDetermined;

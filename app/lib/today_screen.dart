@@ -6,7 +6,10 @@
 /// §2–3, §5). Top to bottom:
 ///
 /// 1. The header: today's date in teal, a time-of-day greeting and a
-///    [GlassIconButton] that asks for a Cal AI PDF import.
+///    [GlassIconButton] that asks for a Cal AI PDF import. The button is
+///    left out for someone who told onboarding they track with another
+///    Health app or are just starting (`todayImportButtonShownProvider`,
+///    `onboarding.dart`); the Week tab keeps its own.
 /// 2. The account feature's [ICloudSyncBanner], which renders nothing
 ///    unless iCloud isn't syncing.
 /// 3. Tonight's check-in: checkin's [CheckInCard] for today.
@@ -14,9 +17,12 @@
 ///    Health's calories eaten passed in on the iPhone (they win over an
 ///    import's there, as on the metric tiles: #138).
 /// 5. Metrics: metrics' [TodayMetricTiles] for today (the Mac shows only
-///    what it has: no Apple Health there), then the app's own
-///    [CalAiHealthCard], which on an iPhone explains how to get calories
-///    from Cal AI through Apple Health until Health has some (#138).
+///    what it has: no Apple Health there), with "Connect Apple Health"
+///    under them on an iPhone that hasn't been asked for Health yet
+///    (`healthConnectOfferedProvider`, `health_access.dart`), then the
+///    app's own [CalAiHealthCard], which on an iPhone explains how to get
+///    calories from Cal AI through Apple Health until Health has some
+///    (#138).
 /// 6. The coach nudge slot, [TodayScreen.coachNudge]: the app router puts
 ///    coach's `CoachNudgeCard` there, which offers the weekly check-in on
 ///    an iPhone from Friday to Sunday and renders nothing otherwise.
@@ -32,6 +38,8 @@ import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/cal_ai_health_card.dart';
+import 'package:steady/health_access.dart';
+import 'package:steady/onboarding.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The Today screen. See the library comment for its sections.
@@ -56,6 +64,7 @@ class TodayScreen extends ConsumerWidget {
     required this.onImportRequested,
     required this.onOpenAccountSettings,
     required this.onCravingRequested,
+    required this.onConnectHealthRequested,
     this.coachNudge,
     super.key,
   });
@@ -68,6 +77,10 @@ class TodayScreen extends ConsumerWidget {
 
   /// Called when the cravings section's "Having a craving?" is tapped.
   final void Function() onCravingRequested;
+
+  /// Called when "Connect Apple Health", under the metric tiles, is tapped.
+  /// Offered only while Health's permission sheet hasn't been shown.
+  final void Function() onConnectHealthRequested;
 
   /// The coach nudge card, below the metrics, or `null` for none. The
   /// router passes coach's `CoachNudgeCard`, which sizes to nothing when
@@ -94,6 +107,8 @@ class TodayScreen extends ConsumerWidget {
       for (final MapEntry(key: day, value: totals) in health.entries)
         day: ?totals.caloriesEaten,
     };
+    final showImport = ref.watch(todayImportButtonShownProvider);
+    final offerHealth = ref.watch(healthConnectOfferedProvider);
 
     return Scaffold(
       child: Stack(
@@ -129,7 +144,10 @@ class TodayScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _Header(now: now, onImportRequested: onImportRequested),
+                    _Header(
+                      now: now,
+                      onImportRequested: showImport ? onImportRequested : null,
+                    ),
                     // Carries its own padding; takes no space when hidden.
                     ICloudSyncBanner(onOpenSettings: onOpenAccountSettings),
                     Padding(
@@ -143,7 +161,12 @@ class TodayScreen extends ConsumerWidget {
                             date: today,
                             liveCaloriesEaten: healthCaloriesEaten,
                           ),
-                          TodayMetricTiles(date: today),
+                          TodayMetricTiles(
+                            date: today,
+                            onConnectHealth: offerHealth
+                                ? onConnectHealthRequested
+                                : null,
+                          ),
                           // Sizes to nothing on the Mac, and once Health
                           // has calories eaten.
                           CalAiHealthCard(date: today),
@@ -165,12 +188,12 @@ class TodayScreen extends ConsumerWidget {
 }
 
 /// The artboard's header: the date in teal over the greeting, and the round
-/// glass import button.
+/// glass import button unless [onImportRequested] is `null`.
 class _Header extends StatelessWidget {
   const _Header({required this.now, required this.onImportRequested});
 
   final DateTime now;
-  final void Function() onImportRequested;
+  final void Function()? onImportRequested;
 
   @override
   Widget build(BuildContext context) {
@@ -197,12 +220,13 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
-          GlassIconButton(
-            key: const Key('importButton_header'),
-            icon: LucideIcons.arrowDownToLine,
-            semanticLabel: 'Import Cal AI PDF',
-            onPressed: onImportRequested,
-          ),
+          if (onImportRequested case final onImport?)
+            GlassIconButton(
+              key: const Key('importButton_header'),
+              icon: LucideIcons.arrowDownToLine,
+              semanticLabel: 'Import Cal AI PDF',
+              onPressed: onImport,
+            ),
         ],
       ),
     );

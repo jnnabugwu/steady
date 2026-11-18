@@ -74,9 +74,35 @@ void main() {
         .read(healthAccessControllerProvider.notifier)
         .refreshHealthData();
 
-    test('asks for permission once', () async {
+    Future<void> request() => container
+        .read(healthAccessControllerProvider.notifier)
+        .requestHealthAccess();
+
+    // These rely on the fake's reading of HealthKit: `notDetermined` until
+    // the sheet is shown, `requested` after, whatever was chosen. That's
+    // what `getRequestStatusForAuthorization` documents (shouldRequest /
+    // unnecessary), but it's our assumption here, not HealthKit itself.
+
+    test('a refresh never asks, and reads nothing before the sheet', () async {
+      final totals = healthDayTotalsProvider(window.start, window.end);
+      container.listen(totals, (_, _) {});
+      await container.read(totals.future);
+      final before = health.dailyTotalsCalls;
+
       await refresh();
       await refresh();
+
+      expect(health.requestAuthorizationCalls, 0);
+      expect(health.dailyTotalsCalls, before);
+      expect(
+        container.read(healthAccessControllerProvider).value,
+        HealthAuthorizationStatus.notDetermined,
+      );
+    });
+
+    test('a request asks once, then refreshes', () async {
+      await request();
+      await request();
 
       expect(health.requestAuthorizationCalls, 1);
       expect(
@@ -85,15 +111,38 @@ void main() {
       );
     });
 
-    test('an overlapping call joins the running one', () async {
-      await Future.wait([refresh(), refresh()]);
+    test('overlapping requests join the running one', () async {
+      await Future.wait([request(), request()]);
       expect(health.requestAuthorizationCalls, 1);
+    });
+
+    test('a request during a refresh still asks; a refresh during a '
+        'request joins it', () async {
+      final refreshing = refresh();
+      final requesting = request();
+      final joined = refresh();
+      await Future.wait([refreshing, requesting, joined]);
+
+      expect(health.requestAuthorizationCalls, 1);
+      expect(
+        container.read(healthAccessControllerProvider).value,
+        HealthAuthorizationStatus.requested,
+      );
     });
 
     test('never asks again once the sheet was shown', () async {
       health.status = HealthAuthorizationStatus.requested;
+      await request();
       await refresh();
       expect(health.requestAuthorizationCalls, 0);
+    });
+
+    test('healthConnectOffered only before the sheet', () async {
+      await container.read(healthAccessControllerProvider.future);
+      expect(container.read(healthConnectOfferedProvider), isTrue);
+
+      await request();
+      expect(container.read(healthConnectOfferedProvider), isFalse);
     });
 
     test('a refresh makes the live Health read read Health again', () async {
@@ -196,8 +245,8 @@ void main() {
       dailyMetricRepositoryProvider.overrideWithValue(store),
     ];
 
-    testWidgets('launch, resume and Settings "Refresh" show live Health in '
-        'the history and write nothing', (tester) async {
+    testWidgets('launch and resume never ask before the sheet has been '
+        'shown, and Settings "Connect Apple Health" does', (tester) async {
       tester.platformDispatcher.defaultRouteNameTestValue = '/week';
       addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
       await tester.pumpWidget(
@@ -205,8 +254,51 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Launch: asked once, and the history merges the live values in.
+      // Launch: not asked. (What HealthKit returns before its sheet isn't
+      // modelled by the fake, so the history's values aren't checked here.)
+      expect(health.requestAuthorizationCalls, 0);
+      expect(health.status, HealthAuthorizationStatus.notDetermined);
+
+      // Resume, twice: still not asked.
+      for (var i = 0; i < 2; i++) {
+        tester.binding
+          ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+          ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+        await tester.pumpAndSettle();
+      }
+      expect(health.requestAuthorizationCalls, 0);
+
+      // Settings: "Connect Apple Health" asks, once.
+      await tester.tap(find.byKey(const Key('openSettingsButton')));
+      await tester.pumpAndSettle();
+      expect(find.text('Connect Apple Health'), findsOneWidget);
+      await tester.ensureVisible(
+        find.byKey(const Key('connectAppleHealthButton')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('connectAppleHealthButton')));
+      await tester.pumpAndSettle();
       expect(health.requestAuthorizationCalls, 1);
+      expect(
+        tester.widget<Text>(find.byKey(const Key('appleHealthStatus'))).data,
+        'Connected',
+      );
+      expect(store.writes, isEmpty);
+    });
+
+    testWidgets('launch, resume and Settings "Refresh" show live Health in '
+        'the history and write nothing', (tester) async {
+      // Asked before (every 1.0 user): launch reads Health, never asks.
+      health.status = HealthAuthorizationStatus.requested;
+      tester.platformDispatcher.defaultRouteNameTestValue = '/week';
+      addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+      await tester.pumpWidget(
+        ProviderScope(overrides: overrides(), child: const SteadyApp()),
+      );
+      await tester.pumpAndSettle();
+
+      // Launch: not asked again, and the history merges the live values in.
+      expect(health.requestAuthorizationCalls, 0);
       expect(find.text('1,850 kcal eaten'), findsOneWidget);
       expect(find.text('2,062 kcal burned'), findsOneWidget);
       expect(find.text('8,123 steps'), findsOneWidget);
@@ -246,6 +338,7 @@ void main() {
         tester.widget<Text>(find.byKey(const Key('appleHealthStatus'))).data,
         'Connected',
       );
+      expect(health.requestAuthorizationCalls, 0);
 
       expect(store.writes, isEmpty);
       // The stored row is still only what the PDF import wrote.
@@ -258,6 +351,7 @@ void main() {
 
     testWidgets("Health's calories eaten show in place of the import's, "
         'and are never written', (tester) async {
+      health.status = HealthAuthorizationStatus.requested;
       health.days[yesterday] = HealthDayTotals(
         date: yesterday,
         caloriesEaten: 1700,
@@ -287,12 +381,14 @@ void main() {
         ..listen(totals, (_, _) {})
         ..listen(metricsHistoryControllerProvider, (_, _) {});
 
-      await notifier.refreshHealthData(); // launch (asks)
+      await notifier.refreshHealthData(); // launch (never asks)
+      await notifier.requestHealthAccess(); // onboarding, Settings or Today
       await container.read(totals.future);
       await container.read(metricsHistoryControllerProvider.future);
       await notifier.refreshHealthData(); // resume
       await notifier.refreshHealthData(); // "Refresh"
       await container.read(totals.future);
+      expect(health.requestAuthorizationCalls, 1);
 
       expect(store.writes, isEmpty);
     });
@@ -325,7 +421,7 @@ void main() {
       final notifier = container.read(healthAccessControllerProvider.notifier);
       final totals = healthDayTotalsProvider(window.start, window.end);
       container.listen(totals, (_, _) {});
-      await notifier.refreshHealthData();
+      await notifier.requestHealthAccess();
       await container.read(totals.future);
       expect(store.writes, isEmpty);
     });

@@ -62,7 +62,7 @@ final class HealthAccessControllerProvider
 }
 
 String _$healthAccessControllerHash() =>
-    r'4bc143d83854e37b179397297e13013aa2d788d5';
+    r'd460f703757413a4d31a80e5e381d60cd241e2d4';
 
 /// Whether Health is available and whether its permission sheet has been
 /// shown (never "allowed" or "denied": HealthKit doesn't say), for
@@ -99,3 +99,62 @@ abstract class _$HealthAccessController
     return element.handleCreate(ref, build);
   }
 }
+
+/// Whether Today offers "Connect Apple Health" under its metric tiles: only
+/// on an iPhone whose Health permission sheet hasn't been shown yet
+/// (`notDetermined`). Someone who was already asked (every 1.0 user) never
+/// sees it; after that the switch is in the Health app (Settings → Apple
+/// Health says where).
+
+@ProviderFor(healthConnectOffered)
+final healthConnectOfferedProvider = HealthConnectOfferedProvider._();
+
+/// Whether Today offers "Connect Apple Health" under its metric tiles: only
+/// on an iPhone whose Health permission sheet hasn't been shown yet
+/// (`notDetermined`). Someone who was already asked (every 1.0 user) never
+/// sees it; after that the switch is in the Health app (Settings → Apple
+/// Health says where).
+
+final class HealthConnectOfferedProvider
+    extends $FunctionalProvider<bool, bool, bool>
+    with $Provider<bool> {
+  /// Whether Today offers "Connect Apple Health" under its metric tiles: only
+  /// on an iPhone whose Health permission sheet hasn't been shown yet
+  /// (`notDetermined`). Someone who was already asked (every 1.0 user) never
+  /// sees it; after that the switch is in the Health app (Settings → Apple
+  /// Health says where).
+  HealthConnectOfferedProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'healthConnectOfferedProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$healthConnectOfferedHash();
+
+  @$internal
+  @override
+  $ProviderElement<bool> $createElement($ProviderPointer pointer) =>
+      $ProviderElement(pointer);
+
+  @override
+  bool create(Ref ref) {
+    return healthConnectOffered(ref);
+  }
+
+  /// {@macro riverpod.override_with_value}
+  Override overrideWithValue(bool value) {
+    return $ProviderOverride(
+      origin: this,
+      providerOverride: $SyncValueProvider<bool>(value),
+    );
+  }
+}
+
+String _$healthConnectOfferedHash() =>
+    r'9e6197bc5381c5d687a3fec1da6a1e77015e005d';

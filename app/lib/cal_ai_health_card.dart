@@ -248,7 +248,7 @@ class CalAiHealthCard extends ConsumerWidget {
                       onPressed: () => unawaited(
                         ref
                             .read(healthAccessControllerProvider.notifier)
-                            .refreshHealthData(),
+                            .requestHealthAccess(),
                       ),
                       child: const Center(child: Text('Allow Apple Health')),
                     ),

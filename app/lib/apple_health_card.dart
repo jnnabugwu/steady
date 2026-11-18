@@ -14,7 +14,9 @@ import 'package:ui_kit/ui_kit.dart';
 /// The "Apple Health" section of Settings (#75).
 ///
 /// On iOS: a status line and a "Connect Apple Health" (later "Refresh")
-/// button that asks for permission if needed and re-reads Health. The
+/// button. Before Health's permission sheet has been shown, it asks
+/// (`requestHealthAccess`: Steady no longer asks at launch); after, it
+/// re-reads Health. The
 /// status can never be "allowed" or "denied" outright, because HealthKit
 /// doesn't tell apps what the user chose for read access; when Health
 /// returns nothing at all for the history's window, it says so and where to
@@ -130,11 +132,18 @@ class AppleHealthCard extends ConsumerWidget {
             PrimaryButton(
               key: const Key('connectAppleHealthButton'),
               leading: const Icon(LucideIcons.heartPulse),
-              onPressed: () => unawaited(
-                ref
-                    .read(healthAccessControllerProvider.notifier)
-                    .refreshHealthData(),
-              ),
+              // Not asked yet: this is one of the places that ask
+              // (`health_access.dart`). Asked: re-read.
+              onPressed: () {
+                final access = ref.read(
+                  healthAccessControllerProvider.notifier,
+                );
+                unawaited(
+                  authorization == HealthAuthorizationStatus.requested
+                      ? access.refreshHealthData()
+                      : access.requestHealthAccess(),
+                );
+              },
               child: Text(buttonLabel),
             ),
         ],
