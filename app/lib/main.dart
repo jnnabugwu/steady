@@ -29,7 +29,7 @@ import 'package:ui_kit/ui_kit.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   configurePdfium();
-  // Usage sharing (TestFlight only, usage_sharing.dart): built only with a
+  // Usage sharing (usage_sharing.dart): built only with a
   // PostHog key, on iOS. Whether this install may send anything is checked
   // in the background; events recorded meanwhile wait for the answer.
   final postHog = Platform.isIOS && postHogKey.isNotEmpty

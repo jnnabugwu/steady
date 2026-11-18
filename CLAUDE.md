@@ -68,14 +68,15 @@
   `ThemeData`), and every feature screen. Feature and app `lib/` code uses
   `shadcn_flutter` / `ui_kit` widgets only, never Material: no
   `package:flutter/material.dart` import. See §5, "App shell".
-- **PostHog (`posthog_flutter`) — TestFlight builds only.** Anonymous usage events, from
+- **PostHog (`posthog_flutter`) — App Store and TestFlight installs.** Anonymous usage events, from
   a fixed list in `packages/shared/analytics` (`AnalyticsEvent`): names plus labels,
   yes/nos or counts, never a Health value, craving or coach text. Features record through
   `analyticsProvider` (a no-op unless the app binds it). `app/lib/usage_sharing.dart` sets
-  PostHog up only when the build has a key (`--dart-define=POSTHOG_KEY`) and the install
-  is TestFlight, checked at runtime (`steady/install`). No session replay. A new event
+  PostHog up only when the build has a key (`--dart-define=POSTHOG_KEY`) and the install's
+  source is known (App Store, TestFlight or debug), checked at runtime (`steady/install`).
+  On by default, with a switch in Settings → Usage sharing. No session replay. A new event
   goes in `AnalyticsEvent`, and in `docs/PRIVACY.md`'s list. Decision record:
-  `docs/technical_decisions.md`, "Usage events from TestFlight builds only".
+  `docs/technical_decisions.md`, "Usage events from App Store builds too".
 
 ---
 
@@ -88,7 +89,7 @@ steady/
 │   │   ├── app_router.dart        # routerProvider + typed routes, wires feature callbacks (§5)
 │   │   ├── app_shell.dart          # AppShell: the tab branches under the floating GlassTabBar (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
-│   │   ├── usage_sharing.dart      # PostHog on TestFlight only: install check, opt-out (§1)
+│   │   ├── usage_sharing.dart      # PostHog (App Store + TestFlight): install check, opt-out (§1)
 │   │   ├── today_screen.dart       # TodayScreen, served at `/` by HomeRoute: composes the
 │   │   │                            # features' Today cards (§5)
 │   │   └── main.dart               # ProviderScope + ShadcnApp.router
@@ -138,7 +139,7 @@ steady/
 │   └── shared/
 │       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets
 │       ├── failures/                # Shared typed Failure classes, Result, Unit
-│       ├── analytics/               # AnalyticsEvent (every usage event, TestFlight only,
+│       ├── analytics/               # AnalyticsEvent (every usage event,
 │       │                            # §1) + analyticsProvider, lib/testing.dart
 │       ├── daily_metrics_domain/    # Shared DailyMetric entity + DailyMetricRepository
 │       └── daily_metrics_data/      # SwiftDataDailyMetricRepository (the shared store, §7,

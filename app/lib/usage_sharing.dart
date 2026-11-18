@@ -1,5 +1,5 @@
-/// Usage sharing: anonymous usage events sent to PostHog, from TestFlight
-/// builds only.
+/// Usage sharing: anonymous usage events sent to PostHog, from App Store
+/// and TestFlight installs, on by default with a switch in Settings.
 ///
 /// **What's sent** is the fixed list in `AnalyticsEvent`
 /// (`packages/shared/analytics`): a name and a few labels, yes/nos or
@@ -14,9 +14,9 @@
 /// - the build has a PostHog project key ([postHogKey], passed with
 ///   `--dart-define=POSTHOG_KEY=...` by `scripts/build-ios-ipa.sh`, so it's
 ///   never in the repo), and it's iOS;
-/// - this install came from TestFlight, or is a debug build
-///   ([InstallSource], asked at runtime over `steady/install`, since the
-///   same binary can go on to the App Store, where nothing is ever sent);
+/// - this install's source is known: the App Store, TestFlight, or a debug
+///   build ([InstallSource], asked at runtime over `steady/install`). An
+///   install whose source can't be read sends nothing;
 /// - the person hasn't turned it off in Settings (`UsageSharingCard`).
 ///
 /// The SDK is set up by hand, here, never at launch by the plugin:
@@ -54,7 +54,7 @@ enum InstallSource {
   /// TestFlight: usage sharing is offered.
   testFlight,
 
-  /// The App Store: nothing is ever sent.
+  /// The App Store: usage sharing is offered, on by default.
   appStore,
 
   /// A debug build: offered, so events can be checked before a TestFlight
@@ -236,8 +236,7 @@ final class PostHogAnalytics implements Analytics {
     var status = UsageSharingStatus.notOffered;
     try {
       final source = await _installSource.read();
-      if (source == InstallSource.testFlight ||
-          source == InstallSource.development) {
+      if (source != InstallSource.unknown) {
         final off = await _store.isOff();
         await _client.setup(optOut: off);
         status = off ? UsageSharingStatus.off : UsageSharingStatus.on;

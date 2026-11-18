@@ -26,10 +26,10 @@ import UIKit
 }
 
 /// The `steady/install` platform channel, iOS only: where this copy of
-/// Steady was installed from. Usage events go to PostHog only from a
-/// TestFlight install (or a debug build given a PostHog key), never from
-/// the App Store, and the same binary can be both, so this is asked at
-/// runtime. The Dart side is `MethodChannelInstallSource` in
+/// Steady was installed from. Usage events go to PostHog from App Store and
+/// TestFlight installs (and a debug build given a PostHog key), and never
+/// when the source can't be read; the same binary can be either, so this is
+/// asked at runtime. The Dart side is `MethodChannelInstallSource` in
 /// `lib/usage_sharing.dart`; change both together.
 ///
 /// Methods:

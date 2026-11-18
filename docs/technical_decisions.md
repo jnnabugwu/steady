@@ -7,10 +7,57 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Usage events from App Store builds too (2026-11-17)
+
+**Decision:** App Store installs send the same anonymous usage events as TestFlight builds,
+on by default, with the switch in Settings → Usage sharing. All six events in
+`AnalyticsEvent`, plus PostHog's lifecycle events, and nothing else. This replaces the
+TestFlight-only rule in the record below; everything else in it stands (the fixed list, no
+session replay or person profiles, the runtime install check, the key at build time).
+
+**Why:** 1.0 is live (2026-11-17), so the people whose habits matter are App Store users, not
+the handful of friends on TestFlight. The questions in the record below are the same
+questions. Onboarding (#161) also needs one more event, `onboarding_source` (where did you
+hear about Steady), which is only useful from real installs.
+
+**What changed in the code:** `PostHogAnalytics` sets PostHog up for any install whose source
+is known (App Store, TestFlight or a debug build). An install whose source `steady/install`
+can't read still sends nothing.
+
+**Order, because the App Store listing is public:**
+
+1. The App Privacy label in App Store Connect declares Usage Data (Product Interaction, Other
+   Usage Data) and, to match the SDK's privacy manifest, Diagnostics (Crash Data): not
+   linked to the person, not used for tracking, analytics only. This comes first. Since
+   #156 merged, every build from `main` carries the manifest, even one built without a key.
+2. A release build made with `POSTHOG_KEY` (`scripts/build-ios-ipa.sh`, the Ship iOS
+   workflow's secrets).
+3. `docs/PRIVACY.md` and `docs/testflight.md`'s review answers say the same (this change).
+
+**Not tracking.** Events carry a random per-install id, no person profile, no IDFA, nothing
+combined with other companies' data, and nothing used for advertising, so App Tracking
+Transparency doesn't apply.
+
+**Considered:**
+
+- *Ask first (opt-in).* Not for now: the events hold no Health values, cravings or text, and
+  an opt-in prompt on first launch competes with the Health permission. Revisit for EU and
+  UK users, where storing an install id can need consent; an onboarding screen (#161) is the
+  natural place for that question.
+- *Only `onboarding_source` from the App Store.* Rejected: once the label declares usage
+  data, the other five events don't change it, and they answer the questions that decide
+  what to build next.
+
+---
+
 ## Usage events from TestFlight builds only (2026-10-31)
 
+**Superseded in part (2026-11-17)** by "Usage events from App Store builds too", above:
+App Store installs now send the same events. Everything below about keeping events out of the
+App Store build describes how it was until then.
+
 **Decision:** TestFlight builds send anonymous usage events to PostHog (cloud, free plan).
-App Store installs send nothing. The events are a fixed list in `packages/shared/analytics`
+App Store installs sent nothing (until 2026-11-17). The events are a fixed list in `packages/shared/analytics`
 (`AnalyticsEvent`), each a name plus labels, yes/nos or counts:
 
 - `health_connected`, once per launch: whether the last seven days had any steps and any
@@ -36,7 +83,8 @@ build next are:
 
 App Store Connect's own analytics can't answer those.
 
-**How it stays out of the App Store build:**
+**How it stayed out of the App Store build (until 2026-11-17; now only an install whose
+source can't be read sends nothing):**
 
 - **Runtime check.** A TestFlight binary is the same file that's submitted for review, so the
   gate is checked at runtime: `steady/install` (`AppDelegate.swift`) reads StoreKit's
@@ -64,7 +112,7 @@ count would be.
 - *A `health_connected` event when the permission sheet closes*, rejected. HealthKit never
   says whether access was allowed, so it would count "Don't Allow" as connected.
 
-**Before the App Store version sends anything:**
+**Before the App Store version sends anything (done 2026-11-17, in the record above):**
 
 - The App Privacy label changes.
 - `docs/PRIVACY.md` drops "TestFlight only".
