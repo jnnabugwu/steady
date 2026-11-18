@@ -501,9 +501,20 @@ feature's `*_presentation` package exports: the account feature's `ICloudSyncBan
 checkin's `CheckInCard` and `CairnWeekCard`, metrics' `TodayMetricTiles`, and the cravings
 feature's `CravingHomeSection` (iPhone only). Its header holds the date, a time-of-day
 greeting and the import button (hidden by screen 2's answer; "First launch", below).
-Under the tiles, `TodayMetricTiles.onConnectHealth` shows "Connect Apple Health" while
-Health's sheet hasn't been shown (`healthConnectOfferedProvider`), and `HomeRoute` wires
-it to `requestHealthAccess`. "Today" is checkin's `checkInTodayProvider` (local
+**One Health prompt, never two:** `todayHealthPromptProvider(day)`
+(`app/lib/cal_ai_health_card.dart`) picks the Cal AI card, the tiles' "Connect Apple
+Health" pill (`TodayMetricTiles.onConnectHealth`, which `HomeRoute` wires to
+`requestHealthAccess`) or neither, and both read it.
+
+- The card shows only for screen 2's `calAi` or no answer (unreadable and still loading
+  count as no answer), when it isn't snoozed, and when either Health hasn't been asked or
+  it has and the window has no dietary energy.
+- The pill shows only before Health's sheet (`notDetermined`), and only when the card
+  isn't showing.
+
+The tiles' empty-week text follows screen 2 too: `todayMetricsEmptyHintProvider` passes
+metrics' `TodayMetricsEmptyHint` in, so metrics_presentation never sees onboarding.
+"Today" is checkin's `checkInTodayProvider` (local
 midnight of `checkInClockProvider`, which tests pin). The app root (`SteadyApp` in
 `main.dart`) calls its `refreshToday` from a timer set for the next local midnight and on
 every resume, so a screen left open overnight moves to the new day and its date-keyed
@@ -544,6 +555,7 @@ onboarding), nothing is read, and `OnboardingRoute` redirects home.
 Screen 2's answer decides Today's header import button (`todayImportButtonShownProvider`).
 It's hidden for `otherHealthApp` and `justStarting`, and shown for `calAi`, no answer, an
 unreadable record and while loading. Week's header keeps its import button for everyone.
+The same answer decides the Cal AI card and the empty-metrics text ("Today", above).
 
 **Consent (`/coach-consent`).** `CoachConsentRoute` (top-level, on the root navigator,
 redirects home on the Mac) shows coach's `CoachConsentModule` and pops with `true` for

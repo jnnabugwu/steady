@@ -384,7 +384,10 @@ Design: `docs/design/onboarding.md`.
       (`requestHealthAccess`).
 - [x] Screen 8 asks for the coach's consent through `CoachConsentRoute`.
 - [x] Screen 2's answer hides Today's import button for `otherHealthApp` and
-      `justStarting` (Week keeps its own).
+      `justStarting` (Week keeps its own), and the Cal AI card with it. The empty-metrics
+      text follows the answer too (no PDF mention unless Cal AI or unanswered).
+- [x] One Health prompt on Today: the Cal AI card or the tiles' "Connect Apple Health",
+      never both (`todayHealthPromptProvider`; every combination tested).
 - [x] `onboarding_source` and `onboarding_exited` usage events (TestFlight only, like the
       rest; `docs/PRIVACY.md`).
 - [ ] Settings → About me, to change the answers later.
