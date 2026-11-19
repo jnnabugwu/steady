@@ -27,6 +27,27 @@ abstract final class PaywallCopy {
       'Your conversations stay on this iPhone, and you can still read them '
       'if you stop.';
 
+  /// The offer for people who used the coach on 1.0 (#188), word for word
+  /// from the ticket.
+  static const earlyCoachOffer =
+      'You used the coach before it became part of the subscription, so '
+      'your first two weeks are free.';
+
+  /// How to use the code.
+  static const earlyCoachOfferHow =
+      'Redeem this code with Apple, then pick your plan there.';
+
+  /// Redeeming the code.
+  static const redeemCode = 'Redeem code';
+
+  /// Copying the code.
+  static const copyCode = 'Copy code';
+
+  /// After the redemption sheet: Apple finishes on its own time.
+  static const afterRedeem =
+      'Once Apple confirms the code, your two weeks start. Tap Check again '
+      'if the coach hasn’t opened.';
+
   /// The button, when a free trial is offered.
   static const startTrial = 'Start free week';
 

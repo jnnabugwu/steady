@@ -51,6 +51,19 @@ class SubscriptionStatusController extends _$SubscriptionStatusController {
   Future<Result<SubscriptionStatus>> restoreSubscription() =>
       _once(() => ref.read(subscriptionRepositoryProvider).restore());
 
+  /// Domain event: OfferCodeRedemptionRequested (#188). Opens Apple's offer
+  /// code sheet, then reads the status again. Apple redeems the code on
+  /// its own time, so the status may only change on a later read (the
+  /// paywall's "Check again", or the next return to the app).
+  Future<Result<Unit>> redeemOfferCode() async {
+    final result = await ref
+        .read(subscriptionRepositoryProvider)
+        .presentOfferCodeRedemption();
+    if (!ref.mounted) return result;
+    if (result is Ok) await refreshSubscription();
+    return result;
+  }
+
   /// Reads the status again, keeping what's shown until the answer comes.
   /// Not a domain event: nothing changed in the app, the store may have.
   Future<void> refreshSubscription() async {
@@ -113,6 +126,21 @@ Future<bool> readCoachNeedsSubscription({
   } on Object {
     return false;
   }
+}
+
+/// The offer code to show on the paywall (#188), or `null`: only for a
+/// person who used the coach on 1.0 ([earlyCoachUserRepositoryProvider]
+/// says so) in a build that has a code ([earlyCoachOfferCodeProvider]). A
+/// failed read is no offer.
+@riverpod
+Future<String?> earlyCoachOffer(Ref ref) async {
+  final code = ref.watch(earlyCoachOfferCodeProvider).trim();
+  final repository = ref.watch(earlyCoachUserRepositoryProvider);
+  if (code.isEmpty || repository == null) return null;
+  return switch (await repository.read()) {
+    Ok(value: true) => code,
+    _ => null,
+  };
 }
 
 /// The plans on sale now, for the paywall. Auto-disposed with it, so every

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:subscription_domain/testing/in_memory_subscription_repository.dart';
@@ -15,6 +16,7 @@ Future<void> pumpWithStore(
   InMemorySubscriptionRepository store,
   Widget child, {
   bool supported = true,
+  List<Override> overrides = const [],
 }) async {
   tester.view.physicalSize = const Size(390, 844) * 3;
   tester.view.devicePixelRatio = 3;
@@ -24,6 +26,7 @@ Future<void> pumpWithStore(
       overrides: [
         subscriptionRepositoryProvider.overrideWithValue(store),
         subscriptionSupportAvailableProvider.overrideWithValue(supported),
+        ...overrides,
       ],
       child: ShadcnApp(theme: steadyTheme, home: child),
     ),

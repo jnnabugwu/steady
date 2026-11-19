@@ -41,6 +41,10 @@
 # Never a Test Store key (test_...): RevenueCat's SDK crashes a release build
 # with one on purpose, so the app ignores it outside debug builds.
 #
+# Two weeks free for 1.0's coach users (#188): set EARLY_COACH_OFFER_CODE to
+# the custom offer code from App Store Connect and the paywall shows it to
+# phones where the coach was used on 1.0. Never in the repo.
+#
 # No flavors, env files or CocoaPods: plugins are integrated with Swift
 # Package Manager. The one build-time setting is the coach proxy's address
 # (steady-backend, Production), passed as --dart-define=COACH_PROXY_URL from
@@ -150,6 +154,13 @@ case "${REVENUECAT_API_KEY:-}" in
     echo "Purchases: on (RevenueCat)"
     ;;
 esac
+
+if [ -n "${EARLY_COACH_OFFER_CODE:-}" ]; then
+  DEFINES+=("--dart-define=EARLY_COACH_OFFER_CODE=$EARLY_COACH_OFFER_CODE")
+  echo "Early coach offer: on"
+else
+  echo "Early coach offer: off (no EARLY_COACH_OFFER_CODE in the environment)"
+fi
 
 step "flutter build ipa (release, App Store Connect, automatic signing)"
 flutter build ipa --release \

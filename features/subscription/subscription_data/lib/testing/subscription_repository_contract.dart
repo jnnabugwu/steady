@@ -211,6 +211,11 @@ void runSubscriptionRepositoryContractTests(
       }
     });
 
+    test('the offer code sheet opens and changes nothing by itself', () async {
+      ok(await repo.presentOfferCodeRedemption());
+      expect(ok(await repo.status()), SubscriptionStatus.none);
+    });
+
     test('an outage fails status, offer and restore as unavailable', () async {
       store.failNext(SubscriptionStoreFault.outage);
       expect(

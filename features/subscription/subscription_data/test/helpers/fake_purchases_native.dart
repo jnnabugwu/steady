@@ -127,6 +127,8 @@ class FakePurchasesNative implements SubscriptionContractStore {
       );
     }
     switch (call.method) {
+      case 'presentCodeRedemptionSheet':
+        return null;
       case 'getCustomerInfo':
         return _customerInfo();
       case 'restorePurchases':

@@ -35,4 +35,10 @@ abstract class SubscriptionRepository {
   /// device, a reinstall). Finding none isn't a failure: it returns
   /// [SubscriptionStatus.none] (or lapsed, if one ended).
   ResultFuture<SubscriptionStatus> restore();
+
+  /// Opens Apple's offer code sheet, where the person types a code (#188:
+  /// two weeks free for people who used the coach on 1.0). Returns once the
+  /// sheet is shown, not when a code is redeemed: Apple finishes that on
+  /// its own, and the next [status] read shows it.
+  ResultFuture<Unit> presentOfferCodeRedemption();
 }

@@ -93,7 +93,7 @@ final class SubscriptionStatusControllerProvider
 }
 
 String _$subscriptionStatusControllerHash() =>
-    r'a9072d430163fe307f210f4e28fed264d8729584';
+    r'8d6a3030b22910a1d7849e038a629255f8a7c01f';
 
 /// Where this Apple Account stands with the coach's subscription, as every
 /// screen reads it: the paywall, the Coach tab, the nudge's way in and
@@ -204,6 +204,53 @@ final class CoachNeedsSubscriptionProvider
 
 String _$coachNeedsSubscriptionHash() =>
     r'2b52e483a003d1b0da491125e545f2839ad97dde';
+
+/// The offer code to show on the paywall (#188), or `null`: only for a
+/// person who used the coach on 1.0 ([earlyCoachUserRepositoryProvider]
+/// says so) in a build that has a code ([earlyCoachOfferCodeProvider]). A
+/// failed read is no offer.
+
+@ProviderFor(earlyCoachOffer)
+final earlyCoachOfferProvider = EarlyCoachOfferProvider._();
+
+/// The offer code to show on the paywall (#188), or `null`: only for a
+/// person who used the coach on 1.0 ([earlyCoachUserRepositoryProvider]
+/// says so) in a build that has a code ([earlyCoachOfferCodeProvider]). A
+/// failed read is no offer.
+
+final class EarlyCoachOfferProvider
+    extends $FunctionalProvider<AsyncValue<String?>, String?, FutureOr<String?>>
+    with $FutureModifier<String?>, $FutureProvider<String?> {
+  /// The offer code to show on the paywall (#188), or `null`: only for a
+  /// person who used the coach on 1.0 ([earlyCoachUserRepositoryProvider]
+  /// says so) in a build that has a code ([earlyCoachOfferCodeProvider]). A
+  /// failed read is no offer.
+  EarlyCoachOfferProvider._()
+    : super(
+        from: null,
+        argument: null,
+        retry: null,
+        name: r'earlyCoachOfferProvider',
+        isAutoDispose: true,
+        dependencies: null,
+        $allTransitiveDependencies: null,
+      );
+
+  @override
+  String debugGetCreateSourceHash() => _$earlyCoachOfferHash();
+
+  @$internal
+  @override
+  $FutureProviderElement<String?> $createElement($ProviderPointer pointer) =>
+      $FutureProviderElement(pointer);
+
+  @override
+  FutureOr<String?> create(Ref ref) {
+    return earlyCoachOffer(ref);
+  }
+}
+
+String _$earlyCoachOfferHash() => r'5102d9adb288f2fbac5d60eae0dd209df0f6a497';
 
 /// The plans on sale now, for the paywall. Auto-disposed with it, so every
 /// opening asks the store again (prices and trial eligibility can change).
