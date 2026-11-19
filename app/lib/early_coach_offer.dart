@@ -18,14 +18,22 @@ import 'package:failures/failures.dart';
 import 'package:subscription_domain/subscription_domain.dart';
 
 /// What a read of the coach's sessions says about using the coach on 1.0:
-/// `true` for any session, `false` for none (an empty or missing file),
-/// and `null` when it can't be told this launch (a storage error; the next
+/// `true` for any session that started before [launchedAt], `false` for
+/// none (an empty or missing file, or only sessions from this launch), and
+/// `null` when it can't be told this launch (a storage error; the next
 /// launch tries again).
+///
+/// Only sessions from before [launchedAt] count, so a check that finishes
+/// after the app has started (`main.dart`'s timeout lets the first frame
+/// go ahead without it) never counts a session 1.1.0 made meanwhile.
 ///
 /// A file that can't be decoded counts as `true`: something wrote it
 /// before this check ran, and that was 1.0's coach.
-bool? usedCoachFrom(Result<List<CoachSession>> sessions) => switch (sessions) {
-  Ok(:final value) => value.isNotEmpty,
+bool? usedCoachFrom(
+  Result<List<CoachSession>> sessions, {
+  required DateTime launchedAt,
+}) => switch (sessions) {
+  Ok(:final value) => value.any((s) => s.startedAt.isBefore(launchedAt)),
   Err(failure: CoachHistoryUnreadableFailure()) => true,
   Err() => null,
 };
@@ -35,11 +43,15 @@ bool? usedCoachFrom(Result<List<CoachSession>> sessions) => switch (sessions) {
 /// only until then. Returns what's stored, or `null` if nothing could be
 /// decided this launch.
 ///
-/// `main.dart` awaits it before the first frame (with a short timeout), so
-/// it runs before 1.1.0 can add a session of its own.
+/// [launchedAt] is when this launch began, taken before the first frame:
+/// only sessions that started before it count ([usedCoachFrom]).
+/// `main.dart` awaits this before the first frame, but with a short
+/// timeout that doesn't cancel it, so it can finish after 1.1.0 has added
+/// a session of its own; [launchedAt] keeps that session out.
 Future<bool?> recordEarlyCoachUser({
   required EarlyCoachUserRepository flag,
   required CoachRepository coach,
+  required DateTime launchedAt,
 }) async {
   switch (await flag.read()) {
     case Ok(value: final bool decided):
@@ -49,7 +61,10 @@ Future<bool?> recordEarlyCoachUser({
     case Ok():
       break;
   }
-  final usedCoach = usedCoachFrom(await coach.listSessions());
+  final usedCoach = usedCoachFrom(
+    await coach.listSessions(),
+    launchedAt: launchedAt,
+  );
   if (usedCoach == null) return null;
   return switch (await flag.decideOnce(usedCoach: usedCoach)) {
     Ok(:final value) => value,

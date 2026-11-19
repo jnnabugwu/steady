@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:coach_data/coach_data.dart';
@@ -34,9 +35,13 @@ void main() {
     summary: 'A chat on 1.0.',
   );
 
+  // The first 1.1.0 launch, after the session above.
+  final launchedAt = DateTime(2026, 11, 18, 9);
+
   Future<bool?> launch() => recordEarlyCoachUser(
     flag: FileEarlyCoachUserRepository(flagFile()),
     coach: FileCoachRepository(sessionsFile()),
+    launchedAt: launchedAt,
   );
 
   test('an updated phone with a coach session gets the offer', () async {
@@ -75,7 +80,14 @@ void main() {
   test('once decided, the sessions are not read again', () async {
     final flag = InMemoryEarlyCoachUserRepository(decided: false);
     final coach = _CountingCoach();
-    expect(await recordEarlyCoachUser(flag: flag, coach: coach), isFalse);
+    expect(
+      await recordEarlyCoachUser(
+        flag: flag,
+        coach: coach,
+        launchedAt: launchedAt,
+      ),
+      isFalse,
+    );
     expect(coach.reads, 0);
   });
 
@@ -94,19 +106,85 @@ void main() {
       final failing = _CountingCoach(
         answer: const Err(CoachHistoryStorageFailure('disk')),
       );
-      expect(await recordEarlyCoachUser(flag: flag, coach: failing), isNull);
+      expect(
+        await recordEarlyCoachUser(
+          flag: flag,
+          coach: failing,
+          launchedAt: launchedAt,
+        ),
+        isNull,
+      );
       expect(flag.decided, isNull);
 
       final working = _CountingCoach(answer: Ok([session]));
-      expect(await recordEarlyCoachUser(flag: flag, coach: working), isTrue);
+      expect(
+        await recordEarlyCoachUser(
+          flag: flag,
+          coach: working,
+          launchedAt: launchedAt,
+        ),
+        isTrue,
+      );
     },
   );
+
+  group('a check that finishes after the app started', () {
+    // main.dart's timeout doesn't cancel the check, so its read can come
+    // back after 1.1.0 has made a session of its own.
+    final madeThisLaunch = session.copyWith(
+      id: 'from-1.1.0',
+      startedAt: launchedAt.add(const Duration(seconds: 30)),
+    );
+
+    test('does not count a session made in this launch', () async {
+      await FileCoachRepository(sessionsFile()).saveSession(madeThisLaunch);
+      expect(await launch(), isFalse);
+      expect(
+        await FileEarlyCoachUserRepository(flagFile()).read(),
+        isA<Ok<bool?>>().having((o) => o.value, 'value', isFalse),
+      );
+    });
+
+    test('still counts a session from before it', () async {
+      final coach = FileCoachRepository(sessionsFile());
+      await coach.saveSession(session);
+      await coach.saveSession(madeThisLaunch);
+      expect(await launch(), isTrue);
+    });
+
+    test("through main.dart's timeout: decides later, from before the "
+        'launch', () async {
+      final flag = InMemoryEarlyCoachUserRepository();
+      final reply = Completer<Result<List<CoachSession>>>();
+      final slow = _CountingCoach(reply: reply.future);
+      final check = recordEarlyCoachUser(
+        flag: flag,
+        coach: slow,
+        launchedAt: launchedAt,
+      );
+      await expectLater(
+        check.timeout(const Duration(milliseconds: 10)),
+        throwsA(isA<TimeoutException>()),
+      );
+      // The app has started and made a session; then the read returns.
+      reply.complete(Ok([madeThisLaunch]));
+      expect(await check, isFalse);
+      expect(flag.decided, isFalse);
+    });
+  });
 
   test('a flag that can not be read decides nothing', () async {
     final flag = InMemoryEarlyCoachUserRepository()
       ..failNextWith = const EarlyCoachUserStorageFailure('disk');
     final coach = _CountingCoach(answer: Ok([session]));
-    expect(await recordEarlyCoachUser(flag: flag, coach: coach), isNull);
+    expect(
+      await recordEarlyCoachUser(
+        flag: flag,
+        coach: coach,
+        launchedAt: launchedAt,
+      ),
+      isNull,
+    );
     expect(flag.decided, isNull);
     expect(coach.reads, 0);
   });
@@ -134,15 +212,18 @@ void main() {
 }
 
 class _CountingCoach implements CoachRepository {
-  _CountingCoach({this.answer = const Ok([])});
+  _CountingCoach({this.answer = const Ok([]), this.reply});
 
   final Result<List<CoachSession>> answer;
+
+  /// When set, what [listSessions] waits for instead of [answer].
+  final Future<Result<List<CoachSession>>>? reply;
   int reads = 0;
 
   @override
   ResultFuture<List<CoachSession>> listSessions() async {
     reads++;
-    return answer;
+    return await (reply ?? Future.value(answer));
   }
 
   @override
