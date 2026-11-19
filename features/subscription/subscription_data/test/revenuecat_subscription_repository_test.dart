@@ -2,6 +2,7 @@ import 'package:failures/failures.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:purchases_flutter/purchases_flutter.dart';
 import 'package:subscription_data/subscription_data.dart';
+import 'package:subscription_data/testing/subscription_repository_contract.dart';
 import 'package:subscription_domain/subscription_domain.dart';
 
 import 'helpers/fake_purchases_native.dart';
@@ -92,6 +93,22 @@ void main() {
       },
     );
   });
+
+  test(
+    'a payment fault reaches the purchase call, not the offering read',
+    () async {
+      native.failNext(SubscriptionStoreFault.cancelled);
+      expect(
+        err(await repo.purchase(SubscriptionPlan.monthly)),
+        isA<SubscriptionCancelledFailure>(),
+      );
+      expect(native.calls.map((c) => c.method), [
+        'setupPurchases',
+        'getOfferings',
+        'purchasePackage',
+      ]);
+    },
+  );
 
   group('error codes', () {
     for (final (code, failure) in [

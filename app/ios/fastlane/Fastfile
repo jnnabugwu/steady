@@ -79,7 +79,10 @@ platform :ios do
       # checked at runtime: app/lib/usage_sharing.dart).
       # RevenueCat's public Apple SDK key (#181), when set; never a Test
       # Store key, which crashes a release build on purpose.
-      UI.user_error!("REVENUECAT_API_KEY is a Test Store key; a release build needs the appl_ key") if ENV["REVENUECAT_API_KEY"].to_s.strip.start_with?("test_")
+      revenuecat_key = ENV["REVENUECAT_API_KEY"].to_s.strip
+      unless revenuecat_key.empty? || revenuecat_key.start_with?("appl_")
+        UI.user_error!("REVENUECAT_API_KEY must be RevenueCat's public Apple SDK key (appl_...); a Test Store key (test_...) can't ship")
+      end
       defines = %w[POSTHOG_KEY POSTHOG_HOST REVENUECAT_API_KEY]
         .reject { |name| ENV[name].to_s.strip.empty? }
         .map { |name| "--dart-define=#{name}=#{ENV[name].strip}" }
