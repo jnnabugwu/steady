@@ -15,7 +15,11 @@ that support Apple Intelligence: it was built in late October, before the Founda
 path was removed from `main` (#151, #152, merged 2026-11-04). 1.1.0 replaces it with the
 hosted coach behind the subscription, so **people on 1.0 with an Apple Intelligence iPhone
 lose a free coach when they update.** Their past sessions stay readable, as for any lapsed
-subscriber (item 2), since 1.1.0 reads the same `coach_sessions.json`.
+subscriber (item 2), since 1.1.0 should read 1.0's
+`coach_sessions.json` as it is: its codec (`coach_session_json.dart`, file version 1) and the
+two enums it decodes (`CoachSessionKind`, `CoachMessageRole`) are unchanged since 2026-10-25,
+before any 1.0 build, and the path is the same. That's from the code, not yet seen on a phone:
+confirm it on one updated from 1.0 (#185).
 
 **Decision:**
 
@@ -146,8 +150,8 @@ subscriber (item 2), since 1.1.0 reads the same `coach_sessions.json`.
   (redeemed in Apple's own sheet, `presentCodeRedemptionSheet`), with the code kept in the build
   config, never in the repo. Accepted: a custom code can be passed on, and someone who installed
   1.0 but never used the coach doesn't get it. The 1.1.0 release notes say plainly that the
-  coach becomes part of the subscription, and that people who used it get two weeks free. Check
-  that a 1.0 `coach_sessions.json` reads cleanly in 1.1.0 on an updated phone.
+  coach becomes part of the subscription, and that people who used it get two weeks free. Confirm
+  on a phone updated from 1.0 that its `coach_sessions.json` reads cleanly in 1.1.0 (#185).
 - **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
   to review; `docs/testflight.md` §6):
   - **Purchases → Purchase History**, not linked, not tracking. It covers what RevenueCat's SDK
