@@ -81,6 +81,17 @@
 /// because [onboardingSupportAvailableProvider] says so before the
 /// unbound repository is ever read (`onboarding.dart`).
 ///
+/// **The coach's subscription is iOS only** (#181,
+/// docs/technical_decisions.md, "The coach is paid"):
+/// `subscriptionRepositoryProvider` and `subscriptionSupportAvailableProvider`
+/// are bound only when [appProviderOverridesFor] is built with
+/// `isIOS: true`, to `RevenueCatSubscriptionRepository` (RevenueCat's
+/// `purchases_flutter`, StoreKit 2) with the key from
+/// `--dart-define=REVENUECAT_API_KEY` (`RevenueCatConfig.fromEnvironment`).
+/// Without a usable key every call is `SubscriptionNotConfiguredFailure`
+/// and the SDK is never touched, so tests built from this list need no
+/// plugin. Nothing about the subscription is stored by Steady.
+///
 /// **Usage sharing** (`usage_sharing.dart`):
 /// `analyticsProvider`, which features record their events through, is
 /// bound to [postHogAnalyticsProvider], `null` (so nothing is sent) unless
@@ -113,6 +124,8 @@ import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/usage_sharing.dart';
+import 'package:subscription_data/subscription_data.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 part 'providers.g.dart';
@@ -248,7 +261,8 @@ Future<File> onboardingFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/onboarding.json');
 
 /// [appProviderOverrides] for a given platform. The platform choices in it
-/// are Apple Health, craving support, the coach and onboarding, all bound
+/// are Apple Health, craving support, the coach, its subscription and
+/// onboarding, all bound
 /// only when [isIOS] (see the library comment). A function, not just the
 /// list, so tests can build the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
@@ -278,6 +292,13 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     onboardingSupportAvailableProvider.overrideWithValue(true),
     onboardingRepositoryProvider.overrideWith(
       (ref) => FileOnboardingRepository.locatedBy(onboardingFile),
+    ),
+    // The coach's subscription (#181): RevenueCat, anonymous, with the
+    // build's key. Configured at launch by main.dart.
+    subscriptionSupportAvailableProvider.overrideWithValue(true),
+    subscriptionRepositoryProvider.overrideWith(
+      (ref) =>
+          RevenueCatSubscriptionRepository(RevenueCatConfig.fromEnvironment()),
     ),
     // App Attest (#150): the channel, and the device-only key file.
     coachAppAttestProvider.overrideWith((ref) => MethodChannelAppAttest()),
