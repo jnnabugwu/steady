@@ -91,6 +91,8 @@ void runSubscriptionRepositoryContractTests(
       expect(monthly.amount, 4.99);
       expect(monthly.currencyCode, 'USD');
       expect(monthly.period, SubscriptionPeriod.oneMonth);
+      // Only the yearly plan carries a per-month price.
+      expect(monthly.monthlyEquivalentPrice, isNull);
       expect(
         monthly.freeTrial,
         const FreeTrial(
@@ -101,6 +103,7 @@ void runSubscriptionRepositoryContractTests(
       final yearly = offer.planFor(SubscriptionPlan.yearly)!;
       expect(yearly.price, r'$39.99');
       expect(yearly.period, SubscriptionPeriod.oneYear);
+      expect(yearly.monthlyEquivalentPrice, r'$3.33');
       expect(yearly.freeTrial?.offered, isTrue);
     });
 

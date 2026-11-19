@@ -103,6 +103,14 @@ abstract class SubscriptionPlanOffer with _$SubscriptionPlanOffer {
     /// How often it bills.
     required SubscriptionPeriod period,
 
+    /// What the plan works out to per month, localized by the store
+    /// ("$3.33" for $39.99 a year), or `null` when the store gives none.
+    /// Set for the yearly plan only. Steady never formats a currency
+    /// itself, so with no store value the paywall shows nothing extra.
+    /// It's secondary: the paywall shows it under the billed [price], in
+    /// smaller type, never in its place (App Store 3.1.2).
+    String? monthlyEquivalentPrice,
+
     /// Its free trial, or `null` if it has none. A paid introductory price
     /// isn't something Steady sells, so it's left out rather than shown as
     /// a trial.

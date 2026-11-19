@@ -192,6 +192,28 @@ void main() {
       );
     });
 
+    test("the yearly plan carries the store's per-month price; monthly "
+        'none', () async {
+      final offer = ok(await repo.offer());
+      expect(
+        offer.planFor(SubscriptionPlan.yearly)!.monthlyEquivalentPrice,
+        r'$3.33',
+      );
+      // The store sends one for monthly too ($4.99): it repeats the price.
+      expect(
+        offer.planFor(SubscriptionPlan.monthly)!.monthlyEquivalentPrice,
+        isNull,
+      );
+    });
+
+    test('no per-month price from the store is no per-month price', () async {
+      native.perPeriodPrices = false;
+      final offer = ok(await repo.offer());
+      expect(offer.plans.map((p) => p.monthlyEquivalentPrice), [null, null]);
+      // The billed price is still there.
+      expect(offer.planFor(SubscriptionPlan.yearly)!.price, r'$39.99');
+    });
+
     test('a three-day trial stays in days', () async {
       native.introPriceOverride = {
         'price': 0,

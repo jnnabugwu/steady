@@ -298,8 +298,11 @@ class _PaywallModuleState extends ConsumerState<PaywallModule> {
 }
 
 /// One plan: its name and trial line on the left, the billed price on the
-/// right in the largest type on the screen's prices. Selected, it takes the
-/// coach card's teal tint, like a chosen check-in option.
+/// right in the largest type on the screen's prices. The yearly plan adds
+/// the store's per-month price under its trial line ("about $3.33 a
+/// month"), smaller and dimmer than the billed price, never in its place
+/// (App Store 3.1.2). Selected, it takes the coach card's teal tint, like a
+/// chosen check-in option.
 class _PlanTile extends StatelessWidget {
   const _PlanTile({
     required this.offer,
@@ -315,12 +318,19 @@ class _PlanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final name = PaywallCopy.planName(offer.plan);
     final detail = PaywallCopy.planDetail(offer);
+    final perMonth = switch (offer.monthlyEquivalentPrice) {
+      final price? => PaywallCopy.monthlyEquivalent(price),
+      null => null,
+    };
     return Semantics(
       button: true,
       selected: selected,
       // excludeSemantics drops the GestureDetector's action, so it goes here.
       onTap: onPressed,
-      label: '$name, ${PaywallCopy.billed(offer)}. $detail',
+      label: [
+        '$name, ${PaywallCopy.billed(offer)}. $detail',
+        ?perMonth,
+      ].join(', '),
       excludeSemantics: true,
       child: GestureDetector(
         key: Key('paywallPlan_${offer.plan.name}'),
@@ -353,6 +363,15 @@ class _PlanTile extends StatelessWidget {
                         detail,
                         style: SteadyType.body.copyWith(fontSize: 13),
                       ),
+                      if (perMonth != null)
+                        Text(
+                          perMonth,
+                          key: Key('paywallPerMonth_${offer.plan.name}'),
+                          style: SteadyType.body.copyWith(
+                            fontSize: 13,
+                            color: SteadyColors.textTertiary,
+                          ),
+                        ),
                     ],
                   ),
                 ),
