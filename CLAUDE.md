@@ -605,7 +605,10 @@ Account has no active subscription (`readCoachNeedsSubscription`), then the cons
 ways in: the Coach tab (`CoachHomeModule.lockedCard` gets `CoachSubscriptionCard` while
 `coachNeedsSubscriptionProvider` is `true`, in place of the chat, the weekly card and "Turn on
 the coach"; past sessions stay readable), the nudge's "Talk now", onboarding's screen 8, the
-Settings switch and a session opened without consent. Settings → Subscription
+Settings switch and a session opened without consent. On a phone where the coach was used on
+1.0 (`earlyCoachOfferProvider`, #188) and the build has `EARLY_COACH_OFFER_CODE`, the paywall
+also shows `EarlyCoachOfferCard`: two weeks free, the code, and Apple's redemption sheet
+(`redeemOfferCode`). Settings → Subscription
 (`SubscriptionSettingsCard`) has the state, Manage, See plans and Restore. An unknown answer (no
 store key, an outage) never locks the coach: the proxy checks the subscription itself (#182).
 
@@ -807,6 +810,14 @@ it), so a restored phone keeps its history; the Settings text and PRIVACY.md say
 Decision record: `docs/technical_decisions.md`, "Craving support: iPhone, guided, device-only".
 "Device-only" is about storage: a coach session also sends the week's craving check-ins to
 Anthropic for the reply, with consent (above).
+
+**The early coach user flag is device-only too** (#188). `FileEarlyCoachUserRepository`
+(`subscription_data`) keeps `early_coach_offer.json` (`{"version": 1, "usedCoach": bool}`) next
+to `coach_consent.json`: decided once, on the first launch of a build with it, from whether
+`coach_sessions.json` holds any session that started before this launch
+(`app/lib/early_coach_offer.dart`, awaited before the first frame for up to a second; a check
+that finishes later never counts a session made since launch), and never changed. It's what lets the paywall offer two weeks free to people who
+used 1.0's free coach. Never synced; in the person's own device backup.
 
 **The coach consent answer is device-only too.** `FileCoachConsentRepository`
 (`coach_data`) keeps `coach_consent.json` (`{"version": n}`, the consent text's version the

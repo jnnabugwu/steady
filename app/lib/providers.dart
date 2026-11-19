@@ -253,6 +253,14 @@ Future<File> coachStoreFile() async => File(
 Future<File> coachConsentFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/coach_consent.json');
 
+/// The device-only file that says whether the person used the coach on
+/// Steady 1.0 (#188): `early_coach_offer.json` in the application support
+/// directory, next to `coach_consent.json`. Decided once, never synced; in
+/// the person's own device backup. Looked up on first use.
+Future<File> earlyCoachOfferFile() async => File(
+  '${(await getApplicationSupportDirectory()).path}/early_coach_offer.json',
+);
+
 /// The device-only onboarding file: `onboarding.json` in the application
 /// support directory, next to `coach_consent.json`. Whether onboarding is
 /// done, the screen to resume from and the About me answers. Never synced;
@@ -299,6 +307,14 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     subscriptionRepositoryProvider.overrideWith(
       (ref) =>
           RevenueCatSubscriptionRepository(RevenueCatConfig.fromEnvironment()),
+    ),
+    // Two weeks free for 1.0's coach users (#188): the decide-once flag,
+    // device-only, and the offer code from the build (never the repo).
+    earlyCoachUserRepositoryProvider.overrideWith(
+      (ref) => FileEarlyCoachUserRepository.locatedBy(earlyCoachOfferFile),
+    ),
+    earlyCoachOfferCodeProvider.overrideWithValue(
+      const String.fromEnvironment('EARLY_COACH_OFFER_CODE'),
     ),
     // App Attest (#150): the channel, and the device-only key file.
     coachAppAttestProvider.overrideWith((ref) => MethodChannelAppAttest()),

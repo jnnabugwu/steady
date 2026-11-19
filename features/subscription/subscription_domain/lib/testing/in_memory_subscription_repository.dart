@@ -99,6 +99,9 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
   /// How many times [restore] reached the store, failures included.
   int restoreCalls = 0;
 
+  /// How many times the offer code sheet was asked for, failures included.
+  int offerCodeSheetCalls = 0;
+
   /// Sells only [plans] from now on (a product Apple hasn't approved is
   /// left out of the offer).
   void sellOnly(Set<SubscriptionPlan> plans) => _sold = SubscriptionOffer(
@@ -128,6 +131,17 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
     purchase
       ..expiresAt = _clock().subtract(const Duration(seconds: 1))
       ..willRenew = false;
+  }
+
+  /// Grants [plan] free for [freeFor] as if a code was redeemed in Apple's
+  /// sheet. Whether StoreKit reports that time as a trial is an assumption
+  /// (see `RevenueCatSubscriptionRepository`'s status mapping; #185).
+  void redeemOfferCode(
+    SubscriptionPlan plan, {
+    Duration freeFor = const Duration(days: 14),
+  }) {
+    _onAccount = _Purchase(plan, trial: true, expiresAt: _clock().add(freeFor));
+    _seenHere = true;
   }
 
   /// Turns renewal off, as cancelling in Apple's settings does; it stays
@@ -194,6 +208,12 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
     if (_failure<SubscriptionStatus>() case final failure?) return failure;
     _seenHere = true;
     return Ok(_status());
+  }
+
+  @override
+  ResultFuture<Unit> presentOfferCodeRedemption() async {
+    offerCodeSheetCalls++;
+    return _failure<Unit>() ?? const Ok(unit);
   }
 
   SubscriptionStatus _status() {

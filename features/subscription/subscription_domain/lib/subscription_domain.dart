@@ -11,11 +11,17 @@
 /// through RevenueCat) is the record. The app's answer is a convenience for
 /// the screens; the proxy checks Apple's signed transaction itself (#182).
 ///
-/// `package:subscription_domain/testing/in_memory_subscription_repository.dart`
-/// has an in-memory repository for tests; `subscription_data` runs the same
-/// contract against it and the RevenueCat implementation.
+/// Also: whether this iPhone's person used the coach on Steady 1.0
+/// (`EarlyCoachUserRepository`, #188), decided once, device-only.
+///
+/// `lib/testing/` has in-memory repositories for tests
+/// (`in_memory_subscription_repository.dart`, and
+/// `in_memory_early_coach_user_repository.dart` for the flag);
+/// `subscription_data` runs the same contracts against them and its own
+/// implementations.
 library;
 
+export 'src/early_coach_user_repository.dart';
 export 'src/subscription_failures.dart';
 export 'src/subscription_offer.dart';
 export 'src/subscription_repository.dart';

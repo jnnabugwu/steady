@@ -34,7 +34,17 @@
 
           ],
           "codeOffers" : [
-
+            {
+              "eligibility" : [
+                "new",
+                "expired"
+              ],
+              "internalID" : "21500016",
+              "isStackable" : false,
+              "paymentMode" : "free",
+              "referenceName" : "Two weeks free for 1.0 coach users",
+              "subscriptionPeriod" : "P2W"
+            }
           ],
           "displayPrice" : "4.99",
           "familyShareable" : false,
@@ -66,7 +76,17 @@
 
           ],
           "codeOffers" : [
-
+            {
+              "eligibility" : [
+                "new",
+                "expired"
+              ],
+              "internalID" : "21500017",
+              "isStackable" : false,
+              "paymentMode" : "free",
+              "referenceName" : "Two weeks free for 1.0 coach users",
+              "subscriptionPeriod" : "P2W"
+            }
           ],
           "displayPrice" : "39.99",
           "familyShareable" : false,

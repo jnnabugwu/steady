@@ -13,5 +13,6 @@
 /// and the domain's in-memory fake.
 library;
 
+export 'src/file_early_coach_user_repository.dart';
 export 'src/revenuecat_config.dart';
 export 'src/revenuecat_subscription_repository.dart';
