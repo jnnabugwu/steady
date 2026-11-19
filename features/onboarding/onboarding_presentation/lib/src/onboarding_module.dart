@@ -43,8 +43,9 @@ class OnboardingModule extends ConsumerWidget {
 
   /// "Not now" on screen `at`, after onboarding is marked done (even if
   /// that save failed). The app sends `onboarding_exited` with `at`'s code
-  /// (`at.name`) and goes to Today.
-  final void Function(OnboardingStep at) onLeft;
+  /// (`at.name`) and goes to Today. `at` is `null` when the screen isn't
+  /// known: "Not now" after the stored answers couldn't be read.
+  final void Function(OnboardingStep? at) onLeft;
 
   /// Screen 3 answered: `code` is an [OnboardingSource]'s code (`friend`,
   /// `instagram`, `reddit`, `appStore`, `tiktok`, `other`). Called only
@@ -90,7 +91,8 @@ class OnboardingModule extends ConsumerWidget {
                   await ref
                       .read(onboardingControllerProvider.notifier)
                       .leaveOnboarding();
-                  if (context.mounted) onLeft(OnboardingStep.firstStone);
+                  // The record couldn't be read, so the screen isn't known.
+                  if (context.mounted) onLeft(null);
                 },
               ),
               AsyncLoading() => const Center(
@@ -118,7 +120,7 @@ class _Flow extends ConsumerStatefulWidget {
 
   final OnboardingFlowState flow;
   final void Function() onFinished;
-  final void Function(OnboardingStep at) onLeft;
+  final void Function(OnboardingStep? at) onLeft;
   final void Function(String code) onSourceChosen;
   final Future<void> Function() onHealthRequested;
   final Future<bool> Function() onConsentRequested;

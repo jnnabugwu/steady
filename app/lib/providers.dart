@@ -70,6 +70,17 @@
 /// cravings) are bound in the same iOS-only block, each to the owning
 /// feature's own repository, never a second instance.
 ///
+/// **Onboarding is iOS only, and device-only** (#161,
+/// docs/design/onboarding.md): whether it's done, the screen to resume
+/// from and the About me answers are kept in `onboarding.json`
+/// ([onboardingFile]), next to `coach_consent.json`, never in
+/// SwiftData/CloudKit. `onboardingRepositoryProvider` and
+/// [onboardingSupportAvailableProvider] are bound only when
+/// [appProviderOverridesFor] is built with `isIOS: true`; anywhere else
+/// (the parked Mac, and tests that don't opt in) onboarding never shows,
+/// because [onboardingSupportAvailableProvider] says so before the
+/// unbound repository is ever read (`onboarding.dart`).
+///
 /// **Usage sharing** (`usage_sharing.dart`):
 /// `analyticsProvider`, which features record their events through, is
 /// bound to [postHogAnalyticsProvider], `null` (so nothing is sent) unless
@@ -95,6 +106,8 @@ import 'package:health_sync_data/health_sync_data.dart';
 import 'package:health_sync_domain/health_sync_domain.dart';
 import 'package:metrics_data/metrics_data.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:onboarding_data/onboarding_data.dart';
+import 'package:onboarding_presentation/onboarding_presentation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf_import_data/pdf_import_data.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
@@ -178,6 +191,18 @@ AppAttestKeyStore coachAppAttestKeyStore(Ref ref) => throw UnimplementedError(
   'coachAppAttestKeyStoreProvider is bound on iOS only',
 );
 
+/// Whether this device has onboarding: `false` by default, so the parked
+/// Mac and tests that don't opt in never show it and never read
+/// `onboardingRepositoryProvider` (which throws unless bound).
+/// [appProviderOverridesFor] sets it on iOS only, with the repository.
+///
+/// Declared here rather than in `onboarding_presentation`: whether and
+/// when the flow shows is the app's decision (`onboarding.dart`).
+///
+/// `keepAlive`: a constant for the app's lifetime.
+@Riverpod(keepAlive: true)
+bool onboardingSupportAvailable(Ref ref) => false;
+
 /// Opens an external link in the browser. Returns whether it opened.
 typedef AppLinkOpener = Future<bool> Function(Uri uri);
 
@@ -215,10 +240,17 @@ Future<File> coachStoreFile() async => File(
 Future<File> coachConsentFile() async =>
     File('${(await getApplicationSupportDirectory()).path}/coach_consent.json');
 
+/// The device-only onboarding file: `onboarding.json` in the application
+/// support directory, next to `coach_consent.json`. Whether onboarding is
+/// done, the screen to resume from and the About me answers. Never synced;
+/// in the person's own device backup. Looked up on first use.
+Future<File> onboardingFile() async =>
+    File('${(await getApplicationSupportDirectory()).path}/onboarding.json');
+
 /// [appProviderOverrides] for a given platform. The platform choices in it
-/// are Apple Health, craving support and the coach, all bound only when
-/// [isIOS] (see the library comment). A function, not just the list, so
-/// tests can build the iOS wiring on any host.
+/// are Apple Health, craving support, the coach and onboarding, all bound
+/// only when [isIOS] (see the library comment). A function, not just the
+/// list, so tests can build the iOS wiring on any host.
 List<Override> appProviderOverridesFor({required bool isIOS}) => [
   if (isIOS) ...[
     healthKitRepositoryProvider.overrideWith(
@@ -241,6 +273,11 @@ List<Override> appProviderOverridesFor({required bool isIOS}) => [
     // coach's own repository: the same instance, so the same file.
     exportCoachRepositoryProvider.overrideWith(
       (ref) => ref.watch(coachRepositoryProvider),
+    ),
+    // Onboarding (#161): shown once, its record in a device-only file.
+    onboardingSupportAvailableProvider.overrideWithValue(true),
+    onboardingRepositoryProvider.overrideWith(
+      (ref) => FileOnboardingRepository.locatedBy(onboardingFile),
     ),
     // App Attest (#150): the channel, and the device-only key file.
     coachAppAttestProvider.overrideWith((ref) => MethodChannelAppAttest()),

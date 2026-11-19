@@ -200,7 +200,8 @@ void main() {
       final controller = container.read(
         healthAccessControllerProvider.notifier,
       );
-      await controller.refreshHealthData();
+      // Asked (onboarding, Settings or Today), then a resume.
+      await controller.requestHealthAccess();
       await controller.refreshHealthData();
       return container;
     }

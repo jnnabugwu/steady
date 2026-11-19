@@ -88,6 +88,12 @@ dependencies:
     path: ../features/metrics/metrics_domain
   metrics_presentation:
     path: ../features/metrics/metrics_presentation
+  onboarding_data:
+    path: ../features/onboarding/onboarding_data
+  onboarding_domain:
+    path: ../features/onboarding/onboarding_domain
+  onboarding_presentation:
+    path: ../features/onboarding/onboarding_presentation
 
   path_provider: ^2.1.5
 

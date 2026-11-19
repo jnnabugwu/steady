@@ -32,6 +32,32 @@ private database for your Apple ID), so your iPhone and Mac stay in sync. Only y
 your private iCloud data; the developer can't. If your device isn't signed into iCloud, your
 data stays only on that device until you sign in.
 
+## Getting started
+
+The first time you open Steady on iPhone, a short introduction asks a few questions, each of
+which you can skip: how you track what you eat, what your week looks like, what gets in the
+way of logging, how you'd like the coach to talk to you, and anything else the coach should
+know. If you're updating from an earlier version of Steady, you see it once too, on the
+first launch after the update.
+
+Steady keeps your answers, and whether you've finished the introduction:
+
+- If you tap "Not now", the introduction is done: it doesn't come back on its own, and the
+  answers you gave so far are kept.
+- If you close the app partway through, Steady also keeps the screen you were on, and the
+  introduction picks up there the next time you open the app.
+
+Where your answers go:
+
+- They're stored **on that iPhone** only, in the app's own storage, like craving check-ins:
+  not in iCloud storage, and not synced to your other devices. iOS includes them in an
+  iCloud Backup of the phone like any other app data. Deleting the app removes them.
+- **For now they aren't sent anywhere**: not to the coach, not to Anthropic, not to Steady's
+  coach server. If a later version lets the coach use them, Steady will say so and ask for
+  your permission again before anything is sent.
+- "Where did you hear about Steady?" isn't stored. The answer is sent as one anonymous usage
+  event, unless you've turned usage sharing off (see "Anonymous usage events").
+
 ## Craving check-ins
 
 On iPhone, when you use "Having a craving?", Steady records each finished check-in: when it
@@ -71,8 +97,10 @@ sending anything at once, including a reply that's still coming in.
   was behind them in the weekly check-in;
 - what you type to the coach, and its replies so far in the conversation.
 
-Weight isn't sent. Nothing is sent from Steady's other screens, only from a coach
-conversation.
+Weight isn't sent. Your answers to the introduction's questions (see "Getting started")
+aren't sent either, including how you'd like the coach to talk to you and anything else you
+said it should know: for now they stay on your iPhone. Nothing is sent from Steady's other
+screens, only from a coach conversation.
 
 **Where it goes:** each reply is a request from your iPhone to Steady's coach server, which
 passes it on to Anthropic's API and streams the reply back. Steady's server doesn't keep
@@ -147,7 +175,11 @@ any time.
   nothing more. The events are: the app was installed, opened or closed; a check-in was saved
   (and whether it was logged, partial or skipped); a Cal AI PDF import finished (how many days
   it had) or failed; the craving check-in reached its end; whether the coach can run on this
-  iPhone (and if not, why: it's switched off, or this iPhone can't be verified); and, once per launch,
+  iPhone (and if not, why: it's switched off, or this iPhone can't be verified); where you
+  heard about Steady, if you answer that question when you first open the app (one of: a
+  friend or family, Instagram, Reddit, App Store search, TikTok, something else); which
+  screen of that first-run introduction you left on, if you tap "Not now" (or that it isn't
+  known, if your earlier answers couldn't be read); and, once per launch,
   whether Apple Health returned any steps and any calories eaten in the last seven days (yes
   or no, not the amounts). Each event also carries the app version, the iPhone model, the iOS
   version, language and time zone, and a random ID made for this install.

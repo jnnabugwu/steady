@@ -284,8 +284,17 @@ devices without it needs a server and accounts.
 ## Usage events from App Store builds too (2026-11-17)
 
 **Decision:** App Store installs send the same anonymous usage events as TestFlight builds,
-on by default, with the switch in Settings → Usage sharing. All six events in
-`AnalyticsEvent`, plus PostHog's lifecycle events, and nothing else. This replaces the
+on by default, with the switch in Settings → Usage sharing. Every event in
+`AnalyticsEvent`, plus PostHog's lifecycle events, and nothing else: the six listed in the
+record below, and onboarding's two (#161):
+
+- `onboarding_source`: where the person heard about Steady, as a fixed code (`friend`,
+  `instagram`, `reddit`, `appStore`, `tiktok`, `other`), sent only when screen 3 is
+  answered.
+- `onboarding_exited`: the screen's fixed code (an `OnboardingStep`, or `unknown` when the
+  stored answers couldn't be read) when someone leaves onboarding with "Not now". Not sent
+  on finishing.
+ This replaces the
 TestFlight-only rule in the record below; everything else in it stands (the fixed list, no
 session replay or person profiles, the runtime install check, the key at build time).
 

@@ -15,11 +15,14 @@ import 'package:coach_presentation/coach_presentation.dart'
 import 'package:daily_metrics_data/daily_metrics_data.dart';
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:onboarding_presentation/onboarding_presentation.dart'
+    show onboardingRepositoryProvider;
 import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/cal_ai_health_card.dart';
 import 'package:steady/health_access.dart';
+import 'package:steady/onboarding.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
@@ -186,12 +189,22 @@ Future<void> _clearLegacyHealthFields(ProviderContainer container) async {
 /// the store when CloudKit syncs in another device's rows (#73).
 ///
 /// It also refreshes Apple Health (iOS only, `health_access.dart`) once at
-/// launch and again on every return to the foreground: the first time it
-/// asks for read permission, and every time it makes the screens showing
-/// Health values read them live again, so today's steps stay current.
-/// Nothing is synced or stored. Fire-and-forget: it never blocks the first
-/// frame, and a failure is logged by the controller, not thrown. On macOS
-/// Health isn't bound, so the call is a no-op.
+/// launch and again on every return to the foreground: once Health's
+/// permission sheet has been shown, the screens showing Health values read
+/// them live again, so today's steps stay current. It **never asks** for
+/// permission: only a screen that says why does (onboarding, Settings,
+/// Today's "Connect Apple Health"). Nothing is synced or stored.
+/// Fire-and-forget: it never blocks the first frame, and a failure is
+/// logged by the controller, not thrown. On macOS Health isn't bound, so
+/// the call is a no-op.
+///
+/// It also decides, once per launch, whether onboarding shows
+/// (`onboarding.dart`): only on an ordinary launch (the platform's initial
+/// route is `/`), when the record says not completed, and only if Today is
+/// still showing when the answer comes. Today draws first; the flow
+/// replaces it with `go`. Nothing re-checks afterwards, so the person is
+/// never sent back into it during the session. Where onboarding isn't
+/// bound (macOS, most tests), nothing is read.
 class SteadyApp extends ConsumerStatefulWidget {
   /// Creates the root widget. Must sit under a `ProviderScope`.
   const SteadyApp({super.key});
@@ -203,6 +216,7 @@ class SteadyApp extends ConsumerStatefulWidget {
 class _SteadyAppState extends ConsumerState<SteadyApp> {
   late final AppLifecycleListener _lifecycle;
   Timer? _midnight;
+  OnboardingLaunchCheck? _onboardingCheck;
 
   @override
   void initState() {
@@ -225,6 +239,30 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
     );
     _refreshHealth();
     _scheduleMidnight();
+    _showOnboardingIfDue();
+  }
+
+  /// The once-per-launch onboarding decision (see the class comment). The
+  /// read starts now, alongside the first frame; the answer is acted on
+  /// after that frame, so the router has its initial location.
+  void _showOnboardingIfDue() {
+    if (!ref.read(onboardingSupportAvailableProvider)) return;
+    // The route the platform launched with: `/` unless it was a link.
+    final initial = WidgetsBinding.instance.platformDispatcher.defaultRouteName;
+    if (initial != const HomeRoute().location) return;
+    final check = _onboardingCheck = OnboardingLaunchCheck(
+      ref.read(onboardingRepositoryProvider),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!await check.due || !mounted) return;
+      final router = ref.read(routerProvider);
+      // The person may have moved on while it was read: leave them there.
+      if (router.routerDelegate.currentConfiguration.isEmpty ||
+          router.state.matchedLocation != const HomeRoute().location) {
+        return;
+      }
+      router.go(const OnboardingRoute().location);
+    });
   }
 
   /// Moves `checkInTodayProvider` to the new day if the date has changed,
@@ -260,6 +298,7 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
   @override
   void dispose() {
     _midnight?.cancel();
+    _onboardingCheck?.cancel();
     _lifecycle.dispose();
     super.dispose();
   }
