@@ -24,6 +24,9 @@ import 'package:pdf_import_domain/pdf_import_domain.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/onboarding.dart';
 import 'package:steady/providers.dart';
+import 'package:subscription_data/subscription_data.dart';
+import 'package:subscription_domain/subscription_domain.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 
 /// Guards the DI wiring in `lib/providers.dart`, built from the **real**
 /// [appProviderOverrides] list rather than hand-picked fakes, so a broken
@@ -396,6 +399,43 @@ void main() {
         expect(mac.read(onboardingSupportAvailableProvider), isFalse);
         expect(
           () => mac.read(onboardingRepositoryProvider),
+          throwsA(isA<ProviderException>()),
+        );
+      }
+    });
+  });
+
+  group("the coach's subscription (#181)", () {
+    test('iOS binds RevenueCat, which has no key in tests, so it never '
+        'reaches the SDK', () async {
+      final ios = ProviderContainer.test(
+        overrides: appProviderOverridesFor(isIOS: true),
+      );
+      expect(ios.read(subscriptionSupportAvailableProvider), isTrue);
+      final repository = ios.read(subscriptionRepositoryProvider);
+      expect(repository, isA<RevenueCatSubscriptionRepository>());
+      expect(ios.read(subscriptionRepositoryProvider), same(repository));
+      // No --dart-define=REVENUECAT_API_KEY here: not configured, with no
+      // platform channel call (there's no plugin in a unit test).
+      expect(
+        await repository.status(),
+        isA<Err<SubscriptionStatus>>().having(
+          (e) => e.failure,
+          'failure',
+          isA<SubscriptionNotConfiguredFailure>(),
+        ),
+      );
+    });
+
+    test('the Mac (and the default list here) binds no subscription', () {
+      for (final list in [
+        appProviderOverridesFor(isIOS: false),
+        appProviderOverrides,
+      ]) {
+        final mac = ProviderContainer.test(overrides: list);
+        expect(mac.read(subscriptionSupportAvailableProvider), isFalse);
+        expect(
+          () => mac.read(subscriptionRepositoryProvider),
           throwsA(isA<ProviderException>()),
         );
       }

@@ -9,7 +9,8 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ## The coach is paid; everything on the phone is free (2026-11-17)
 
-**Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
+**Status: decided, being built (#179).** The purchase layer is in `features/subscription`
+(#181); the paywall screen, the proxy's check and the ways in are still to come.
 **Steady 1.0 (live since 2026-11-17) ships the earlier on-device coach**, free, on iPhones
 that support Apple Intelligence: it was built in late October, before the Foundation Models
 path was removed from `main` (#151, #152, merged 2026-11-04). 1.1.0 replaces it with the

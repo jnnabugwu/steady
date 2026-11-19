@@ -401,6 +401,34 @@ Design: `docs/design/onboarding.md`.
 - [ ] Not yet run on a physical iPhone (the Health sheet from screen 4, VoiceOver, a
       first launch after updating from 1.0).
 
+## Feature: subscription (iPhone only, the coach's paywall, #179)
+
+Decision: `docs/technical_decisions.md`, "The coach is paid; everything on the phone is free".
+Research: `docs/research/revenuecat_paywall.md` (#168).
+
+- [x] `subscription_domain` (#181): `SubscriptionStatus` (none, trial, subscribed, lapsed; an
+      unknown answer is an `Err`, never `none`), `SubscriptionOffer` (both plans, prices and
+      trial eligibility from the store), `SubscriptionRepository` (status, offer, purchase,
+      restore), typed failures (cancelled, pending, not allowed, store unavailable, not
+      configured); an in-memory fake under `lib/testing/`.
+- [x] `subscription_data` (#181): `RevenueCatSubscriptionRepository` over `purchases_flutter`
+      11.0.3 (StoreKit 2, Swift Package Manager), anonymous IDs, no attribution IDs or
+      customer attributes; the only package that imports the SDK. The shared contract runs
+      against it (over a fake of the plugin's native side) and the fake.
+- [x] Bound on iOS only (`appProviderOverridesFor(isIOS: true)`), configured once at launch
+      with `--dart-define=REVENUECAT_API_KEY` (build script, Fastfile, Ship iOS secret). No key,
+      or a Test Store key outside debug: not configured, and the SDK is never touched.
+- [x] `app/ios/Products.storekit` for Xcode runs and the Simulator (not set in the shared
+      scheme: pick it under Edit Scheme → Run → Options → StoreKit Configuration).
+- [ ] The first Xcode build after #181 updates both `Package.resolved` files (RevenueCat's
+      `purchases-hybrid-common` and `purchases-ios-spm`); commit them.
+- [ ] #180: App Store Connect products (`steady_monthly`, `steady_yearly`, or change
+      `SteadySubscriptionIds` and `Products.storekit` to match), the RevenueCat project
+      (`coach` entitlement, one offering) and the keys.
+- [ ] #183 the paywall screen, Restore and the ways in; #182 the signed transaction to the
+      proxy; #188 two weeks free for 1.0's coach users; #174 the onboarding offer.
+- [ ] Sandbox and TestFlight on a real iPhone (#185).
+
 ## HealthKit (CLAUDE.md §1/§7/§8)
 
 - [x] Decided: Health data stays on the iPhone (App Store guideline 5.1.3(ii), no personal
