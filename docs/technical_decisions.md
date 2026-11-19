@@ -10,9 +10,12 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 ## The coach is paid; everything on the phone is free (2026-11-17)
 
 **Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
-Steady 1.0 (live since 2026-11-17) has no working coach: the on-device Foundation Models
-path was removed before the 1.0 builds (#151, #152), and 1.0 shipped without the hosted coach.
-So nobody loses a free feature.
+**Steady 1.0 (live since 2026-11-17) ships the earlier on-device coach**, free, on iPhones
+that support Apple Intelligence: it was built in late October, before the Foundation Models
+path was removed from `main` (#151, #152, merged 2026-11-04). 1.1.0 replaces it with the
+hosted coach behind the subscription, so **people on 1.0 with an Apple Intelligence iPhone
+lose a free coach when they update.** Their past sessions stay readable, as for any lapsed
+subscriber (item 2), since 1.1.0 reads the same `coach_sessions.json`.
 
 **Decision:**
 
@@ -133,6 +136,14 @@ So nobody loses a free feature.
   verifies App Attest, holds no accounts and stores no people's data (CLAUDE.md §12).
 
 **Consequences:**
+
+- **Open: what 1.0's coach users get (Jordan's call before 1.1.0 is submitted).** The 1.1.0
+  release notes must say plainly that the coach becomes part of the subscription, so the change
+  isn't a surprise. Beyond that, the options are: nothing more (the free week is the same for
+  everyone); or a longer free period for people who used the coach on 1.0, through a StoreKit
+  offer code, since Steady has no accounts to tell them apart (a local flag from
+  `coach_sessions.json` could show them a code). Check that the existing sessions file reads
+  cleanly in 1.1.0 on a phone updated from 1.0.
 
 - **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
   to review; `docs/testflight.md` §6):
