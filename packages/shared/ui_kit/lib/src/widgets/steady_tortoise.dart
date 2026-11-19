@@ -174,11 +174,10 @@ class _SteadyTortoiseState extends State<SteadyTortoise>
 }
 
 /// One of the tortoise's stones on its own, drawn as it is on a tortoise
-/// [tortoiseSize] tall: [SteadyTortoise.stoneRect]'s size, rotated as on
-/// the stack. For a stone the person moves before it's on the tortoise's
-/// back (onboarding's first stone); place it at
-/// [SteadyTortoise.stoneRect] to land it exactly where the tortoise
-/// carries it.
+/// [tortoiseSize] tall, at [SteadyTortoise.stoneRect]'s size. For a stone
+/// the person moves before it's on the tortoise's back (onboarding's
+/// first stone); place it at [SteadyTortoise.stoneRect] to land it exactly
+/// where the tortoise carries it.
 class TortoiseStone extends StatelessWidget {
   /// Creates stone [index] (0, the bottom, tan) at [tortoiseSize]'s scale.
   const TortoiseStone({
@@ -206,88 +205,82 @@ class TortoiseStone extends StatelessWidget {
 /// laid out in. [large] and [small] are the parts of it each form shows.
 abstract final class _Geometry {
   /// The full form's view: the tortoise and the stones above it.
-  static const large = Rect.fromLTRB(6, 25, 94, 91);
+  static const large = Rect.fromLTRB(10, 23, 93, 87);
 
   /// The small form's view: the tortoise only.
-  static const small = Rect.fromLTRB(6, 47, 94, 91);
+  static const small = Rect.fromLTRB(10, 46, 93, 87);
 
   static Rect viewFor({required bool small}) => small ? _Geometry.small : large;
 
-  /// The shell's dome: the top half of this ellipse.
-  static const dome = Rect.fromLTRB(17, 50, 77, 98);
+  /// The shell's dome: the top half of this ellipse, a little wider than
+  /// tall.
+  static const dome = Rect.fromLTRB(17, 48, 77, 100);
   static const domeBase = 74.0;
 
-  /// The darker band along the bottom of the shell.
+  /// The darker band along the bottom of the shell: drawn behind the
+  /// dome, so only its lower half shows, a thin band below the base.
   static final rim = Rect.fromCenter(
     center: const Offset(47, domeBase),
-    width: 64,
-    height: 6.4,
+    width: 63,
+    height: 7,
   );
 
-  static const headCenter = Offset(80.5, 65.5);
-  static const headRadius = 9.5;
+  static const headCenter = Offset(81, 64.8);
+  static const headRadius = 9.0;
 
-  static const eyeCenter = Offset(83.8, 62.6);
+  static const eyeCenter = Offset(83.6, 62.6);
   static const eyeRadius = 1.7;
   static const smallEyeRadius = 2.3;
-  static const catchlightCenter = Offset(84.35, 62.05);
+  static const catchlightCenter = Offset(84.15, 62.05);
   static const catchlightRadius = 0.6;
 
-  static const backLeg = Rect.fromLTRB(25, 72, 34, 86.5);
-  static const frontLeg = Rect.fromLTRB(57, 72, 66, 86.5);
-  static const legRadius = Radius.circular(4.5);
+  /// Short stubs, their tops hidden behind the rim.
+  static const backLeg = Rect.fromLTRB(25.2, 72, 36, 83.2);
+  static const frontLeg = Rect.fromLTRB(56.2, 72, 67, 83.2);
+  static const legRadius = Radius.elliptical(5.4, 4.2);
 
   static final shadow = Rect.fromCenter(
-    center: const Offset(50, 86.5),
-    width: 80,
-    height: 6.4,
+    center: const Offset(48.6, 83.4),
+    width: 68,
+    height: 4,
   );
 
-  static const highlightCenter = Offset(35, 58.5);
-  static const highlightSize = Size(17, 7.4);
+  static const highlightCenter = Offset(38.5, 55);
+  static const highlightSize = Size(12.5, 5.6);
   static const double highlightRotation = -20 * math.pi / 180;
 
-  /// The stones, bottom first: centre, radii, rotation (degrees) and
-  /// colour. Centred slightly left of the dome's top; each overlaps the
-  /// one under it a little, so they sit rather than float. Rotations are
-  /// the icon's (mauve −4°, blue 3°).
-  static const stones =
-      <({Offset center, double rx, double ry, double rotation, Color color})>[
-        (
-          center: Offset(44, 46.3),
-          rx: 15,
-          ry: 4.4,
-          rotation: 0,
-          color: SteadyColors.caloriesEaten,
-        ),
-        (
-          center: Offset(45, 38.6),
-          rx: 11,
-          ry: 3.8,
-          rotation: -4,
-          color: SteadyColors.caloriesBurned,
-        ),
-        (
-          center: Offset(44.2, 31.6),
-          rx: 7.6,
-          ry: 3.4,
-          rotation: 3,
-          color: SteadyColors.steps,
-        ),
-      ];
+  /// The stones, bottom first: centre, radii and colour. Level, as in the
+  /// design, centred slightly left of the dome's top; each overlaps the one
+  /// under it a little, so they sit rather than float.
+  static const stones = <({Offset center, double rx, double ry, Color color})>[
+    (
+      center: Offset(46.2, 44.2),
+      rx: 12.9,
+      ry: 4.9,
+      color: SteadyColors.caloriesEaten,
+    ),
+    (
+      center: Offset(46.9, 36.2),
+      rx: 9.5,
+      ry: 4.2,
+      color: SteadyColors.caloriesBurned,
+    ),
+    (center: Offset(46.3, 28.6), rx: 6.4, ry: 3.5, color: SteadyColors.steps),
+  ];
 
   /// How far above its resting place a dropping stone starts.
   static const dropHeight = 16.0;
 
+  /// A small pointed tail, low on the left, its root behind the shell.
   static Path tail() => Path()
-    ..moveTo(22, 69.5)
-    ..quadraticBezierTo(15, 70.5, 10.5, 75.5)
-    ..quadraticBezierTo(16.5, 76.8, 22, 75.5)
+    ..moveTo(23, 72.2)
+    ..quadraticBezierTo(16.5, 71.6, 11.5, 76.4)
+    ..quadraticBezierTo(17.5, 78.6, 23, 76.6)
     ..close();
 
   static Path smile() => Path()
-    ..moveTo(83, 68.6)
-    ..quadraticBezierTo(85.8, 70.6, 88.4, 67.9);
+    ..moveTo(80.2, 67.4)
+    ..quadraticBezierTo(82.8, 69.2, 85.4, 67.4);
 }
 
 /// A dropping stone's pose at [t] (0 to 1): it falls (ease-in) for the
@@ -328,7 +321,6 @@ void _paintStone(
     ..translate(base.dx, base.dy)
     ..rotate(rockAngle)
     ..translate(0, -stone.ry)
-    ..rotate(stone.rotation * math.pi / 180)
     ..drawOval(
       Rect.fromCenter(
         center: Offset.zero,
@@ -393,7 +385,8 @@ class _TortoisePainter extends CustomPainter {
       ..drawRRect(
         RRect.fromRectAndRadius(_Geometry.frontLeg, _Geometry.legRadius),
         fill(SteadyColors.mascotOliveSage),
-      );
+      )
+      ..drawOval(_Geometry.rim, fill(SteadyColors.mascotShellRim));
 
     // The dome: the top half of the ellipse, lit from above.
     final dome = Path()
@@ -426,7 +419,6 @@ class _TortoisePainter extends CustomPainter {
         fill(SteadyColors.mascotShellHighlight),
       )
       ..restore()
-      ..drawOval(_Geometry.rim, fill(SteadyColors.mascotShellRim))
       ..drawCircle(
         _Geometry.headCenter,
         _Geometry.headRadius,
@@ -448,7 +440,7 @@ class _TortoisePainter extends CustomPainter {
         _Geometry.smile(),
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.1
+          ..strokeWidth = 0.9
           ..strokeCap = StrokeCap.round
           ..color = SteadyColors.mascotSageDeep,
       );

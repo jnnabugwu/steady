@@ -148,7 +148,7 @@ abstract final class SteadyColors {
   static const mascotShellDeep = Color(0xFF5A928A);
 
   /// The band along the bottom of the shell: a darker teal-grey.
-  static const mascotShellRim = Color(0xFF46625E);
+  static const mascotShellRim = Color(0xFF4B726D);
 
   /// The soft highlight on the upper left of the shell, white at 0.20.
   static const mascotShellHighlight = Color.fromRGBO(255, 255, 255, 0.20);
