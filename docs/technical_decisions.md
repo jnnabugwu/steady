@@ -10,9 +10,16 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 ## The coach is paid; everything on the phone is free (2026-11-17)
 
 **Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
-Steady 1.0 (live since 2026-11-17) has no working coach: the on-device Foundation Models
-path was removed before the 1.0 builds (#151, #152), and 1.0 shipped without the hosted coach.
-So nobody loses a free feature.
+**Steady 1.0 (live since 2026-11-17) ships the earlier on-device coach**, free, on iPhones
+that support Apple Intelligence: it was built in late October, before the Foundation Models
+path was removed from `main` (#151, #152, merged 2026-11-04). 1.1.0 replaces it with the
+hosted coach behind the subscription, so **people on 1.0 with an Apple Intelligence iPhone
+lose a free coach when they update.** Their past sessions stay readable, as for any lapsed
+subscriber (item 2), since 1.1.0 should read 1.0's
+`coach_sessions.json` as it is: its codec (`coach_session_json.dart`, file version 1) and the
+two enums it decodes (`CoachSessionKind`, `CoachMessageRole`) are unchanged since 2026-10-25,
+before any 1.0 build, and the path is the same. That's from the code, not yet seen on a phone:
+confirm it on one updated from 1.0 (#185).
 
 **Decision:**
 
@@ -134,6 +141,17 @@ So nobody loses a free feature.
 
 **Consequences:**
 
+- **1.0's coach users get a longer free period (decided 2026-11-18).** **Two weeks free**
+  (Jordan, 2026-11-18), twice the free week everyone else gets. It's one setting on the offer
+  code in App Store Connect. Steady
+  has no accounts, so the app recognises them by what's already on the phone: on the first 1.1.0
+  launch, if `coach_sessions.json` holds any session, it sets a device-only flag once. A new
+  install never has one. The paywall then offers the month through a StoreKit **offer code**
+  (redeemed in Apple's own sheet, `presentCodeRedemptionSheet`), with the code kept in the build
+  config, never in the repo. Accepted: a custom code can be passed on, and someone who installed
+  1.0 but never used the coach doesn't get it. The 1.1.0 release notes say plainly that the
+  coach becomes part of the subscription, and that people who used it get two weeks free. Confirm
+  on a phone updated from 1.0 that its `coach_sessions.json` reads cleanly in 1.1.0 (#185).
 - **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
   to review; `docs/testflight.md` §6):
   - **Purchases → Purchase History**, not linked, not tracking. It covers what RevenueCat's SDK
