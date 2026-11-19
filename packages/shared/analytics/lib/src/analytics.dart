@@ -13,7 +13,8 @@ abstract interface class Analytics {
   void record(AnalyticsEvent event);
 }
 
-/// Sends nothing: the default everywhere but a TestFlight build.
+/// Sends nothing: the default wherever `app/` hasn't built a PostHog sink
+/// (no key, not iOS, or tests).
 final class NoAnalytics implements Analytics {
   /// Creates the no-op sink.
   const NoAnalytics();

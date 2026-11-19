@@ -63,7 +63,7 @@ const onboardingStepCodes = <String>{
   'cairn',
 };
 
-/// One usage event Steady may send (TestFlight builds only; see
+/// One usage event Steady may send (App Store and TestFlight installs; see
 /// `app/lib/usage_sharing.dart`).
 ///
 /// **This file is the whole list.** An event is a fixed name, and its

@@ -91,12 +91,9 @@ TestFlight → Test Information:
   (`docs/PRIVACY.md` must be merged to `main` first, or the link 404s).
 - **Beta App Review information:** contact name, phone and email in App Store Connect.
   **Sign-in required: off** (no account).
-- **Usage sharing (builds with a PostHog key):** TestFlight installs send anonymous usage
-  events to PostHog (`docs/PRIVACY.md`, "TestFlight beta builds"); App Store installs never
-  do. Add a line to the beta's What to Test: "This beta sends anonymous usage events (no
-  Health values, cravings or coach text) to help improve Steady. Turn it off in Settings →
-  Usage sharing." The App Review answers below describe the App Store build, which sends
-  nothing, so they stay as they are until analytics ships there.
+- **Usage sharing (builds with a PostHog key):** App Store and TestFlight installs send
+  anonymous usage events to PostHog, on by default (`docs/PRIVACY.md`, "Anonymous usage
+  events"). Turn it off in Settings → Usage sharing.
 - **Review notes:** Apple asks every new app from a new account for the six answers
   below, as a **2.1.0 App Completeness** rejection ("Information Needed") that pauses review
   until you reply. It happened on Steady's first App Store submission (October 2026). Paste
@@ -120,7 +117,7 @@ TestFlight → Test Information:
   - Coach: Coach tab > Turn on the coach > read the consent screen > Allow and continue (Not now leaves it off and sends nothing) > Start a chat. Needs a network connection. Settings > Coach has the switch to turn it off again. The weekly check-in appears Friday to Sunday once 4 of the previous 7 days have a check-in, so the January sample won't show it.
   - Settings also has data export, the privacy policy, and Delete coach history / Delete craving history.
 
-  4. External services: HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and, for the coach only and only after the user's consent, the Anthropic API (Claude), reached through Steady's own small proxy on Vercel. The proxy holds the API key, checks Apple App Attest on every request (DeviceCheck App Attest), sets daily limits, keeps no message content (metadata-only logs) and passes each request to Anthropic for the reply. Anthropic deletes API inputs and outputs within 30 days, except when its automated safety systems flag a conversation (up to two years) or the law requires longer, and doesn't train on them. No third-party SDKs, analytics, ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
+  4. External services: HealthKit (read only), iCloud/CloudKit private database (optional sync of the user's own check-ins and imported calories), and, for the coach only and only after the user's consent, the Anthropic API (Claude), reached through Steady's own small proxy on Vercel. The proxy holds the API key, checks Apple App Attest on every request (DeviceCheck App Attest), sets daily limits, keeps no message content (metadata-only logs) and passes each request to Anthropic for the reply. Anthropic deletes API inputs and outputs within 30 days, except when its automated safety systems flag a conversation (up to two years) or the law requires longer, and doesn't train on them. Anonymous usage analytics through PostHog (no Health values, cravings or coach text; turned off in Settings → Usage sharing). No ads, authentication or payment services. Steady does not connect to Cal AI and is not affiliated with it; users import their own Cal AI PDF export, or Cal AI writes to Apple Health.
 
   5. Regions: the app works the same in every region. The coach needs a network connection; without one it says it can't reach the coach and the rest of the app works. The help lines shown (ANAD and 988) are US services.
 
@@ -159,11 +156,12 @@ coach goes to App Review.** Steady 1.0, live on the App Store, doesn't include t
 coach, so its current label (no data collected) is still right for it. The App Privacy
 section can be edited at any time, without a new build.
 
-> **PR #156 (PostHog analytics) is open and changes this section too.** Whichever of it and
-> #153 lands second must combine the answers: the lists below are the coach's, and #156 adds
-> its own (for example Usage Data / Identifiers for analytics).
+> **Usage analytics (PostHog, 2026-11-17) adds three data types**, at the end of the table,
+> with a different purpose: **Analytics**, not App Functionality. Set them before submitting
+> any build from `main` after #156: every such build carries PostHog's privacy manifest.
 
-**Data collection: "Yes, we collect data from this app"** once the hosted coach ships.
+**Data collection: "Yes, we collect data from this app"** from the next build from `main`,
+which has both the hosted coach and usage analytics.
 
 Apple's definition: "collect" means transmitting data off the device in a way that lets the
 developer **or third-party partners** access it for longer than needed to service the request
@@ -174,8 +172,8 @@ sent only after consent and used only for the reply. Calories eaten and check-in
 user's own CloudKit **private** database still aren't collected (the developer can't read
 them).
 
-The answers (all: purpose **App Functionality** only; **not linked to the user's
-identity**; **not used for tracking**):
+The answers (all **not linked to the user's identity** and **not used for tracking**; purpose
+**App Functionality** for the coach's data, **Analytics** for the usage events):
 
 | Data type | Declare? | Why |
 |---|---|---|
@@ -183,7 +181,10 @@ identity**; **not used for tracking**):
 | **Health & Fitness → Fitness** | Yes | Steps from Apple Health, in the same context. |
 | **User Content → Other User Content** | Yes | What the person types to the coach. Apple's "Other User Content" covers user-generated content not in the other categories. |
 | **Identifiers → Device ID** | Yes | The App Attest key id is a per-install key the proxy keeps (with its counter, in Upstash Redis, up to 180 days unused) to verify requests and count the daily limit. It isn't the IDFA or IDFV and isn't tied to the person. Declared because the proxy keeps it longer than real time; fraud prevention and security are App Functionality in Apple's definitions. The narrower reading (a per-install attestation key isn't a "device-level ID") was considered and not taken: under-declaring is the riskier mistake. |
-| **Usage Data, Diagnostics, Contact Info, Location, Financial Info, etc.** | No (for the coach) | Nothing else leaves the phone for the coach. #156 may change Usage Data / Diagnostics. |
+| **Usage Data → Product Interaction** | Yes: **Analytics**, not linked, not tracking | The anonymous usage events (a check-in saved, an import finished, and so on). |
+| **Usage Data → Other Usage Data** | Yes: **Analytics**, not linked, not tracking | PostHog's lifecycle events (installed, opened, backgrounded). Declared in the SDK's privacy manifest. |
+| **Diagnostics → Crash Data** | Yes: **Analytics**, not linked, not tracking | Declared in the SDK's privacy manifest (PLCrashReporter), so the label matches it even though Steady doesn't turn PostHog's crash reporting on. |
+| **Contact Info, Location, Financial Info, etc.** | No | Nothing else leaves the phone. |
 
 "Not linked to identity": there are no accounts, no email, no name. The proxy keeps the App
 Attest key id and its daily counts, but no message content, so the two are never stored

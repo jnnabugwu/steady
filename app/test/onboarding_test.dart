@@ -141,11 +141,14 @@ void main() {
 
     /// The real usage-sharing sink over a fake PostHog client: the gating
     /// (install source, the Settings switch) is the app's own.
-    Future<PostHogAnalytics> sharing(InstallSource source) async {
+    Future<PostHogAnalytics> sharing(
+      InstallSource source, {
+      bool off = false,
+    }) async {
       final analytics = PostHogAnalytics(
         client: postHog,
         installSource: _FixedInstallSource(source),
-        store: _OnStore(),
+        store: _FixedStore(off: off),
       );
       await analytics.status;
       return analytics;
@@ -308,8 +311,9 @@ void main() {
       ]);
     });
 
-    testWidgets("an App Store install sends neither event (usage sharing's "
-        'gating is unchanged)', (tester) async {
+    testWidgets('an App Store install sends both events too (#163)', (
+      tester,
+    ) async {
       final analytics = await sharing(InstallSource.appStore);
       await pumpApp(
         tester,
@@ -323,8 +327,39 @@ void main() {
       await tapKey(tester, 'onboardingNotNow');
 
       expect(find.byType(TodayScreen), findsOneWidget);
-      expect(postHog.captured, isEmpty);
+      expect(postHog.sent, [
+        [
+          'onboarding_source',
+          {'source': 'reddit'},
+        ],
+        [
+          'onboarding_exited',
+          {'step': 'health'},
+        ],
+      ]);
     });
+
+    for (final (why, source, off) in [
+      ('an install whose source is unknown', InstallSource.unknown, false),
+      ('usage sharing turned off', InstallSource.appStore, true),
+    ]) {
+      testWidgets('$why sends neither event', (tester) async {
+        final analytics = await sharing(source, off: off);
+        await pumpApp(
+          tester,
+          InMemoryOnboardingRepository(
+            const OnboardingRecord(step: OnboardingStep.source),
+          ),
+          analytics: analytics,
+        );
+        await tapKey(tester, 'onboardingOption_reddit');
+        await tapKey(tester, 'onboardingContinue');
+        await tapKey(tester, 'onboardingNotNow');
+
+        expect(find.byType(TodayScreen), findsOneWidget);
+        expect(postHog.sent, isEmpty);
+      });
+    }
 
     testWidgets("declining the coach's consent moves the flow on", (
       tester,
@@ -591,10 +626,14 @@ final class _FixedInstallSource implements InstallSourceReader {
   Future<InstallSource> read() async => source;
 }
 
-/// Usage sharing left on.
-final class _OnStore implements UsageSharingStore {
+/// The Settings switch, fixed on or [off].
+final class _FixedStore implements UsageSharingStore {
+  _FixedStore({required this.off});
+
+  final bool off;
+
   @override
-  Future<bool> isOff() async => false;
+  Future<bool> isOff() async => off;
 
   @override
   Future<void> setOff({required bool off}) async {}
