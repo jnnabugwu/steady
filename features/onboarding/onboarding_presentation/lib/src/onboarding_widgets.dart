@@ -625,9 +625,10 @@ class OnboardingActivityChips extends StatelessWidget {
 /// "Anything else the coach should know?" (screen 8): the About me note's
 /// field. Shared by screen 8 and Settings → About me.
 ///
-/// The field stops at [aboutMeNoteMaxChars] as Flutter counts characters
-/// (grapheme clusters); whoever saves the text still cuts it to that many
-/// code points (`clampAboutMeNote`), which is what the store allows.
+/// The field stops at [aboutMeNoteMaxChars] **code points**, the way the
+/// store and `clampAboutMeNote` count (an emoji with a skin tone is two),
+/// not Flutter's characters (grapheme clusters, where it's one): so what's
+/// on screen is what can be saved ([AboutMeNoteLimitFormatter]).
 class AboutMeNoteField extends StatelessWidget {
   /// Creates the field. [fieldKey] goes on the text field itself.
   const AboutMeNoteField({
@@ -662,8 +663,37 @@ class AboutMeNoteField extends StatelessWidget {
       placeholder: const Text(OnboardingCopy.notePlaceholder),
       minLines: 2,
       maxLines: 4,
-      maxLength: aboutMeNoteMaxChars,
-      maxLengthEnforcement: MaxLengthEnforcement.enforced,
+      inputFormatters: const [AboutMeNoteLimitFormatter()],
     ),
   );
+}
+
+/// Keeps a note within [aboutMeNoteMaxChars] code points, as the store
+/// counts them. Text over the limit is cut at the last whole character
+/// (grapheme cluster) that fits, so an emoji is never split from its skin
+/// tone. Used by [AboutMeNoteField].
+class AboutMeNoteLimitFormatter extends TextInputFormatter {
+  /// Creates the formatter.
+  const AboutMeNoteLimitFormatter();
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.runes.length <= aboutMeNoteMaxChars) return newValue;
+    final kept = StringBuffer();
+    var codePoints = 0;
+    for (final character in newValue.text.characters) {
+      final length = character.runes.length;
+      if (codePoints + length > aboutMeNoteMaxChars) break;
+      kept.write(character);
+      codePoints += length;
+    }
+    final text = kept.toString();
+    return TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
 }

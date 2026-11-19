@@ -80,6 +80,9 @@ void main() {
 
   AboutMe stored() => repository.record.aboutMe;
 
+  String noteOnScreen(WidgetTester tester) =>
+      tester.widget<TextField>(byKey('aboutMeNoteField')).controller!.text;
+
   /// The fields of what's stored, as the wire codes the coach proxy will
   /// receive (docs/design/onboarding.md, "About me").
   Map<String, Object?> storedCodes() {
@@ -324,23 +327,41 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(noteOnScreen(tester), 'a' * aboutMeNoteMaxChars);
       expect(stored().note, 'a' * aboutMeNoteMaxChars);
       expect(byKey('aboutMeSaveFailed'), findsNothing);
     });
 
     testWidgets('counted in code points, as the store counts: an emoji '
-        'with a skin tone is two', (tester) async {
+        'with a skin tone is two, and what shows is what is saved', (
+      tester,
+    ) async {
       await pumpEditor(tester);
-      // The field counts characters (one each); the store counts code
-      // points (two each), so what's saved is cut to fit, not refused.
       await tester.enterText(
         byKey('aboutMeNoteField'),
         '👍🏽' * aboutMeNoteMaxChars,
       );
       await tester.pumpAndSettle();
 
-      expect(stored().note!.runes, hasLength(aboutMeNoteMaxChars));
+      // Half of them fit: the field stops where the store does.
+      const fits = aboutMeNoteMaxChars ~/ 2;
+      expect(noteOnScreen(tester), '👍🏽' * fits);
+      expect(stored().note, '👍🏽' * fits);
       expect(byKey('aboutMeSaveFailed'), findsNothing);
+    });
+
+    testWidgets('never splits an emoji from its skin tone at the limit', (
+      tester,
+    ) async {
+      await pumpEditor(tester);
+      // One code point short of the limit, then a two-code-point emoji:
+      // it doesn't fit, so none of it goes in.
+      final almost = 'a' * (aboutMeNoteMaxChars - 1);
+      await tester.enterText(byKey('aboutMeNoteField'), '$almost👍🏽');
+      await tester.pumpAndSettle();
+
+      expect(noteOnScreen(tester), almost);
+      expect(stored().note, almost);
     });
   });
 
