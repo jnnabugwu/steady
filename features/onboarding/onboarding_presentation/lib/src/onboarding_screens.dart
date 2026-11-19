@@ -553,6 +553,9 @@ class CairnScreen extends StatelessWidget {
   /// "Go to Today".
   final VoidCallback onFinish;
 
+  /// The tortoise's height beside the cairn.
+  static const double tortoiseSize = 96;
+
   @override
   Widget build(BuildContext context) => OnboardingPage(
     title: OnboardingCopy.cairnTitle,
@@ -563,7 +566,28 @@ class CairnScreen extends StatelessWidget {
     body: Column(
       children: [
         const SizedBox(height: 12),
-        OnboardingCairn(key: const Key('onboardingFinalCairn'), stones: stones),
+        // The tortoise at the cairn's foot, facing it, carrying the icon's
+        // three stones: the habit, carried one stone at a time. The cairn
+        // stays the person's own record (a skipped step's dimmer stone
+        // included), so the tortoise sits beside it rather than under it,
+        // and is decoration: the cairn's label says what's there.
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          spacing: 12,
+          children: [
+            const ExcludeSemantics(
+              child: SteadyTortoise(
+                key: Key('onboardingFinalTortoise'),
+                size: CairnScreen.tortoiseSize,
+              ),
+            ),
+            OnboardingCairn(
+              key: const Key('onboardingFinalCairn'),
+              stones: stones,
+            ),
+          ],
+        ),
         if (stones.contains(OnboardingStone.dimmed)) ...[
           const SizedBox(height: 24),
           const Text(

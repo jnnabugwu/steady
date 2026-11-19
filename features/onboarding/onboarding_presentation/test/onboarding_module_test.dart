@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:onboarding_domain/onboarding_domain.dart';
 import 'package:onboarding_presentation/onboarding_presentation.dart';
+import 'package:onboarding_presentation/src/first_stone.dart';
 import 'package:onboarding_presentation/src/onboarding_widgets.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -298,6 +299,10 @@ void main() {
         ...List.filled(9, OnboardingStone.placed),
         OnboardingStone.pending,
       ]);
+      expect(
+        tester.widget<SteadyTortoise>(byKey('onboardingFinalTortoise')).stones,
+        3,
+      );
       expect(byKey('onboardingNotNow'), findsNothing);
       await tapContinue(tester);
 
@@ -583,6 +588,101 @@ void main() {
       // The screen the person was on couldn't be read: unknown, not screen 1.
       expect(leftAt, [null]);
       expect(repository.record.completed, isTrue);
+    });
+  });
+
+  group('the mascot', () {
+    Finder tortoise(String screenKey) => find.byWidgetPredicate(
+      (w) => w is SteadyTortoise && w.key == Key(screenKey),
+    );
+
+    testWidgets('screen 1: the first stone lands on the tortoise’s back', (
+      tester,
+    ) async {
+      await pumpModule(tester);
+      final tortoise = find.descendant(
+        of: find.byType(FirstStone),
+        matching: find.byType(SteadyTortoise),
+      );
+      expect(tester.widget<SteadyTortoise>(tortoise).stones, 0);
+      final tortoiseAt = tester.getTopLeft(tortoise);
+      Rect stone() => tester.getRect(
+        find.descendant(
+          of: byKey('onboardingFirstStone'),
+          matching: find.byType(TortoiseStone),
+        ),
+      );
+      final rest = SteadyTortoise.stoneRect(0, FirstStone.tortoiseSize);
+      expect(stone().bottom, lessThan(tortoiseAt.dy + rest.top));
+
+      await tester.tap(byKey('onboardingFirstStone'));
+      await tester.pumpAndSettle();
+
+      // Exactly where the tortoise carries its bottom stone; the tortoise
+      // itself never moved.
+      expect(tester.getTopLeft(tortoise), tortoiseAt);
+      final landed = stone();
+      expect(
+        landed.left,
+        moreOrLessEquals(tortoiseAt.dx + rest.left, epsilon: 0.5),
+      );
+      expect(
+        landed.top,
+        moreOrLessEquals(tortoiseAt.dy + rest.top, epsilon: 0.5),
+      );
+      expect(landed.width, moreOrLessEquals(rest.width, epsilon: 0.5));
+    });
+
+    testWidgets('screen 1, resumed: the stone is already on its back', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        ShadcnApp(
+          theme: steadyTheme,
+          home: Center(child: FirstStone(placed: true, onPlaced: () {})),
+        ),
+      );
+      final tortoiseAt = tester.getTopLeft(find.byType(SteadyTortoise));
+      final rest = SteadyTortoise.stoneRect(0, FirstStone.tortoiseSize);
+      final stone = tester.getRect(
+        find.descendant(
+          of: byKey('onboardingFirstStone'),
+          matching: find.byType(TortoiseStone),
+        ),
+      );
+      expect(stone.top, moreOrLessEquals(tortoiseAt.dy + rest.top));
+      // No faint copy marking the place: the stone is there.
+      expect(find.byType(TortoiseStone), findsOneWidget);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('screen 10: the tortoise sits beside the cairn with all '
+        'three stones, the same after a skipped step', (tester) async {
+      final handle = tester.ensureSemantics();
+      await pumpModule(
+        tester,
+        record: const OnboardingRecord(step: OnboardingStep.firstWeek),
+      );
+      await tapContinue(tester);
+      expect(find.text(OnboardingCopy.cairnTitle), findsOneWidget);
+      // Resumed with nothing answered: skipped steps' dimmer stones.
+      expect(find.text(OnboardingCopy.cairnSkipped), findsOneWidget);
+
+      final mascot = tortoise('onboardingFinalTortoise');
+      expect(tester.widget<SteadyTortoise>(mascot).stones, 3);
+      // At the cairn's foot, to its left, standing on the same line.
+      final cairn = byKey('onboardingFinalCairn');
+      expect(
+        tester.getRect(mascot).right,
+        lessThan(tester.getRect(cairn).left),
+      );
+      expect(
+        tester.getRect(mascot).bottom,
+        moreOrLessEquals(tester.getRect(cairn).bottom),
+      );
+      // Decoration: the cairn's label says what's there.
+      expect(find.bySemanticsLabel(RegExp('tortoise')), findsNothing);
+      handle.dispose();
     });
   });
 

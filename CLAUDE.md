@@ -145,6 +145,8 @@ steady/
 │   │   │                            # OnboardingRepository; lib/testing/ in-memory fake
 │   │   ├── onboarding_data/         # FileOnboardingRepository: onboarding.json in app support
 │   │   └── onboarding_presentation/ # OnboardingModule (callbacks only), its controller;
+│   │                                # screen 1's stone lands on the mascot's back
+│   │                                # (FirstStone), screen 10 sets it beside the cairn;
 │   │                                # Settings → About me (AboutMeModule, its controller,
 │   │                                # the AboutMeSettingsCard row)
 │   └── notes/                      # Planned (RAG) — headless for now, see docs §8
@@ -153,7 +155,8 @@ steady/
 │
 ├── packages/
 │   └── shared/
-│       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets
+│       ├── ui_kit/                  # Design tokens from docs §10, brand-agnostic widgets,
+│       │                            # and the mascot (SteadyTortoise, #176; §5, "App shell")
 │       ├── failures/                # Shared typed Failure classes, Result, Unit
 │       ├── analytics/               # AnalyticsEvent (every usage event,
 │       │                            # §1) + analyticsProvider, lib/testing.dart
@@ -598,6 +601,17 @@ screen through `steadyTheme` and `ui_kit` widgets; a Material widget reads neith
 `CircularProgressIndicator` while loading. It needs a `ShadcnApp` ancestor and no Material ones;
 its widget tests wrap it in `ShadcnApp(theme: steadyTheme)`. Decision record:
 `docs/technical_decisions.md`, "Feature screens are shadcn-only".
+
+**The mascot (#176).** `SteadyTortoise` (`ui_kit`) is the "Cairn carrier": a tortoise
+carrying the icon's three stones (tan, mauve, blue), drawn with a `CustomPainter`, no Rive
+or image assets. Its colours are `SteadyColors.mascot*` tokens plus existing ones. It takes
+a `size` (its height) and `stones` (0–3); a stone added drops into place, and just appears
+with reduced motion. Below 48 px it drops the stones (the small form). It has one
+semantics label. One calm expression only: never sad, the stones never fall, and no streak
+or weight imagery. `stoneRect` and `TortoiseStone` let a screen move a stone by hand and
+land it where the tortoise carries it. Onboarding's screen 1 does that (`FirstStone`: the
+first stone lands on its back), and screen 10 sets the tortoise beside the cairn. The
+header's small `OnboardingCairn` stays.
 
 ---
 

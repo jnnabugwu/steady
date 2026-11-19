@@ -53,7 +53,7 @@ dimmer one.
 
 | # | Screen | What happens | Becomes |
 |---|---|---|---|
-| 1 | Place your first stone | The person taps (or drags) a stone onto the ground; it wobbles and settles. Steady's version of hatching the egg. "Log more days, without the guilt." | — |
+| 1 | Place your first stone | The person taps (or drags) a stone onto the tortoise's back (the mascot, #176); it wobbles and settles. Steady's version of hatching the egg. "Log more days, without the guilt." | — |
 | 2 | How you track food | Cal AI / another app that writes to Apple Health / I'm just starting. Reason line: so Today shows the right thing. | `tracking`; whether Today shows the import button |
 | 3 | Where did you hear about Steady? | A friend or family / Instagram / Reddit / App Store search / TikTok / something else. Reason line: helps a small app know what's working. Cal AI's attribution question. | PostHog event `onboarding_source` (`source`: a fixed code such as `tiktok`); never sent to the coach |
 | 4 | Apple Health | A preview of the Today tiles first, then the system permission. | Health access |
@@ -62,7 +62,7 @@ dimmer one.
 | 7 | Your coach's voice | Gentle / Direct / Playful. The coach answers "I skipped logging Saturday" in the chosen voice, from text written in advance (no API call). | `voice` |
 | 8 | Meet the coach | The existing consent screen, plus an optional line: "Anything else the coach should know?" (about 200 characters). | consent; `note` |
 | 9 | Your first week | Two or three tiny suggestions built from the answers by templates in the app, e.g. "On tennis days, log lunch before you head out." | — |
-| 10 | Your cairn | The stones placed so far. "Tonight's check-in adds the next." | — |
+| 10 | Your cairn | The stones placed so far, with the tortoise beside them. "Tonight's check-in adds the next." | — |
 
 **Where screen 3's answer goes (decided 2026-11-17): PostHog.** One anonymous event,
 `onboarding_source`, whose only property is a fixed code (`friend`, `instagram`, `reddit`,
@@ -137,9 +137,10 @@ proxy and its own eval run, since a Direct coach still can't shame.
 **Flutter only, no Rive (decided 2026-11-17).** Nothing in onboarding is worth a paid plan
 yet.
 
-- **The first stone (screen 1)** is drawn the way `CairnWeek` draws its stones: a
-  `GestureDetector` for the tap or drag, then a spring (`SpringSimulation` on an
-  `AnimationController`) for the wobble and settle.
+- **The first stone (screen 1)** is the mascot's bottom stone (`TortoiseStone`, #176), and
+  it lands on the tortoise's back (`SteadyTortoise.stoneRect`): a `GestureDetector` for
+  the tap or drag, then a spring (`SpringSimulation` on an `AnimationController`) for the
+  wobble and settle. The tortoise doesn't move.
 - **Every other stone** reuses `CairnWeek`'s drawing, which is already shared with Today and
   the share card. `flutter_animate` (free, MIT) covers the screen transitions.
 - **Rive, later.** If the first stone ever needs more than a spring can give, a Rive version
