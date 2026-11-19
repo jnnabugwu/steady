@@ -105,12 +105,18 @@ final class OnboardingLaunchCheck {
 void _log(String message, Object? error) =>
     developer.log(message, name: 'steady.onboarding', error: error);
 
-/// How the person tracks food, from onboarding screen 2, or `null`: not
-/// answered, no onboarding on this device, or the record couldn't be read.
+/// How the person tracks food, from onboarding screen 2 or Settings → About
+/// me, or `null`: not answered, no onboarding on this device, or the record
+/// couldn't be read.
 ///
-/// Auto-dispose: read again whenever Today is built afresh, which is the
-/// case after onboarding (it replaces the shell); the onboarding route
-/// also invalidates it on the way out.
+/// **The one source** for everything on Today that follows the answer
+/// ([todayImportButtonShownProvider], [todayMetricsEmptyHintProvider] and
+/// `todayHealthPromptProvider`): whoever writes the record invalidates
+/// this, and they all follow. The onboarding route does on the way out,
+/// and Settings → About me after every edit (`AboutMeRoute`), so Today
+/// changes straight away, without a relaunch.
+///
+/// Auto-dispose: read again whenever Today is built afresh too.
 @riverpod
 Future<FoodTracking?> onboardingFoodTracking(Ref ref) async {
   if (!ref.watch(onboardingSupportAvailableProvider)) return null;

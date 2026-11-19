@@ -243,4 +243,46 @@ abstract final class OnboardingCopy {
 
   /// Screen 10's button.
   static const goToToday = 'Go to Today';
+
+  // Settings → About me (#172). Screen 7 promises "You can change it later
+  // in Settings", so the row and the screen are both called [aboutMeTitle].
+
+  /// The Settings row's and the editor's title.
+  static const aboutMeTitle = 'About me';
+
+  /// The Settings row's line under [aboutMeTitle].
+  static const aboutMeRowDetail =
+      'How you track food, your week, what gets in the way, and the coach’s '
+      'voice.';
+
+  /// The editor's line under its title.
+  static const aboutMeIntro =
+      'What you told Steady when you started. Change anything, any time. '
+      'Tap a chosen answer again to clear it.';
+
+  /// Shown in the editor when a save failed, instead of [saveFailed] (which
+  /// points to Settings, where the person already is). True to what the
+  /// editor does: the edit stays on screen, and the next edit saves every
+  /// answer, this one included.
+  static const aboutMeSaveFailed =
+      'Couldn’t save that just now. Your answer is still here, and the next '
+      'change will try again.';
+
+  /// The editor's food tracking section (screen 2's question). Its line is
+  /// [trackingReason].
+  static const aboutMeTrackingHeading = 'Food tracking';
+
+  /// The editor's "your week" section (screen 5's question), with
+  /// [activitiesHeading] and [weekendsHeading] inside it.
+  static const aboutMeWeekHeading = 'Your week';
+
+  /// The editor's "what gets in the way" section (screen 6's question).
+  static const aboutMeHardPartsHeading = 'What gets in the way';
+
+  /// The editor's coach voice section (screen 7's question). Paid.
+  static const aboutMeVoiceHeading = 'Your coach’s voice';
+
+  /// The editor's note section (screen 8's note, labelled [noteLabel]).
+  /// Paid.
+  static const aboutMeNoteHeading = 'A note for the coach';
 }

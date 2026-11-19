@@ -95,7 +95,7 @@ steady/
 │   │   ├── app_shell.dart          # AppShell: the tab branches under the floating GlassTabBar (§5)
 │   │   ├── providers.dart          # appProviderOverrides: binds feature providers to impls (§9)
 │   │   ├── onboarding.dart         # once-per-launch onboarding decision; Today's import
-│   │   │                            # button from screen 2's answer (§5)
+│   │   │                            # button from screen 2's answer, or About me's (§5)
 │   │   ├── health_access.dart      # Apple Health: refresh (never asks) and request (§1)
 │   │   ├── usage_sharing.dart      # PostHog (App Store + TestFlight): install check, opt-out (§1)
 │   │   ├── today_screen.dart       # TodayScreen, served at `/` by HomeRoute: composes the
@@ -144,7 +144,9 @@ steady/
 │   │   ├── onboarding_domain/       # OnboardingRecord, AboutMe, OnboardingStep,
 │   │   │                            # OnboardingRepository; lib/testing/ in-memory fake
 │   │   ├── onboarding_data/         # FileOnboardingRepository: onboarding.json in app support
-│   │   └── onboarding_presentation/ # OnboardingModule (callbacks only), its controller
+│   │   └── onboarding_presentation/ # OnboardingModule (callbacks only), its controller;
+│   │                                # Settings → About me (AboutMeModule, its controller,
+│   │                                # the AboutMeSettingsCard row)
 │   └── notes/                      # Planned (RAG) — headless for now, see docs §8
 │       ├── notes_domain/
 │       └── notes_data/              # Talks to RAGKitCore via rag_kit plugin (see §8)
@@ -492,7 +494,9 @@ under `HomeRoute`, so Today is beneath them even on a cold start; the check-in k
 tab bar, while `CravingRoute` is presented on the root navigator over the shell.
 `ImportRoute` (`/import`) is top-level, on the root navigator over the shell.
 `OnboardingRoute` (`/onboarding`, iPhone only) is top-level too, and is gone to rather
-than pushed, so it replaces the shell (below, "First launch"). The shell
+than pushed, so it replaces the shell (below, "First launch"). `AboutMeRoute`
+(`/settings/about-me`, iPhone only) is nested under `SettingsRoute`, inside the tab
+(below, "About me"). The shell
 raises `MediaQuery.padding.bottom` to clear the bar: a screen that should scroll under it
 (Today) pads its scroll content by `MediaQuery.paddingOf(context).bottom` instead of
 wrapping itself in a bottom `SafeArea`.
@@ -558,6 +562,20 @@ Screen 2's answer decides Today's header import button (`todayImportButtonShownP
 It's hidden for `otherHealthApp` and `justStarting`, and shown for `calAi`, no answer, an
 unreadable record and while loading. Week's header keeps its import button for everyone.
 The same answer decides the Cal AI card and the empty-metrics text ("Today", above).
+
+**About me (`/settings/about-me`, #172).** Every onboarding answer can be changed later:
+Settings opens with an "About me" row (onboarding's `AboutMeSettingsCard`, shown only
+where `onboardingSupportAvailableProvider` is `true`) that pushes `AboutMeRoute`, nested
+under `SettingsRoute` in the Settings branch, so the tab bar stays and Settings is beneath
+it, cold starts included. Where onboarding isn't bound (the Mac) there's no row, and the
+route redirects to `/settings`. It shows `AboutMeModule`, which saves each edit through
+`saveAboutMe` (never changing whether onboarding is done). **Today follows each edit
+straight away:** `onboardingFoodTrackingProvider` (`app/lib/onboarding.dart`) is the one
+read of the record that the import button, `todayHealthPromptProvider` and
+`todayMetricsEmptyHintProvider` all derive from, and the route's `onAboutMeChanged`
+invalidates it after every save. Today stays mounted in its own branch, so it re-reads at
+once, with no relaunch. Anything new on Today that follows an answer should derive from
+that provider too, not read the repository itself.
 
 **Consent (`/coach-consent`).** `CoachConsentRoute` (top-level, on the root navigator,
 redirects home on the Mac) shows coach's `CoachConsentModule` and pops with `true` for
