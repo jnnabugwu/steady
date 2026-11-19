@@ -182,6 +182,31 @@ void main() {
     expect(find.text(PaywallCopy.nothingToRestore), findsOneWidget);
   });
 
+  testWidgets('restore that finds an ended subscription says it ended', (
+    tester,
+  ) async {
+    await store.purchase(SubscriptionPlan.monthly);
+    store.expire();
+    await pump(tester);
+    await tapKey(tester, 'paywallRestore');
+    expect(subscribed, 0);
+    expect(find.text(PaywallCopy.restoredLapsed), findsOneWidget);
+    expect(find.text(PaywallCopy.nothingToRestore), findsNothing);
+  });
+
+  testWidgets('VoiceOver can choose a plan', (tester) async {
+    final handle = tester.ensureSemantics();
+    await pump(tester);
+    final yearly = find.byKey(const Key('paywallPlan_yearly'));
+    await tester.ensureVisible(yearly);
+    await tester.pumpAndSettle();
+    // The tile's one node (its children are excluded) has the tap action.
+    tester.semantics.tap(find.semantics.byLabel(RegExp('^Yearly, ')));
+    await tester.pumpAndSettle();
+    expect(allText(tester), contains(r'Free for 1 week, then $39.99 a year'));
+    handle.dispose();
+  });
+
   testWidgets('restore that finds a subscription calls onSubscribed', (
     tester,
   ) async {

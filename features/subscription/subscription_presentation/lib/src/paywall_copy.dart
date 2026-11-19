@@ -55,6 +55,11 @@ abstract final class PaywallCopy {
   static const nothingToRestore =
       'No subscription was found for this Apple Account.';
 
+  /// Restore found a subscription, but it has ended.
+  static const restoredLapsed =
+      'Your subscription has ended, so there’s nothing to restore. You can '
+      'subscribe again here.';
+
   /// The offer couldn't be loaded.
   static const offerUnavailable =
       'Couldn’t reach the App Store just now. Try again in a moment.';

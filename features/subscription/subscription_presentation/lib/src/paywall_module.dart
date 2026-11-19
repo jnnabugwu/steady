@@ -76,7 +76,11 @@ class _PaywallModuleState extends ConsumerState<PaywallModule> {
       _busy = false;
       _message = switch (result) {
         Ok(:final value) when value.isActive => null,
-        Ok() => isRestore ? PaywallCopy.nothingToRestore : null,
+        Ok(:final value) when isRestore =>
+          value.access == SubscriptionAccess.lapsed
+              ? PaywallCopy.restoredLapsed
+              : PaywallCopy.nothingToRestore,
+        Ok() => null,
         Err(:final failure) => PaywallCopy.failure(failure),
       };
     });
@@ -299,6 +303,8 @@ class _PlanTile extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      // excludeSemantics drops the GestureDetector's action, so it goes here.
+      onTap: onPressed,
       label: '$name, ${PaywallCopy.billed(offer)}. $detail',
       excludeSemantics: true,
       child: GestureDetector(

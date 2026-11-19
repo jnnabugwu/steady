@@ -75,6 +75,17 @@ void main() {
       expect(find.textContaining('Yearly, renews'), findsOneWidget);
     });
 
+    testWidgets('Restore that finds an ended one adds nothing to the status '
+        'line', (tester) async {
+      await store.purchase(SubscriptionPlan.monthly);
+      store.expire();
+      await pumpSettings(tester);
+      await tapKey(tester, 'subscriptionRestore');
+      expect(find.text(PaywallCopy.nothingToRestore), findsNothing);
+      expect(find.byKey(const Key('subscriptionRestoreMessage')), findsNothing);
+      expect(find.textContaining('Your subscription ended'), findsOneWidget);
+    });
+
     testWidgets('Restore with nothing says so', (tester) async {
       await pumpSettings(tester);
       await tapKey(tester, 'subscriptionRestore');
