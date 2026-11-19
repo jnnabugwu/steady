@@ -104,6 +104,11 @@ abstract final class PaywallCopy {
       ? '${offer.price} a ${period(offer.period)}'
       : '${offer.price} every ${period(offer.period)}';
 
+  /// A plan's per-month price, under its billed price: "about $3.33 a
+  /// month". [price] is the store's, already localized; it's "about"
+  /// because the store rounds it, and it's never what's charged.
+  static String monthlyEquivalent(String price) => 'about $price a month';
+
   /// How often, after a price: "a month", "every 6 months".
   static String per(SubscriptionPeriod period) => period.count == 1
       ? 'a ${PaywallCopy.period(period)}'

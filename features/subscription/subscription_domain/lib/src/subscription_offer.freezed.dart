@@ -578,7 +578,13 @@ mixin _$SubscriptionPlanOffer {
  String get price;/// The billed price as a number, in [currencyCode].
  double get amount;/// The ISO 4217 currency code of [amount].
  String get currencyCode;/// How often it bills.
- SubscriptionPeriod get period;/// Its free trial, or `null` if it has none. A paid introductory price
+ SubscriptionPeriod get period;/// What the plan works out to per month, localized by the store
+/// ("$3.33" for $39.99 a year), or `null` when the store gives none.
+/// Set for the yearly plan only. Steady never formats a currency
+/// itself, so with no store value the paywall shows nothing extra.
+/// It's secondary: the paywall shows it under the billed [price], in
+/// smaller type, never in its place (App Store 3.1.2).
+ String? get monthlyEquivalentPrice;/// Its free trial, or `null` if it has none. A paid introductory price
 /// isn't something Steady sells, so it's left out rather than shown as
 /// a trial.
  FreeTrial? get freeTrial;
@@ -593,20 +599,20 @@ $SubscriptionPlanOfferCopyWith<SubscriptionPlanOffer> get copyWith => _$Subscrip
 @override
 bool operator ==(Object other) {
   final _this = this as SubscriptionPlanOffer;
-  return identical(this, other) || (other.runtimeType == runtimeType&&other is SubscriptionPlanOffer&&(identical(other.plan, _this.plan) || other.plan == _this.plan)&&(identical(other.productId, _this.productId) || other.productId == _this.productId)&&(identical(other.price, _this.price) || other.price == _this.price)&&(identical(other.amount, _this.amount) || other.amount == _this.amount)&&(identical(other.currencyCode, _this.currencyCode) || other.currencyCode == _this.currencyCode)&&(identical(other.period, _this.period) || other.period == _this.period)&&(identical(other.freeTrial, _this.freeTrial) || other.freeTrial == _this.freeTrial));
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is SubscriptionPlanOffer&&(identical(other.plan, _this.plan) || other.plan == _this.plan)&&(identical(other.productId, _this.productId) || other.productId == _this.productId)&&(identical(other.price, _this.price) || other.price == _this.price)&&(identical(other.amount, _this.amount) || other.amount == _this.amount)&&(identical(other.currencyCode, _this.currencyCode) || other.currencyCode == _this.currencyCode)&&(identical(other.period, _this.period) || other.period == _this.period)&&(identical(other.monthlyEquivalentPrice, _this.monthlyEquivalentPrice) || other.monthlyEquivalentPrice == _this.monthlyEquivalentPrice)&&(identical(other.freeTrial, _this.freeTrial) || other.freeTrial == _this.freeTrial));
 }
 
 
 @override
 int get hashCode {
   final _this = this as SubscriptionPlanOffer;
-  return Object.hash(runtimeType,_this.plan,_this.productId,_this.price,_this.amount,_this.currencyCode,_this.period,_this.freeTrial);
+  return Object.hash(runtimeType,_this.plan,_this.productId,_this.price,_this.amount,_this.currencyCode,_this.period,_this.monthlyEquivalentPrice,_this.freeTrial);
 }
 
 @override
 String toString() {
   final _this = this as SubscriptionPlanOffer;
-  return 'SubscriptionPlanOffer(plan: ${_this.plan}, productId: ${_this.productId}, price: ${_this.price}, amount: ${_this.amount}, currencyCode: ${_this.currencyCode}, period: ${_this.period}, freeTrial: ${_this.freeTrial})';
+  return 'SubscriptionPlanOffer(plan: ${_this.plan}, productId: ${_this.productId}, price: ${_this.price}, amount: ${_this.amount}, currencyCode: ${_this.currencyCode}, period: ${_this.period}, monthlyEquivalentPrice: ${_this.monthlyEquivalentPrice}, freeTrial: ${_this.freeTrial})';
 }
 
 
@@ -617,7 +623,7 @@ abstract mixin class $SubscriptionPlanOfferCopyWith<$Res>  {
   factory $SubscriptionPlanOfferCopyWith(SubscriptionPlanOffer value, $Res Function(SubscriptionPlanOffer) _then) = _$SubscriptionPlanOfferCopyWithImpl;
 @useResult
 $Res call({
- SubscriptionPlan plan, String productId, String price, double amount, String currencyCode, SubscriptionPeriod period, FreeTrial? freeTrial
+ SubscriptionPlan plan, String productId, String price, double amount, String currencyCode, SubscriptionPeriod period, String? monthlyEquivalentPrice, FreeTrial? freeTrial
 });
 
 
@@ -634,7 +640,7 @@ class _$SubscriptionPlanOfferCopyWithImpl<$Res>
 
 /// Create a copy of SubscriptionPlanOffer
 /// with the given fields replaced by the non-null parameter values.
-@pragma('vm:prefer-inline') @override $Res call({Object? plan = null,Object? productId = null,Object? price = null,Object? amount = null,Object? currencyCode = null,Object? period = null,Object? freeTrial = freezed,}) {
+@pragma('vm:prefer-inline') @override $Res call({Object? plan = null,Object? productId = null,Object? price = null,Object? amount = null,Object? currencyCode = null,Object? period = null,Object? monthlyEquivalentPrice = freezed,Object? freeTrial = freezed,}) {
   return _then(SubscriptionPlanOffer(
 plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
 as SubscriptionPlan,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
@@ -642,7 +648,8 @@ as String,price: null == price ? _self.price : price // ignore: cast_nullable_to
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
 as double,currencyCode: null == currencyCode ? _self.currencyCode : currencyCode // ignore: cast_nullable_to_non_nullable
 as String,period: null == period ? _self.period : period // ignore: cast_nullable_to_non_nullable
-as SubscriptionPeriod,freeTrial: freezed == freeTrial ? _self.freeTrial : freeTrial // ignore: cast_nullable_to_non_nullable
+as SubscriptionPeriod,monthlyEquivalentPrice: freezed == monthlyEquivalentPrice ? _self.monthlyEquivalentPrice : monthlyEquivalentPrice // ignore: cast_nullable_to_non_nullable
+as String?,freeTrial: freezed == freeTrial ? _self.freeTrial : freeTrial // ignore: cast_nullable_to_non_nullable
 as FreeTrial?,
   ));
 }
@@ -749,10 +756,10 @@ return $default(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  FreeTrial? freeTrial)?  $default,{required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>(TResult Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  String? monthlyEquivalentPrice,  FreeTrial? freeTrial)?  $default,{required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case _SubscriptionPlanOffer() when $default != null:
-return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.freeTrial);case _:
+return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.monthlyEquivalentPrice,_that.freeTrial);case _:
   return orElse();
 
 }
@@ -770,10 +777,10 @@ return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  FreeTrial? freeTrial)  $default,) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>(TResult Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  String? monthlyEquivalentPrice,  FreeTrial? freeTrial)  $default,) {final _that = this;
 switch (_that) {
 case _SubscriptionPlanOffer():
-return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.freeTrial);case _:
+return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.monthlyEquivalentPrice,_that.freeTrial);case _:
   throw StateError('Unexpected subclass');
 
 }
@@ -790,10 +797,10 @@ return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.curren
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  FreeTrial? freeTrial)?  $default,) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>(TResult? Function( SubscriptionPlan plan,  String productId,  String price,  double amount,  String currencyCode,  SubscriptionPeriod period,  String? monthlyEquivalentPrice,  FreeTrial? freeTrial)?  $default,) {final _that = this;
 switch (_that) {
 case _SubscriptionPlanOffer() when $default != null:
-return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.freeTrial);case _:
+return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.currencyCode,_that.period,_that.monthlyEquivalentPrice,_that.freeTrial);case _:
   return null;
 
 }
@@ -805,7 +812,7 @@ return $default(_that.plan,_that.productId,_that.price,_that.amount,_that.curren
 
 
 class _SubscriptionPlanOffer implements SubscriptionPlanOffer {
-  const _SubscriptionPlanOffer({required this.plan, required this.productId, required this.price, required this.amount, required this.currencyCode, required this.period, this.freeTrial});
+  const _SubscriptionPlanOffer({required this.plan, required this.productId, required this.price, required this.amount, required this.currencyCode, required this.period, this.monthlyEquivalentPrice, this.freeTrial});
   
 
 /// Which of Steady's plans this is.
@@ -821,6 +828,13 @@ class _SubscriptionPlanOffer implements SubscriptionPlanOffer {
 @override final  String currencyCode;
 /// How often it bills.
 @override final  SubscriptionPeriod period;
+/// What the plan works out to per month, localized by the store
+/// ("$3.33" for $39.99 a year), or `null` when the store gives none.
+/// Set for the yearly plan only. Steady never formats a currency
+/// itself, so with no store value the paywall shows nothing extra.
+/// It's secondary: the paywall shows it under the billed [price], in
+/// smaller type, never in its place (App Store 3.1.2).
+@override final  String? monthlyEquivalentPrice;
 /// Its free trial, or `null` if it has none. A paid introductory price
 /// isn't something Steady sells, so it's left out rather than shown as
 /// a trial.
@@ -836,18 +850,18 @@ _$SubscriptionPlanOfferCopyWith<_SubscriptionPlanOffer> get copyWith => __$Subsc
 
 @override
 bool operator ==(Object other) {
-    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SubscriptionPlanOffer&&(identical(other.plan, plan) || other.plan == plan)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.price, price) || other.price == price)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.currencyCode, currencyCode) || other.currencyCode == currencyCode)&&(identical(other.period, period) || other.period == period)&&(identical(other.freeTrial, freeTrial) || other.freeTrial == freeTrial));
+    return identical(this, other) || (other.runtimeType == runtimeType&&other is _SubscriptionPlanOffer&&(identical(other.plan, plan) || other.plan == plan)&&(identical(other.productId, productId) || other.productId == productId)&&(identical(other.price, price) || other.price == price)&&(identical(other.amount, amount) || other.amount == amount)&&(identical(other.currencyCode, currencyCode) || other.currencyCode == currencyCode)&&(identical(other.period, period) || other.period == period)&&(identical(other.monthlyEquivalentPrice, monthlyEquivalentPrice) || other.monthlyEquivalentPrice == monthlyEquivalentPrice)&&(identical(other.freeTrial, freeTrial) || other.freeTrial == freeTrial));
 }
 
 
 @override
 int get hashCode {
-    return Object.hash(runtimeType,plan,productId,price,amount,currencyCode,period,freeTrial);
+    return Object.hash(runtimeType,plan,productId,price,amount,currencyCode,period,monthlyEquivalentPrice,freeTrial);
 }
 
 @override
 String toString() {
-    return 'SubscriptionPlanOffer(plan: $plan, productId: $productId, price: $price, amount: $amount, currencyCode: $currencyCode, period: $period, freeTrial: $freeTrial)';
+    return 'SubscriptionPlanOffer(plan: $plan, productId: $productId, price: $price, amount: $amount, currencyCode: $currencyCode, period: $period, monthlyEquivalentPrice: $monthlyEquivalentPrice, freeTrial: $freeTrial)';
 }
 
 
@@ -858,7 +872,7 @@ abstract mixin class _$SubscriptionPlanOfferCopyWith<$Res> implements $Subscript
   factory _$SubscriptionPlanOfferCopyWith(_SubscriptionPlanOffer value, $Res Function(_SubscriptionPlanOffer) _then) = __$SubscriptionPlanOfferCopyWithImpl;
 @override @useResult
 $Res call({
- SubscriptionPlan plan, String productId, String price, double amount, String currencyCode, SubscriptionPeriod period, FreeTrial? freeTrial
+ SubscriptionPlan plan, String productId, String price, double amount, String currencyCode, SubscriptionPeriod period, String? monthlyEquivalentPrice, FreeTrial? freeTrial
 });
 
 
@@ -875,7 +889,7 @@ class __$SubscriptionPlanOfferCopyWithImpl<$Res>
 
 /// Create a copy of SubscriptionPlanOffer
 /// with the given fields replaced by the non-null parameter values.
-@override @pragma('vm:prefer-inline') $Res call({Object? plan = null,Object? productId = null,Object? price = null,Object? amount = null,Object? currencyCode = null,Object? period = null,Object? freeTrial = freezed,}) {
+@override @pragma('vm:prefer-inline') $Res call({Object? plan = null,Object? productId = null,Object? price = null,Object? amount = null,Object? currencyCode = null,Object? period = null,Object? monthlyEquivalentPrice = freezed,Object? freeTrial = freezed,}) {
   return _then(_SubscriptionPlanOffer(
 plan: null == plan ? _self.plan : plan // ignore: cast_nullable_to_non_nullable
 as SubscriptionPlan,productId: null == productId ? _self.productId : productId // ignore: cast_nullable_to_non_nullable
@@ -883,7 +897,8 @@ as String,price: null == price ? _self.price : price // ignore: cast_nullable_to
 as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
 as double,currencyCode: null == currencyCode ? _self.currencyCode : currencyCode // ignore: cast_nullable_to_non_nullable
 as String,period: null == period ? _self.period : period // ignore: cast_nullable_to_non_nullable
-as SubscriptionPeriod,freeTrial: freezed == freeTrial ? _self.freeTrial : freeTrial // ignore: cast_nullable_to_non_nullable
+as SubscriptionPeriod,monthlyEquivalentPrice: freezed == monthlyEquivalentPrice ? _self.monthlyEquivalentPrice : monthlyEquivalentPrice // ignore: cast_nullable_to_non_nullable
+as String?,freeTrial: freezed == freeTrial ? _self.freeTrial : freeTrial // ignore: cast_nullable_to_non_nullable
 as FreeTrial?,
   ));
 }
