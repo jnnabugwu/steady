@@ -137,15 +137,16 @@ subscriber (item 2), since 1.1.0 reads the same `coach_sessions.json`.
 
 **Consequences:**
 
-- **1.0's coach users get a longer free period (decided 2026-11-18).** Proposed: **one month
-  free** (one setting in App Store Connect; the normal free week is for everyone else). Steady
+- **1.0's coach users get a longer free period (decided 2026-11-18).** **Two weeks free**
+  (Jordan, 2026-11-18), twice the free week everyone else gets. It's one setting on the offer
+  code in App Store Connect. Steady
   has no accounts, so the app recognises them by what's already on the phone: on the first 1.1.0
   launch, if `coach_sessions.json` holds any session, it sets a device-only flag once. A new
   install never has one. The paywall then offers the month through a StoreKit **offer code**
   (redeemed in Apple's own sheet, `presentCodeRedemptionSheet`), with the code kept in the build
   config, never in the repo. Accepted: a custom code can be passed on, and someone who installed
   1.0 but never used the coach doesn't get it. The 1.1.0 release notes say plainly that the
-  coach becomes part of the subscription, and that people who used it get a month free. Check
+  coach becomes part of the subscription, and that people who used it get two weeks free. Check
   that a 1.0 `coach_sessions.json` reads cleanly in 1.1.0 on an updated phone.
 - **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
   to review; `docs/testflight.md` §6):
