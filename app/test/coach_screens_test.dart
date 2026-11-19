@@ -12,6 +12,9 @@ import 'package:steady/app_router.dart';
 import 'package:steady/main.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/today_screen.dart';
+import 'package:subscription_domain/subscription_domain.dart';
+import 'package:subscription_domain/testing/in_memory_subscription_repository.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 /// The coach's screens in the real app (#80): a Coach tab on the iPhone,
@@ -43,6 +46,7 @@ void main() {
     DateTime? now,
     DateTime Function()? clock,
     int checkInsLastWeek = 0,
+    InMemorySubscriptionRepository? subscription,
   }) async {
     final readClock = clock ?? (now == null ? null : () => now);
     tester.view.physicalSize = const Size(390, 844) * 3;
@@ -75,6 +79,12 @@ void main() {
           coachMetricsRepositoryProvider.overrideWith(
             (ref) => ref.watch(metricsRepositoryProvider),
           ),
+          // The subscription (#183), over the in-memory store, when a test
+          // gives one; otherwise unbound, as before.
+          if (subscription != null) ...[
+            subscriptionSupportAvailableProvider.overrideWithValue(true),
+            subscriptionRepositoryProvider.overrideWithValue(subscription),
+          ],
         ],
         if (readClock != null) ...[
           coachClockProvider.overrideWithValue(readClock),
@@ -138,6 +148,7 @@ void main() {
       '/coach/sessions/abc',
       '/weekly-check-in',
       '/coach-consent',
+      '/subscribe',
     ]) {
       testWidgets('a cold start at $path goes home', (tester) async {
         final container = await pumpApp(tester, isIOS: false, coldStart: path);
@@ -530,6 +541,194 @@ void main() {
         checkInsLastWeek: 3,
       );
       expect(find.byKey(const Key('coachNudgeCard')), findsNothing);
+    });
+
+    group('the subscription (#183)', () {
+      final paywall = find.byType(PaywallModule);
+      final consentScreen = find.byType(CoachConsentModule);
+
+      Future<void> tapKey(WidgetTester tester, String key) async {
+        final target = find.byKey(Key(key));
+        await tester.ensureVisible(target);
+        await tester.pumpAndSettle();
+        await tester.tap(target);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> scrollToNudge(WidgetTester tester) async {
+        await tester.scrollUntilVisible(
+          find.byKey(const Key('coachNudgeTalkNow')),
+          200,
+          scrollable: find.descendant(
+            of: find.byKey(const Key('todayScroll')),
+            matching: find.byType(Scrollable),
+          ),
+        );
+        await tester.drag(
+          find.byKey(const Key('todayScroll')),
+          const Offset(0, -200),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      testWidgets('the Coach tab, not subscribed: the subscription card in '
+          'place of the chat and "Turn on the coach"; See plans opens the '
+          'paywall; subscribed, consent comes next', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        final model = _FakeModel();
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          model: model,
+          consent: consent,
+          subscription: store,
+        );
+        await tapTab(tester, 'Coach');
+        expect(find.byType(CoachSubscriptionCard), findsOneWidget);
+        expect(find.byKey(const Key('coachStartChat')), findsNothing);
+        expect(find.byKey(const Key('coachTurnOn')), findsNothing);
+
+        await tapKey(tester, 'coachSubscriptionSeePlans');
+        expect(location(container), '/subscribe');
+        expect(paywall, findsOneWidget);
+        expect(tabBar.hitTestable(), findsNothing);
+
+        await tapKey(tester, 'paywallNotNow');
+        expect(location(container), '/coach');
+        expect(store.purchaseCalls, 0);
+
+        await tapKey(tester, 'coachSubscriptionSeePlans');
+        await tapKey(tester, 'paywallBuy');
+        expect(location(container), '/coach');
+        expect(find.byType(CoachSubscriptionCard), findsNothing);
+        // Subscribed, not yet agreed: the consent step is still there.
+        expect(find.byKey(const Key('coachTurnOn')), findsOneWidget);
+        expect(consent.agreed, isNull);
+        expect(model.requests, isEmpty);
+      });
+
+      testWidgets('the nudge, not subscribed: Talk now shows the paywall; '
+          '"Not now" returns to Today; subscribing goes on to consent, then '
+          'the weekly session', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          consent: consent,
+          subscription: store,
+          now: DateTime(2026, 10, 23, 20),
+          checkInsLastWeek: 4,
+        );
+        // Free people still get the Friday nudge (decision item 9).
+        await scrollToNudge(tester);
+        await tapKey(tester, 'coachNudgeTalkNow');
+        expect(location(container), '/subscribe');
+
+        await tapKey(tester, 'paywallNotNow');
+        expect(location(container), '/');
+        expect(consentScreen, findsNothing);
+        expect(find.byKey(const Key('coachNudgeTalkNow')), findsOneWidget);
+
+        await tapKey(tester, 'coachNudgeTalkNow');
+        await tapKey(tester, 'paywallBuy');
+        expect(location(container), '/coach-consent');
+        expect(consentScreen, findsOneWidget);
+        await tapKey(tester, 'coachConsentAllow');
+        expect(location(container), '/weekly-check-in');
+      });
+
+      testWidgets('subscribed and agreed: Talk now goes straight to the '
+          'weekly session', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        await store.purchase(SubscriptionPlan.yearly);
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          subscription: store,
+          now: DateTime(2026, 10, 23, 20),
+          checkInsLastWeek: 4,
+        );
+        await scrollToNudge(tester);
+        await tapKey(tester, 'coachNudgeTalkNow');
+        expect(location(container), '/weekly-check-in');
+        expect(paywall, findsNothing);
+      });
+
+      testWidgets('lapsed: the tab says it ended, and past sessions stay '
+          'readable', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        await store.purchase(SubscriptionPlan.monthly);
+        store.expire();
+        final repository = _MemoryRepository()
+          ..sessions.add(
+            CoachSession(
+              id: 'old',
+              kind: CoachSessionKind.chat,
+              startedAt: DateTime(2026, 10, 20, 20),
+              summary: 'An old chat.',
+            ),
+          );
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          repository: repository,
+          subscription: store,
+        );
+        await tapTab(tester, 'Coach');
+        expect(find.text('Your subscription has ended'), findsOneWidget);
+        await tapKey(tester, 'coachSession_old');
+        expect(location(container), '/coach/sessions/old');
+        expect(find.byType(CoachTranscriptModule), findsOneWidget);
+      });
+
+      testWidgets('the store could not say: the coach is not locked (the '
+          'proxy is the gate)', (tester) async {
+        final store = InMemorySubscriptionRepository()
+          ..failNextWith = const SubscriptionNotConfiguredFailure();
+        await pumpApp(tester, isIOS: true, subscription: store);
+        await tapTab(tester, 'Coach');
+        expect(find.byType(CoachSubscriptionCard), findsNothing);
+        expect(find.byKey(const Key('coachStartChat')), findsOneWidget);
+      });
+
+      testWidgets('Settings: the subscription section, and See plans opens '
+          'the paywall', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          subscription: store,
+        );
+        await tapTab(tester, 'Settings');
+        expect(
+          find.byKey(const Key('subscriptionSettingsCard')),
+          findsOneWidget,
+        );
+        await tapKey(tester, 'subscriptionSeePlans');
+        expect(location(container), '/subscribe');
+        await tapKey(tester, 'paywallNotNow');
+        expect(location(container), '/settings');
+      });
+
+      testWidgets('Settings: the coach switch, not subscribed, opens the '
+          'paywall first', (tester) async {
+        final store = InMemorySubscriptionRepository();
+        final consent = _MemoryConsent();
+        final container = await pumpApp(
+          tester,
+          isIOS: true,
+          consent: consent,
+          subscription: store,
+        );
+        await tapTab(tester, 'Settings');
+        await tapKey(tester, 'coachConsentSwitch');
+        expect(location(container), '/subscribe');
+        await tapKey(tester, 'paywallNotNow');
+        expect(location(container), '/settings');
+        expect(consent.agreed, isNull);
+      });
     });
 
     testWidgets('deleting coach history in Settings empties the Coach tab', (

@@ -425,8 +425,16 @@ Research: `docs/research/revenuecat_paywall.md` (#168).
 - [ ] #180: App Store Connect products (`steady_monthly`, `steady_yearly`, or change
       `SteadySubscriptionIds` and `Products.storekit` to match), the RevenueCat project
       (`coach` entitlement, one offering) and the keys.
-- [ ] #183 the paywall screen, Restore and the ways in; #182 the signed transaction to the
-      proxy; #188 two weeks free for 1.0's coach users; #174 the onboarding offer.
+- [x] #183 Steady's own paywall (`PaywallModule`, `/subscribe`): both plans with the store's
+      prices, the billed price largest, the trial and the price after it only when eligible,
+      what renews, "Cancel anytime", Restore, Terms of Use (Apple's EULA) and Privacy. Every
+      way into the coach goes paywall first, then consent (`_unlockCoach`): the Coach tab's
+      card, the nudge's "Talk now", onboarding's screen 8, the Settings switch. Settings →
+      Subscription: state, Manage, See plans, Restore. Lapsed: past sessions readable. The
+      paid badge says "Subscription". No paywall analytics events.
+- [ ] macOS: regenerate `ui_kit`'s `onboarding_cairn.png` golden (the badge's new wording).
+- [ ] #182 the signed transaction to the proxy; #188 two weeks free for 1.0's coach users;
+      #174 the onboarding offer before screen 8 (skipping 7 and 8 when not subscribing).
 - [ ] Sandbox and TestFlight on a real iPhone (#185).
 
 ## HealthKit (CLAUDE.md §1/§7/§8)

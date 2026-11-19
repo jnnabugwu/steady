@@ -150,5 +150,5 @@ yet.
 - [ ] PostHog in App Store builds: every #156 event, or only `onboarding_source`?
 - [x] Ten screens and nine stones (screens 1–9 each place one): the onboarding cairn is its
   own widget built from `CairnWeek`'s stone drawing, and `CairnWeek` keeps its seven days.
-- [ ] The paid badge's wording, once free and paid are decided.
+- [x] The paid badge's wording: "Subscription", the paywall's word for it (#183).
 - [ ] Should "Your first week" (screen 9) also seed the first weekly session?

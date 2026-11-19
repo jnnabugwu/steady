@@ -162,7 +162,8 @@ steady/
 │   │   │                            # SubscriptionRepository, failures; lib/testing/ fake
 │   │   ├── subscription_data/       # RevenueCatSubscriptionRepository: the only package
 │   │   │                            # that imports purchases_flutter; lib/testing/ contract
-│   │   └── subscription_presentation/ # providers (the paywall comes with #183)
+│   │   └── subscription_presentation/ # PaywallModule (Steady's own, shadcn), the status
+│   │                                # controller, CoachSubscriptionCard, the Settings card
 │   └── notes/                      # Planned (RAG) — headless for now, see docs §8
 │       ├── notes_domain/
 │       └── notes_data/              # Talks to RAGKitCore via rag_kit plugin (see §8)
@@ -377,6 +378,7 @@ copy:
 | Per-entity controllers (`checkInControllerProvider(date)`) | auto-dispose (default) | One per day; freed when the screen pops, so a provider doesn't pile up per date visited. |
 | Screen controllers (weekly view, etc.) | auto-dispose (default) | Screen-scoped. |
 | `subscriptionRepositoryProvider` and `subscriptionSupportAvailableProvider` (`subscription_presentation`; bound on iOS only) | `keepAlive: true` | The repository owns RevenueCat's one-time setup; support is a constant for the app's lifetime. |
+| `subscriptionStatusControllerProvider` (`subscription_presentation`) | `keepAlive: true` | App-scoped, like the consent answer: the paywall, the Coach tab, the nudge's way in and Settings all read it; `SteadyApp` re-reads it on every resume. A failed purchase or restore returns its `Result` and leaves the state as it was. |
 | `coachNudgeDismissalProvider` ("Not tonight") | `keepAlive: true` | Holds the day the nudge was dismissed; it has to outlive Today's rebuilds. In memory only, so a relaunch shows the nudge again. |
 | `coachConsentGivenProvider` (the `CoachConsentGiven` AsyncNotifier) | `keepAlive: true` | The one consent answer every coach request checks (§11); a settled `true` for the current consent version is the only yes (`isCoachConsentGiven`). |
 | `coachSessionControllerProvider(kind, sessionId)` | auto-dispose family, plus a `KeepAliveLink` while `endCoachSession` runs | Keyed by a fresh id per opening, so a session still writing its summary after its screen closed is never reused; the link is closed in `finally`. |
@@ -593,6 +595,19 @@ read of the record that the import button, `todayHealthPromptProvider` and
 invalidates it after every save. Today stays mounted in its own branch, so it re-reads at
 once, with no relaunch. Anything new on Today that follows an answer should derive from
 that provider too, not read the repository itself.
+
+**The paywall (`/subscribe`, #183).** `PaywallRoute` (top-level, on the root navigator,
+redirects home where `subscriptionSupportAvailableProvider` is `false`) shows subscription's
+`PaywallModule` and pops with `true` once subscribed, `false` for "Not now". **Every way into
+the coach goes through `_unlockCoach`**: the paywall first while the store says this Apple
+Account has no active subscription (`readCoachNeedsSubscription`), then the consent screen
+(`_askCoachConsent`) unless consent is given, so consent always comes after subscribing. The
+ways in: the Coach tab (`CoachHomeModule.lockedCard` gets `CoachSubscriptionCard` while
+`coachNeedsSubscriptionProvider` is `true`, in place of the chat, the weekly card and "Turn on
+the coach"; past sessions stay readable), the nudge's "Talk now", onboarding's screen 8, the
+Settings switch and a session opened without consent. Settings → Subscription
+(`SubscriptionSettingsCard`) has the state, Manage, See plans and Restore. An unknown answer (no
+store key, an outage) never locks the coach: the proxy checks the subscription itself (#182).
 
 **Consent (`/coach-consent`).** `CoachConsentRoute` (top-level, on the root navigator,
 redirects home on the Mac) shows coach's `CoachConsentModule` and pops with `true` for
