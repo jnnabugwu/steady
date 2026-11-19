@@ -210,24 +210,35 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
     return switch (period.unit) {
       SubscriptionPeriodUnit.day => now.add(Duration(days: period.count)),
       SubscriptionPeriodUnit.week => now.add(Duration(days: 7 * period.count)),
-      SubscriptionPeriodUnit.month => DateTime(
-        now.year,
-        now.month + period.count,
-        now.day,
-        now.hour,
-        now.minute,
-        now.second,
+      SubscriptionPeriodUnit.month => _calendar(
+        now,
+        year: now.year,
+        month: now.month + period.count,
       ),
-      SubscriptionPeriodUnit.year => DateTime(
-        now.year + period.count,
-        now.month,
-        now.day,
-        now.hour,
-        now.minute,
-        now.second,
+      SubscriptionPeriodUnit.year => _calendar(
+        now,
+        year: now.year + period.count,
+        month: now.month,
       ),
     };
   }
+
+  /// [now]'s day and time in [year] and [month], in [now]'s own zone (UTC
+  /// stays UTC), so an expiry doesn't depend on the test runner's zone.
+  static DateTime _calendar(
+    DateTime now, {
+    required int year,
+    required int month,
+  }) => (now.isUtc ? DateTime.utc : DateTime.new)(
+    year,
+    month,
+    now.day,
+    now.hour,
+    now.minute,
+    now.second,
+    now.millisecond,
+    now.microsecond,
+  );
 
   Err<T>? _failure<T>() {
     final failure = failNextWith;
