@@ -12,6 +12,7 @@
 library;
 
 export 'src/coach_subscription_card.dart';
+export 'src/early_coach_offer_card.dart';
 export 'src/paywall_copy.dart';
 export 'src/paywall_module.dart';
 export 'src/providers.dart';

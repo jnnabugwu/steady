@@ -278,4 +278,8 @@ class _SlowStatus implements SubscriptionRepository {
 
   @override
   ResultFuture<SubscriptionStatus> restore() => store.restore();
+
+  @override
+  ResultFuture<Unit> presentOfferCodeRedemption() =>
+      store.presentOfferCodeRedemption();
 }

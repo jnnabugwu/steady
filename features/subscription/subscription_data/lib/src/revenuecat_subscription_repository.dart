@@ -104,6 +104,12 @@ class RevenueCatSubscriptionRepository implements SubscriptionRepository {
   ResultFuture<SubscriptionStatus> restore() =>
       _guard(() async => _statusFrom(await Purchases.restorePurchases()));
 
+  @override
+  ResultFuture<Unit> presentOfferCodeRedemption() => _guard(() async {
+    await Purchases.presentCodeRedemptionSheet();
+    return unit;
+  });
+
   Future<Offering> _currentOffering() async {
     final offering = (await Purchases.getOfferings()).current;
     // No current offering: RevenueCat's dashboard isn't set up, or the

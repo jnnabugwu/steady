@@ -10,6 +10,7 @@ import 'package:coach_presentation/coach_presentation.dart'
         coachAvailabilityProvider,
         coachModelProvider,
         coachNudgeProvider,
+        coachRepositoryProvider,
         coachSupportAvailableProvider,
         weeklyReadinessProvider;
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -21,6 +22,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/cal_ai_health_card.dart';
+import 'package:steady/early_coach_offer.dart';
 import 'package:steady/health_access.dart';
 import 'package:steady/onboarding.dart';
 import 'package:steady/pdfium.dart';
@@ -62,11 +64,35 @@ Future<void> main() async {
   if (postHog != null) unawaited(postHog.status);
   unawaited(_configurePurchases(container));
   unawaited(_recordCoachAvailability(container));
+  await _recordEarlyCoachUser(container);
   await _migrateInterimFileStore(container);
   await _clearLegacyHealthFields(container);
   runApp(
     UncontrolledProviderScope(container: container, child: const SteadyApp()),
   );
+}
+
+/// Decides, once per install, whether the person used the coach on 1.0
+/// (#188, `early_coach_offer.dart`), before the first frame so 1.1.0 can't
+/// have added a session first. iOS only, where both stores are bound. A
+/// slow or failed read is logged, not fatal, and the next launch tries
+/// again.
+Future<void> _recordEarlyCoachUser(ProviderContainer container) async {
+  final flag = container.read(earlyCoachUserRepositoryProvider);
+  if (flag == null || !container.read(coachSupportAvailableProvider)) return;
+  try {
+    await recordEarlyCoachUser(
+      flag: flag,
+      coach: container.read(coachRepositoryProvider),
+    ).timeout(const Duration(seconds: 1));
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Early coach user check failed',
+      name: 'steady.subscription',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
 }
 
 /// Sets RevenueCat up once, at launch (#181), so the first subscription

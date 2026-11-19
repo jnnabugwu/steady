@@ -4,6 +4,7 @@ import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:subscription_domain/subscription_domain.dart';
+import 'package:subscription_presentation/src/early_coach_offer_card.dart';
 import 'package:subscription_presentation/src/paywall_copy.dart';
 import 'package:subscription_presentation/src/subscription_controller.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -19,6 +20,10 @@ import 'package:ui_kit/ui_kit.dart';
 /// it), what renews and when, "Cancel anytime", **Restore purchases**, and
 /// links to the Terms of Use (Apple's standard EULA) and [privacyPolicyUrl].
 /// The words are [PaywallCopy]'s.
+///
+/// For a person who used the coach on Steady 1.0, it also offers two weeks
+/// free through an offer code ([EarlyCoachOfferCard], #188), above the
+/// normal plans.
 ///
 /// Shown before the coach's consent screen, so nobody agrees to send data
 /// for a feature they haven't chosen. Knows nothing about routing or the
@@ -152,6 +157,16 @@ class _PaywallModuleState extends ConsumerState<PaywallModule> {
                   ),
                   const SizedBox(height: 10),
                   const Text(PaywallCopy.staysFree, style: SteadyType.body),
+                  // People who used the coach on 1.0: two weeks free (#188),
+                  // above the normal plans.
+                  if (ref.watch(earlyCoachOfferProvider).value
+                      case final code?) ...[
+                    const SizedBox(height: 18),
+                    EarlyCoachOfferCard(
+                      code: code,
+                      onSubscribed: widget.onSubscribed,
+                    ),
+                  ],
                   const SizedBox(height: 22),
                   ...switch (offer) {
                     AsyncData() when plans.isEmpty => [

@@ -436,8 +436,15 @@ Research: `docs/research/revenuecat_paywall.md` (#168).
       `StoreProduct.pricePerMonthString`) under its billed price, smaller and dimmer; nothing
       when the store gives none.
 - [x] macOS: regenerated `ui_kit`'s `onboarding_cairn.png` golden (the badge's new wording).
-- [ ] #182 the signed transaction to the proxy; #188 two weeks free for 1.0's coach users;
-      #174 the onboarding offer before screen 8 (skipping 7 and 8 when not subscribing).
+- [x] #188 two weeks free for 1.0's coach users: `early_coach_offer.json`, decided once
+      before the first frame from whether `coach_sessions.json` holds a session; the paywall's
+      offer card (the code from `--dart-define=EARLY_COACH_OFFER_CODE`, Copy, Apple's
+      redemption sheet, Check again); a two-week code offer in `Products.storekit`.
+- [ ] #180: the custom offer code in App Store Connect, and the `EARLY_COACH_OFFER_CODE`
+      secret. 1.1.0's release notes say the coach becomes part of the subscription and that
+      people who used it get two weeks free.
+- [ ] #182 the signed transaction to the proxy; #174 the onboarding offer before screen 8
+      (skipping 7 and 8 when not subscribing).
 - [ ] Sandbox and TestFlight on a real iPhone (#185).
 
 ## HealthKit (CLAUDE.md §1/§7/§8)
