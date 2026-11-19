@@ -10,7 +10,9 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 ## The coach is paid; everything on the phone is free (2026-11-17)
 
 **Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
-Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free feature.
+Steady 1.0 (live since 2026-11-17) has no working coach: the on-device Foundation Models
+path was removed before the 1.0 builds (#151, #152), and 1.0 shipped without the hosted coach.
+So nobody loses a free feature.
 
 **Decision:**
 
@@ -63,12 +65,13 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
      Counting from local midnight can come later.
    - **Copy.** Paywall: "Up to 15 coach messages a day, plus your weekly coach check-in, every
      week." Limit reached: "You've used today's 15 coach messages. You can send more after
-     4:00 PM. Your weekly coach check-in still works."
+     {time}. Your weekly coach check-in still works." `{time}` is `retryAfter` in the person's
+     local time ("4:00 PM" for someone in Chicago).
 8. **The proxy checks the subscription, not only the app.** A client-side check alone can be
    skipped. Every coach request carries the StoreKit 2 signed transaction (a JWS signed by
    Apple), and `steady-backend` verifies Apple's signature and the expiry before calling the
    model. Still no accounts: like App Attest, it proves something about the purchase, not who
-   the person is. This is option C in `docs/research/revenuecat_paywall.md` (§5): a small
+   the person is. This is option C in `docs/research/revenuecat_paywall.md` (§5, #168): a small
    Swift channel returns the JWS from `Transaction.currentEntitlements`, the proxy ties each
    original transaction id to at most about 5 App Attest keys, and rechecks refunds about
    daily with Apple's subscription status API. Chosen over asking RevenueCat's API, which
@@ -81,7 +84,7 @@ Steady 1.0 (live since 2026-11-17) has no hosted coach, so nobody loses a free f
    to Today, like "Not tonight". Hiding the nudge for non-subscribers was the alternative.
 
 10. **RevenueCat handles the purchases; the paywall is Steady's own screen (amended
-    2026-11-18).** Research: `docs/research/revenuecat_paywall.md`.
+    2026-11-18).** Research: `docs/research/revenuecat_paywall.md` (#168).
     - **The SDK:** `purchases_flutter` only (StoreKit 2, over Swift Package Manager), behind a
       new `features/subscription` (`subscription_domain`, `subscription_data`,
       `subscription_presentation`). Only `subscription_data` imports the SDK; the coach reads
@@ -231,7 +234,7 @@ devices without it needs a server and accounts.
   export. Not planned.
 - **Auto Backup puts device files in the person's Google backup**, including cravings and coach
   transcripts. That matches the iOS stance that they're in the person's own iCloud Backup
-  ("Craving support" below), and Android's PRIVACY.md section says so. The files can be left out
+  ("Craving support" below), and `docs/PRIVACY.md` will need an Android section saying so. The files can be left out
   with backup rules if that stance changes.
 - **The `isIOS` gate becomes a phone check.** `appProviderOverridesFor(isIOS:)` turns on Health,
   cravings and the coach only on iOS. Android needs those too, with its own bindings for Health
