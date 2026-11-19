@@ -51,6 +51,8 @@ class _SubscriptionSettingsCardState
       _restoring = false;
       _message = switch (result) {
         Ok(:final value) when value.isActive => 'Restored.',
+        // The status line already says it ended.
+        Ok(:final value) when value.access == SubscriptionAccess.lapsed => null,
         Ok() => PaywallCopy.nothingToRestore,
         Err(:final failure) => PaywallCopy.failure(failure),
       };

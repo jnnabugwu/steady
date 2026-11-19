@@ -119,7 +119,11 @@ class FakePurchasesNative implements SubscriptionContractStore {
       _rawFault = null;
       throw fault;
     }
-    if (_fault case final fault?) {
+    // Payment faults belong to the purchase call itself; an outage hits
+    // whichever store call comes next.
+    if (_fault case final fault?
+        when fault == SubscriptionStoreFault.outage ||
+            call.method == 'purchasePackage') {
       _fault = null;
       throw PlatformException(
         code: '${_codeFor(fault).index}',

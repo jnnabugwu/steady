@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:failures/failures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -133,6 +135,27 @@ void main() {
       );
     });
 
+    test('a refresh that started before a purchase can not undo it', () async {
+      final slow = _SlowStatus(store);
+      final c = ProviderContainer.test(
+        overrides: [subscriptionRepositoryProvider.overrideWithValue(slow)],
+      );
+      await c.read(subscriptionStatusControllerProvider.future);
+      final notifier = c.read(subscriptionStatusControllerProvider.notifier);
+
+      final gate = slow.hold = Completer<void>();
+      final refresh = notifier.refreshSubscription(); // reads "none"…
+      await Future<void>.delayed(Duration.zero);
+      await notifier.purchaseSubscription(SubscriptionPlan.monthly);
+      gate.complete(); // …and answers after the purchase.
+      await refresh;
+
+      expect(
+        c.read(subscriptionStatusControllerProvider).value?.access,
+        SubscriptionAccess.trial,
+      );
+    });
+
     test('refresh keeps a known answer over a passing outage', () async {
       final c = container();
       await c.read(subscriptionStatusControllerProvider.future);
@@ -226,4 +249,33 @@ void main() {
       );
     });
   });
+}
+
+/// [store], with `status()` held until [hold] completes, read before it's
+/// held (so the status it returns is the one from when it was called).
+class _SlowStatus implements SubscriptionRepository {
+  _SlowStatus(this.store);
+
+  final InMemorySubscriptionRepository store;
+  Completer<void>? hold;
+
+  @override
+  ResultFuture<SubscriptionStatus> status() async {
+    final answer = await store.status();
+    if (hold case final gate?) {
+      hold = null;
+      await gate.future;
+    }
+    return answer;
+  }
+
+  @override
+  ResultFuture<SubscriptionOffer> offer() => store.offer();
+
+  @override
+  ResultFuture<SubscriptionStatus> purchase(SubscriptionPlan plan) =>
+      store.purchase(plan);
+
+  @override
+  ResultFuture<SubscriptionStatus> restore() => store.restore();
 }
