@@ -611,7 +611,8 @@ semantics label. One calm expression only: never sad, the stones never fall, and
 or weight imagery. `stoneRect` and `TortoiseStone` let a screen move a stone by hand and
 land it where the tortoise carries it. Onboarding's screen 1 does that (`FirstStone`: the
 first stone lands on its back), and screen 10 sets the tortoise beside the cairn. The
-header's small `OnboardingCairn` stays.
+header's small `OnboardingCairn` stays on screens 1–9; screen 10's header keeps only its
+height, since the full cairn is in the body.
 
 ---
 
