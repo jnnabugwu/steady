@@ -814,8 +814,9 @@ Anthropic for the reply, with consent (above).
 **The early coach user flag is device-only too** (#188). `FileEarlyCoachUserRepository`
 (`subscription_data`) keeps `early_coach_offer.json` (`{"version": 1, "usedCoach": bool}`) next
 to `coach_consent.json`: decided once, on the first launch of a build with it, from whether
-`coach_sessions.json` holds any session (`app/lib/early_coach_offer.dart`, awaited before the
-first frame), and never changed. It's what lets the paywall offer two weeks free to people who
+`coach_sessions.json` holds any session that started before this launch
+(`app/lib/early_coach_offer.dart`, awaited before the first frame for up to a second; a check
+that finishes later never counts a session made since launch), and never changed. It's what lets the paywall offer two weeks free to people who
 used 1.0's free coach. Never synced; in the person's own device backup.
 
 **The coach consent answer is device-only too.** `FileCoachConsentRepository`

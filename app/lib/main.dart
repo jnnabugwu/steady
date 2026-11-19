@@ -73,10 +73,11 @@ Future<void> main() async {
 }
 
 /// Decides, once per install, whether the person used the coach on 1.0
-/// (#188, `early_coach_offer.dart`), before the first frame so 1.1.0 can't
-/// have added a session first. iOS only, where both stores are bound. A
-/// slow or failed read is logged, not fatal, and the next launch tries
-/// again.
+/// (#188, `early_coach_offer.dart`), before the first frame. iOS only,
+/// where both stores are bound. A failed read is logged, not fatal, and
+/// the next launch tries again. The timeout only stops the wait, not the
+/// check: one that finishes later still decides, but counts only sessions
+/// that started before this launch, so none 1.1.0 adds meanwhile.
 Future<void> _recordEarlyCoachUser(ProviderContainer container) async {
   final flag = container.read(earlyCoachUserRepositoryProvider);
   if (flag == null || !container.read(coachSupportAvailableProvider)) return;
@@ -84,6 +85,7 @@ Future<void> _recordEarlyCoachUser(ProviderContainer container) async {
     await recordEarlyCoachUser(
       flag: flag,
       coach: container.read(coachRepositoryProvider),
+      launchedAt: DateTime.now(),
     ).timeout(const Duration(seconds: 1));
   } on Object catch (error, stackTrace) {
     developer.log(
