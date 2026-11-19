@@ -64,6 +64,7 @@ void main() {
   Future<void> pumpHome(
     WidgetTester tester, {
     FakeCoachConsentRepository? consent,
+    Widget? lockedCard,
   }) async {
     tester.view.physicalSize = const Size(390, 844) * 3;
     tester.view.devicePixelRatio = 3;
@@ -82,6 +83,7 @@ void main() {
             onWeeklyRequested: () => weeklies++,
             onConsentRequested: () => consentAsks++,
             onSessionSelected: opened.add,
+            lockedCard: lockedCard,
           ),
         ),
       ),
@@ -223,6 +225,31 @@ void main() {
     expect(find.byKey(const Key('coachCheckAgain')), findsNothing);
     // History still shows on an iPhone that can't run the coach.
     expect(find.byKey(const Key('coachHistoryEmpty')), findsOneWidget);
+  });
+
+  group('a locked card from the app (#183)', () {
+    testWidgets('takes the place of the chat and the weekly check-in', (
+      tester,
+    ) async {
+      await pumpHome(
+        tester,
+        lockedCard: const Text('Locked', key: Key('locked')),
+      );
+      expect(find.byKey(const Key('locked')), findsOneWidget);
+      expect(find.text('Start a chat'), findsNothing);
+      expect(find.byType(CoachWeeklyCard), findsNothing);
+    });
+
+    testWidgets('past sessions stay listed and readable', (tester) async {
+      repository.sessions.add(chat);
+      await pumpHome(
+        tester,
+        lockedCard: const Text('Locked', key: Key('locked')),
+      );
+      await tester.ensureVisible(find.byKey(const Key('coachSession_c1')));
+      await tester.tap(find.byKey(const Key('coachSession_c1')));
+      expect(opened, ['c1']);
+    });
   });
 
   testWidgets('no sessions yet says where they will be', (tester) async {

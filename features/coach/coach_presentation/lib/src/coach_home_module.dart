@@ -18,6 +18,11 @@ import 'package:ui_kit/ui_kit.dart';
 /// advice" note, and the past sessions, newest first
 /// ([coachSessionListProvider]), each opening its read-only transcript.
 ///
+/// [lockedCard], when the app gives one, takes the place of the coach card
+/// and the weekly check-in: the app's way of saying the coach can't be
+/// started yet for a reason this package doesn't know about (the
+/// subscription, #183). Past sessions stay listed and readable below it.
+///
 /// Knows nothing about routing (CLAUDE.md §5): [onChatRequested],
 /// [onWeeklyRequested], [onConsentRequested] and [onSessionSelected] are
 /// wired by the app layer. Past sessions stay readable with the coach off.
@@ -32,8 +37,13 @@ class CoachHomeModule extends ConsumerWidget {
     required this.onWeeklyRequested,
     required this.onConsentRequested,
     required this.onSessionSelected,
+    this.lockedCard,
     super.key,
   });
+
+  /// Shown instead of the coach card and the weekly check-in when set; the
+  /// past sessions stay. `null` (the default) shows the coach as usual.
+  final Widget? lockedCard;
 
   /// Called when "Start a chat" is tapped.
   final void Function() onChatRequested;
@@ -75,21 +85,24 @@ class CoachHomeModule extends ConsumerWidget {
                     child: const Text('Coach', style: SteadyType.headline),
                   ),
                 ),
-                switch (availability) {
-                  AsyncData() => _ChatCard(onChatRequested: onChatRequested),
-                  AsyncError(:final error) => CoachUnavailableCard(
-                    failure: error is Failure
-                        ? error
-                        : const CoachServerFailure(),
-                    onRetry: () => ref.invalidate(coachAvailabilityProvider),
-                    onTurnOn: onConsentRequested,
-                  ),
-                  _ => const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: CircularProgressIndicator()),
-                  ),
-                },
-                if (availability is AsyncData)
+                if (lockedCard case final locked?)
+                  locked
+                else
+                  switch (availability) {
+                    AsyncData() => _ChatCard(onChatRequested: onChatRequested),
+                    AsyncError(:final error) => CoachUnavailableCard(
+                      failure: error is Failure
+                          ? error
+                          : const CoachServerFailure(),
+                      onRetry: () => ref.invalidate(coachAvailabilityProvider),
+                      onTurnOn: onConsentRequested,
+                    ),
+                    _ => const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                  },
+                if (lockedCard == null && availability is AsyncData)
                   CoachWeeklyCard(onWeeklyRequested: onWeeklyRequested),
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),

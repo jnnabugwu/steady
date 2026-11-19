@@ -258,6 +258,16 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         if (ref.read(coachSupportAvailableProvider)) {
           ref.invalidate(coachAvailabilityProvider);
         }
+        // A renewal, a cancellation or a refund happens outside the app
+        // (#183). Only re-read once something has read it.
+        if (ref.read(subscriptionSupportAvailableProvider) &&
+            ref.exists(subscriptionStatusControllerProvider)) {
+          unawaited(
+            ref
+                .read(subscriptionStatusControllerProvider.notifier)
+                .refreshSubscription(),
+          );
+        }
       },
     );
     _refreshHealth();

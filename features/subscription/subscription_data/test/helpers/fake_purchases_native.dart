@@ -63,6 +63,11 @@ class FakePurchasesNative implements SubscriptionContractStore {
   /// Overrides the introductory price of every product, when set.
   Map<String, Object?>? introPriceOverride;
 
+  /// When `false`, products carry no per-period prices (the SDK documents
+  /// them as null for non-subscription products; a store that leaves them
+  /// out is what this stands for).
+  bool perPeriodPrices = true;
+
   /// Removes the fake from the channel.
   void dispose() => TestDefaultBinaryMessengerBinding
       .instance
@@ -264,6 +269,16 @@ class FakePurchasesNative implements SubscriptionContractStore {
         'currencyCode': 'USD',
         'subscriptionPeriod': id.isoPeriod,
         'productCategory': 'SUBSCRIPTION',
+        // StoreProduct.fromJson's keys (11.0.3), sent for both products,
+        // as the native side does for any subscription.
+        if (perPeriodPrices) ...{
+          'pricePerWeek': id.pricePerWeek,
+          'pricePerMonth': id.pricePerMonth,
+          'pricePerYear': id.pricePerYear,
+          'pricePerWeekString': id.pricePerWeekString,
+          'pricePerMonthString': id.pricePerMonthString,
+          'pricePerYearString': id.pricePerYearString,
+        },
         'introPrice':
             introPriceOverride ??
             {
@@ -319,6 +334,12 @@ enum SubscriptionPlanId {
     price: 4.99,
     priceString: r'$4.99',
     isoPeriod: 'P1M',
+    pricePerWeek: 1.15,
+    pricePerWeekString: r'$1.15',
+    pricePerMonth: 4.99,
+    pricePerMonthString: r'$4.99',
+    pricePerYear: 59.88,
+    pricePerYearString: r'$59.88',
   ),
 
   /// $39.99 a year.
@@ -330,6 +351,12 @@ enum SubscriptionPlanId {
     price: 39.99,
     priceString: r'$39.99',
     isoPeriod: 'P1Y',
+    pricePerWeek: 0.76,
+    pricePerWeekString: r'$0.76',
+    pricePerMonth: 3.33,
+    pricePerMonthString: r'$3.33',
+    pricePerYear: 39.99,
+    pricePerYearString: r'$39.99',
   );
 
   SubscriptionPlanId({
@@ -340,6 +367,12 @@ enum SubscriptionPlanId {
     required this.price,
     required this.priceString,
     required this.isoPeriod,
+    required this.pricePerWeek,
+    required this.pricePerWeekString,
+    required this.pricePerMonth,
+    required this.pricePerMonthString,
+    required this.pricePerYear,
+    required this.pricePerYearString,
   });
 
   /// The plan's id for [plan].
@@ -355,6 +388,12 @@ enum SubscriptionPlanId {
   final double price;
   final String priceString;
   final String isoPeriod;
+  final double pricePerWeek;
+  final String pricePerWeekString;
+  final double pricePerMonth;
+  final String pricePerMonthString;
+  final double pricePerYear;
+  final String pricePerYearString;
 
   /// When a paid period starting at [start] ends.
   DateTime end(DateTime start) => switch (this) {

@@ -213,7 +213,7 @@ void main() {
     testWidgets('shows and reads its one wording', (tester) async {
       final handle = tester.ensureSemantics();
       await tester.pumpWidget(_host(const PaidBadge()));
-      expect(PaidBadge.text, 'Paid');
+      expect(PaidBadge.text, 'Subscription');
       expect(find.text(PaidBadge.text), findsOneWidget);
       expect(find.bySemanticsLabel(PaidBadge.text), findsOneWidget);
       handle.dispose();
