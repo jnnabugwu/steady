@@ -269,6 +269,14 @@ SubscriptionPlanOffer _planOfferFrom(
           SubscriptionPlan.monthly => SubscriptionPeriod.oneMonth,
           SubscriptionPlan.yearly => SubscriptionPeriod.oneYear,
         },
+    // The store's own localized per-month price (StoreKit's price divided
+    // by the months, formatted for the storefront), so Steady never formats
+    // a currency. Only the yearly plan shows one; the monthly plan's would
+    // just repeat its price.
+    monthlyEquivalentPrice: switch (plan) {
+      SubscriptionPlan.yearly => product.pricePerMonthString,
+      SubscriptionPlan.monthly => null,
+    },
     freeTrial: freeTrial,
   );
 }

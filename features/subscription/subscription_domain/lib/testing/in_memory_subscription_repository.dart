@@ -39,7 +39,8 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
        _clock = clock ?? DateTime.now;
 
   /// Steady's two plans as App Store Connect is meant to sell them (#180),
-  /// in US dollars, with the free week on both.
+  /// in US dollars, with the free week on both, and the yearly plan's
+  /// per-month price as the store gives it.
   static const defaultOffer = SubscriptionOffer(
     plans: [
       SubscriptionPlanOffer(
@@ -61,6 +62,8 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
         amount: 39.99,
         currencyCode: 'USD',
         period: SubscriptionPeriod.oneYear,
+        // $39.99 / 12, as the store rounds and formats it.
+        monthlyEquivalentPrice: r'$3.33',
         freeTrial: FreeTrial(
           length: SubscriptionPeriod.oneWeek,
           eligibility: TrialEligibility.eligible,

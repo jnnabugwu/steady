@@ -1,4 +1,5 @@
 import 'package:failures/failures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
@@ -24,16 +25,26 @@ void main() {
     links = [];
   });
 
-  Future<void> pump(WidgetTester tester) => pumpWithStore(
-    tester,
-    store,
-    PaywallModule(
-      onSubscribed: () => subscribed++,
-      onNotNow: () => notNow++,
-      onLinkRequested: links.add,
-      privacyPolicyUrl: privacy,
-    ),
-  );
+  Future<void> pump(WidgetTester tester, {double textScale = 1}) =>
+      pumpWithStore(
+        tester,
+        store,
+        PaywallModule(
+          onSubscribed: () => subscribed++,
+          onNotNow: () => notNow++,
+          onLinkRequested: links.add,
+          privacyPolicyUrl: privacy,
+        ),
+        textScale: textScale,
+      );
+
+  /// The size [text] is drawn at, Dynamic Type included.
+  double drawnSize(WidgetTester tester, Finder text) {
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.descendant(of: text, matching: find.byType(RichText)),
+    );
+    return paragraph.textScaler.scale(paragraph.text.style!.fontSize!);
+  }
 
   testWidgets('shows what Apple requires, from the store', (tester) async {
     await pump(tester);
@@ -77,6 +88,102 @@ void main() {
     );
     expect(price.style!.fontSize, greaterThan(trial.style!.fontSize!));
     expect(price.style!.fontSize, greaterThan(small.style!.fontSize!));
+  });
+
+  group("the yearly plan's per-month price", () {
+    const perMonth = Key('paywallPerMonth_yearly');
+
+    testWidgets('shows under the billed price, from the store', (
+      tester,
+    ) async {
+      await pump(tester);
+      expect(find.text(r'about $3.33 a month'), findsOneWidget);
+      expect(find.byKey(perMonth), findsOneWidget);
+      // Yearly only: monthly's would repeat its price.
+      expect(find.byKey(const Key('paywallPerMonth_monthly')), findsNothing);
+      // Under the line with the billed price, in the yearly tile.
+      expect(
+        tester.getTopLeft(find.byKey(perMonth)).dy,
+        greaterThan(
+          tester
+              .getBottomLeft(find.text(r'1 week free, then $39.99 a year'))
+              .dy,
+        ),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const Key('paywallPlan_yearly')),
+          matching: find.byKey(perMonth),
+        ),
+        findsOneWidget,
+      );
+      // VoiceOver reads it with the plan.
+      expect(
+        find.bySemanticsLabel(RegExp(r'^Yearly, .*about \$3\.33 a month$')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('the billed price stays larger and brighter than it', (
+      tester,
+    ) async {
+      await pump(tester);
+      final billed = tester.widget<Text>(
+        find.byKey(const Key('paywallPrice_yearly')),
+      );
+      final monthly = tester.widget<Text>(find.byKey(perMonth));
+      expect(billed.style!.fontSize, greaterThan(monthly.style!.fontSize!));
+      expect(
+        billed.style!.fontWeight!.value,
+        greaterThan(monthly.style!.fontWeight?.value ?? 400),
+      );
+      expect(monthly.style!.color, isNot(billed.style!.color));
+    });
+
+    testWidgets('with no per-month price from the store, nothing extra', (
+      tester,
+    ) async {
+      store = InMemorySubscriptionRepository(
+        clock: () => testNow,
+        offer: SubscriptionOffer(
+          plans: [
+            for (final p in InMemorySubscriptionRepository.defaultOffer.plans)
+              p.copyWith(monthlyEquivalentPrice: null),
+          ],
+        ),
+      );
+      await pump(tester);
+      expect(find.byKey(perMonth), findsNothing);
+      final text = allText(tester);
+      expect(text, isNot(contains(r'about $')));
+      expect(text, isNot(contains(r'$3.33')));
+      // The plan itself is unchanged.
+      expect(text, contains(r'1 week free, then $39.99 a year'));
+      expect(find.byKey(const Key('paywallPrice_yearly')), findsOneWidget);
+    });
+
+    for (final scale in [2.0, 3.0]) {
+      testWidgets('at ${scale}x text it fits, and the billed price is still '
+          'the largest', (tester) async {
+        await pump(tester, textScale: scale);
+        await tester.ensureVisible(find.byKey(perMonth));
+        await tester.pumpAndSettle();
+        // A RenderFlex overflow would have failed the pump.
+        expect(tester.takeException(), isNull);
+        expect(find.text(r'about $3.33 a month'), findsOneWidget);
+        final billed = drawnSize(
+          tester,
+          find.byKey(const Key('paywallPrice_yearly')),
+        );
+        expect(billed, greaterThan(drawnSize(tester, find.byKey(perMonth))));
+        expect(
+          billed,
+          greaterThan(
+            drawnSize(tester, find.text(r'1 week free, then $39.99 a year')),
+          ),
+        );
+      });
+    }
   });
 
   testWidgets("it's Steady: never Plus, Steady+ or upgrade", (tester) async {

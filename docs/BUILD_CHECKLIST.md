@@ -432,7 +432,10 @@ Research: `docs/research/revenuecat_paywall.md` (#168).
       card, the nudge's "Talk now", onboarding's screen 8, the Settings switch. Settings →
       Subscription: state, Manage, See plans, Restore. Lapsed: past sessions readable. The
       paid badge says "Subscription". No paywall analytics events.
-- [ ] macOS: regenerate `ui_kit`'s `onboarding_cairn.png` golden (the badge's new wording).
+- [x] The yearly plan also shows the store's per-month price ("about $3.33 a month", from
+      `StoreProduct.pricePerMonthString`) under its billed price, smaller and dimmer; nothing
+      when the store gives none.
+- [x] macOS: regenerated `ui_kit`'s `onboarding_cairn.png` golden (the badge's new wording).
 - [ ] #182 the signed transaction to the proxy; #188 two weeks free for 1.0's coach users;
       #174 the onboarding offer before screen 8 (skipping 7 and 8 when not subscribing).
 - [ ] Sandbox and TestFlight on a real iPhone (#185).

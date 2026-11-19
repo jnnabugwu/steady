@@ -9,12 +9,13 @@ import 'package:ui_kit/ui_kit.dart';
 final testNow = DateTime(2026, 11, 20, 9);
 
 /// Pumps [child] at iPhone size over [store], with the subscription
-/// supported unless [supported] is false.
+/// supported unless [supported] is false, at [textScale] (Dynamic Type).
 Future<void> pumpWithStore(
   WidgetTester tester,
   InMemorySubscriptionRepository store,
   Widget child, {
   bool supported = true,
+  double textScale = 1,
 }) async {
   tester.view.physicalSize = const Size(390, 844) * 3;
   tester.view.devicePixelRatio = 3;
@@ -25,7 +26,17 @@ Future<void> pumpWithStore(
         subscriptionRepositoryProvider.overrideWithValue(store),
         subscriptionSupportAvailableProvider.overrideWithValue(supported),
       ],
-      child: ShadcnApp(theme: steadyTheme, home: child),
+      child: ShadcnApp(
+        theme: steadyTheme,
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: TextScaler.linear(textScale)),
+            child: child,
+          ),
+        ),
+      ),
     ),
   );
   await tester.pumpAndSettle();
