@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -26,6 +28,22 @@ PaintPatternPredicate _oval(Color color) =>
     (method, arguments) =>
         method == #drawOval &&
         (arguments[1] as Paint).color.toARGB32() == color.toARGB32();
+
+/// [goldenSkip], and also skipped until the golden files exist (#176:
+/// they're generated on a Mac with `flutter test --update-goldens`, which
+/// runs these). Without this, a plain `flutter test` on a Mac fails on the
+/// missing references.
+final Object? _tortoiseGoldenSkip =
+    goldenSkip ??
+    (autoUpdateGoldenFiles ||
+            [
+              'test/goldens/steady_tortoise_large.png',
+              'test/goldens/steady_tortoise_small.png',
+            ].every((path) => File(path).existsSync())
+        ? null
+        : 'SteadyTortoise goldens not generated yet: run '
+              '`flutter test --update-goldens test/steady_tortoise_test.dart` '
+              'on a Mac.');
 
 /// The three stones' colours, bottom first.
 const List<Color> _stoneColors = [
@@ -313,7 +331,7 @@ void main() {
     });
   });
 
-  group('SteadyTortoise golden', skip: goldenSkip, () {
+  group('SteadyTortoise golden', skip: _tortoiseGoldenSkip, () {
     testWidgets('large, carrying three', (tester) async {
       await loadGoldenFonts();
       await tester.pumpWidget(
