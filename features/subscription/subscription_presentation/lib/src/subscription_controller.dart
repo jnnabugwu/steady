@@ -39,6 +39,10 @@ class SubscriptionStatusController extends _$SubscriptionStatusController {
 
   Future<Result<SubscriptionStatus>>? _inFlight;
 
+  /// Counts purchases and restores that replaced the state, so a refresh
+  /// that started before one can't overwrite it with an older answer.
+  int _writes = 0;
+
   /// Domain event: SubscriptionPurchased. Buys [plan] through the store's
   /// sheet. Only one purchase or restore runs at a time; a second call
   /// while one is in flight gets the same result.
@@ -53,9 +57,12 @@ class SubscriptionStatusController extends _$SubscriptionStatusController {
 
   /// Reads the status again, keeping what's shown until the answer comes.
   /// Not a domain event: nothing changed in the app, the store may have.
+  /// A purchase or restore that finishes while this read is out wins: the
+  /// read's answer is dropped.
   Future<void> refreshSubscription() async {
+    final writes = _writes;
     final result = await ref.read(subscriptionRepositoryProvider).status();
-    if (!ref.mounted) return;
+    if (!ref.mounted || writes != _writes || _inFlight != null) return;
     switch (result) {
       case Ok(:final value):
         state = AsyncData(value);
@@ -74,6 +81,7 @@ class SubscriptionStatusController extends _$SubscriptionStatusController {
       try {
         final result = await call();
         if (result case Ok(:final value) when ref.mounted) {
+          _writes++;
           state = AsyncData(value);
         }
         return result;
