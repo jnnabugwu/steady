@@ -144,11 +144,12 @@ fi
 
 case "${REVENUECAT_API_KEY:-}" in
   "") echo "Purchases: off (no REVENUECAT_API_KEY in the environment)" ;;
-  test_*) die "REVENUECAT_API_KEY is a Test Store key; a release build needs the appl_ key" ;;
-  *)
+  appl_*)
     DEFINES+=("--dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY")
     echo "Purchases: on (RevenueCat)"
     ;;
+  test_*) die "REVENUECAT_API_KEY is a Test Store key; a release build needs the appl_ key" ;;
+  *) die "REVENUECAT_API_KEY must be RevenueCat's public Apple SDK key (appl_...)" ;;
 esac
 
 step "flutter build ipa (release, App Store Connect, automatic signing)"
