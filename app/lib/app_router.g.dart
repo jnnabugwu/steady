@@ -10,6 +10,7 @@ List<RouteBase> get $appRoutes => [
   $appShellRoute,
   $onboardingRoute,
   $coachWeeklyRoute,
+  $paywallRoute,
   $coachConsentRoute,
   $importRoute,
 ];
@@ -324,6 +325,32 @@ mixin $CoachWeeklyRoute on GoRouteData {
 
   @override
   String get location => GoRouteData.$location('/weekly-check-in');
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+RouteBase get $paywallRoute => GoRouteData.$route(
+  path: '/subscribe',
+  hasOverriddenOnExit: false,
+  factory: $PaywallRoute._fromState,
+);
+
+mixin $PaywallRoute on GoRouteData {
+  static PaywallRoute _fromState(GoRouterState state) => const PaywallRoute();
+
+  @override
+  String get location => GoRouteData.$location('/subscribe');
 
   @override
   void go(BuildContext context) => context.go(location);

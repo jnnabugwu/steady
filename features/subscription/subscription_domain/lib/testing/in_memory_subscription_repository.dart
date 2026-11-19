@@ -86,6 +86,10 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
   /// nothing, and this is cleared.
   Failure? failNextWith;
 
+  /// When set, the next [offer] returns `Err` of this failure (other calls
+  /// are unaffected), and this is cleared.
+  Failure? failNextOfferWith;
+
   /// How many times [purchase] reached the store, failures included.
   int purchaseCalls = 0;
 
@@ -133,6 +137,10 @@ class InMemorySubscriptionRepository implements SubscriptionRepository {
 
   @override
   ResultFuture<SubscriptionOffer> offer() async {
+    if (failNextOfferWith case final failure?) {
+      failNextOfferWith = null;
+      return Err(failure);
+    }
     if (_failure<SubscriptionOffer>() case final failure?) return failure;
     return Ok(
       SubscriptionOffer(
