@@ -26,14 +26,14 @@
 # team, HealthKit, the iCloud container, production push, production App
 # Attest, the encryption flag, and iPhone-only.
 #
-# Usage sharing (TestFlight only): set POSTHOG_KEY (the phc_ project key) and,
-# for an EU project, POSTHOG_HOST=https://eu.i.posthog.com in the environment,
-# and they're passed in with --dart-define. Without POSTHOG_KEY the build sends
-# nothing anywhere. With it, the app still sends only from a TestFlight install,
-# checked at runtime (app/lib/usage_sharing.dart). Either way the PostHog SDK
-# is linked, and its privacy manifest declares usage data: don't submit a
-# build with it for App Store review until the App Privacy label says so
-# (docs/technical_decisions.md, "Usage events from TestFlight builds only").
+# Usage sharing: set POSTHOG_KEY (the phc_ project key) and, for an EU
+# project, POSTHOG_HOST=https://eu.i.posthog.com in the environment, and
+# they're passed in with --dart-define. Without POSTHOG_KEY the build sends
+# nothing anywhere. With it, App Store and TestFlight installs send anonymous
+# usage events, on by default with a switch in Settings (checked at runtime:
+# app/lib/usage_sharing.dart). Either way the PostHog SDK is linked, and its
+# privacy manifest declares usage data, so the App Privacy label has to say so
+# (docs/technical_decisions.md, "Usage events from App Store builds too").
 #
 # No flavors, env files or CocoaPods: plugins are integrated with Swift
 # Package Manager. The one build-time setting is the coach proxy's address
@@ -131,7 +131,7 @@ DEFINES=()
 if [ -n "${POSTHOG_KEY:-}" ]; then
   DEFINES+=("--dart-define=POSTHOG_KEY=$POSTHOG_KEY")
   [ -n "${POSTHOG_HOST:-}" ] && DEFINES+=("--dart-define=POSTHOG_HOST=$POSTHOG_HOST")
-  echo "Usage sharing: on for TestFlight installs (${POSTHOG_HOST:-https://us.i.posthog.com})"
+  echo "Usage sharing: on for App Store and TestFlight installs (${POSTHOG_HOST:-https://us.i.posthog.com})"
 else
   echo "Usage sharing: off (no POSTHOG_KEY in the environment)"
 fi

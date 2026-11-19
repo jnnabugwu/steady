@@ -26,7 +26,7 @@
 /// (`authorizationStatus`, from `getRequestStatusForAuthorization`), and
 /// iOS never shows it twice for the same types anyway.
 ///
-/// **Usage sharing** (TestFlight only, `usage_sharing.dart`): once per
+/// **Usage sharing** (`usage_sharing.dart`): once per
 /// launch, after the first refresh or request that finds Health asked, the
 /// controller reads the last seven days and records `health_connected`
 /// with two yes/nos, any steps and any calories eaten, never the numbers.

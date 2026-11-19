@@ -388,12 +388,10 @@ Design: `docs/design/onboarding.md`.
       text follows the answer too (no PDF mention unless Cal AI or unanswered).
 - [x] One Health prompt on Today: the Cal AI card or the tiles' "Connect Apple Health",
       never both (`todayHealthPromptProvider`; every combination tested).
-- [x] `onboarding_source` and `onboarding_exited` usage events (TestFlight only, like the
-      rest; `docs/PRIVACY.md`).
+- [x] `onboarding_source` and `onboarding_exited` usage events, sent like the rest (App
+      Store and TestFlight installs, #163; `docs/PRIVACY.md`).
 - [ ] Settings → About me, to change the answers later.
 - [ ] About me reaching the coach (the proxy's context).
-- [ ] Sending `onboarding_source` from App Store builds: needs the App Privacy label and a
-      change to "Usage events from TestFlight builds only" first (design doc).
 - [ ] Not yet run on a physical iPhone (the Health sheet from screen 4, VoiceOver, a
       first launch after updating from 1.0).
 
