@@ -228,6 +228,7 @@ void main() {
             onImportRequested: () {},
             onOpenAccountSettings: () {},
             onCravingRequested: () {},
+            onConnectHealthRequested: () {},
             coachNudge: const Text('coach slot', key: Key('coachSlot')),
           ),
         ),

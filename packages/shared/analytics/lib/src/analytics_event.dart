@@ -27,6 +27,42 @@ enum PdfImportStage {
   save,
 }
 
+/// The codes [AnalyticsEvent.onboardingSource] accepts: onboarding screen
+/// 3's answers to "Where did you hear about Steady?". Mirrors
+/// `OnboardingSource`'s codes (`onboarding_presentation`), without
+/// depending on it; `app/test/onboarding_test.dart` checks the two match.
+const onboardingSourceCodes = {
+  'friend',
+  'instagram',
+  'reddit',
+  'appStore',
+  'tiktok',
+  'other',
+};
+
+/// What [AnalyticsEvent.onboardingExited] sends when the screen isn't
+/// known ("Not now" after the stored answers couldn't be read).
+const onboardingStepUnknown = 'unknown';
+
+/// The codes [AnalyticsEvent.onboardingExited] sends: the onboarding
+/// screens, by `OnboardingStep` code (`onboarding_domain`), mirrored
+/// without depending on it, plus [onboardingStepUnknown].
+/// `app/test/onboarding_test.dart` checks they're exactly the enum's codes
+/// and `unknown`.
+const onboardingStepCodes = <String>{
+  onboardingStepUnknown,
+  'firstStone',
+  'tracking',
+  'source',
+  'health',
+  'week',
+  'hardParts',
+  'voice',
+  'meetCoach',
+  'firstWeek',
+  'cairn',
+};
+
 /// One usage event Steady may send (App Store and TestFlight installs; see
 /// `app/lib/usage_sharing.dart`).
 ///
@@ -81,6 +117,30 @@ final class AnalyticsEvent {
     'available': reason == CoachAvailabilityReason.available,
     'reason': reason.name,
   });
+
+  /// Onboarding screen 3 was answered: where the person heard about
+  /// Steady, as one of [onboardingSourceCodes]. A fixed code only, never
+  /// free text; a skip sends nothing.
+  factory AnalyticsEvent.onboardingSource({required String source}) {
+    assert(
+      onboardingSourceCodes.contains(source),
+      'Unknown onboarding source: $source',
+    );
+    return AnalyticsEvent._('onboarding_source', {'source': source});
+  }
+
+  /// The person left onboarding early ("Not now") on [step], an
+  /// `OnboardingStep` code from [onboardingStepCodes], or `null` when the
+  /// screen isn't known, sent as [onboardingStepUnknown]. Not sent on
+  /// finishing.
+  factory AnalyticsEvent.onboardingExited({required String? step}) {
+    final code = step ?? onboardingStepUnknown;
+    assert(
+      onboardingStepCodes.contains(code),
+      'Unknown onboarding step: $code',
+    );
+    return AnalyticsEvent._('onboarding_exited', {'step': code});
+  }
 
   /// The craving flow reached its end and was saved. Which outcome was
   /// chosen is left out.

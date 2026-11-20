@@ -8,10 +8,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:onboarding_domain/onboarding_domain.dart';
+import 'package:onboarding_domain/testing/in_memory_onboarding_repository.dart';
+import 'package:onboarding_presentation/onboarding_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/app_shell.dart';
 import 'package:steady/main.dart';
+import 'package:steady/onboarding.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/today_screen.dart';
 import 'package:ui_kit/ui_kit.dart';
@@ -277,6 +281,239 @@ void main() {
     });
   });
 
+  group('onboarding at launch', () {
+    final onboarding = find.byType(OnboardingModule);
+
+    /// Pumps the real app on a phone-sized screen with onboarding bound, as
+    /// the iOS list binds it, but to [repository] (in memory: file I/O
+    /// doesn't run under a widget test's fake clock; `bootstrap_test.dart`
+    /// covers the file binding).
+    Future<ProviderContainer> pumpWithOnboarding(
+      WidgetTester tester,
+      OnboardingRepository repository, {
+      String? coldStartLocation,
+    }) async {
+      tester.view
+        ..physicalSize = const Size(390, 844) * 3
+        ..devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      if (coldStartLocation != null) {
+        tester.platformDispatcher.defaultRouteNameTestValue = coldStartLocation;
+        addTearDown(tester.platformDispatcher.clearDefaultRouteNameTestValue);
+      }
+      final container = ProviderContainer(
+        overrides: [
+          ...appProviderOverridesFor(isIOS: false),
+          onboardingSupportAvailableProvider.overrideWithValue(true),
+          onboardingRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      addTearDown(container.dispose);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: const SteadyApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return container;
+    }
+
+    /// Moves around the app and back to the foreground, as a session does.
+    Future<void> useTheApp(WidgetTester tester) async {
+      await tapTab(tester, 'Week');
+      await tapTab(tester, 'Settings');
+      await tapTab(tester, 'Today');
+      tester.binding
+        ..handleAppLifecycleStateChanged(AppLifecycleState.inactive)
+        ..handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a first launch (no record) shows onboarding over no shell', (
+      tester,
+    ) async {
+      final container = await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(),
+      );
+
+      expect(onboarding, findsOneWidget);
+      expect(location(container), '/onboarding');
+      expect(tabBar, findsNothing);
+      expect(find.byType(TodayScreen), findsNothing);
+    });
+
+    testWidgets('a first launch after a 1.0 install, mid-flow, resumes the '
+        'flow', (tester) async {
+      await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(
+          const OnboardingRecord(step: OnboardingStep.hardParts),
+        ),
+      );
+      expect(onboarding, findsOneWidget);
+      expect(find.text(OnboardingCopy.hardPartsTitle), findsOneWidget);
+    });
+
+    testWidgets('completed opens Today', (tester) async {
+      final container = await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(
+          const OnboardingRecord(
+            completed: true,
+            aboutMe: AboutMe(tracking: FoodTracking.calAi),
+          ),
+        ),
+      );
+      expect(onboarding, findsNothing);
+      expect(location(container), '/');
+      expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('an unreadable record counts as done: Today', (tester) async {
+      final repository = InMemoryOnboardingRepository()..makeUnreadable();
+      await pumpWithOnboarding(tester, repository);
+      expect(onboarding, findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('a storage failure skips it this launch, without writing', (
+      tester,
+    ) async {
+      final repository = InMemoryOnboardingRepository()
+        ..failNextWith = const OnboardingStorageFailure('disk');
+      await pumpWithOnboarding(tester, repository);
+      expect(onboarding, findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(repository.record, OnboardingRecord.initial);
+    });
+
+    testWidgets('a slow read never holds Today back, and skips it this '
+        'launch even if it answers later', (tester) async {
+      final repository = _SlowOnboardingRepository();
+      await pumpWithOnboarding(tester, repository);
+      // The first frame is Today, while the read is still out.
+      expect(find.byType(TodayScreen), findsOneWidget);
+
+      await tester.pump(onboardingLaunchReadTimeout);
+      repository.reply.complete(const Ok(OnboardingRecord.initial));
+      await tester.pumpAndSettle();
+      expect(onboarding, findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+    });
+
+    testWidgets('a /checkin/<date> cold start opens the link, not onboarding', (
+      tester,
+    ) async {
+      final repository = InMemoryOnboardingRepository();
+      final container = await pumpWithOnboarding(
+        tester,
+        repository,
+        coldStartLocation: '/checkin/2026-10-19',
+      );
+      expect(onboarding, findsNothing);
+      expect(find.byType(CheckInModule), findsOneWidget);
+      expect(location(container), '/checkin/2026-10-19');
+      // Still due: it shows on the next ordinary launch.
+      expect(repository.record.completed, isFalse);
+    });
+
+    testWidgets('"Not now" lands on Today and it never comes back this '
+        'session', (tester) async {
+      final repository = InMemoryOnboardingRepository();
+      final container = await pumpWithOnboarding(tester, repository);
+
+      await tester.tap(find.byKey(const Key('onboardingNotNow')));
+      await tester.pumpAndSettle();
+
+      expect(onboarding, findsNothing);
+      expect(location(container), '/');
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(tabBar, findsOneWidget);
+      expect(repository.record.completed, isTrue);
+
+      await useTheApp(tester);
+      container.read(routerProvider).go('/');
+      await tester.pumpAndSettle();
+      expect(onboarding, findsNothing);
+    });
+
+    testWidgets('finishing lands on Today and it never comes back this '
+        'session, even if the save failed', (tester) async {
+      final repository = InMemoryOnboardingRepository(
+        const OnboardingRecord(step: OnboardingStep.cairn),
+      );
+      final container = await pumpWithOnboarding(tester, repository);
+      expect(find.text(OnboardingCopy.goToToday), findsOneWidget);
+
+      // The "done" save fails: the record still says not completed.
+      repository.failNextWith = const OnboardingStorageFailure('disk');
+      await tester.tap(find.byKey(const Key('onboardingContinue')));
+      await tester.pumpAndSettle();
+
+      expect(onboarding, findsNothing);
+      expect(location(container), '/');
+      expect(find.byType(TodayScreen), findsOneWidget);
+      expect(repository.record.completed, isFalse);
+
+      // Only the launch decides: no redirect re-checks the record.
+      await useTheApp(tester);
+      expect(onboarding, findsNothing);
+    });
+
+    testWidgets("a system back on screen 1 doesn't pop to a blank screen", (
+      tester,
+    ) async {
+      final container = await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(),
+      );
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+
+      expect(onboarding, findsOneWidget);
+      expect(location(container), '/onboarding');
+    });
+
+    testWidgets('iPhone: a cold start at /settings/about-me opens About me '
+        'in the Settings tab, with Settings beneath it', (tester) async {
+      final container = await pumpWithOnboarding(
+        tester,
+        InMemoryOnboardingRepository(
+          const OnboardingRecord(
+            completed: true,
+            aboutMe: AboutMe(tracking: FoodTracking.calAi),
+          ),
+        ),
+        coldStartLocation: '/settings/about-me',
+      );
+      expect(onboarding, findsNothing);
+      expect(find.byType(AboutMeModule), findsOneWidget);
+      expect(location(container), '/settings/about-me');
+      expect(selectedTab(tester), 2);
+
+      await tester.tap(find.byKey(const Key('aboutMeBack')));
+      await tester.pumpAndSettle();
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(find.byType(AboutMeSettingsCard), findsOneWidget);
+      expect(location(container), '/settings');
+    });
+
+    testWidgets('unbound (the Mac, most tests) never shows it, even at '
+        '/onboarding', (tester) async {
+      final container = await pumpApp(tester);
+      expect(onboarding, findsNothing);
+      expect(find.byType(TodayScreen), findsOneWidget);
+
+      container.read(routerProvider).go(const OnboardingRoute().location);
+      await tester.pumpAndSettle();
+      expect(onboarding, findsNothing);
+      expect(location(container), '/');
+    });
+  });
+
   group('settings', () {
     test('SettingsRoute.location is /settings', () {
       expect(const SettingsRoute().location, '/settings');
@@ -315,6 +552,37 @@ void main() {
         expect(find.byType(TodayScreen), findsOneWidget);
       },
     );
+
+    test('AboutMeRoute.location is /settings/about-me', () {
+      expect(const AboutMeRoute().location, '/settings/about-me');
+    });
+
+    testWidgets('unbound (the Mac, most tests): no "About me" row, and '
+        '/settings/about-me redirects to /settings', (tester) async {
+      final container = await pumpApp(tester);
+      await tapTab(tester, 'Settings');
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(find.byType(AboutMeSettingsCard), findsNothing);
+
+      container.read(routerProvider).go(const AboutMeRoute().location);
+      await tester.pumpAndSettle();
+      expect(find.byType(AboutMeModule), findsNothing);
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(location(container), '/settings');
+    });
+
+    testWidgets('unbound: a cold start at /settings/about-me opens Settings', (
+      tester,
+    ) async {
+      final container = await pumpApp(
+        tester,
+        coldStartLocation: '/settings/about-me',
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.byType(AboutMeModule), findsNothing);
+      expect(find.byType(DataExportModule), findsOneWidget);
+      expect(location(container), '/settings');
+    });
 
     testWidgets('back from a cold-started /settings returns home', (
       tester,
@@ -359,4 +627,12 @@ void main() {
       expect(moduleDay(tester), day);
     });
   });
+}
+
+/// An onboarding store whose read answers only when [reply] is completed.
+class _SlowOnboardingRepository extends InMemoryOnboardingRepository {
+  final Completer<Result<OnboardingRecord>> reply = Completer();
+
+  @override
+  ResultFuture<OnboardingRecord> read() => reply.future;
 }

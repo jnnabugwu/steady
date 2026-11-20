@@ -21,6 +21,8 @@ void main() {
     WidgetTester tester, {
     HealthKitRepository? health,
     DateTime? date,
+    VoidCallback? onConnectHealth,
+    TodayMetricsEmptyHint emptyHint = TodayMetricsEmptyHint.calAiImport,
   }) async {
     await tester.pumpWidget(
       ProviderScope(
@@ -35,7 +37,13 @@ void main() {
             padding: const EdgeInsets.all(18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [TodayMetricTiles(date: date ?? today)],
+              children: [
+                TodayMetricTiles(
+                  date: date ?? today,
+                  onConnectHealth: onConnectHealth,
+                  emptyHint: emptyHint,
+                ),
+              ],
             ),
           ),
         ),
@@ -196,10 +204,79 @@ void main() {
       expect(tile(tester, 'eaten').value, '1,840');
     });
 
+    String emptyText(WidgetTester tester) => tester
+        .widget<Text>(
+          find.descendant(
+            of: find.byKey(const Key('todayMetricsEmpty')),
+            matching: find.byType(Text),
+          ),
+        )
+        .data!;
+
+    testWidgets('the empty card says what its hint says; the import only '
+        'for Cal AI', (tester) async {
+      await pump(tester);
+      expect(
+        emptyText(tester),
+        'No metrics this week yet. Import a Cal AI PDF to see what you’ve '
+        'eaten.',
+      );
+
+      for (final hint in TodayMetricsEmptyHint.values) {
+        await pump(tester, date: today, emptyHint: hint);
+        expect(emptyText(tester), hint.text);
+        expect(
+          hint.text.contains('PDF'),
+          hint == TodayMetricsEmptyHint.calAiImport,
+        );
+      }
+    });
+
     testWidgets('the empty state has no Retry', (tester) async {
       await pump(tester);
 
       expect(find.byKey(const Key('todayMetricsRetry')), findsNothing);
+    });
+
+    final connect = find.byKey(const Key('todayConnectHealth'));
+
+    testWidgets('no "Connect Apple Health" without the callback', (
+      tester,
+    ) async {
+      repository.onGetRange = (_, _) =>
+          Ok([DailyMetric(date: today, caloriesEaten: 1840)]);
+      await pump(tester);
+      expect(connect, findsNothing);
+    });
+
+    testWidgets('with the callback, "Connect Apple Health" sits under the '
+        'tiles, or under the empty card, and calls it', (tester) async {
+      var taps = 0;
+      repository.onGetRange = (_, _) =>
+          Ok([DailyMetric(date: today, caloriesEaten: 1840)]);
+      await pump(tester, onConnectHealth: () => taps++);
+      expect(connect, findsOneWidget);
+      expect(find.text('Connect Apple Health'), findsOneWidget);
+      expect(
+        tester.getTopLeft(connect).dy,
+        greaterThan(tester.getBottomLeft(find.byType(MetricTile).first).dy),
+      );
+      await tester.tap(connect);
+      expect(taps, 1);
+
+      repository.onGetRange = (_, _) => const Ok([]);
+      await pump(tester, date: DateTime(2026, 10, 21), onConnectHealth: () {});
+      expect(find.byKey(const Key('todayMetricsEmpty')), findsOneWidget);
+      expect(connect, findsOneWidget);
+    });
+
+    testWidgets('a failed read shows Retry, not "Connect Apple Health"', (
+      tester,
+    ) async {
+      repository.onGetRange = (_, _) =>
+          const Err(PlatformChannelFailure('store down'));
+      await pump(tester, onConnectHealth: () {});
+      expect(connect, findsNothing);
     });
   });
 }

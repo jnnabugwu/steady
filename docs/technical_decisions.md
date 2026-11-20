@@ -7,11 +7,312 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## The coach is paid; everything on the phone is free (2026-11-17)
+
+**Status: decided, not built.** No paywall, StoreKit code or entitlement check exists yet.
+**Steady 1.0 (live since 2026-11-17) ships the earlier on-device coach**, free, on iPhones
+that support Apple Intelligence: it was built in late October, before the Foundation Models
+path was removed from `main` (#151, #152, merged 2026-11-04). 1.1.0 replaces it with the
+hosted coach behind the subscription, so **people on 1.0 with an Apple Intelligence iPhone
+lose a free coach when they update.** Their past sessions stay readable, as for any lapsed
+subscriber (item 2), since 1.1.0 should read 1.0's
+`coach_sessions.json` as it is: its codec (`coach_session_json.dart`, file version 1) and the
+two enums it decodes (`CoachSessionKind`, `CoachMessageRole`) are unchanged since 2026-10-25,
+before any 1.0 build, and the path is the same. That's from the code, not yet seen on a phone:
+confirm it on one updated from 1.0 (#185).
+
+**Decision:**
+
+1. **The rule: anything that calls the hosted model is paid; anything that runs only on the
+   phone is free.** Each coach reply costs API credit; nothing else in Steady costs anything per
+   person.
+2. **Free:**
+   - the daily check-in (logged / partial / skipped) and the Cairn week card;
+   - the Today screen: metric tiles and live Apple Health steps, energy and calories eaten;
+   - the Week tab (metrics history);
+   - Cal AI PDF import;
+   - craving support: the guided flow and the weekly craving summary. Free on principle too: a
+     paywall in front of someone mid-craving works against what the app is for;
+   - iCloud sync;
+   - data export (CSV/JSON), so leaving is never paid for;
+   - reading past coach sessions, after a subscription lapses too (read-only), and their
+     summaries in the export.
+3. **Paid:**
+   - coach chat;
+   - the weekly coach check-in (the 5-minute Friday-to-Sunday session) and its stored summary;
+   - later, anything that feeds the coach, such as notes / RAG (#85).
+4. **Naming: it's Steady, not "Steady+" or "Plus".** The coach is the main thing Steady does,
+   not an add-on. The person subscribes to Steady; the copy never says "upgrade" or "Plus"
+   (`docs/design/onboarding.md` already follows this). Keep the **daily check-in** (free) and
+   the **weekly coach check-in** (paid) clearly apart in the paywall copy and the App Store
+   listing, since both are called "check-in".
+5. **Prices: $4.99 a month, $39.99 a year**, one auto-renewable subscription group. The yearly
+   plan is a third off twelve months. $29.99 was proposed first and didn't cover cost (below);
+   $49.99 was considered and passed over, since it's only about two months free and the yearly
+   plan should read as a clear deal.
+6. **A free week**, as a StoreKit introductory offer (7 days free) on both plans. Apple allows
+   it once per Apple Account per subscription group, so Steady keeps no record of who tried it.
+   **Family Sharing is off.** Once it's turned on for a product it can't be turned off, and each
+   family member would be a separate set of coach replies on one subscription.
+7. **Subscribers get stated limits, and the weekly check-in is guaranteed.** Apple asks apps to
+   "clearly describe what the user will get for the price" (3.1.2(c)) and holds them to the
+   offer "as marketed" (Schedule 2 §3.8(c)), so the limit is a plain number, not "fair use":
+   - **15 coach chat messages a day**, per subscription: keyed by the purchase's original
+     transaction id (from item 8), not per device, so a reinstall doesn't reset it and one
+     allowance covers all of a person's devices. Start at 15 because raising a limit later is
+     easy and lowering one mid-subscription isn't; raise it to 20 if measured cost per reply
+     comes in at or under 3 cents.
+   - **The weekly coach check-in doesn't count against the 15.** The `weekly` and `summary`
+     kinds get their own bound of about 40 replies a week, so a busy chat day never costs
+     someone their check-in.
+   - **Failed replies don't count:** the proxy gives the count back when the call to Anthropic
+     fails.
+   - **Reset time in local time.** The counter still resets at UTC midnight for 1.1.0; the app
+     shows when more messages are available in the person's local time (from `retryAfter`).
+     Counting from local midnight can come later.
+   - **Copy.** Paywall: "Up to 15 coach messages a day, plus your weekly coach check-in, every
+     week." Limit reached: "You've used today's 15 coach messages. You can send more after
+     {time}. Your weekly coach check-in still works." `{time}` is `retryAfter` in the person's
+     local time ("4:00 PM" for someone in Chicago).
+8. **The proxy checks the subscription, not only the app.** A client-side check alone can be
+   skipped. Every coach request carries the StoreKit 2 signed transaction (a JWS signed by
+   Apple), and `steady-backend` verifies Apple's signature and the expiry before calling the
+   model. Still no accounts: like App Attest, it proves something about the purchase, not who
+   the person is. This is option C in `docs/research/revenuecat_paywall.md` (§5, #168): a small
+   Swift channel returns the JWS from `Transaction.currentEntitlements`, the proxy ties each
+   original transaction id to at most about 5 App Attest keys, and rechecks refunds about
+   daily with Apple's subscription status API. Chosen over asking RevenueCat's API, which
+   trusts a bare ID. Keep the proxy's check behind one platform-neutral function, so an
+   Android version (Google Play purchase tokens) is a second implementation, not a redesign.
+
+9. **Free people still get the Friday nudge.** The nudge card shows on the same rules as for
+   subscribers, and "Talk now" opens the paywall instead of the session: that's the moment the
+   coach is most wanted. The paywall uses the consent screen's calm tone, and "Not now" returns
+   to Today, like "Not tonight". Hiding the nudge for non-subscribers was the alternative.
+
+10. **RevenueCat handles the purchases; the paywall is Steady's own screen (amended
+    2026-11-18).** Research: `docs/research/revenuecat_paywall.md` (#168).
+    - **The SDK:** `purchases_flutter` only (StoreKit 2, over Swift Package Manager), behind a
+      new `features/subscription` (`subscription_domain`, `subscription_data`,
+      `subscription_presentation`). Only `subscription_data` imports the SDK; the coach reads
+      `subscription_domain` for its gate, the same FFCA boundary as every other feature.
+      Anonymous RevenueCat IDs, no sign-in, and Restore Purchases on the paywall and in
+      Settings. The API keys come from `--dart-define`, one per build type.
+    - **No `purchases_ui_flutter`.** RevenueCat's paywalls are native screens configured in its
+      dashboard: they can't use `steadyTheme`, can't be widget-tested, and break the
+      shadcn-only rule ("Feature screens are shadcn-only"). The paywall is a `shadcn_flutter` /
+      `ui_kit` screen that shows what Apple requires: the billed price as the largest price, the
+      trial length and the price after it, "Cancel anytime", Restore, and links to the Terms of
+      Use and Privacy. Remote paywall experiments are given up; revisit only if they ever matter
+      more than the design.
+    - **One paywall, three ways in:** before "Meet the coach" in onboarding (#174), the Coach
+      tab, and the Friday nudge's "Talk now" (item 9).
+    - **RevenueCat is not on the coach's request path.** The proxy trusts Apple's signed
+      transaction (item 8), not RevenueCat's API. RevenueCat is the purchase layer and its
+      dashboard (trials, conversion, churn), and it carries Google Play later if Android ships.
+    - **Cost:** free below $2,500 in monthly tracked revenue, then 1%. At $4.99 a month that's
+      roughly 500 paying subscribers before any fee.
+
+**Check before launch: cost per person against the price.**
+
+- The proxy README puts a reply at about 2 to 4 cents (`low` effort, cached instructions). A
+  weekly session is roughly a dozen replies plus the summary, about $0.25 to $0.50, so four a
+  month is about $1 to $2 before any chat.
+- With the App Store Small Business Program (15%; enrol first, it isn't automatic), $4.99 a
+  month nets about $4.24. $29.99 a year nets about $25.49, **about $2.12 a month**.
+- At $29.99 a year the yearly plan roughly broke even on the weekly sessions alone, which is
+  why it's $39.99: that nets about $33.99, **about $2.83 a month**. The monthly plan covers a
+  regular user with room for chat. Before launch, measure real cost per reply and per
+  subscriber from the proxy's logged token counts on TestFlight.
+- No useful cap keeps a heavy yearly subscriber at break-even: $2.83 a month covers about 94
+  replies, and four weekly check-ins use about 56. Price on the average person. Someone at the
+  full 15 a day every day costs about $13 to $14 a month on top of their check-ins.
+- A free week costs about one weekly session plus some chat per person who doesn't subscribe.
+
+**Rationale:**
+
+- The coach is the only part of Steady with a running cost, and the only part that needs a
+  server. Charging exactly for it keeps the free app honest: it's the whole tracking app, not a
+  demo.
+- Paywalling local features (history, import, export, cravings) would cost nothing to give
+  away and would make the free app feel held hostage.
+- Verifying the signed transaction on the proxy fits the existing shape: the proxy already
+  verifies App Attest, holds no accounts and stores no people's data (CLAUDE.md §12).
+
+**Consequences:**
+
+- **1.0's coach users get a longer free period (decided 2026-11-18).** **Two weeks free**
+  (Jordan, 2026-11-18), twice the free week everyone else gets. It's one setting on the offer
+  code in App Store Connect. Steady
+  has no accounts, so the app recognises them by what's already on the phone: on the first 1.1.0
+  launch, if `coach_sessions.json` holds any session, it sets a device-only flag once. A new
+  install never has one. The paywall then offers the month through a StoreKit **offer code**
+  (redeemed in Apple's own sheet, `presentCodeRedemptionSheet`), with the code kept in the build
+  config, never in the repo. Accepted: a custom code can be passed on, and someone who installed
+  1.0 but never used the coach doesn't get it. The 1.1.0 release notes say plainly that the
+  coach becomes part of the subscription, and that people who used it get two weeks free. Confirm
+  on a phone updated from 1.0 that its `coach_sessions.json` reads cleanly in 1.1.0 (#185).
+- **App Privacy label** (update it and `docs/PRIVACY.md` before the build with the paywall goes
+  to review; `docs/testflight.md` §6):
+  - **Purchases → Purchase History**, not linked, not tracking. It covers what RevenueCat's SDK
+    collects and the original transaction id the proxy keeps.
+  - **Identifiers → User ID** for RevenueCat's random per-install ID, not linked, purpose App
+    Functionality. RevenueCat's guidance says it needn't be declared; Apple's definition
+    includes any "assigned user ID", so Steady declares it. Declaring a little more costs
+    nothing visible.
+  - **Device ID** is already declared for App Attest. It also covers the IDFV that RevenueCat's
+    iOS SDK sends with every request, purpose App Functionality. Ask RevenueCat support what
+    they use it for, and add Analytics if they say so.
+  - `docs/PRIVACY.md` lists RevenueCat as a processor.
+- **Terms of Use: Apple's standard EULA.** Apple requires a Terms of Use link for any
+  auto-renewable subscription, on the paywall and in the App Store listing (3.1.2). It's about
+  the subscription, not user content. The paywall and the listing link to
+  <https://www.apple.com/legal/internet-services/itunes/dev/stdeula/>. Steady writes its own
+  terms only when it needs them, such as for Android (which has no standard EULA).
+- **Consent comes after subscribing.** The paywall sits before the coach consent screen, so
+  nobody agrees to send data for a feature they haven't chosen (`docs/design/onboarding.md`).
+- **TestFlight testers** buy in the sandbox, so they aren't charged. Test the lapsed state
+  (past sessions readable, new ones blocked) with a sandbox subscription that expires.
+- **The coach's typed failures** gain one for "not subscribed", next to
+  `CoachConsentNotGivenFailure`, so the Coach tab and the nudge show the paywall instead of an
+  error.
+- **Proxy changes in `steady-backend`** (today's behavior would break promises to paying
+  people): count chat per original transaction id instead of per App Attest key; a separate
+  weekly bound for `weekly` and `summary`; give the count back when Anthropic fails; the
+  global daily cap (1,000 a day) stops applying to verified subscribers and becomes an alert
+  set well above subscribers × 15; and the `rate_limited` error says which limit was hit, so
+  the app can tell "you've used today's messages" from "the coach is busy" (today both read
+  as the person's own limit).
+- **The kill switch is for emergencies only**, measured in hours. If the coach is off for more
+  than about 48 hours, extend affected subscribers' renewal dates in App Store Connect (Apple
+  allows it twice a calendar year, up to 90 days each).
+- **API credit: auto-reload on, with a monthly spend limit in the Anthropic Console set well
+  above expected cost.** With auto-reload off, an empty balance takes the coach down for every
+  paying person. Adjust the limit once real spend is known.
+
+**Alternatives considered:**
+
+- **A free weekly check-in with paid chat:** rejected. The weekly session is several model
+  calls a week for every person, the largest cost, and the core of what the coach is for.
+- **A few free coach messages a month:** not now. It still means a server cost for people who
+  never pay, and the free week already lets people try the coach.
+
+---
+
+## Android, if it ships, is local-only with no auth (2026-11-17)
+
+**Status: a direction, not committed work.** Nothing is built and Android isn't scheduled.
+This record settles the one question that would change the project's shape before anyone
+starts: how an Android Steady stores and syncs data.
+
+**Decision:**
+
+1. An Android version keeps Steady's **no-auth model**: no user accounts, no sign-in and no
+   server holding people's data. An Android Steady can't share data with an iPhone, an iPad or
+   another Android device.
+2. **Data lives on the phone.** The shared `DailyMetric` store on Android is local-only. Start
+   with `FileDailyMetricRepository` (`daily_metrics_data`), which already implements the
+   repository contract. Move to SQLite (for example drift) only if the file store gets slow.
+   Cravings, coach transcripts and coach consent use the JSON files they already use on iOS.
+3. **A replacement phone restores from Android Auto Backup**, the person's own Google backup,
+   the way iOS restores from iCloud Backup. Steady runs no backup copy of its own. The
+   user-triggered export (Settings → Export) stays the way to keep data beyond the device.
+4. **Health comes from Health Connect.** Steps, active and resting energy, and calories eaten
+   (where an app writes them there), behind the same `HealthKitRepository` interface as iOS.
+   Watches such as Garmin reach Steady through their companion app writing to Health
+   Connect, the way an Apple Watch reaches Apple Health. Health values are **read live, never
+   stored** in Steady's store, as on iOS.
+5. **The coach uses Play Integrity in place of App Attest.** Like App Attest, it proves a
+   request comes from the genuine app on a real device, not who the person is, so it's still
+   not auth. `steady-backend` gets a second verification path. The system prompt, the
+   guardrails, the consent screen and the device-only transcripts stay the same.
+
+**Why it came up:** a question about what an Android version would take. Most of the app ports
+as it is: every feature's domain and presentation code, routing, the shadcn screens, the PDF
+import (`pdfrx_engine` and `pdfium_flutter` support Android) and the file-backed stores.
+**Sync is the exception.** CloudKit has no Android client, and every way to sync across
+devices without it needs a server and accounts.
+
+**Rationale:**
+
+- No auth is a core property of Steady (CLAUDE.md §1, §12), not a gap. It's why there's no
+  sign-in screen, no account deletion flow, no password reset and no database of people's
+  health-adjacent data to secure. Cross-device sync on Android would bring all of that back
+  for one platform.
+- Local-only isn't new: it's how iOS already behaves when iCloud is signed out ("iCloud is
+  optional: a banner, not a gate" below). The domain and presentation code already handle it.
+- Since the Mac was parked ("The Mac is parked" below), Steady is a one-phone app. On iOS,
+  CloudKit sync mostly carries data to a replacement phone, which Auto Backup covers on
+  Android.
+
+**Consequences:**
+
+- **Sharing with an iPhone or iPad is out of scope.** Someone moving from iPhone to Android (or
+  back) starts fresh, or brings their history through a future import of Steady's own JSON
+  export. Not planned.
+- **Auto Backup puts device files in the person's Google backup**, including cravings and coach
+  transcripts. That matches the iOS stance that they're in the person's own iCloud Backup
+  ("Craving support" below), and `docs/PRIVACY.md` will need an Android section saying so. The files can be left out
+  with backup rules if that stance changes.
+- **The `isIOS` gate becomes a phone check.** `appProviderOverridesFor(isIOS:)` turns on Health,
+  cravings and the coach only on iOS. Android needs those too, with its own bindings for Health
+  and attestation. The `account` feature's iCloud banner has nothing to show on Android, so it's
+  bound to a "local-only" status or hidden.
+- **The proxy gains Play Integrity verification:** a Google Cloud project and service
+  account, its credentials in Vercel, and per-request token checks next to `src/attest/`. Play
+  Integrity has no lasting key per install the way App Attest does, so the app makes its own
+  random install id and includes it in what Play Integrity vouches for. The guardrail eval
+  doesn't need a re-run for this, since the prompt doesn't change.
+- **The paid coach on Android** follows "The coach is paid; everything on the phone is free"
+  (above), with the same split, prices and limits (15 chat messages a day, the weekly coach
+  check-in guaranteed):
+  - **A purchase works only in the store it was made in.** With no accounts, a subscription
+    bought on an iPhone can't unlock the coach on Android, or the other way round. The paywall
+    and FAQ say so plainly; it isn't a reason to add accounts.
+  - **The proxy's subscription check gets a Google Play implementation**, verifying the
+    purchase token through Google's API, behind the same platform-neutral function as Apple's
+    signed transaction. Daily limits count per Play purchase, as they count per original
+    transaction id on iOS.
+  - **Steady's own Terms of Use are needed.** Google Play has no equivalent of Apple's standard
+    EULA, which iOS links to, so Android ships with terms Steady writes.
+  - Google Play's subscription fee, trial rules and purchase-token API are from memory, not
+    checked against Google's docs. Check them before building.
+- **Android-specific copy:** "Apple Health" and "iCloud" in the screens, the consent text and
+  PRIVACY.md. The Play Console needs a Data safety form and a Health Connect permissions
+  declaration.
+- **Notes/RAG (#85) needs another design on Android:** `RAGKitCore` uses Apple's
+  `NLEmbedding`.
+- **Unchanged:** iOS keeps CloudKit sync, and nothing on iOS changes because of this record.
+
+**Alternatives considered:**
+
+- *Sync through a backend with accounts* (Firebase, or a store behind `steady-backend` with
+  Google or Apple sign-in). Rejected: it adds auth, account deletion and a server holding
+  people's data, all to sync a one-phone app. It's the step CLAUDE.md §12 calls "a new
+  decision, not a natural extension", and that decision is no.
+- *Sync through the person's own Google Drive* (the app data folder), CloudKit's closest
+  Android match. Not picked: it needs Google sign-in inside the app and a sync and conflict
+  layer Steady would have to write, since Drive offers file storage, not record sync. Auto
+  Backup already covers the phone-replacement case.
+- *No Android version.* Still possible. This record only fixes the storage shape if one is
+  built.
+
+---
+
 ## Usage events from App Store builds too (2026-11-17)
 
 **Decision:** App Store installs send the same anonymous usage events as TestFlight builds,
-on by default, with the switch in Settings → Usage sharing. All six events in
-`AnalyticsEvent`, plus PostHog's lifecycle events, and nothing else. This replaces the
+on by default, with the switch in Settings → Usage sharing. Every event in
+`AnalyticsEvent`, plus PostHog's lifecycle events, and nothing else: the six listed in the
+record below, and onboarding's two (#161):
+
+- `onboarding_source`: where the person heard about Steady, as a fixed code (`friend`,
+  `instagram`, `reddit`, `appStore`, `tiktok`, `other`), sent only when screen 3 is
+  answered.
+- `onboarding_exited`: the screen's fixed code (an `OnboardingStep`, or `unknown` when the
+  stored answers couldn't be read) when someone leaves onboarding with "Not now". Not sent
+  on finishing.
+ This replaces the
 TestFlight-only rule in the record below; everything else in it stands (the fixed list, no
 session replay or person profiles, the runtime install check, the key at build time).
 

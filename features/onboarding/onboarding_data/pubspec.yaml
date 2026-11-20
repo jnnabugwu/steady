@@ -1,0 +1,27 @@
+name: onboarding_data
+description: "Onboarding: the device-only JSON file store for whether onboarding is done and the About me answers (never synced)."
+version: 0.0.1
+homepage:
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  failures:
+    path: ../../../packages/shared/failures
+  flutter:
+    sdk: flutter
+  # A regular dependency only for lib/testing/ (the shared repository
+  # contract), which app/ tests can import too. Nothing under lib/src/
+  # imports it.
+  flutter_test:
+    sdk: flutter
+  onboarding_domain:
+    path: ../onboarding_domain
+
+dev_dependencies:
+  very_good_analysis: ^11.0.0
+
+flutter:

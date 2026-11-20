@@ -30,7 +30,13 @@
 /// consent screen, top-level on the root navigator: every way into the
 /// coach asks through it ([_askCoachConsent]) until consent is given.
 ///
-/// [SettingsRoute] (`/settings`) hosts Apple Health, "Cravings" and
+/// [OnboardingRoute] (`/onboarding`, iPhone only) is the first-launch
+/// flow, top-level on the root navigator in place of the shell. The app
+/// root goes there once per launch when it's due (`onboarding.dart`); no
+/// redirect sends anyone there.
+///
+/// [SettingsRoute] (`/settings`) hosts "About me" (iPhone, opening
+/// [AboutMeRoute] at `/settings/about-me`), Apple Health, "Cravings" and
 /// "Coach" (iPhone), "Sample data" and the data export (and, in debug
 /// builds, the Developer card). [CravingRoute] (`/craving`, iPhone only)
 /// is the craving flow, pushed from the Today screen's "Having a craving?"
@@ -40,6 +46,7 @@ library;
 import 'dart:async';
 
 import 'package:account_presentation/account_presentation.dart';
+import 'package:analytics/analytics.dart';
 import 'package:checkin_presentation/checkin_presentation.dart';
 import 'package:coach_domain/coach_domain.dart' show CoachSessionKind;
 import 'package:coach_presentation/coach_presentation.dart';
@@ -49,11 +56,14 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:metrics_presentation/metrics_presentation.dart';
+import 'package:onboarding_presentation/onboarding_presentation.dart';
 import 'package:pdf_import_presentation/pdf_import_presentation.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:steady/app_shell.dart';
 import 'package:steady/apple_health_card.dart';
 import 'package:steady/developer_card.dart';
+import 'package:steady/health_access.dart';
+import 'package:steady/onboarding.dart';
 import 'package:steady/privacy_card.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/sample_data_card.dart';
@@ -121,7 +131,12 @@ GoRouter router(Ref ref) {
       ],
     ),
     TypedStatefulShellBranch<SettingsBranch>(
-      routes: [TypedGoRoute<SettingsRoute>(path: '/settings')],
+      routes: [
+        TypedGoRoute<SettingsRoute>(
+          path: '/settings',
+          routes: [TypedGoRoute<AboutMeRoute>(path: 'about-me')],
+        ),
+      ],
     ),
   ],
 )
@@ -158,7 +173,8 @@ class CoachBranch extends StatefulShellBranchData {
   const CoachBranch();
 }
 
-/// The Settings tab's branch: [SettingsRoute].
+/// The Settings tab's branch: [SettingsRoute] and what's pushed on it
+/// ([AboutMeRoute]).
 class SettingsBranch extends StatefulShellBranchData {
   /// Creates the Settings branch.
   const SettingsBranch();
@@ -174,6 +190,10 @@ class SettingsBranch extends StatefulShellBranchData {
 /// The coach nudge slot holds coach's [CoachNudgeCard]: on an iPhone, from
 /// Friday to Sunday, when last week's weekly check-in is ready. Its "Talk
 /// now" opens [CoachWeeklyRoute].
+///
+/// "Connect Apple Health" under the metric tiles (offered only before
+/// Health's permission sheet has been shown) asks for Health
+/// (`requestHealthAccess`, `health_access.dart`).
 class HomeRoute extends GoRouteData with $HomeRoute {
   /// Creates the home route.
   const HomeRoute();
@@ -185,6 +205,11 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       onImportRequested: () => unawaited(_import(context, container)),
       onOpenAccountSettings: () => unawaited(_openAccountSettings(container)),
       onCravingRequested: () => unawaited(_craving(context, container)),
+      onConnectHealthRequested: () => unawaited(
+        container
+            .read(healthAccessControllerProvider.notifier)
+            .requestHealthAccess(),
+      ),
       // Renders nothing on the Mac, and nothing on the iPhone unless the
       // weekly check-in is ready (check-in data only, #81).
       coachNudge: CoachNudgeCard(
@@ -277,7 +302,8 @@ class WeekRoute extends GoRouteData with $WeekRoute {
 }
 
 /// `/settings`, the Settings tab: the settings screen (`DataExportModule`),
-/// with the Apple Health section ([AppleHealthCard]), "Cravings"
+/// with "About me" first ([AboutMeSettingsCard], iPhone only, opening
+/// [AboutMeRoute]), the Apple Health section ([AppleHealthCard]), "Cravings"
 /// ([CravingSettingsCard], iPhone only), "Coach" ([CoachSettingsCard],
 /// iPhone only), "Sample data" ([SampleDataCard], shown only while the
 /// sample export's days are in the store), "Privacy" ([PrivacyCard], the
@@ -297,6 +323,15 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
     onBack: () =>
         context.canPop() ? context.pop() : const HomeRoute().go(context),
     sections: [
+      // Onboarding's answers, to change later (screen 7 says "You can
+      // change it later in Settings"). iPhone only, like onboarding.
+      if (ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(onboardingSupportAvailableProvider))
+        AboutMeSettingsCard(
+          onOpen: () => unawaited(const AboutMeRoute().push<void>(context)),
+        ),
       const AppleHealthCard(),
       // Both render nothing on macOS.
       const CravingSettingsCard(),
@@ -311,6 +346,109 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       ...developerSettingsSections(),
     ],
   );
+}
+
+/// `/settings/about-me`: Settings → About me ([AboutMeModule], #172),
+/// iPhone only. Every onboarding answer, each editable on its own.
+///
+/// Nested under [SettingsRoute] in the Settings branch: pushed from the
+/// "About me" row, with Settings beneath it and the tab bar still up, even
+/// on a cold start straight to the link. Back pops to Settings.
+///
+/// **Today follows each edit straight away:** after every save the editor
+/// calls `onAboutMeChanged`, and this invalidates
+/// `onboardingFoodTrackingProvider`, the one read of the record that
+/// Today's import button, its Apple Health prompt and its empty-metrics
+/// text all derive from (`onboarding.dart`). Today stays mounted in its
+/// own branch, so it re-reads at once; no relaunch.
+///
+/// Redirects to `/settings` where there's no onboarding (the Mac, and
+/// tests that don't bind it), so a typed-in link can't open it where the
+/// repository isn't bound.
+class AboutMeRoute extends GoRouteData with $AboutMeRoute {
+  /// Creates the About me route.
+  const AboutMeRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(onboardingSupportAvailableProvider)
+      ? null
+      : const SettingsRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    return AboutMeModule(
+      onBack: () =>
+          context.canPop() ? context.pop() : const SettingsRoute().go(context),
+      // Today's tracking-driven cards all read this one provider.
+      onAboutMeChanged: () =>
+          container.invalidate(onboardingFoodTrackingProvider),
+    );
+  }
+}
+
+/// `/onboarding`: the first-launch flow ([OnboardingModule], #161), iPhone
+/// only.
+///
+/// Top-level, and gone to (not pushed) by the app root once per launch
+/// when it's due (`onboarding.dart`), so it replaces the shell: no tab bar,
+/// and nothing beneath it for a system back to pop to. Finishing and "Not
+/// now" both go to Today ([HomeRoute]); onboarding is marked done before
+/// either is called, and nothing brings the flow back on its own.
+///
+/// Its callbacks: "Not now" sends `onboarding_exited` with the screen's
+/// code (`unknown` when the stored answers couldn't be read), and screen
+/// 3's answer sends `onboarding_source`, both through `analyticsProvider`
+/// (usage sharing's own gating, `usage_sharing.dart`). Screen 4
+/// asks for Apple Health (`requestHealthAccess`), and screen 8 asks for the
+/// coach's consent through [CoachConsentRoute] ([_askCoachConsent]).
+///
+/// Redirects home where there's no onboarding (the Mac, and tests that
+/// don't bind it), so a typed-in link can't open it there.
+@TypedGoRoute<OnboardingRoute>(path: '/onboarding')
+class OnboardingRoute extends GoRouteData with $OnboardingRoute {
+  /// Creates the onboarding route.
+  const OnboardingRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(onboardingSupportAvailableProvider)
+      ? null
+      : const HomeRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    void toToday() {
+      // Screen 2's answer decides Today's import button.
+      container.invalidate(onboardingFoodTrackingProvider);
+      const HomeRoute().go(context);
+    }
+
+    return OnboardingModule(
+      onFinished: toToday,
+      onLeft: (at) {
+        container
+            .read(analyticsProvider)
+            .record(AnalyticsEvent.onboardingExited(step: at?.name));
+        toToday();
+      },
+      onSourceChosen: (code) => container
+          .read(analyticsProvider)
+          .record(AnalyticsEvent.onboardingSource(source: code)),
+      onHealthRequested: () => container
+          .read(healthAccessControllerProvider.notifier)
+          .requestHealthAccess(),
+      onConsentRequested: () => _askCoachConsent(context),
+    );
+  }
 }
 
 /// `/coach`, the Coach tab (iPhone only, #80): [CoachHomeModule], to start
