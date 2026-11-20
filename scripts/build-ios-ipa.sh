@@ -35,6 +35,12 @@
 # privacy manifest declares usage data, so the App Privacy label has to say so
 # (docs/technical_decisions.md, "Usage events from App Store builds too").
 #
+# Purchases (the coach's subscription, #181): set REVENUECAT_API_KEY to
+# RevenueCat's public Apple SDK key (appl_...) and it's passed in with
+# --dart-define. Without it the build can't sell or read the subscription.
+# Never a Test Store key (test_...): RevenueCat's SDK crashes a release build
+# with one on purpose, so the app ignores it outside debug builds.
+#
 # No flavors, env files or CocoaPods: plugins are integrated with Swift
 # Package Manager. The one build-time setting is the coach proxy's address
 # (steady-backend, Production), passed as --dart-define=COACH_PROXY_URL from
@@ -135,6 +141,16 @@ if [ -n "${POSTHOG_KEY:-}" ]; then
 else
   echo "Usage sharing: off (no POSTHOG_KEY in the environment)"
 fi
+
+case "${REVENUECAT_API_KEY:-}" in
+  "") echo "Purchases: off (no REVENUECAT_API_KEY in the environment)" ;;
+  appl_*)
+    DEFINES+=("--dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY")
+    echo "Purchases: on (RevenueCat)"
+    ;;
+  test_*) die "REVENUECAT_API_KEY is a Test Store key; a release build needs the appl_ key" ;;
+  *) die "REVENUECAT_API_KEY must be RevenueCat's public Apple SDK key (appl_...)" ;;
+esac
 
 step "flutter build ipa (release, App Store Connect, automatic signing)"
 flutter build ipa --release \

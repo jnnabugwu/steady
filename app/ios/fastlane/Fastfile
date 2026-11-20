@@ -77,10 +77,17 @@ platform :ios do
       # gym then archives and exports with match's profile. The PostHog key,
       # when set, goes in the same way (App Store and TestFlight installs,
       # checked at runtime: app/lib/usage_sharing.dart).
-      defines = %w[POSTHOG_KEY POSTHOG_HOST]
+      # RevenueCat's public Apple SDK key (#181), when set; never a Test
+      # Store key, which crashes a release build on purpose.
+      revenuecat_key = ENV["REVENUECAT_API_KEY"].to_s.strip
+      unless revenuecat_key.empty? || revenuecat_key.start_with?("appl_")
+        UI.user_error!("REVENUECAT_API_KEY must be RevenueCat's public Apple SDK key (appl_...); a Test Store key (test_...) can't ship")
+      end
+      defines = %w[POSTHOG_KEY POSTHOG_HOST REVENUECAT_API_KEY]
         .reject { |name| ENV[name].to_s.strip.empty? }
         .map { |name| "--dart-define=#{name}=#{ENV[name].strip}" }
       UI.message(ENV["POSTHOG_KEY"].to_s.strip.empty? ? "Usage sharing: off (no POSTHOG_KEY)" : "Usage sharing: on (App Store and TestFlight installs)")
+      UI.message(ENV["REVENUECAT_API_KEY"].to_s.strip.empty? ? "Purchases: off (no REVENUECAT_API_KEY)" : "Purchases: on (RevenueCat)")
       Dir.chdir(APP_DIR) do
         sh("flutter", "pub", "get")
         sh("flutter", "build", "ios", "--release", "--config-only", "--no-codesign",

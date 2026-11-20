@@ -27,6 +27,8 @@ import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
 import 'package:steady/usage_sharing.dart';
+import 'package:subscription_data/subscription_data.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 Future<void> main() async {
@@ -58,12 +60,33 @@ Future<void> main() async {
     ],
   );
   if (postHog != null) unawaited(postHog.status);
+  unawaited(_configurePurchases(container));
   unawaited(_recordCoachAvailability(container));
   await _migrateInterimFileStore(container);
   await _clearLegacyHealthFields(container);
   runApp(
     UncontrolledProviderScope(container: container, child: const SteadyApp()),
   );
+}
+
+/// Sets RevenueCat up once, at launch (#181), so the first subscription
+/// read is quick. iOS only, where the subscription is bound; a build with
+/// no `REVENUECAT_API_KEY` does nothing. A failure is logged, not fatal:
+/// the next subscription call tries again.
+Future<void> _configurePurchases(ProviderContainer container) async {
+  if (!container.read(subscriptionSupportAvailableProvider)) return;
+  final repository = container.read(subscriptionRepositoryProvider);
+  if (repository is! RevenueCatSubscriptionRepository ||
+      repository.config == null) {
+    return;
+  }
+  if (await repository.configure() case Err(:final failure)) {
+    developer.log(
+      'Purchases setup failed: ${failure.message}',
+      name: 'steady.subscription',
+      error: failure.cause ?? failure,
+    );
+  }
 }
 
 /// Records `coach_availability` once per launch: whether the coach can run
