@@ -160,9 +160,11 @@ confirm it on one updated from 1.0 (#185).
     Functionality. RevenueCat's guidance says it needn't be declared; Apple's definition
     includes any "assigned user ID", so Steady declares it. Declaring a little more costs
     nothing visible.
-  - **Device ID** is already declared for App Attest. It also covers the IDFV that RevenueCat's
-    iOS SDK sends with every request, purpose App Functionality. Ask RevenueCat support what
-    they use it for, and add Analytics if they say so.
+  - **Device ID** is declared for the App Attest key id (settled 2026-11-17, `docs/testflight.md`
+    §6; the label goes into App Store Connect just before 1.1.0 is submitted, since 1.0 collects
+    nothing). It also covers the IDFV that RevenueCat's iOS SDK sends with every request,
+    purpose App Functionality. Ask RevenueCat support what they use it for, and add Analytics
+    if they say so.
   - `docs/PRIVACY.md` lists RevenueCat as a processor.
 - **Terms of Use: Apple's standard EULA.** Apple requires a Terms of Use link for any
   auto-renewable subscription, on the paywall and in the App Store listing (3.1.2). It's about
