@@ -40,17 +40,19 @@ abstract final class OnboardingCopy {
   static const firstStoneReason = 'Log more days, without the guilt.';
 
   /// Screen 1's hint, before the stone is placed.
-  static const firstStoneHint = 'Tap the stone, or drag it to the ground.';
+  static const firstStoneHint =
+      'Tap the stone, or drag it onto the tortoise’s back.';
 
   /// Screen 1, once the stone is down.
   static const firstStonePlaced =
       'That’s your first stone. Each step here adds another.';
 
   /// The stone's screen-reader label before it's placed.
-  static const stoneToPlace = 'A stone. Double-tap to place it on the ground.';
+  static const stoneToPlace =
+      'A stone, above a tortoise. Double-tap to place it on its back.';
 
   /// The stone's screen-reader label once it's placed.
-  static const stonePlaced = 'Your first stone, on the ground.';
+  static const stonePlaced = 'Your first stone, on the tortoise’s back.';
 
   // 2. How you track food
 
