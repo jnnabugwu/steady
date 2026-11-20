@@ -15,3 +15,4 @@ export 'src/widgets/onboarding_cairn.dart';
 export 'src/widgets/paid_badge.dart';
 export 'src/widgets/status_option_tile.dart';
 export 'src/widgets/steady_card.dart';
+export 'src/widgets/steady_tortoise.dart';

@@ -134,6 +134,36 @@ abstract final class SteadyColors {
 
   /// Skipped.
   static const statusSkipped = Color(0xFF212827);
+
+  // Mascot (#176): the tortoise that carries the cairn ("Cairn carrier").
+  // Its shell is [accentTeal] and its stones are the icon's three
+  // ([caloriesEaten], [caloriesBurned], [steps]); these are the colours it
+  // adds. Its eye is [bgBase], with a [textPrimary] catchlight.
+
+  /// The top of the shell's gradient: halfway between [accentTealHover]
+  /// and [accentTeal], so the dome is lit from above.
+  static const mascotShellLight = Color(0xFF7EB6AE);
+
+  /// The base of the shell's gradient: [accentTeal], slightly deeper.
+  static const mascotShellDeep = Color(0xFF5A928A);
+
+  /// The band along the bottom of the shell: a darker teal-grey.
+  static const mascotShellRim = Color(0xFF4B726D);
+
+  /// The soft highlight on the upper left of the shell, white at 0.20.
+  static const mascotShellHighlight = Color.fromRGBO(255, 255, 255, 0.20);
+
+  /// Head and tail: sage.
+  static const mascotSage = Color(0xFFA9B59A);
+
+  /// The smile: a darker sage, drawn on [mascotSage].
+  static const mascotSageDeep = Color(0xFF6B7860);
+
+  /// Legs: a darker olive-sage, so they read as under the shell.
+  static const mascotOliveSage = Color(0xFF8E9C78);
+
+  /// The ground shadow under the tortoise, black at 0.45.
+  static const mascotShadow = Color.fromRGBO(0, 0, 0, 0.45);
 }
 
 /// Type scale from §10 (Pass 02).
