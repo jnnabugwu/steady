@@ -180,7 +180,7 @@ The answers (all **not linked to the user's identity** and **not used for tracki
 | **Health & Fitness → Health** | Yes | Calories eaten and active/resting energy from Apple Health (and an imported Cal AI total) go into the coach's week context, and so do the craving check-ins (counts, time of day, and the reason picked from a fixed list). |
 | **Health & Fitness → Fitness** | Yes | Steps from Apple Health, in the same context. |
 | **User Content → Other User Content** | Yes | What the person types to the coach. Apple's "Other User Content" covers user-generated content not in the other categories. |
-| **Identifiers → Device ID** | Yes | The App Attest key id is a per-install key the proxy keeps (with its counter, in Upstash Redis, up to 180 days unused) to verify requests and count the daily limit. It isn't the IDFA or IDFV and isn't tied to the person. Declared because the proxy keeps it longer than real time; fraud prevention and security are App Functionality in Apple's definitions. The narrower reading (a per-install attestation key isn't a "device-level ID") was considered and not taken: under-declaring is the riskier mistake. |
+| **Identifiers → Device ID** | Yes | The App Attest key id is a per-install key the proxy keeps (with its counter, in Upstash Redis, up to 180 days unused) to verify requests and count the daily limit. The key id itself isn't the IDFA or IDFV and isn't tied to the person. Declared because the proxy keeps it longer than real time; fraud prevention and security are App Functionality in Apple's definitions. The narrower reading (a per-install attestation key isn't a "device-level ID") was considered and not taken: under-declaring is the riskier mistake. Once the paywall ships, the same answer also covers the IDFV that RevenueCat's iOS SDK sends with every request (`docs/technical_decisions.md`, the paywall decision's consequences); add Analytics as a purpose if RevenueCat support says they use it for that. |
 | **Usage Data → Product Interaction** | Yes: **Analytics**, not linked, not tracking | The anonymous usage events (a check-in saved, an import finished, and so on). |
 | **Usage Data → Other Usage Data** | Yes: **Analytics**, not linked, not tracking | PostHog's lifecycle events (installed, opened, backgrounded). Declared in the SDK's privacy manifest. |
 | **Diagnostics → Crash Data** | Yes: **Analytics**, not linked, not tracking | Declared in the SDK's privacy manifest (PLCrashReporter), so the label matches it even though Steady doesn't turn PostHog's crash reporting on. |
@@ -198,7 +198,7 @@ you" first. An IP address is seen in transit only, never kept, and not used for 
 
 **Settled 2026-11-17** (formerly open questions):
 
-- Device ID for the App Attest key id: declared (above).
+- Device ID for the App Attest key id: declared (above). It covers RevenueCat's IDFV too.
 - Craving check-ins: under Health (they read as health data, the same reason they stay off
   iCloud). Their reasons are a fixed list, not free text, so they aren't "Other User
   Content"; typed coach messages are.
