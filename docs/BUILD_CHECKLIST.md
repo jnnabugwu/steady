@@ -14,6 +14,13 @@ items land; don't let it drift into a change log — keep it a current-state che
       logging-status ladder, type scale, radius scale.
 - [x] `steadyTheme` (`ThemeData`/`ColorScheme`) built from those tokens, dark-mode only.
 - [x] Base cross-feature widgets: `SteadyCard`, `MetricAccentChip`, `LoggingStatusIndicator`.
+- [x] The mascot (#176): `SteadyTortoise`, the "Cairn carrier", with its `mascot*` tokens;
+      drop animation, reduced motion, the small form below 48 px, one semantics label.
+      Preview: `docs/design/mascot/steady-tortoise-preview.png`.
+- [ ] Its goldens (`steady_tortoise_large.png`, `steady_tortoise_small.png`), generated
+      on a Mac.
+- [ ] The mascot elsewhere (#176): Today's empty states, the share card, App Store
+      screenshots; whether it fronts the coach.
 - [x] Wired into `app/lib/main.dart` — theme renders, `flutter analyze`/`flutter test`
       clean, macOS debug build launches successfully.
 - [ ] Everything else in §10 not yet built as reusable widgets (chat bubble shape,
@@ -397,6 +404,9 @@ Design: `docs/design/onboarding.md`.
       note carry the paid badge; a failed save keeps the edit on screen with the quiet
       line. A tracking edit changes Today's import button, Cal AI card and empty text
       straight away (`onboardingFoodTrackingProvider`, invalidated after every save).
+- [x] The mascot in onboarding (#176): screen 1's first stone lands on the tortoise's back
+      (tap, drag, spring and the accessible tap kept); screen 10 sets the tortoise,
+      carrying its three stones, beside the cairn. The header's `OnboardingCairn` stays.
 - [ ] About me reaching the coach (the proxy's context).
 - [ ] Not yet run on a physical iPhone (the Health sheet from screen 4, VoiceOver, a
       first launch after updating from 1.0).
