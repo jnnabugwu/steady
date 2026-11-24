@@ -35,6 +35,16 @@
 # privacy manifest declares usage data, so the App Privacy label has to say so
 # (docs/technical_decisions.md, "Usage events from App Store builds too").
 #
+# Purchases (the coach's subscription, #181): set REVENUECAT_API_KEY to
+# RevenueCat's public Apple SDK key (appl_...) and it's passed in with
+# --dart-define. Without it the build can't sell or read the subscription.
+# Never a Test Store key (test_...): RevenueCat's SDK crashes a release build
+# with one on purpose, so the app ignores it outside debug builds.
+#
+# Two weeks free for 1.0's coach users (#188): set EARLY_COACH_OFFER_CODE to
+# the custom offer code from App Store Connect and the paywall shows it to
+# phones where the coach was used on 1.0. Never in the repo.
+#
 # No flavors, env files or CocoaPods: plugins are integrated with Swift
 # Package Manager. The one build-time setting is the coach proxy's address
 # (steady-backend, Production), passed as --dart-define=COACH_PROXY_URL from
@@ -134,6 +144,23 @@ if [ -n "${POSTHOG_KEY:-}" ]; then
   echo "Usage sharing: on for App Store and TestFlight installs (${POSTHOG_HOST:-https://us.i.posthog.com})"
 else
   echo "Usage sharing: off (no POSTHOG_KEY in the environment)"
+fi
+
+case "${REVENUECAT_API_KEY:-}" in
+  "") echo "Purchases: off (no REVENUECAT_API_KEY in the environment)" ;;
+  appl_*)
+    DEFINES+=("--dart-define=REVENUECAT_API_KEY=$REVENUECAT_API_KEY")
+    echo "Purchases: on (RevenueCat)"
+    ;;
+  test_*) die "REVENUECAT_API_KEY is a Test Store key; a release build needs the appl_ key" ;;
+  *) die "REVENUECAT_API_KEY must be RevenueCat's public Apple SDK key (appl_...)" ;;
+esac
+
+if [ -n "${EARLY_COACH_OFFER_CODE:-}" ]; then
+  DEFINES+=("--dart-define=EARLY_COACH_OFFER_CODE=$EARLY_COACH_OFFER_CODE")
+  echo "Early coach offer: on"
+else
+  echo "Early coach offer: off (no EARLY_COACH_OFFER_CODE in the environment)"
 fi
 
 step "flutter build ipa (release, App Store Connect, automatic signing)"

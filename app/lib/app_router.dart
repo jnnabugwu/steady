@@ -30,6 +30,12 @@
 /// consent screen, top-level on the root navigator: every way into the
 /// coach asks through it ([_askCoachConsent]) until consent is given.
 ///
+/// [PaywallRoute] (`/subscribe`, iPhone only) is Steady's paywall (#183),
+/// top-level on the root navigator too. **Every way into the coach goes
+/// through [_unlockCoach]**: the paywall first while the store says this
+/// Apple Account isn't subscribed, then the consent screen, so nobody
+/// agrees to send data for a feature they haven't chosen.
+///
 /// [OnboardingRoute] (`/onboarding`, iPhone only) is the first-launch
 /// flow, top-level on the root navigator in place of the shell. The app
 /// root goes there once per launch when it's due (`onboarding.dart`); no
@@ -69,6 +75,7 @@ import 'package:steady/providers.dart';
 import 'package:steady/sample_data_card.dart';
 import 'package:steady/today_screen.dart';
 import 'package:steady/usage_sharing_card.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 import 'package:ui_kit/ui_kit.dart' show GlassTabBar;
 
 part 'app_router.g.dart';
@@ -212,24 +219,15 @@ class HomeRoute extends GoRouteData with $HomeRoute {
       ),
       // Renders nothing on the Mac, and nothing on the iPhone unless the
       // weekly check-in is ready (check-in data only, #81).
-      coachNudge: CoachNudgeCard(
-        onTalkNow: () => unawaited(_talkNow(context, container)),
-      ),
+      coachNudge: CoachNudgeCard(onTalkNow: () => unawaited(_talkNow(context))),
     );
   }
 
-  /// The nudge's "Talk now": the consent screen first unless consent is
-  /// given (#153), then the weekly session if it was allowed. "Not now"
-  /// leaves Today as it was.
-  static Future<void> _talkNow(
-    BuildContext context,
-    ProviderContainer container,
-  ) async {
-    final given = await readCoachConsent(
-      container.read(coachConsentGivenProvider.future),
-    );
-    if (!context.mounted) return;
-    if (!given && !await _askCoachConsent(context)) return;
+  /// The nudge's "Talk now": the paywall first while not subscribed
+  /// (#183), then the consent screen unless consent is given (#153), then
+  /// the weekly session. "Not now" on either leaves Today as it was.
+  static Future<void> _talkNow(BuildContext context) async {
+    if (!await _unlockCoach(context)) return;
     if (!context.mounted) return;
     await const CoachWeeklyRoute().push<void>(context);
   }
@@ -335,9 +333,20 @@ class SettingsRoute extends GoRouteData with $SettingsRoute {
       const AppleHealthCard(),
       // Both render nothing on macOS.
       const CravingSettingsCard(),
-      // Its switch, turned on, asks through the consent screen.
+      // The subscription's state, Manage and Restore (#183). iPhone only.
+      SubscriptionSettingsCard(
+        onPlansRequested: () => unawaited(_openPaywall(context)),
+        onLinkRequested: (uri) => unawaited(
+          ProviderScope.containerOf(
+            context,
+            listen: false,
+          ).read(appLinkOpenerProvider)(uri),
+        ),
+      ),
+      // Its switch, turned on, asks through the paywall (while not
+      // subscribed) and the consent screen.
       CoachSettingsCard(
-        onConsentRequested: () => unawaited(_askCoachConsent(context)),
+        onConsentRequested: () => unawaited(_unlockCoach(context)),
       ),
       const SampleDataCard(),
       const PrivacyCard(),
@@ -446,7 +455,8 @@ class OnboardingRoute extends GoRouteData with $OnboardingRoute {
       onHealthRequested: () => container
           .read(healthAccessControllerProvider.notifier)
           .requestHealthAccess(),
-      onConsentRequested: () => _askCoachConsent(context),
+      // Screen 8: the paywall first while not subscribed, then consent.
+      onConsentRequested: () => _unlockCoach(context),
     );
   }
 }
@@ -480,15 +490,25 @@ class CoachRoute extends GoRouteData with $CoachRoute {
       _homeWhereNoCoach(context);
 
   @override
-  Widget build(BuildContext context, GoRouterState state) => CoachHomeModule(
-    onChatRequested: () =>
-        unawaited(const CoachChatRoute().push<void>(context)),
-    onWeeklyRequested: () =>
-        unawaited(const CoachWeeklyRoute().push<void>(context)),
-    // "Turn on the coach": the tab follows the answer by itself.
-    onConsentRequested: () => unawaited(_askCoachConsent(context)),
-    onSessionSelected: (id) =>
-        unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
+  Widget build(BuildContext context, GoRouterState state) => Consumer(
+    builder: (context, ref, _) => CoachHomeModule(
+      onChatRequested: () =>
+          unawaited(const CoachChatRoute().push<void>(context)),
+      onWeeklyRequested: () =>
+          unawaited(const CoachWeeklyRoute().push<void>(context)),
+      // "Turn on the coach": the tab follows the answer by itself.
+      onConsentRequested: () => unawaited(_unlockCoach(context)),
+      onSessionSelected: (id) =>
+          unawaited(CoachTranscriptRoute(sessionId: id).push<void>(context)),
+      // Not subscribed (never, or lapsed): the subscription's card in place
+      // of the chat and the weekly check-in, in place of "Turn on the
+      // coach" too. Past sessions stay readable below it.
+      lockedCard: ref.watch(coachNeedsSubscriptionProvider)
+          ? CoachSubscriptionCard(
+              onPlansRequested: () => unawaited(_openPaywall(context)),
+            )
+          : null,
+    ),
   );
 }
 
@@ -512,7 +532,7 @@ class CoachChatRoute extends GoRouteData with $CoachChatRoute {
         context.canPop() ? context.pop() : const CoachRoute().go(context),
     // Opened without consent (a link, say): the session starts by itself
     // once it's allowed.
-    onConsentRequested: () => unawaited(_askCoachConsent(context)),
+    onConsentRequested: () => unawaited(_unlockCoach(context)),
   );
 }
 
@@ -537,7 +557,77 @@ class CoachWeeklyRoute extends GoRouteData with $CoachWeeklyRoute {
     kind: CoachSessionKind.weekly,
     onClosed: () =>
         context.canPop() ? context.pop() : const CoachRoute().go(context),
-    onConsentRequested: () => unawaited(_askCoachConsent(context)),
+    onConsentRequested: () => unawaited(_unlockCoach(context)),
+  );
+}
+
+/// Every way into the coach (#183): the paywall ([PaywallRoute]) first
+/// while the store says this Apple Account has no active subscription, then
+/// the consent screen ([_askCoachConsent]) unless consent is given.
+/// Completes with `true` once both are settled, `false` if the person said
+/// "Not now" to either. An unknown subscription answer (no store key, an
+/// outage) doesn't stop anyone here: the proxy checks the subscription
+/// itself (#182).
+Future<bool> _unlockCoach(BuildContext context) async {
+  final container = ProviderScope.containerOf(context, listen: false);
+  final needsSubscription = await readCoachNeedsSubscription(
+    supported: container.read(subscriptionSupportAvailableProvider),
+    status: container.read(subscriptionStatusControllerProvider.future),
+  );
+  if (!context.mounted) return false;
+  if (needsSubscription && !await _openPaywall(context)) return false;
+  final given = await readCoachConsent(
+    container.read(coachConsentGivenProvider.future),
+  );
+  if (given) return true;
+  if (!context.mounted) return false;
+  return await _askCoachConsent(context);
+}
+
+/// Shows the paywall ([PaywallRoute]); completes with `true` once the
+/// subscription is active, `false` for "Not now", the close button or a
+/// swipe back.
+Future<bool> _openPaywall(BuildContext context) async =>
+    await const PaywallRoute().push<bool>(context) ?? false;
+
+/// `/subscribe`: Steady's paywall ([PaywallModule], #183), iPhone only.
+/// Every way into the coach opens it while not subscribed ([_unlockCoach]):
+/// the Coach tab's card, the nudge's "Talk now", onboarding's screen 8, the
+/// Settings switch and a session opened without one; Settings → Subscription
+/// opens it directly.
+///
+/// Top-level, on the root navigator over the shell, like the consent
+/// screen. Pops with `true` once subscribed, `false` for "Not now"; with
+/// nothing to pop to (a cold start straight to the link), subscribing goes
+/// to the Coach tab and "Not now" home. Redirects home where there's no
+/// subscription (the Mac).
+@TypedGoRoute<PaywallRoute>(path: '/subscribe')
+class PaywallRoute extends GoRouteData with $PaywallRoute {
+  /// Creates the paywall's route.
+  const PaywallRoute();
+
+  @override
+  String? redirect(BuildContext context, GoRouterState state) =>
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(subscriptionSupportAvailableProvider)
+      ? null
+      : const HomeRoute().location;
+
+  @override
+  Widget build(BuildContext context, GoRouterState state) => PaywallModule(
+    privacyPolicyUrl: privacyPolicyUrl,
+    onSubscribed: () =>
+        context.canPop() ? context.pop(true) : const CoachRoute().go(context),
+    onNotNow: () =>
+        context.canPop() ? context.pop(false) : const HomeRoute().go(context),
+    onLinkRequested: (uri) => unawaited(
+      ProviderScope.containerOf(
+        context,
+        listen: false,
+      ).read(appLinkOpenerProvider)(uri),
+    ),
   );
 }
 

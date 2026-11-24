@@ -2,13 +2,13 @@ import 'package:shadcn_flutter/shadcn_flutter.dart';
 
 import 'package:ui_kit/src/design_tokens.dart';
 
-/// A small pill marking something Steady will charge for: the coach,
-/// including the weekly check-in (docs/design/onboarding.md, "The coach
-/// steps are marked paid").
+/// A small pill marking what comes with Steady's subscription: the coach,
+/// including the weekly coach check-in (docs/design/onboarding.md, "The
+/// coach steps are marked paid").
 ///
-/// The wording is [text], one constant, so it changes in one place once
-/// what's free and what's paid is decided. Never "Plus" or "upgrade": the
-/// coach is the main thing Steady does, not an add-on.
+/// The wording is [text], one constant: "Subscription", the paywall's own
+/// word for it (#183). Never "Plus" or "upgrade": the coach is the main
+/// thing Steady does, not an add-on.
 ///
 /// Drawn in the coach card's colours (the teal tint), so it reads as part
 /// of the coach rather than as a warning. Screen readers hear [text].
@@ -17,7 +17,7 @@ class PaidBadge extends StatelessWidget {
   const PaidBadge({super.key});
 
   /// The badge's wording.
-  static const text = 'Paid';
+  static const text = 'Subscription';
 
   @override
   Widget build(BuildContext context) {

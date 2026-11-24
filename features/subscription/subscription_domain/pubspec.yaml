@@ -1,0 +1,25 @@
+name: subscription_domain
+description: "The coach's subscription: status, the offer from the store, the repository interface and its typed failures. No SDK here."
+version: 0.0.1
+homepage:
+publish_to: 'none'
+
+environment:
+  sdk: ^3.13.0
+  flutter: ">=1.17.0"
+
+dependencies:
+  failures:
+    path: ../../../packages/shared/failures
+  flutter:
+    sdk: flutter
+  freezed_annotation: ^3.1.0
+
+dev_dependencies:
+  build_runner: ^2.17.1
+  flutter_test:
+    sdk: flutter
+  freezed: ^4.0.3
+  very_good_analysis: ^11.0.0
+
+flutter:

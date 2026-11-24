@@ -109,6 +109,13 @@ dependencies:
   riverpod_annotation: ^4.0.7
   shadcn_flutter: ^0.0.53
 
+  subscription_data:
+    path: ../features/subscription/subscription_data
+  subscription_domain:
+    path: ../features/subscription/subscription_domain
+  subscription_presentation:
+    path: ../features/subscription/subscription_presentation
+
   ui_kit:
     path: ../packages/shared/ui_kit
   url_launcher: ^6.3.2

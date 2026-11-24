@@ -114,6 +114,8 @@ In `jnnabugwu/steady` → Settings → Secrets and variables → Actions → New
 | `MATCH_GIT_BASIC_AUTHORIZATION` | The base64 string from step 4 |
 | `POSTHOG_KEY` | The PostHog project key (`phc_…`): App Store and TestFlight installs send anonymous usage events, on by default (`docs/technical_decisions.md`, "Usage events from App Store builds too"). Unset, the build sends nothing. |
 | `POSTHOG_HOST` | Optional. `https://eu.i.posthog.com` for an EU PostHog project; the default is the US host. |
+| `EARLY_COACH_OFFER_CODE` | The custom offer code (two weeks free, both plans) for people who used the coach on 1.0 (#188). The paywall shows it only on phones where the coach was used before 1.1.0. Unset, no offer is shown. |
+| `REVENUECAT_API_KEY` | RevenueCat's public Apple SDK key (`appl_…`), for the coach's subscription (#181, `docs/technical_decisions.md`, "The coach is paid"). Never the Test Store key (`test_…`): RevenueCat's SDK crashes a release build with one on purpose, so the lane refuses it. Unset, the build can't sell or read the subscription. |
 
 Secrets aren't passed to workflows triggered from forks, and only people with write access to
 the repo can start a `workflow_dispatch` run.

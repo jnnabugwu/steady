@@ -78,4 +78,9 @@ jobs:
           # Unset, the build sends nothing.
           POSTHOG_KEY: ${{ secrets.POSTHOG_KEY }}
           POSTHOG_HOST: ${{ secrets.POSTHOG_HOST }}
+          # RevenueCat's public Apple SDK key (appl_...), for the coach's
+          # subscription (#181). Unset, the build can't sell it.
+          REVENUECAT_API_KEY: ${{ secrets.REVENUECAT_API_KEY }}
+          # The offer code for 1.0's coach users (#188). Unset, no offer.
+          EARLY_COACH_OFFER_CODE: ${{ secrets.EARLY_COACH_OFFER_CODE }}
         run: bundle exec fastlane ios "$LANE"

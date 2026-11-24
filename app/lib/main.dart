@@ -10,6 +10,7 @@ import 'package:coach_presentation/coach_presentation.dart'
         coachAvailabilityProvider,
         coachModelProvider,
         coachNudgeProvider,
+        coachRepositoryProvider,
         coachSupportAvailableProvider,
         weeklyReadinessProvider;
 import 'package:daily_metrics_data/daily_metrics_data.dart';
@@ -21,12 +22,15 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart';
 import 'package:steady/app_router.dart';
 import 'package:steady/cal_ai_health_card.dart';
+import 'package:steady/early_coach_offer.dart';
 import 'package:steady/health_access.dart';
 import 'package:steady/onboarding.dart';
 import 'package:steady/pdfium.dart';
 import 'package:steady/providers.dart';
 import 'package:steady/remote_changes.dart';
 import 'package:steady/usage_sharing.dart';
+import 'package:subscription_data/subscription_data.dart';
+import 'package:subscription_presentation/subscription_presentation.dart';
 import 'package:ui_kit/ui_kit.dart';
 
 Future<void> main() async {
@@ -58,12 +62,59 @@ Future<void> main() async {
     ],
   );
   if (postHog != null) unawaited(postHog.status);
+  unawaited(_configurePurchases(container));
   unawaited(_recordCoachAvailability(container));
+  await _recordEarlyCoachUser(container);
   await _migrateInterimFileStore(container);
   await _clearLegacyHealthFields(container);
   runApp(
     UncontrolledProviderScope(container: container, child: const SteadyApp()),
   );
+}
+
+/// Decides, once per install, whether the person used the coach on 1.0
+/// (#188, `early_coach_offer.dart`), before the first frame. iOS only,
+/// where both stores are bound. A failed read is logged, not fatal, and
+/// the next launch tries again. The timeout only stops the wait, not the
+/// check: one that finishes later still decides, but counts only sessions
+/// that started before this launch, so none 1.1.0 adds meanwhile.
+Future<void> _recordEarlyCoachUser(ProviderContainer container) async {
+  final flag = container.read(earlyCoachUserRepositoryProvider);
+  if (flag == null || !container.read(coachSupportAvailableProvider)) return;
+  try {
+    await recordEarlyCoachUser(
+      flag: flag,
+      coach: container.read(coachRepositoryProvider),
+      launchedAt: DateTime.now(),
+    ).timeout(const Duration(seconds: 1));
+  } on Object catch (error, stackTrace) {
+    developer.log(
+      'Early coach user check failed',
+      name: 'steady.subscription',
+      error: error,
+      stackTrace: stackTrace,
+    );
+  }
+}
+
+/// Sets RevenueCat up once, at launch (#181), so the first subscription
+/// read is quick. iOS only, where the subscription is bound; a build with
+/// no `REVENUECAT_API_KEY` does nothing. A failure is logged, not fatal:
+/// the next subscription call tries again.
+Future<void> _configurePurchases(ProviderContainer container) async {
+  if (!container.read(subscriptionSupportAvailableProvider)) return;
+  final repository = container.read(subscriptionRepositoryProvider);
+  if (repository is! RevenueCatSubscriptionRepository ||
+      repository.config == null) {
+    return;
+  }
+  if (await repository.configure() case Err(:final failure)) {
+    developer.log(
+      'Purchases setup failed: ${failure.message}',
+      name: 'steady.subscription',
+      error: failure.cause ?? failure,
+    );
+  }
 }
 
 /// Records `coach_availability` once per launch: whether the coach can run
@@ -234,6 +285,16 @@ class _SteadyAppState extends ConsumerState<SteadyApp> {
         // (Settings → Coach, #153).
         if (ref.read(coachSupportAvailableProvider)) {
           ref.invalidate(coachAvailabilityProvider);
+        }
+        // A renewal, a cancellation or a refund happens outside the app
+        // (#183). Only re-read once something has read it.
+        if (ref.read(subscriptionSupportAvailableProvider) &&
+            ref.exists(subscriptionStatusControllerProvider)) {
+          unawaited(
+            ref
+                .read(subscriptionStatusControllerProvider.notifier)
+                .refreshSubscription(),
+          );
         }
       },
     );
