@@ -7,6 +7,223 @@ Written the same way CLAUDE.md §12 explains its own departures from its source 
 
 ---
 
+## Voice food logging writes to Apple Health, and is paid (2026-11-26)
+
+**Status: decided for 1.2.0, not built.** Tracking issue: #205. Nothing here
+changes 1.1.0.
+
+**Why it came up.** Steady has had no food log of its own: Cal AI (a PDF import, or its
+writes to Apple Health) or another app that writes to Health supplies calories eaten. That
+leaves out the people who answer onboarding screen 2 with "I'm just starting": they install
+Steady and have nothing to look at or check in about. It's also friction for the groups
+idea in `docs/research/feedback_2026-11-25_designer_call.md`, where "you'll also need Cal AI"
+is a second install for everyone in the group.
+
+**Decision:**
+
+1. **Say or type a meal; Steady estimates it; the person confirms; Steady writes it to
+   Apple Health.** A "Log food" flow on the iPhone:
+   - **Describe:** speak or type ("two scrambled eggs, sourdough toast with butter and a
+     latte").
+   - **Estimate:** Steady sends the text to the proxy, which returns items, amounts and
+     estimated calories.
+   - **Review:** every item, amount and number can be changed or removed, and items can be
+     added.
+   - **Save:** one Apple Health sample per item.
+
+   Nothing is saved without the review screen, and nothing is saved by Steady except into
+   Health.
+2. **Apple Health is the food log; Steady stores no food entries.** Each item becomes a
+   `dietaryEnergyConsumed` sample with the item name in `HKMetadataKeyFoodType`, plus two
+   Steady metadata keys: an entry id, and a meal id shared by the items saved together.
+   - **Nothing goes in Steady's own storage.** No `DailyMetricRecord`, no CloudKit and no
+     device-only file. That keeps the 5.1.3(ii) rule ("Health data stays on the iPhone",
+     below): Steady writes the value to HealthKit and never to iCloud storage of its own.
+   - **Today and the coach get it for free.** Both already read dietary energy live from
+     Health, so they pick it up with no change to `metrics` or `coach`.
+   - **Editing and deleting.** "Today's food" lists the samples Steady wrote that day, read
+     back from Health with a source predicate. Delete removes the sample. Edit deletes it and
+     writes it again. HealthKit only lets an app delete its own samples, which is exactly
+     what's needed.
+   - **Only numbers the person has confirmed are written (5.1.3(ii)'s other half).** The
+     same guideline says "Apps must not write false or inaccurate data into HealthKit". An
+     estimate is a guess, so Steady never writes one on its own:
+     - **What a sample holds.** Every sample is a value the person typed (Add by hand) or
+       saw, could change, and saved on the review screen. Nothing is written in the
+       background, and nothing is written from the model's reply directly.
+     - **Metadata.** Every sample carries `HKMetadataKeyWasUserEntered` = true, since the
+       person entered or confirmed it. An estimated one also carries a Steady key
+       (`SteadyEstimated` = true), so the entry screen can say so and an export can tell
+       them apart.
+     - **Validation before writing:** `kcal` between 1 and 5,000, a time no later than now
+       and no earlier than yesterday, and nothing saved for `notFood`.
+     - **App Review notes** say this plainly: estimates are shown as "about" with a
+       confirm-before-saving step, and only confirmed values reach Health. Cal AI and
+       similar apps already write estimated calories to Health this way.
+3. **The calories-eaten rule changes, so a logged snack can't hide a day's PDF import.**
+   Today, a day's dietary energy from Health replaces a Cal AI PDF import's `caloriesEaten`
+   (#138). If that rule stayed, someone who imports PDFs and logs one 200-calorie snack in
+   Steady would see 200 for the day instead of 1,800. The new rule:
+   - **Calories eaten = (Health's dietary energy from other apps, or the PDF import's value
+     when Health has none from other apps) + the entries Steady wrote.**
+   - **Where it lives.** `health_sync` returns dietary energy split by source (Steady's own
+     and everyone else's), and `mergeLiveHealth` applies the rule. The coach's week context
+     gets the same number.
+   - **What it can't prevent.** Logging the same meal in two apps still counts it twice.
+     That's the person's call, so the copy says so ("Already in Cal AI? No need to log it
+     here too.").
+4. **The voice stays on the iPhone.** Speech-to-text runs on the device: `SFSpeechRecognizer`
+   with `requiresOnDeviceRecognition`, which works on iOS 17, Steady's target. `SpeechAnalyzer`
+   (iOS 26) can come later.
+   - **The audio** is never stored and never sent anywhere.
+   - **The transcript** is editable text on the screen until it's sent for an estimate or
+     thrown away.
+   - **Where on-device recognition isn't available** (the locale or the device), the mic
+     button is hidden and typing works the same.
+   - **Typing is always there.** It needs no permission, and it's the accessible path.
+   - **Permissions.** The microphone and speech-recognition prompts appear on the first mic
+     tap, after a line saying the audio stays on the phone, never at launch.
+5. **The estimate is paid. Adding by hand is free.** This follows "The coach is paid;
+   everything on the phone is free" (item 1: anything that calls the hosted model is paid),
+   restated by Jordan on 2026-11-26 as: all AI features are paid.
+   - **"Estimate" is paid.** It calls the model.
+   - **"Add by hand" is free.** It's a name (optional) and calories (required) written to
+     Health the same way, and runs only on the phone. Free people get a working food log, and
+     the paywall isn't a wall in front of logging. Jordan can reverse this one.
+   - **Free people still see "Estimate"**, with the paid badge. Tapping it opens the paywall
+     (`_unlockCoach`'s rules: paywall, then consent), like the Friday nudge.
+6. **Limits are stated, like the coach's.** Up to **20 estimates a day** per subscription.
+   - **Counted separately** from the 15 coach chat messages, keyed by the original
+     transaction id.
+   - **Failed estimates don't count.**
+   - **The reset time** shows in local time.
+   - **Limit-reached copy:** "You've used today's 20 estimates. You can estimate again after
+     {time}. Adding by hand still works."
+   - **Paywall line:** "Describe a meal and Steady estimates it, up to 20 times a day."
+7. **The proxy gets one new endpoint: `POST /api/food/estimate`** (`jnnabugwu/steady-backend`).
+   - **Auth:** the same App Attest assertion and signed subscription transaction as
+     `/api/coach/reply`.
+   - **Request:** only the meal text, at most 1,000 code points, plus the locale for units.
+   - **Response:** structured JSON from structured outputs (`output_config.format`), not a
+     stream:
+
+     ```json
+     {
+       "items": [
+         { "name": "Scrambled eggs", "amount": "2 large", "kcal": 180, "confidence": "high" }
+       ],
+       "notFood": false
+     }
+     ```
+
+   - **No free text from the model** besides item names and amounts, so there's no room for
+     commentary.
+   - **The proxy owns the prompt**, as it does the coach's. Logs are metadata only.
+8. **Model: Claude Opus 5.5 to start, like the coach; a cheaper model only if it passes the
+   eval** (Jordan's call at the checkpoint). Estimating a meal is extraction plus a nutrition
+   guess, not coaching, so the coach's eval result (Haiku 5.5 and Sonnet 5.5 failed the
+   *guardrail* eval) doesn't decide it. The cost below is why the question is worth asking.
+9. **Its own consent, asked the first time someone taps Estimate (App Store 5.1.2).** The
+   coach's consent covers the week's context, which an estimate never sends. Folding food into
+   it would mean bumping `CoachConsent.currentVersion` and asking every coach user again.
+   - **What the screen says:** "The words you said or typed about the meal go to Steady's
+     server and on to Anthropic (Claude) to estimate it. Nothing else: no Apple Health data,
+     no check-ins, no About me. Your voice stays on this iPhone." Then the same Anthropic
+     retention terms as the coach consent (§7 of CLAUDE.md).
+   - **Storage:** device-only `food_estimate_consent.json`, next to `coach_consent.json`, with
+     its own version constant.
+   - **Turning it off:** Settings → Food estimates has the switch.
+   - **Every estimate checks it first.** Nothing is sent before "Allow and continue".
+10. **Guardrails: a log, not a judge.** These are the same rules as the coach's and the
+    craving flow's (`docs/research/craving_support.md`, the eating-disorder risks):
+    - **Banned:** a daily target, "remaining", a total compared against anything, red or
+      green numbers, "healthy" or "unhealthy", or a suggestion to change a portion.
+    - **The estimate shows as "about 180 cal".** A low-confidence item says "rough guess" in
+      muted text, never a warning colour.
+    - **The review screen says** "Estimates can be off. Change any number before you save."
+    - **The proxy's prompt returns items only.** For "I binged", "how much should I eat" or
+      "I only had water" it returns the items (or `notFood`), never advice. The eval checks
+      these cases.
+
+**Cost check (estimates from assumed token counts; measure on TestFlight):**
+
+- **Assumed size of one estimate:** about 150 tokens of meal text in, cached instructions of
+  about 1,500 tokens (cache reads $0.20 per million on Opus 5.5), and about 550 tokens out
+  (JSON plus low-effort thinking).
+- **Cost per estimate:**
+  - Opus 5.5 ($4 / $20 per million): about **1.2 cents**.
+  - Sonnet 5.5 ($2 / $10): about 0.6 cents.
+  - Haiku 5.5 ($0.10 / $0.50): about 0.03 cents.
+- **A regular logger** (three meals a day plus a few redos, about 100 estimates a month): about
+  **$1.20 a month on Opus**, $0.60 on Sonnet, $0.03 on Haiku.
+- **Against the prices** ("The coach is paid", cost check):
+  - The yearly plan nets about **$2.83 a month**. Weekly coach sessions already use about
+    $1 to $2 of it, so adding food estimates on Opus puts a regular yearly subscriber at or
+    under break-even before any chat.
+  - The monthly plan ($4.24 net) still covers it.
+  - Someone at the full 20 a day costs about $7.20 a month on Opus, $0.18 on Haiku.
+- **So the checkpoint decides the model with these numbers in hand.** If only Opus passes,
+  revisit the yearly price or the limit before 1.2.0 ships.
+
+**Consequences:**
+
+- **Steady writes to Apple Health for the first time.**
+  - `NSHealthUpdateUsageDescription` currently says "Steady never writes anything to Apple
+    Health"; it has to change.
+  - So does `docs/PRIVACY.md` ("never writes anything to Apple Health").
+  - The write permission for `dietaryEnergyConsumed` is asked on the first save, from the
+    review screen (through `app/lib/health_access.dart`, never at launch). Unlike read access,
+    HealthKit says when write access is denied, so the screen can tell the person where to
+    turn it on.
+- **App Privacy label:** the food text sent for an estimate is Health & Fitness data (already
+  declared for the coach: collected, not linked, not tracking, App Functionality). Audio isn't
+  collected. Confirm the answers before 1.2.0 goes to review, and list the new endpoint in
+  PRIVACY.md.
+- **The App Attest and proxy transport moves out of `coach_data`** into a shared package, so
+  `food_log_data` can use it without depending on another feature's `_data` (CLAUDE.md §2).
+  Nothing changes in how the coach behaves.
+- **A new feature, `features/food_log`**, has `food_log_domain`, `food_log_data` and
+  `food_log_presentation`. It's bound on iOS only, like cravings and the coach. The Mac stays
+  parked and gets nothing.
+- **Today gets a "Food today" card** with the day's entries Steady wrote and a "Log food"
+  button. It derives from `onboardingFoodTrackingProvider`:
+  - "I'm just starting", another Health app, or no answer: the full card.
+  - Cal AI: a one-line "Log food" row with the "Already in Cal AI?" note.
+- **Analytics:** one event, `food_logged`, sent through `AnalyticsEvent`, with
+  - the method (`voice`, `typed` or `manual`),
+  - the item count,
+  - whether anything was edited before saving.
+
+  Never a food name or a number. Add it to PRIVACY.md's list.
+- **The data export doesn't change.** Food entries live in Health, and Health's own export
+  covers them.
+
+**Alternatives considered:**
+
+- **Store entries in Steady's SwiftData store:** rejected. It's synced through CloudKit, which
+  5.1.3(ii) rules out for health information, and it would be a second source of truth beside
+  Health.
+- **Store entries in a device-only file, like cravings:** rejected. Health is already where
+  food data lives on an iPhone, Today already reads it, and other apps the person uses can
+  read it there.
+- **Photo scanning:** not for 1.2.0. It's the most expensive call, photos are more sensitive
+  than text, mixed plates are where estimates are weakest, and it's Cal AI's core product.
+  Revisit after voice and text are measured.
+- **Barcode scanning (VisionKit plus Open Food Facts):** a good free addition, since there's
+  no model call. Not in 1.2.0, to keep the release to one new idea.
+- **Estimating on the device with Foundation Models:** rejected for the same reasons the
+  coach left it ("The coach uses a hosted model"). It only runs on Apple Intelligence iPhones,
+  and the small model is the limit on quality.
+- **Sending audio to the proxy for transcription:** rejected. On-device speech-to-text is good
+  enough, and audio never leaving the phone is a simpler promise.
+- **One consent for every AI feature:** considered. It would re-ask every coach user in 1.2.0
+  for a feature they may not use.
+- **One `HKCorrelation` (`.food`) per meal:** considered. Per-item samples with a meal id in
+  metadata are simpler and read the same in Today. Revisit if meals need to appear grouped in
+  the Health app.
+
+---
+
 ## The coach is paid; everything on the phone is free (2026-11-17)
 
 **Status: decided, being built (#179).** The purchase layer is in `features/subscription`
