@@ -87,8 +87,8 @@ void main() {
       );
       await pump(tester, health: health);
 
-      // Trend: 80 + 0.1 × (82 − 80) = 80.2 kg = 176.8 lb.
-      expect(text(tester, 'todayWeightTrend'), '176.8');
+      // Two days apart: 80 + (1 − 0.9²) × (82 − 80) = 80.38 kg = 177.2 lb.
+      expect(text(tester, 'todayWeightTrend'), '177.2');
       expect(text(tester, 'todayWeightReading'), "Today's reading: 180.8 lb");
       // The eaten tile is still there, above it.
       expect(find.byKey(const Key('todayTile_eaten')), findsOneWidget);
