@@ -51,11 +51,15 @@
   users asking to see each other's data in the app. One suggestion on a call isn't that yet.
   Share cards (`technical_decisions.md`, "Sharing is share cards, not live data") are the
   cheaper version that exists today.
-- **What gets compared matters.** Their example was logging consistency, which fits Steady's
-  check-in statuses (a streak, "logged 6 of 7 days"). A leaderboard on calories or steps would
-  conflict with the coach's guardrails on calorie targets and with the eating-disorder risks in
-  [`craving_support.md`](craving_support.md).
+- **What gets compared matters.** Their example was logging consistency, which is closer to
+  Steady's check-in statuses than calories or steps are. Even so, the product rules out streaks,
+  scores and shame-coded visuals for missed days (`steady_product_overview.md`), and a
+  leaderboard is a score: whoever logged less is behind. A leaderboard on calories or steps would
+  also conflict with the coach's guardrails on calorie targets and with the eating-disorder risks
+  in [`craving_support.md`](craving_support.md).
 - **Trainers seeing their clients' data** would put Health values in front of another person:
   the same sharing and accounts problem, with App Store 5.1.3 on top.
-- **Progress and gamification need no sharing:** streaks, a weekly summary of how the week
-  went, and the tortoise mascot carrying its stones all fit the current, single-person design.
+- **Showing progress needs no sharing, and Steady already does it without streaks:** the cairn
+  week (each day's check-in as a stone), the 30-day view and the weekly look back. The tortoise
+  mascot carrying its stones fits the same single-person design. Gamification beyond that
+  (streaks, badges, scores) is out by the product's own rules.
